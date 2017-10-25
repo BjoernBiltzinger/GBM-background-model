@@ -1,0 +1,33 @@
+#!/usr/bin python2.7
+
+from datetime import datetime
+import os
+import matplotlib.pyplot as plt
+import numpy as np
+import math
+import pyfits
+from numpy import linalg as LA
+import ephem
+from astropy.time import Time
+
+def calc_date_to_met(year, month = 01, day = 01, hour = 00, minute = 00, seconds = 00.):
+    '''Converts from UTC to Fermi MET\n
+    - 68.184 added to account for diff between TT and UTC and the 4 leapseconds\n
+    leap seconds:
+    2006 JAN  1 =JD 2453736.5  TAI-UTC=  33.0       S + (MJD - 41317.) X 0.0 S\n
+    2009 JAN  1 =JD 2454832.5  TAI-UTC=  34.0       S + (MJD - 41317.) X 0.0 S\n
+    2012 JUL  1 =JD 2456109.5  TAI-UTC=  35.0       S + (MJD - 41317.) X 0.0 S\n
+    2015 JUL  1 =JD 2457204.5  TAI-UTC=  36.0       S + (MJD - 41317.) X 0.0 S'''
+    times = str(year) + '-' + str(month) + '-' + str(day) + 'T' + str(hour) + ':' + str(minute) + ':' + str(seconds)
+    t = Time(times, format='isot', scale='utc')
+    mjdutc = t.mjd
+    met = (mjdutc - 51910 - 0.0007428703703)*86400.0 + 68.184
+    return met, mjdutc
+
+time = calc_date_to_met(2015, 9, 26)
+met = time[0]
+mjdutc = time[1]
+
+print 'met: ', met
+print 'mjdutc: ', mjdutc
+
