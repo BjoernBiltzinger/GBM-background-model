@@ -67,18 +67,19 @@ class ExternalProps(object):
         poly.close()
         saa_lat = []
         saa_lon = []  # define latitude and longitude arrays
-        for line in lines:  # write file data into the arrays
+        # write file data into the arrays
+        for line in lines:
             p = line.split()
             saa_lat.append(float(p[0]))
             saa_lon.append(float(p[1]))  # (float(p[1]) + 360.)%360)
         saa = np.array([saa_lat, saa_lon])  # merge the arrays
-        return saa
 
-        self._saa_propetries
+
+        self._saa_properties = saa
 
         @property
         def saa(self):
-            return self._saa_stuff
+            return self._saa_properties
 
 
 
@@ -104,6 +105,7 @@ class ExternalProps(object):
         area_frac = []
         free_area = []
         occ_area = []
+        earth_occ_dic = {}
         for i in range(1, len(e_occ_fits)):
             data = e_occ_fits[i].data
             angle_d.append(data.angle_d)
@@ -112,14 +114,18 @@ class ExternalProps(object):
             occ_area.append(data.occ_area)
         e_occ_fits.close()
 
-        angle_d = np.array(angle_d, dtype='f8')
-        area_frac = np.array(area_frac, dtype='f8')
-        free_area = np.array(free_area, dtype='f8')
-        occ_area = np.array(occ_area, dtype='f8')
+        #Store Values in diccionary
+        earth_occ_dic['angle_d'] = np.array(angle_d, dtype='f8')
+        earth_occ_dic['area_frac'] = np.array(area_frac, dtype='f8')
+        earth_occ_dic['free_area'] = np.array(free_area, dtype='f8')
+        earth_occ_dic['occ_area'] = np.array(occ_area, dtype='f8')
+        earth_occ_dic['earth_ang'] = np.arange(0, 180.5, .5)
 
-        earth_ang = np.arange(0, 180.5, .5)
+        self._earth_occ_properties = earth_occ_dic
 
-        return earth_ang, angle_d, area_frac, free_area, occ_area
+        @property
+        def earth_occ(self):
+            return self._earth_occ_properties
 
     def _fits_data(self, day, detector_name, echan, data_type='ctime', sources_number='None'):
         """This function reads a Fits-data file and stores the data in arrays of the form: residuals, counts, fit_curve, cgb, magnetic, earth_ang_bin, sun_ang_bin, crab_ang_bin, plot_time_bin, plot_time_sat.\n
@@ -141,7 +147,8 @@ class ExternalProps(object):
         12 = sources_names\n
         13 = sources_coeff"""
 
-        sources_data = readfile.point_sources(readfile())
+        fits_data_dic = {}
+        sources_data = self._point_sources()     # old: point_sources(readfile()) Not sure what the readfile() stands for!!!!
         sources_names = sources_data[0]
         # sources_coordinates = sources_data[1]
         if sources_number == 'None':
@@ -180,23 +187,23 @@ class ExternalProps(object):
         plot_fits.close()
 
         # extract the data
-        residuals = fit_data.Residuals
-        counts = fit_data.Count_Rate
-        fit_curve = fit_data.Fitting_curve
-        cgb = fit_data.CGB_curve
-        magnetic = fit_data.Mcilwain_L_curve
-        earth_ang_bin = fit_data.Earth_curve
-        sun_ang_bin = fit_data.Sun_curve
-        sources_fit_curve = fit_data.Pointsources_curve
-        # crab_ang_bin = fit_data.Crab_curve
-        # scox_ang_bin = fit_data.Scox_curve
-        # cygx_ang_bin = fit_data.Cygx_curve
-        plot_time_bin = fit_data.Data_time
-        plot_time_sat = fit_data.Parameter_time
-        fit_coeffs = fit_data.FitCoefficients
+        fits_data_dic['residuals'] = fit_data.Residuals
+        fits_data_dic['counts'] = fit_data.Count_Rate
+        fits_data_dic['fit_curve'] = fit_data.Fitting_curve
+        fits_data_dic['cgb'] = fit_data.CGB_curve
+        fits_data_dic['magnetic'] = fit_data.Mcilwain_L_curve
+        fits_data_dic['earth_ang_bin'] = fit_data.Earth_curve
+        fits_data_dic['sun_ang_bin'] = fit_data.Sun_curve
+        fits_data_dic['sources_fit_curve'] = fit_data.Pointsources_curve
+        # fits_data_dic['crab_ang_bin'] = fit_data.Crab_curve
+        # fits_data_dic['scox_ang_bin'] = fit_data.Scox_curve
+        # fits_data_dic['cygx_ang_bin'] = fit_data.Cygx_curve
+        fits_data_dic['plot_time_bin'] = fit_data.Data_time
+        fits_data_dic['plot_time_sat'] = fit_data.Parameter_time
+        fits_data_dic['fit_coeffs'] = fit_data.FitCoefficients
 
         # sources_ang_bin = []
-        sources_names = sources_names.tolist()
+        fits_data_dic['sources_names'] = sources_names.tolist()
         # for i in range(0, len(plot_time_sat)):
         # for i in range(0, sources_number):
         # src_array = pointsources_data[sources_names[i]]
@@ -204,14 +211,21 @@ class ExternalProps(object):
         #    sources_ang_bin.append(src_array)
         # sources_ang_bin = np.array(sources_ang_bin)
         sources_ang_bin = np.array(pointsources_data)
-        sources_ang_bin = sources_ang_bin.view(sources_ang_bin.dtype[0]).reshape(sources_ang_bin.shape + (-1,)).astype(
-            np.float).T
+        fits_data_dic['sources_ang_bin'] = \
+            sources_ang_bin.view(sources_ang_bin.dtype[0]).reshape(sources_ang_bin.shape + (-1,)).astype(np.float).T
 
         # sources_ang_bin = np.swapaxes(sources_ang_bin,0,1)
 
-        sources_coeff = pointsources_data.FitCoefficients_Pointsources
+        fits_data_dic['sources_coeff'] = pointsources_data.FitCoefficients_Pointsources
 
-        return residuals, counts, fit_curve, cgb, magnetic, earth_ang_bin, sun_ang_bin, sources_fit_curve, plot_time_bin, plot_time_sat, fit_coeffs, sources_ang_bin, sources_names, sources_coeff
+        #old return:  residuals, counts, fit_curve, cgb, magnetic, earth_ang_bin, sun_ang_bin,
+        #             sources_fit_curve, plot_time_bin, plot_time_sat, fit_coeffs, sources_ang_bin, sources_names, sources_coeff
+
+        self._fits_data_properties = fits_data_dic
+
+        @property
+        def fits_data(self):
+            return self._fits_data_properties
 
     def _flares(self, year):
         """This function reads the YYYY.txt file containing the GOES solar flares of the corresponding year and returns the data in arrays of the form: day, time\n
@@ -233,6 +247,7 @@ class ExternalProps(object):
         day = []  # define day, start & stop arrays
         start = []
         stop = []
+        flares_dic = {}
         for line in lines:  # write file data into the arrays
             p = line.split()
             # print p[0]
@@ -241,12 +256,16 @@ class ExternalProps(object):
             stop.append(int(p[2][0:2]) * 3600. + int(p[2][2:4]) * 60.)
 
         # create numpy arrays
-        day = np.array(day)  # array of days when solar flares occured
+        flares_dic['day'] = np.array(day)  # array of days when solar flares occured
         start = np.array(start)
         stop = np.array(stop)
-        time = np.array([start, stop])  # combine the start and stop times of the solar flares into one matrix
+        flares_dic['time'] = np.array([start, stop])  # combine the start and stop times of the solar flares into one matrix
 
-        return day, time
+        self._flares_properties = flares_dic
+
+        @property
+        def flares(self):
+            return self._flares_properties
 
     def lat_spacecraft(self, week):
         """This function reads a LAT-spacecraft file and stores the data in arrays of the form: lat_time, mc_b, mc_l.\n
@@ -265,15 +284,21 @@ class ExternalProps(object):
         while os.path.isfile(filepath) == False:
             download.lat_spacecraft(download(), week)
 
+        lat_dic = {}
         lat_fits = fits.open(filepath)
         data = lat_fits[1].data
         lat_fits.close()
 
         # extract the data
-        lat_time = data.START  # Mission Elapsed Time (MET) seconds. The reference time used for MET is midnight (0h:0m:0s) on January 1, 2001, in Coordinated Universal Time (UTC). The FERMI convention is that MJDREF=51910 (UTC)=51910.0007428703703703703 (TT)
-        mc_b = data.B_MCILWAIN  # Position in J2000 equatorial coordinates
-        mc_l = data.L_MCILWAIN
-        return lat_time, mc_b, mc_l
+        lat_dic['lat_time'] = data.START  # Mission Elapsed Time (MET) seconds. The reference time used for MET is midnight (0h:0m:0s) on January 1, 2001, in Coordinated Universal Time (UTC). The FERMI convention is that MJDREF=51910 (UTC)=51910.0007428703703703703 (TT)
+        lat_dic['mc_b'] = data.B_MCILWAIN  # Position in J2000 equatorial coordinates
+        lat_dic['mc_l'] = data.L_MCILWAIN
+
+        self._lat_properties = lat_dic
+
+        @property
+        def lat_spacecraft(self):
+            return self._lat_properties
 
     def _magfits(self, day):
         """This function reads a magnetic field fits file and stores the data in arrays of the form: t_magn, h_magn, x_magn, y_magn, z_magn.\n
@@ -294,15 +319,21 @@ class ExternalProps(object):
         mag_fits = fits.open(filepath)
         data = mag_fits[1].data
         mag_fits.close()
+        magfits_dic = {}
 
         # extract the data
         altitude = data.Altitude  # altitude of the satellite above the WGS 84 ellipsoid
-        t_magn = data.F_nT  # total intensity of the geomagnetic field
-        h_magn = data.H_nT  # horizontal intensity of the geomagnetic field
-        x_magn = data.X_nT  # north component of the geomagnetic field
-        y_magn = data.Y_nT  # east component of the geomagnetic field
-        z_magn = data.Z_nT  # vertical component of the geomagnetic field
-        return t_magn, h_magn, x_magn, y_magn, z_magn
+        magfits_dic['t_magn'] = data.F_nT  # total intensity of the geomagnetic field
+        magfits_dic['h_magn'] = data.H_nT  # horizontal intensity of the geomagnetic field
+        magfits_dic['x_magn'] = data.X_nT  # north component of the geomagnetic field
+        magfits_dic['y_magn'] = data.Y_nT  # east component of the geomagnetic field
+        magfits_dic['z_magn'] = data.Z_nT  # vertical component of the geomagnetic field
+
+        self._magfits_properties = magfits_dic
+
+        @property
+        def magfits(self):
+            return self._magfits_properties
 
     def _mcilwain(self, day):
         """This function reads a mcilwain file and stores the data in arrays of the form: sat_time, mc_b, mc_l.\n
@@ -339,12 +370,18 @@ class ExternalProps(object):
         mc_fits = fits.open(filepath)
         data = mc_fits[1].data
         mc_fits.close()
+        mcilwain_dic = {}
 
         # extract the data
-        sat_time = data.col1  # Mission Elapsed Time (MET) seconds. The reference time used for MET is midnight (0h:0m:0s) on January 1, 2001, in Coordinated Universal Time (UTC). The FERMI convention is that MJDREF=51910 (UTC)=51910.0007428703703703703 (TT)
-        mc_b = data.col2  # Position in J2000 equatorial coordinates
-        mc_l = data.col3
-        return sat_time, mc_b, mc_l
+        mcilwain_dic['sat_time'] = data.col1  # Mission Elapsed Time (MET) seconds. The reference time used for MET is midnight (0h:0m:0s) on January 1, 2001, in Coordinated Universal Time (UTC). The FERMI convention is that MJDREF=51910 (UTC)=51910.0007428703703703703 (TT)
+        mcilwain_dic['mc_b'] = data.col2  # Position in J2000 equatorial coordinates
+        mcilwain_dic['mc_l'] = data.col3
+
+        self._mcilwain_properties =mcilwain_dic
+
+        @property
+        def mcilwain(self):
+            return self._mcilwain_properties
 
     def _point_sources(self):
         """This function reads the point_sources.dat file and returns the sources in the form: names, coordinates[ra][dec]\n
@@ -362,15 +399,21 @@ class ExternalProps(object):
         source_names = []
         source_ra = []
         source_dec = []
-        for line in lines:  # write file data into the arrays
+        point_sources_dic = {}
+        # write file data into the arrays
+        for line in lines:
             p = line.split()
             source_names.append(p[0])
             source_ra.append(float(p[1]))
             source_dec.append(float(p[2]))
-        source_names = np.array(source_names)
-        coordinates = np.array([source_ra, source_dec])  # merge the arrays
-        return source_names, coordinates
+        point_sources_dic['source_names'] = np.array(source_names)
+        point_sources_dic['coordinates'] = np.array([source_ra, source_dec])  # merge the arrays
 
+        self._point_sources_properties = point_sources_dic
+
+        @property
+        def point_sources(self):
+            return self._point_sources_properties
 
 
 
