@@ -59,8 +59,16 @@ class ExternalProps(object):
         0 = saa[latitude][longitude]\n
         """
 
+        # TODO: path symbols on different OS's can change. Use os.path.join(<path1,path2>)
+
         user = getpass.getuser()
-        saa_path = '/home/' + user + '/Work/saa/'
+
+        # str addition is outdated in python
+
+        #saa_path = '/home/' + user + '/Work/saa/'
+
+        saa_path = os.path.join('/home', user, 'Work','saa')
+
         filepath = os.path.join(saa_path, 'saa.dat')
         poly = open(filepath)
         lines = poly.readlines()
