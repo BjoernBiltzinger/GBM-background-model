@@ -70,9 +70,15 @@ class ExternalProps(object):
         saa_path = os.path.join('/home', user, 'Work','saa')
 
         filepath = os.path.join(saa_path, 'saa.dat')
-        poly = open(filepath)
-        lines = poly.readlines()
-        poly.close()
+
+        # context managers  allow for quick handling of files open/close
+
+        with open(fileinput) as poly:
+            lines = poly.readlines()
+
+        #poly = open(filepath)
+        #poly.close()
+
         saa_lat = []
         saa_lon = []  # define latitude and longitude arrays
         # write file data into the arrays
