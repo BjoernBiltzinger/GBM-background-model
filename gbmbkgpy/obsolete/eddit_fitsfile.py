@@ -16,12 +16,13 @@ from astropy.table import Table
 from astropy.io import fits
 import fileinput
 from datetime import datetime
-from gbmbkgpy.work_module import calculate
-from gbmbkgpy.work_module import detector
-from gbmbkgpy.work_module import readfile
+from gbmbkgpy.work_module_refactor import calculate
+from gbmbkgpy.work_module_refactor import detector
+from gbmbkgpy.external_prop import ExternalProps
+
 calc = calculate()
 det = detector()
-rf = readfile()
+rf = ExternalProps()
 
 #read the file
 fitsname = 'peak_eff_area_angle_calib_GBM_all.fits'

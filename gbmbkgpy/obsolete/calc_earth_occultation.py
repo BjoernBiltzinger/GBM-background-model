@@ -17,13 +17,13 @@ from astropy.table import Table
 from astropy.io import fits
 import fileinput
 from datetime import datetime
-from gbmbkgpy.work_module import calculate
-from gbmbkgpy.work_module import detector
-from gbmbkgpy.work_module import readfile
-from gbmbkgpy.work_module import writefile
+from gbmbkgpy.work_module_refactor import calculate
+from gbmbkgpy.work_module_refactor import detector
+from gbmbkgpy.external_prop import ExternalProps, writefile
+
 calc = calculate()
 det = detector()
-rf = readfile()
+rf = ExternalProps()
 wf = writefile()
 
 def calc_earth_occultation(day, detector, bin_time_mid = 0):

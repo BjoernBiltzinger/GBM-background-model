@@ -22,13 +22,13 @@ from scipy.optimize   import curve_fit
 import subprocess
 from subprocess       import Popen, PIPE
 import urllib2
-from gbmbkgpy.work_module import calculate
-from gbmbkgpy.work_module import detector
-from gbmbkgpy.work_module import readfile
-from gbmbkgpy.work_module import writefile
+from gbmbkgpy.work_module_refactor import calculate
+from gbmbkgpy.work_module_refactor import detector
+from gbmbkgpy.external_prop import ExternalProps, writefile
+
 calc = calculate()
 det = detector()
-rf = readfile()
+rf = ExternalProps()
 wf = writefile()
 
 day = np.array([150914])

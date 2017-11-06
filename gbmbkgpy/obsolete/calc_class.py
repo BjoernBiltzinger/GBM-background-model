@@ -7,12 +7,13 @@ import math
 import pyfits
 from numpy import linalg as LA
 import ephem
-from gbmbkgpy.work_module import calculate
-from gbmbkgpy.work_module import detector
-from gbmbkgpy.work_module import readfile
+from gbmbkgpy.work_module_refactor import calculate
+from gbmbkgpy.work_module_refactor import detector
+from gbmbkgpy.external_prop import ExternalProps
+
 calc = calculate()
 det = detector()
-rf = readfile()
+rf = ExternalProps()
 
 class calculate:
     """This class contains all calculation functions needed for the GBM background model"""
