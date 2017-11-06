@@ -1,38 +1,18 @@
-#!/usr/bin python2.7
+import getpass
+import os
+import subprocess
+import urllib2
+from datetime import date
+from subprocess import Popen
 
+import numpy as np
 from astropy.io import fits
 from astropy.table import Table
-from astropy.time import Time
-from datetime import date
-from datetime import datetime
-import ephem
-import fileinput
-import getpass
-import math
-import matplotlib.pyplot                   as plt
-import matplotlib                          as mpl
-import numpy                               as np
-from numpy import linalg        as LA
-import os
-import pyfits
-import scipy.optimize                      as optimization
-from scipy import integrate
-from scipy import interpolate
-from scipy.optimize import curve_fit
-import subprocess
-from subprocess import Popen, PIPE
-import urllib2
 
-"""
-This class contains all functions for reading the files needed for the GBM background model:\n
-earth_occ(self) -> earth_ang, angle_d, area_frac, free_area, occ_area\n
-flares(self, year) -> day, time\n
-lat_spacecraft (self, week) -> lat_time, mc_b, mc_l\n
-magfits (self, day) -> t_magn, h_magn, x_magn, y_magn, z_magn\n
-mcilwain (self, day) -> sat_time, mc_b, mc_l\n
-saa(self) -> saa\n\n\n
-"""
+from gbmbkgpy.work_module_refactor import detector, calculate
+
 data_path = '/home/felix/documents/bachelor-thesis/GBM-background-model/data'
+
 
 class ExternalProps(object):
     def __init__(self, day):
@@ -46,7 +26,7 @@ class ExternalProps(object):
         self._mcilwain()
         self._point_sources()
 
-    def _read_saa(self):
+    def _saa(self):
         """
         This function reads the saa.dat file and returns the polygon in the form: saa[lat][lon]\n
         Input:\n
@@ -56,14 +36,14 @@ class ExternalProps(object):
         """
 
         # TODO: path symbols on different OS's can change. Use os.path.join(<path1,path2>)
-        
+
         global data_path
         saa_path = os.path.join(data_path, 'saa')
         filepath = os.path.join(saa_path, 'saa.dat')
 
-        #user = getpass.getuser()
-        #saa_path = os.path.join('/home', user, 'Work', 'saa')
-        #filepath = os.path.join(saa_path, 'saa.dat')
+        # user = getpass.getuser()
+        # saa_path = os.path.join('/home', user, 'Work', 'saa')
+        # filepath = os.path.join(saa_path, 'saa.dat')
 
         # context managers  allow for quick handling of files open/close
         with open(filepath, 'r') as poly:
@@ -426,48 +406,6 @@ class download(object):
     lat_spacecraft (self, week)\n
     poshist(self, day)\n\n\n"""
 
-    def data(self, detector_name, day, data_type='ctime'):
-        """This function downloads a daily data file and stores it in the appropriate folder\n
-        Input:\n
-        download.data ( detector, day = YYMMDD, data_type = 'ctime' (or 'cspec') )\n"""
-
-        user = getpass.getuser()
-
-        # create the appropriate folder if it doesn't already exist and switch to it
-        file_path = os.path.join('/home/', user, '/Work/', str(data_type), '/', str(day), '/')
-        if not os.access(file_path, os.F_OK):
-            print("Making New Directory")
-            os.mkdir(file_path)
-
-        os.chdir(file_path)
-
-        url = (
-        'http://heasarc.gsfc.nasa.gov/FTP/fermi/data/gbm/daily/20' + str(day)[:2] + '/' + str(day)[2:4] + '/' + str(
-            day)[4:] + '/current/glg_' + str(data_type) + '_' + detector_name + '_' + str(day) + '_v00.pha')
-        file_name = url.split('/')[-1]
-        u = urllib2.urlopen(url)
-        f = open(file_name, 'wb')
-        meta = u.info()
-        file_size = int(meta.getheaders("Content-Length")[0])
-        print "Downloading: %s Bytes: %s" % (file_name, file_size)
-
-        file_size_dl = 0
-        block_sz = 8192
-        while True:
-            buffer = u.read(block_sz)
-            if not buffer:
-                break
-
-            file_size_dl += len(buffer)
-            f.write(buffer)
-            status = r"%10d  [%3.2f%%]" % (file_size_dl, file_size_dl * 100. / file_size)
-            status = status + chr(8) * (len(status) + 1)
-            print status,
-
-        f.close()
-
-        return
-
     def flares(self, year):
         """This function downloads a yearly solar flar data file and stores it in the appropriate folder\n
         Input:\n
@@ -476,7 +414,7 @@ class download(object):
         user = getpass.getuser()
 
         # create the appropriate folder if it doesn't already exist and switch to it
-        file_path = os.path.join('/home/', user, '/Work/flares/')
+        file_path = '/home/' + user + '/Work/flares/'
         if not os.access(file_path, os.F_OK):
             print("Making New Directory")
             os.mkdir(file_path)
@@ -490,7 +428,7 @@ class download(object):
             url = (
             'ftp://ftp.ngdc.noaa.gov/STP/space-weather/solar-data/solar-features/solar-flares/x-rays/goes/xrs/goes-xrs-report_' + str(
                 year) + '.txt')
-        file_name = os.path.join(str(year), '.dat')
+        file_name = str(year) + '.dat'
         u = urllib2.urlopen(url)
         f = open(file_name, 'wb')
         meta = u.info()
@@ -522,7 +460,7 @@ class download(object):
         user = getpass.getuser()
 
         # create the appropriate folder if it doesn't already exist and switch to it
-        file_path = os.path.join('/home/', user, '/Work/lat/')
+        file_path = '/home/' + user + '/Work/lat/'
         if not os.access(file_path, os.F_OK):
             print("Making New Directory")
             os.mkdir(file_path)
@@ -555,44 +493,349 @@ class download(object):
 
         return
 
-    def poshist(self, day, version='v00'):
-        """This function downloads a daily poshist file and stores it in the appropriate folder\n
+
+class writefile(object):
+    """This class contains all functions for writing files needed for the GBM background model:\n
+    coord_file(self, day) -> filepaths, directory\n
+    magn_file(self, day) -> out_paths\n
+    magn_fits_file(self, day) -> fitsfilepath\n
+    mcilwain_fits(self, week, day) -> fitsfilepath\n\n\n"""
+
+    def coord_file(self, day):
+        """This function writes four coordinate files of the satellite for one day and returns the following information about the files: filepaths, directory\n
         Input:\n
-        download.poshist ( day = YYMMDD, version = 'v00' )\n"""
+        writefile.coord_file ( day = JJMMDD )\n
+        Output:\n
+        0 = filepaths\n
+        1 = directory"""
+
+        poshist = rf.poshist(day)
+        sat_time = poshist[0]
+        sat_pos = poshist[1]
+        sat_lat = poshist[2]
+        sat_lon = poshist[3] - 180.
+
+        geometrie = calc_altitude(day)
+        altitude = geometrie[0]
+        earth_radius = geometrie[1]
+
+        decimal_year = calc.met_to_date(sat_time)[4]
 
         user = getpass.getuser()
+        directory = '/home/' + user + '/Work/magnetic_field/' + str(day)
+        fits_path = os.path.join(os.path.dirname(__dir__), directory)
 
-        # create the appropriate folder if it doesn't already exist and switch to it
-        file_path = os.path.join('/home/', user, '/Work/poshist/')
-        if not os.access(file_path, os.F_OK):
-            print("Making New Directory")
-            os.mkdir(file_path)
+        filename1 = 'magn_coor_' + str(day) + '_kt_01.txt'
+        filename2 = 'magn_coor_' + str(day) + '_kt_02.txt'
+        filename3 = 'magn_coor_' + str(day) + '_kt_03.txt'
+        filename4 = 'magn_coor_' + str(day) + '_kt_04.txt'
 
-        os.chdir(file_path)
+        filepath1 = os.path.join(fits_path, str(filename1))
+        filepath2 = os.path.join(fits_path, str(filename2))
+        filepath3 = os.path.join(fits_path, str(filename3))
+        filepath4 = os.path.join(fits_path, str(filename4))
+        filepaths = [filepath1, filepath2, filepath3, filepath4]
 
-        url = (
-        'http://heasarc.gsfc.nasa.gov/FTP/fermi/data/gbm/daily/20' + str(day)[:2] + '/' + str(day)[2:4] + '/' + str(
-            day)[4:] + '/current/glg_poshist_all_' + str(day) + '_' + str(version) + '.fit')
-        file_name = url.split('/')[-1]
-        u = urllib2.urlopen(url)
-        f = open(file_name, 'wb')
-        meta = u.info()
-        file_size = int(meta.getheaders("Content-Length")[0])
-        print "Downloading: %s Bytes: %s" % (file_name, file_size)
+        if not os.path.exists(fits_path):
+            try:
+                os.makedirs(fits_path)
+            except OSError as exc:  # Guard against race condition
+                if exc.errno != errno.EEXIST:
+                    raise
 
-        file_size_dl = 0
-        block_sz = 8192
-        while True:
-            buffer = u.read(block_sz)
-            if not buffer:
-                break
+        emm_file = open(filepath1, 'w')
+        for i in range(0, len(sat_time) / 4):
+            emm_file.write(
+                str(decimal_year[i]) + ' E K' + str(altitude[i]) + ' ' + str(sat_lat[i]) + ' ' + str(sat_lon[i]) + '\n')
+        emm_file.close()
 
-            file_size_dl += len(buffer)
-            f.write(buffer)
-            status = r"%10d  [%3.2f%%]" % (file_size_dl, file_size_dl * 100. / file_size)
-            status = status + chr(8) * (len(status) + 1)
-            print status,
+        emm_file = open(filepath2, 'w')
+        for i in range(len(sat_time) / 4, len(sat_time) / 2):
+            emm_file.write(
+                str(decimal_year[i]) + ' E K' + str(altitude[i]) + ' ' + str(sat_lat[i]) + ' ' + str(sat_lon[i]) + '\n')
+        emm_file.close()
 
-        f.close()
+        emm_file = open(filepath3, 'w')
+        for i in range(len(sat_time) / 2, len(sat_time) * 3 / 4):
+            emm_file.write(
+                str(decimal_year[i]) + ' E K' + str(altitude[i]) + ' ' + str(sat_lat[i]) + ' ' + str(sat_lon[i]) + '\n')
+        emm_file.close()
 
-        return
+        emm_file = open(filepath4, 'w')
+        for i in range(len(sat_time) * 3 / 4, len(sat_time)):
+            emm_file.write(
+                str(decimal_year[i]) + ' E K' + str(altitude[i]) + ' ' + str(sat_lat[i]) + ' ' + str(sat_lon[i]) + '\n')
+        emm_file.close()
+
+        return filepaths, directory
+
+    def fits_data(self, day, detector_name, echan, data_type, residuals, counts, fit_curve, cgb, magnetic,
+                  earth_ang_bin, sun_ang_bin, sources_fit_curve, plot_time_bin, plot_time_sat, coeff_cgb, coeff_magn,
+                  coeff_earth, coeff_sun, sources_ang_bin, sources_names, sources_coeff, saa_coeffs):
+        """This function writes Fits_data files for the fits of a specific detector and energy channel on a given day.\n
+        Input:\n
+        writefile.fits_data(day, detector_name, echan, data_type, residuals, counts, fit_curve, cgb, magnetic, earth_ang_bin, sun_ang_bin, sources_fit_curve, plot_time_bin, plot_time_sat, coeff_cgb, coeff_magn, coeff_earth, coeff_sun, sources_ang_bin, sources_names, sources_coeff)\n
+        Output:\n
+        None"""
+
+        sources_number = len(sources_names)
+
+        ##### Pointsources testing #####
+        # if data_type == 'ctime':
+        #    if echan < 9:
+        #        fitsname = '_test_s' + str(sources_number) + '_ctime_' + detector_name + '_e' + str(echan) + '_kt.fits'
+        #    elif echan == 9:
+        #        fitsname = '_test_s' + str(sources_number) + '_ctime_' + detector_name + '_tot_kt.fits'
+        #    else:
+        #        print 'Invalid value for the energy channel of this data type (ctime). Please insert an integer between 0 and 9.'
+        #        return
+        # elif data_type == 'cspec':
+        #    if echan < 129:
+        #        fitsname = '_test_s' + str(sources_number) + '_cspec_' + detector_name + '_e' + str(echan) + '__kt.fits'
+        #    elif echan == 129:
+        #        fitsname = '_test_s' + str(sources_number) + '_cspec_' + detector_name + '_tot_kt.fits'
+        #    else:
+        #        print 'Invalid value for the energy channel of this data type (cspec). Please insert an integer between 0 and 129.'
+        #        return
+        # else:
+        #    print 'Invalid data type: ' + str(data_type) + '\n Please insert an appropriate data type (ctime or cspec).'
+        #    return
+
+        if data_type == 'ctime':
+            if echan < 9:
+                fitsname = 'ctime_' + detector_name + '_e' + str(echan) + '_kt.fits'
+            elif echan == 9:
+                fitsname = 'ctime_' + detector_name + '_tot_kt.fits'
+            else:
+                print 'Invalid value for the energy channel of this data type (ctime). Please insert an integer between 0 and 9.'
+                return
+        elif data_type == 'cspec':
+            if echan < 129:
+                fitsname = 'cspec_' + detector_name + '_e' + str(echan) + '__kt.fits'
+            elif echan == 129:
+                fitsname = 'cspec_' + detector_name + '_tot_kt.fits'
+            else:
+                print 'Invalid value for the energy channel of this data type (cspec). Please insert an integer between 0 and 129.'
+                return
+        else:
+            print 'Invalid data type: ' + str(data_type) + '\n Please insert an appropriate data type (ctime or cspec).'
+            return
+
+        user = getpass.getuser()
+        fits_path = '/home/' + user + '/Work/Fits_data/' + str(day) + '/'
+        if not os.access(fits_path, os.F_OK):
+            os.mkdir(fits_path)
+        fitsfilepath = os.path.join(fits_path, fitsname)
+
+        prihdu = fits.PrimaryHDU()
+        hdulist = [prihdu]
+
+        col1 = fits.Column(name='Residuals', format='E', array=residuals, unit='counts/s')
+        col2 = fits.Column(name='Count_Rate', format='E', array=counts, unit='counts/s')
+        col3 = fits.Column(name='Fitting_curve', format='E', array=fit_curve, unit='counts/s')
+        col4 = fits.Column(name='CGB_curve', format='E', array=cgb)
+        col5 = fits.Column(name='Mcilwain_L_curve', format='E', array=magnetic)
+        col6 = fits.Column(name='Earth_curve', format='E', array=earth_ang_bin)
+        col7 = fits.Column(name='Sun_curve', format='E', array=sun_ang_bin)
+        col8 = fits.Column(name='Pointsources_curve', format='E', array=sources_fit_curve)
+        col9 = fits.Column(name='Data_time', format='E', array=plot_time_bin, unit='24h')
+        col10 = fits.Column(name='Parameter_time', format='E', array=plot_time_sat, unit='24h')
+        col11 = fits.Column(name='FitCoefficients', format='E', array=[coeff_cgb, coeff_magn, coeff_earth, coeff_sun])
+        cols1 = fits.ColDefs([col1, col2, col3, col4, col5, col6, col7, col8, col9, col10, col11])
+
+        hdulist.append(fits.TableHDU.from_columns(cols1, name='Data'))
+
+        sources_cols = []
+        for i in range(0, len(sources_names)):
+            col = fits.Column(name=sources_names[i], format='E', array=sources_ang_bin[i])
+            sources_cols.append(col)
+
+        col12 = fits.Column(name='FitCoefficients_Pointsources', format='E', array=sources_coeff)
+        sources_cols.append(col12)
+        cols2 = fits.ColDefs(sources_cols)
+        hdulist.append(fits.TableHDU.from_columns(cols2, name='Pointsources'))
+
+        col13 = fits.Column(name='Prefactor_coefficient', format='E', array=saa_coeffs[0])
+        col14 = fits.Column(name='Exponent_coefficient', format='E', array=saa_coeffs[1])
+        cols3 = fits.ColDefs([col13, col14])
+        hdulist.append(fits.TableHDU.from_columns(cols3, name='SAA_Exit_Coefficients'))
+
+        thdulist = fits.HDUList(hdulist)
+        thdulist.writeto(fitsfilepath)
+
+        return fitsfilepath
+
+    def magn_file(self, day):
+        """This function calls the c-programme of the EMM-2015 magnetic field model to calculate and write the magnetic field data for the four given coordinate files for one day and returns the paths of the magnetic field files: out_paths\n
+        Input:\n
+        writefile.magn_file ( day = JJMMDD )\n
+        Output:\n
+        0 = out_paths"""
+
+        coord_files = write_coord_file(day)
+        filepaths = coord_files[0]
+        directory = coord_files[1]
+
+        user = getpass.getuser()
+        fits_path_emm = '/home/' + user + '/Work/EMM2015_linux/'
+        emm_file = os.path.join(fits_path_emm, 'emm_sph_fil')
+
+        out_paths = []
+        for i in range(0, len(filepaths)):
+            __dir__ = os.path.dirname(os.path.abspath(__file__))
+            path = os.path.join(os.path.dirname(__dir__), directory)
+            out_name = 'magn_' + str(day) + '_kt_0' + str(i + 1) + '.txt'
+            out_file = os.path.join(path, out_name)
+            out_paths.append(out_file)
+
+        for i in range(0, len(filepaths)):
+            cmd = str(emm_file) + ' f ' + str(filepaths[i]) + ' ' + str(out_paths[i])
+            result = Popen(cmd, shell=True, stdout=subprocess.PIPE, cwd=fits_path_emm)
+        return out_paths
+
+    def magn_fits_file(self, day):
+        """This function reads the magnetic field files of one day, writes the data into a fit file and returns the filepath: fitsfilepath\n
+        Input:\n
+        writefile.magn_fits_file ( day = JJMMDD )\n
+        Output:\n
+        0 = fitsfilepath"""
+
+        user = getpass.getuser()
+        directory = '/home/' + user + '/Work/magnetic_field/' + str(day)
+        path = os.path.join(os.path.dirname(__dir__), directory)
+        name1 = 'magn_' + str(day) + '_kt_01.txt'
+        filename1 = os.path.join(path, name1)
+        name2 = 'magn_' + str(day) + '_kt_02.txt'
+        filename2 = os.path.join(path, name2)
+        name3 = 'magn_' + str(day) + '_kt_03.txt'
+        filename3 = os.path.join(path, name3)
+        name4 = 'magn_' + str(day) + '_kt_04.txt'
+        filename4 = os.path.join(path, name4)
+        filenames = [filename1, filename2, filename3, filename4]
+
+        outname = 'magn_' + str(day) + '_kt.txt'
+        outfilename = os.path.join(path, outname)
+
+        with open(outfilename, 'w') as outfile:
+            with open(filenames[0]) as infile:
+                for line in infile:
+                    outfile.write(line)
+            for fname in filenames[1:]:
+                with open(fname) as infile:
+                    for i, line in enumerate(infile):
+                        if i > 0:
+                            outfile.write(line)
+
+        content = Table.read(outfilename, format='ascii')
+        fitsname = 'magn_' + str(day) + '_kt.fits'
+        fitsfilepath = os.path.join(path, fitsname)
+        content.write(fitsfilepath, overwrite=True)
+
+        return fitsfilepath
+
+    def mcilwain_fits(self, week, day):
+        """This function extracts the data from a LAT-spacecraft file and writes it into a fit file and returns the filepath: fitsfilepath\n
+        Input:\n
+        writefile.mcilwain_fits ( week = WWW, day = JJMMDD )\n
+        Output:\n
+        0 = fitsfilepath"""
+
+        # get the data from the file
+        datum = '20' + str(day)[:2] + '-' + str(day)[2:4] + '-' + str(day)[4:]
+        lat_data = ExternalProps.lat_spacecraft(ExternalProps(),
+                                                week)  # pay attention to the first and last day of the weekly file, as they are split in two!
+        lat_time = lat_data[0]
+        mc_b = lat_data[1]
+        mc_l = lat_data[2]
+
+        # convert the time of the files into dates
+        date = calculate.met_to_date(calculate(), lat_time)[3]
+        date = np.array(date)
+
+        # extract the indices where the dates match the chosen day
+        x = []
+        for i in range(0, len(date)):
+            date[i] = str(date[i])
+            if date[i][:10] == datum:
+                x.append(i)
+
+        x = np.array(x)
+
+        if x[0] == 0:
+            week2 = str(int(week) - 1)
+            lat_data2 = ExternalProps.lat_spacecraft(ExternalProps(),
+                                                     week2)  # pay attention to the first and last day of the weekly file, as they are split in two!
+            lat_time2 = lat_data2[0]
+            mc_b2 = lat_data2[1]
+            mc_l2 = lat_data2[2]
+
+            lat_time = np.append(lat_time2, lat_time)
+            mc_b = np.append(mc_b2, mc_b)
+            mc_l = np.append(mc_l2, mc_l)
+
+            date = calculate.met_to_date(calculate(), lat_time)[3]
+            date = np.array(date)
+
+            x_new = []
+            for i in range(0, len(date)):
+                date[i] = str(date[i])
+                if date[i][:10] == datum:
+                    x_new.append(i)
+
+            x = np.array(x_new)
+
+        if x[-1] == len(date):
+            week2 = str(int(week) + 1)
+            lat_data2 = ExternalProps.lat_spacecraft(ExternalProps(),
+                                                     week2)  # pay attention to the first and last day of the weekly file, as they are split in two!
+            lat_time2 = lat_data2[0]
+            mc_b2 = lat_data2[1]
+            mc_l2 = lat_data2[2]
+
+            lat_time = np.append(lat_time, lat_time2)
+            mc_b = np.append(mc_b, mc_b2)
+            mc_l = np.append(mc_l, mc_l2)
+
+            date = calculate.met_to_date(calculate(), lat_time)[3]
+            date = np.array(date)
+
+            x_new = []
+            for i in range(0, len(date)):
+                date[i] = str(date[i])
+                if date[i][:10] == datum:
+                    x_new.append(i)
+
+            x = np.array(x_new)
+
+        x1 = x[0] - 1
+        x2 = x[-1] + 2
+
+        # limit the date to the chosen day, however take one additional datapoint before and after
+        lat_time = lat_time[x1:x2]
+        mc_b = mc_b[x1:x2]
+        mc_l = mc_l[x1:x2]
+
+        # interpolate the data to get the datapoints with respect to the GBM sat_time and not the LAT_time
+        interpol1 = calculate.intpol(calculate(), mc_b, day, 1, 0, lat_time)
+        mc_b = interpol1[0]
+        sat_time = interpol1[1]
+
+        interpol2 = calculate.intpol(calculate(), mc_l, day, 1, 0, lat_time)
+        mc_l = interpol2[0]
+
+        # first write the data into an ascii file and the convert it into a fits file
+        user = getpass.getuser()
+        path = '/home/' + user + '/Work/mcilwain/'
+        filename = 'glg_mcilwain_all_' + str(day) + '_kt.txt'
+        filepath = os.path.join(path, str(filename))
+
+        mc_file = open(filepath, 'w')
+        for i in range(0, len(sat_time)):
+            mc_file.write(str(sat_time[i]) + ' ' + str(mc_b[i]) + ' ' + str(mc_l[i]) + '\n')
+        mc_file.close()
+
+        content = Table.read(filepath, format='ascii')
+        fitsname = 'glg_mcilwain_all_' + str(day) + '_kt.fits'
+        fitsfilepath = os.path.join(path, fitsname)
+        content.write(fitsfilepath, overwrite=True)
+        return fitsfilepath
