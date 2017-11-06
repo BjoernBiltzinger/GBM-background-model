@@ -6,13 +6,13 @@ import pylab
 from tables import *
 from pylab import *
 from scipy import integrate
-from gbmbkgpy.work_module import calculate
-from gbmbkgpy.work_module import detector
-from gbmbkgpy.work_module import readfile
-from gbmbkgpy.work_module import writefile
+from gbmbkgpy.work_module_refactor import calculate
+from gbmbkgpy.work_module_refactor import detector
+from gbmbkgpy.external_prop import ExternalProps, writefile
+
 calc = calculate()
 det = detector()
-rf = readfile()
+rf = ExternalProps()
 wf = writefile()
 
 sat_dist = 6912000.

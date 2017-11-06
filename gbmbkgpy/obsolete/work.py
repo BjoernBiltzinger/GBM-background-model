@@ -15,13 +15,13 @@ from astropy.time import Time
 from astropy.table import Table
 import fileinput
 from datetime import datetime
-from gbmbkgpy.work_module import calculate
-from gbmbkgpy.work_module import detector
-from gbmbkgpy.work_module import readfile
-from gbmbkgpy.work_module import writefile
+from gbmbkgpy.work_module_refactor import calculate
+from gbmbkgpy.work_module_refactor import detector
+from gbmbkgpy.external_prop import ExternalProps, writefile
+
 calc = calculate()
 det = detector()
-rf = readfile()
+rf = ExternalProps()
 wf = writefile()
 
 #docstrings of the different self-made classes within the self-made module
