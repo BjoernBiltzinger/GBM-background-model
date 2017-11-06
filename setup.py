@@ -25,7 +25,7 @@ setup(
     description=' GBM Background ',
     author='MPE GRB Team',
     author_email='jburgess@mpe.mpg.de',
-    package_data={'': extra_files, }
+    package_data={'': extra_files, },
     include_package_data=True,
     requires=[
         'numpy',
