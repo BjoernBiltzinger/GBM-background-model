@@ -23,7 +23,6 @@ import subprocess
 from subprocess import Popen, PIPE
 import urllib2
 
-
 """
 This class contains all functions for reading the files needed for the GBM background model:\n
 earth_occ(self) -> earth_ang, angle_d, area_frac, free_area, occ_area\n
@@ -35,9 +34,7 @@ saa(self) -> saa\n\n\n
 """
 
 
-
 class ExternalProps(object):
-
     def __init__(self, day):
         self._day = day
 
@@ -48,7 +45,6 @@ class ExternalProps(object):
         self._magfits()
         self._mcilwain()
         self._point_sources()
-
 
     def _read_saa(self):
         """
@@ -62,22 +58,12 @@ class ExternalProps(object):
         # TODO: path symbols on different OS's can change. Use os.path.join(<path1,path2>)
 
         user = getpass.getuser()
-
-        # str addition is outdated in python
-
-        #saa_path = '/home/' + user + '/Work/saa/'
-
-        saa_path = os.path.join('/home', user, 'Work','saa')
-
+        saa_path = os.path.join('/home', user, 'Work', 'saa')
         filepath = os.path.join(saa_path, 'saa.dat')
 
         # context managers  allow for quick handling of files open/close
-
-        with open(fileinput) as poly:
+        with open(filepath, 'r') as poly:
             lines = poly.readlines()
-
-        #poly = open(filepath)
-        #poly.close()
 
         saa_lat = []
         saa_lon = []  # define latitude and longitude arrays
@@ -88,15 +74,11 @@ class ExternalProps(object):
             saa_lon.append(float(p[1]))  # (float(p[1]) + 360.)%360)
         saa = np.array([saa_lat, saa_lon])  # merge the arrays
 
-
         self._saa_properties = saa
 
         @property
         def saa(self):
             return self._saa_properties
-
-
-
 
     def _earth_occ(self):
         """This function reads the earth occultation fits file and stores the data in arrays of the form: earth_ang, angle_d, area_frac, free_area, occ_area.\n
@@ -111,9 +93,10 @@ class ExternalProps(object):
 
         # read the file
         user = getpass.getuser()
-        fits_path = '/home/' + user + '/Work/earth_occultation/'
+        fits_path = os.path.join('/home/', user, '/Work/earth_occultation/')
         fitsname = 'earth_occ_calc_total_kt.fits'
         fitsfilepath = os.path.join(fits_path, fitsname)
+
         e_occ_fits = fits.open(fitsfilepath)
         angle_d = []
         area_frac = []
@@ -128,7 +111,7 @@ class ExternalProps(object):
             occ_area.append(data.occ_area)
         e_occ_fits.close()
 
-        #Store Values in diccionary
+        # Store Values in diccionary
         earth_occ_dic['angle_d'] = np.array(angle_d, dtype='f8')
         earth_occ_dic['area_frac'] = np.array(area_frac, dtype='f8')
         earth_occ_dic['free_area'] = np.array(free_area, dtype='f8')
@@ -162,7 +145,7 @@ class ExternalProps(object):
         13 = sources_coeff"""
 
         fits_data_dic = {}
-        sources_data = self._point_sources()     # old: point_sources(readfile()) Not sure what the readfile() stands for!!!!
+        sources_data = self._point_sources()  # old: point_sources(readfile()) Not sure what the readfile() stands for!!!!
         sources_names = sources_data[0]
         # sources_coordinates = sources_data[1]
         if sources_number == 'None':
@@ -171,17 +154,17 @@ class ExternalProps(object):
         # read the file
         if data_type == 'ctime':
             if echan < 8:
-                fitsname = 'ctime_' + detector_name + '_e' + str(echan) + '_kt.fits'
+                fitsname = os.path.join('ctime_', detector_name, '_e', str(echan), '_kt.fits')
             elif echan == 8:
-                fitsname = 'ctime_' + detector_name + '_tot_kt.fits'
+                fitsname = os.path.join('ctime_', detector_name, '_tot_kt.fits')
             else:
                 print 'Invalid value for the energy channel of this data type (ctime). Please insert an integer between 0 and 9.'
                 return
         elif data_type == 'cspec':
             if echan < 128:
-                fitsname = 'cspec_' + detector_name + '_e' + str(echan) + '__kt.fits'
+                fitsname = os.path.join('cspec_', detector_name, '_e', str(echan), '__kt.fits')
             elif echan == 128:
-                fitsname = 'cspec_' + detector_name + '_tot_kt.fits'
+                fitsname = os.path.join('cspec_', detector_name, '_tot_kt.fits')
             else:
                 print 'Invalid value for the energy channel of this data type (cspec). Please insert an integer between 0 and 129.'
                 return
@@ -190,7 +173,7 @@ class ExternalProps(object):
             return
 
         user = getpass.getuser()
-        fits_path = '/home/' + user + '/Work/Fits_data/' + str(day) + '/'
+        fits_path = os.path.join('/home/', user, '/Work/Fits_data/', str(day), '/')
         if not os.access(fits_path, os.F_OK):
             os.mkdir(fits_path)
         fitsfilepath = os.path.join(fits_path, fitsname)
@@ -232,7 +215,7 @@ class ExternalProps(object):
 
         fits_data_dic['sources_coeff'] = pointsources_data.FitCoefficients_Pointsources
 
-        #old return:  residuals, counts, fit_curve, cgb, magnetic, earth_ang_bin, sun_ang_bin,
+        # old return:  residuals, counts, fit_curve, cgb, magnetic, earth_ang_bin, sun_ang_bin,
         #             sources_fit_curve, plot_time_bin, plot_time_sat, fit_coeffs, sources_ang_bin, sources_names, sources_coeff
 
         self._fits_data_properties = fits_data_dic
@@ -248,16 +231,16 @@ class ExternalProps(object):
         Output\n
         0 = day ('YYMMDD')
         1 = time[start][stop] (in seconds on that day -> accuracy ~ 1 minute)\n"""
-        filename = str(year) + '.dat'
+        filename = os.path.join(str(year), '.dat')
         user = getpass.getuser()
-        fits_path = '/home/' + user + '/Work/flares/'
+        fits_path = os.path.join('/home/', user, '/Work/flares/')
         filepath = os.path.join(fits_path, str(filename))
         while os.path.isfile(filepath) == False:
             download.flares(download(), year)
 
-        flares = open(filepath)
-        lines = flares.readlines()
-        flares.close()
+        with open(filepath, 'r') as flares:
+            lines = flares.readlines()
+
         day = []  # define day, start & stop arrays
         start = []
         stop = []
@@ -273,7 +256,8 @@ class ExternalProps(object):
         flares_dic['day'] = np.array(day)  # array of days when solar flares occured
         start = np.array(start)
         stop = np.array(stop)
-        flares_dic['time'] = np.array([start, stop])  # combine the start and stop times of the solar flares into one matrix
+        flares_dic['time'] = np.array(
+            [start, stop])  # combine the start and stop times of the solar flares into one matrix
 
         self._flares_properties = flares_dic
 
@@ -291,9 +275,9 @@ class ExternalProps(object):
         2 = mcilwain parameter L"""
 
         # read the file
-        filename = 'lat_spacecraft_weekly_w' + str(week) + '_p202_v001.fits'
+        filename = os.path.join('lat_spacecraft_weekly_w', str(week), '_p202_v001.fits')
         user = getpass.getuser()
-        fits_path = '/home/' + user + '/Work/lat/'
+        fits_path = os.path.join('/home/', user, '/Work/lat/')
         filepath = os.path.join(fits_path, str(filename))
         while os.path.isfile(filepath) == False:
             download.lat_spacecraft(download(), week)
@@ -304,7 +288,8 @@ class ExternalProps(object):
         lat_fits.close()
 
         # extract the data
-        lat_dic['lat_time'] = data.START  # Mission Elapsed Time (MET) seconds. The reference time used for MET is midnight (0h:0m:0s) on January 1, 2001, in Coordinated Universal Time (UTC). The FERMI convention is that MJDREF=51910 (UTC)=51910.0007428703703703703 (TT)
+        lat_dic[
+            'lat_time'] = data.START  # Mission Elapsed Time (MET) seconds. The reference time used for MET is midnight (0h:0m:0s) on January 1, 2001, in Coordinated Universal Time (UTC). The FERMI convention is that MJDREF=51910 (UTC)=51910.0007428703703703703 (TT)
         lat_dic['mc_b'] = data.B_MCILWAIN  # Position in J2000 equatorial coordinates
         lat_dic['mc_l'] = data.L_MCILWAIN
 
@@ -326,9 +311,9 @@ class ExternalProps(object):
         4 = z_magn"""
 
         # read the file
-        fitsname = 'magn_' + str(day) + '_kt.fits'
+        fitsname = os.path.join('magn_', str(day), '_kt.fits')
         user = getpass.getuser()
-        path = '/home/' + user + '/Work/magnetic_field/' + str(day) + '/'
+        path = os.path.join('/home/', user, '/Work/magnetic_field/', str(day), '/')
         filepath = os.path.join(path, str(fitsname))
         mag_fits = fits.open(filepath)
         data = mag_fits[1].data
@@ -359,9 +344,9 @@ class ExternalProps(object):
         2 = mcilwain parameter L"""
 
         # read the file
-        filename = 'glg_mcilwain_all_' + str(day) + '_kt.fits'
+        filename = os.path.join('glg_mcilwain_all_', str(day), '_kt.fits')
         user = getpass.getuser()
-        fits_path = '/home/' + user + '/Work/mcilwain/'
+        fits_path = os.path.join('/home/', user, '/Work/mcilwain/')
         filepath = os.path.join(fits_path, str(filename))
         while os.path.isfile(filepath) == False:
             begin_date = date(2008, 8, 7)  # first complete lat_spacecraft weekly-file
@@ -387,11 +372,12 @@ class ExternalProps(object):
         mcilwain_dic = {}
 
         # extract the data
-        mcilwain_dic['sat_time'] = data.col1  # Mission Elapsed Time (MET) seconds. The reference time used for MET is midnight (0h:0m:0s) on January 1, 2001, in Coordinated Universal Time (UTC). The FERMI convention is that MJDREF=51910 (UTC)=51910.0007428703703703703 (TT)
+        mcilwain_dic[
+            'sat_time'] = data.col1  # Mission Elapsed Time (MET) seconds. The reference time used for MET is midnight (0h:0m:0s) on January 1, 2001, in Coordinated Universal Time (UTC). The FERMI convention is that MJDREF=51910 (UTC)=51910.0007428703703703703 (TT)
         mcilwain_dic['mc_b'] = data.col2  # Position in J2000 equatorial coordinates
         mcilwain_dic['mc_l'] = data.col3
 
-        self._mcilwain_properties =mcilwain_dic
+        self._mcilwain_properties = mcilwain_dic
 
         @property
         def mcilwain(self):
@@ -405,11 +391,10 @@ class ExternalProps(object):
         0 = source_names
         1 = coordinates\n"""
         user = getpass.getuser()
-        saa_path = '/home/' + user + '/Work/background_point_sources/'
+        saa_path = os.path.join('/home/', user, '/Work/background_point_sources/')
         filepath = os.path.join(saa_path, 'point_sources.dat')
-        poly = open(filepath)
-        lines = poly.readlines()
-        poly.close()
+        with open(filepath, 'r') as poly:
+            lines = poly.readlines()
         source_names = []
         source_ra = []
         source_dec = []
@@ -428,10 +413,4 @@ class ExternalProps(object):
         @property
         def point_sources(self):
             return self._point_sources_properties
-
-
-
-
-
-
 
