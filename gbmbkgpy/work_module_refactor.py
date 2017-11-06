@@ -332,6 +332,567 @@ class calculate_geometry(object):
         burst_ang_bin = np.array(burst_ang_bin)
         return burst_ang_bin, sat_time_bin, bin_time_mid
 
+    def det_or(self, detector_name, day):
+        """This function reads a posthist file and the detector assembly table to calculate the detector orientation and stores it in arrays of the form: det_coor, det_rad, sat_pos, sat_time\n
+        Input:\n
+        calculate.det_or( detector = n0/n1/b0.., day = YYMMDD )\n
+        Output:\n
+        0 = detector coordinates[x[], y[], z[]]\n
+        1 = detector geocentric angles [(right ascension, declination)]\n
+        2 = satellite position [x[], y[], z[]]\n
+        3 = time (MET) in seconds"""
+
+        # get satellite data for the convertion
+        sat_data = ExternalProps.poshist(ExternalProps(), day)
+        sat_time = sat_data[0]
+        sat_pos = sat_data[1]
+        sat_q = sat_data[4]
+
+        # get detector orientation data (in sat-coordinates) from the defined detector-class
+        det = getattr(detector(), detector_name)
+        az = det.azimuth
+        zen = det.zenith
+        det_pos = np.array([math.cos(az) * math.sin(zen), math.sin(az) * math.sin(zen),
+                            math.cos(zen)])  # convert into unit-vector in the satellite coordinate system
+
+        # convert the orientation in geo-coordinates
+        det_geo = calculate.sat_to_geo(calculate(), sat_q, det_pos)
+        det_coor = det_geo[0]  # unit-vector
+        det_rad = det_geo[1]
+        return det_coor, det_rad, sat_pos, sat_time
+
+    def det_or_bin(self, detector_name, day, bin_time_mid=0, data_type='ctime'):
+        """This function reads a posthist file and the detector assembly table to calculate the binned detector orientation and stores it in arrays of the form: det_coor_bin, det_rad_bin, sat_pos_bin, sat_time_bin, bin_time_mid\n
+        Input:\n
+        calculate.det_or_bin( detector = n0/n1/b0.., day = YYMMDD, bin_time_mid = 0, detector = 0, data_type = 'ctime' )\n
+        Output:\n
+        0 = detector coordinates[x[], y[], z[]]\n
+        1 = detector geocentric angles [(right ascension, declination)]\n
+        2 = satellite position [x[], y[], z[]]\n
+        3 = time (MET) in seconds\n
+        4 = bin_time_mid"""
+
+        # get satellite data for the convertion
+        sat_data = ExternalProps.poshist_bin(ExternalProps(), day, bin_time_mid, detector_name, data_type)
+        sat_time_bin = sat_data[0]
+        sat_pos_bin = sat_data[1]
+        sat_q_bin = sat_data[4]
+        bin_time_mid = sat_data[5]
+
+        # get detector orientation data (in sat-coordinates) from the defined detector-class
+        det = getattr(detector(), detector_name)
+        az = det.azimuth
+        zen = det.zenith
+        det_pos = np.array([math.cos(az) * math.sin(zen), math.sin(az) * math.sin(zen),
+                            math.cos(zen)])  # convert into unit-vector in the satellite coordinate system
+
+        # convert the orientation in geo-coordinates
+        det_geo = calculate.sat_to_geo(calculate(), sat_q_bin, det_pos)
+        det_coor_bin = det_geo[0]  # unit-vector
+        det_rad_bin = det_geo[1]
+        return det_coor_bin, det_rad_bin, sat_pos_bin, sat_time_bin, bin_time_mid
+
+    def earth_ang(self, detector_name, day):
+        """This function calculates the earth occultation for one detector and stores the data in arrays of the form: earth_ang, sat_time\n
+        Input:\n
+        calculate.earth_ang ( detector, day = JJMMDD )\n
+        Output:\n
+        0 = angle between the detector orientation and the earth position\n
+        1 = time (MET) in seconds"""
+
+        # get the detector and satellite data
+        data = calculate.det_or(calculate(), detector_name, day)
+        det_coor = data[0]  # unit-vector of the detector orientation
+        det_rad = data[1]  # detector orientation in right ascension and declination
+        sat_pos = data[2]  # position of the satellite
+        sat_time = np.array(data[3])  # time (MET) in seconds
+
+        # calculate the earth location unit-vector
+        sat_dist = LA.norm(sat_pos, axis=0)  # get the altitude of the satellite (length of the position vector)
+        sat_pos_unit = sat_pos / sat_dist  # convert the position vector into a unit-vector
+        geo_pos_unit = -sat_pos_unit
+
+        # calculate the angle between the earth location and the detector orientation
+        scalar_product = det_coor[0] * geo_pos_unit[0] + det_coor[1] * geo_pos_unit[1] + det_coor[2] * geo_pos_unit[2]
+        ang_det_geo = np.arccos(scalar_product)
+        earth_ang = ang_det_geo * 360. / (2. * math.pi)
+        earth_ang = np.array(earth_ang)
+        return earth_ang, sat_time
+
+    def earth_ang_bin(self, detector_name, day, bin_time_mid=0, data_type='ctime'):
+        """This function calculates the binned earth occultation for one detector and stores the data in arrays of the form: earth_ang_bin, sat_time_bin, bin_time_mid\n
+        Input:\n
+        calculate.earth_ang_bin ( detector, day = JJMMDD, bin_time_mid = 0, detector = 0, data_type = 'ctime' )\n
+        Output:\n
+        0 = angle between the detector orientation and the earth position\n
+        1 = time (MET) in seconds
+        2 = bin_time_mid"""
+
+        # get the detector and satellite data
+        data = calculate.det_or_bin(calculate(), detector_name, day, bin_time_mid, data_type)
+        det_coor_bin = data[0]  # unit-vector of the detector orientation
+        det_rad_bin = data[1]  # detector orientation in right ascension and declination
+        sat_pos_bin = data[2]  # position of the satellite
+        sat_time_bin = np.array(data[3])  # time (MET) in seconds
+        bin_time_mid = data[4]
+
+        # calculate the earth location unit-vector
+        sat_dist = LA.norm(sat_pos_bin, axis=0)  # get the altitude of the satellite (length of the position vector)
+        sat_pos_unit = sat_pos_bin / sat_dist  # convert the position vector into a unit-vector
+        geo_pos_unit = -sat_pos_unit
+
+        # calculate the angle between the earth location and the detector orientation
+        scalar_product = det_coor_bin[0] * geo_pos_unit[0] + det_coor_bin[1] * geo_pos_unit[1] + det_coor_bin[2] * \
+                                                                                                 geo_pos_unit[2]
+        ang_det_geo = np.arccos(scalar_product)
+        earth_ang_bin = ang_det_geo * 360. / (2. * math.pi)
+        earth_ang_bin = np.array(earth_ang_bin)
+        return earth_ang_bin, sat_time_bin, bin_time_mid
+
+    def earth_occ_eff(self, earth_ang, echan, datatype='ctime', detectortype='NaI'):
+        """This function converts the earth angle into an effective earth occultation considering the angular dependence of the effective area and stores the data in an array of the form: earth_occ_eff\n
+        Input:\n
+        calculate.earth_occ_eff ( earth_ang (in degrees), echan (integer in the range of 0-7 or 0-127), datatype='ctime' (or 'cspec'), detectortype='NaI' (or 'BGO') )\n
+        Output:\n
+        0 = effective unocculted detector area"""
+
+        fitsname = 'peak_eff_area_angle_calib_GBM_all_DRM.fits'
+        user = getpass.getuser()
+        fits_path = '/home/' + user + '/Work/calibration/'
+        fitsfilepath = os.path.join(fits_path, fitsname)
+        fitsfile = fits.open(fitsfilepath, mode='update')
+        data = fitsfile[1].data
+        fitsfile.close()
+        x = data.field(0)
+        y0 = data.field(1)  # for NaI (4-12 keV) gewichteter Mittelwert = 10.76 keV
+        y1 = data.field(2)  # for NaI (12-27 keV) gewichteter Mittelwert = 20.42 keV
+        y2 = data.field(3)  # for NaI (27-50 keV) gewichteter Mittelwert = 38.80 keV
+        y3 = data.field(4)  # for NaI (50-102 keV) gewichteter Mittelwert = 76.37 keV
+        y4 = data.field(5)  # for NaI (102-295 keV) gewichteter Mittelwert = 190.19 keV
+        y5 = data.field(6)  # for NaI (295-540 keV) gewichteter Mittelwert = 410.91 keV
+        y6 = data.field(7)  # for NaI (540-985 keV) gewichteter Mittelwert = 751.94 keV
+        y7 = data.field(8)  # for NaI (985-2000 keV) gewichteter Mittelwert = 1466.43 keV
+        # y4 = data.field(4)#for BGO (898 keV)
+        # y5 = data.field(5)#for BGO (1836 keV)
+
+        y_all = np.array([y0, y1, y2, y3, y4, y5, y6, y7])
+
+        data = ExternalProps.earth_occ(ExternalProps())
+        earth_ang_0 = data[0]
+        angle_d = data[1][0]
+        area_frac = data[2]
+        free_area = data[3][0]
+        occ_area = data[4]
+
+        if detectortype == 'NaI':
+            if datatype == 'ctime':
+                # ctime linear-interpolation factors
+                # y1_fac = np.array([1.2, 1.08, 238./246., 196./246., 127./246., 0., 0., 0.])
+                # y2_fac = np.array([0., 0., 5./246., 40./246., 109./246., 230./383., 0., 0.])
+                # y3_fac = np.array([0., 0., 0., 0., 0., 133./383., .7, .5])
+
+                # y1_fac = np.array([1.2, 1.08, 238./246., 196./246., 77./246., 0., 0., 0.])
+                # y2_fac = np.array([0., 0., 5./246., 40./246., 159./246., 230./383., 0., 0.])
+                # y3_fac = np.array([0., 0., 0., 0., 0., 133./383., .7, .5])
+
+                # resulting effective area curve
+                y = y_all[echan]
+
+                # normalize
+                # y = y/y[90]
+
+                # calculate the angle factors
+                tck = interpolate.splrep(x, y)
+                ang_fac = interpolate.splev(angle_d, tck, der=0)
+
+            else:
+                print 'datatype cspec not yet implemented'
+
+        else:
+            print 'detectortype BGO not yet implemented'
+
+        free_circ_eff = [free_area[0] * ang_fac[0]]
+
+        for i in range(1, len(free_area)):
+            circ_area = free_area[i] - free_area[i - 1]
+            circ_area_eff = circ_area * ang_fac[i]
+            free_circ_eff.append(circ_area_eff)
+
+        free_circ_eff = np.array(free_circ_eff)
+
+        occ_circ_eff = []
+
+        for j in range(0, len(earth_ang_0)):
+            occ_circ_eff_0 = [occ_area[j][0] * ang_fac[0]]
+            for i in range(1, len(occ_area[j])):
+                circ_area = occ_area[j][i] - occ_area[j][i - 1]
+                circ_area_eff = circ_area * ang_fac[i]
+                occ_circ_eff_0.append(circ_area_eff)
+
+            occ_circ_eff.append(occ_circ_eff_0)
+
+        occ_circ_eff = np.array(occ_circ_eff)
+        # eff_area_frac = np.sum(occ_circ_eff)/np.sum(free_circ_eff)
+        eff_area_frac_0 = np.sum(occ_circ_eff, axis=1) / np.sum(free_circ_eff)
+
+        tck = interpolate.splrep(earth_ang_0, eff_area_frac_0, s=0)
+        eff_area_frac = interpolate.splev(earth_ang, tck, der=0)
+
+        return eff_area_frac
+
+    def geo_to_sat(self, sat_q, geo_coor):
+        """This function converts the geographical coordinates into satellite coordinates depending on the quaternion-rotation of the satellite and stores the data in arrays of the form: sat_coor, sat_rad\n
+        Input:\n
+        calculate.geo_to_sat ( sat_q = quaternion-matrix, geo_coor = 3D-array(x, y, z) )\n
+        Output:\n
+        0 = satellite coordinates[x[], y[], z[]]\n
+        1 = satellite angle[(azimuth, zenith)]"""
+
+        # calculate the rotation matrix for the satellite coordinate system as compared to the geographical coordinate system (J2000)
+        nt = np.size(sat_q[0])
+        scx = np.zeros((nt, 3), float)
+        scx[:, 0] = (sat_q[0] ** 2 - sat_q[1] ** 2 - sat_q[2] ** 2 + sat_q[3] ** 2)
+        scx[:, 1] = 2. * (sat_q[0] * sat_q[1] + sat_q[3] * sat_q[2])
+        scx[:, 2] = 2. * (sat_q[0] * sat_q[2] - sat_q[3] * sat_q[1])
+        scy = np.zeros((nt, 3), float)
+        scy[:, 0] = 2. * (sat_q[0] * sat_q[1] - sat_q[3] * sat_q[2])
+        scy[:, 1] = (-sat_q[0] ** 2 + sat_q[1] ** 2 - sat_q[2] ** 2 + sat_q[3] ** 2)
+        scy[:, 2] = 2. * (sat_q[1] * sat_q[2] + sat_q[3] * sat_q[0])
+        scz = np.zeros((nt, 3), float)
+        scz[:, 0] = 2. * (sat_q[0] * sat_q[2] + sat_q[3] * sat_q[1])
+        scz[:, 1] = 2. * (sat_q[1] * sat_q[2] - sat_q[3] * sat_q[0])
+        scz[:, 2] = (-sat_q[0] ** 2 - sat_q[1] ** 2 + sat_q[2] ** 2 + sat_q[3] ** 2)
+
+        # create geo_to_sat rotation matrix
+        sat_mat = np.array([scx, scy, scz])
+
+        # convert geo_coordinates to sat_coordinates
+        geo_coor = np.array(geo_coor)
+        sat_coor = np.zeros((3, nt), float)
+        sat_coor[0] = sat_mat[0, :, 0] * geo_coor[0] + sat_mat[0, :, 1] * geo_coor[1] + sat_mat[0, :, 2] * geo_coor[2]
+        sat_coor[1] = sat_mat[1, :, 0] * geo_coor[0] + sat_mat[1, :, 1] * geo_coor[1] + sat_mat[1, :, 2] * geo_coor[2]
+        sat_coor[2] = sat_mat[2, :, 0] * geo_coor[0] + sat_mat[2, :, 1] * geo_coor[1] + sat_mat[2, :, 2] * geo_coor[2]
+
+        # calculate the azimuth and zenith
+        sat_az = np.arctan2(-sat_coor[1], -sat_coor[0]) * 360. / (2. * math.pi) + 180.
+        sat_zen = 90. - np.arctan((sat_coor[2] / (sat_coor[0] ** 2 + sat_coor[1] ** 2) ** 0.5)) * 360. / (2. * math.pi)
+
+        # put azimuth and zenith together in one array as [:,0] and [:,1]
+        sat_rad = np.zeros((nt, 2), float)
+        sat_rad[:, 0] = np.array(sat_az)
+        sat_rad[:, 1] = np.array(sat_zen)
+        return sat_coor, sat_rad
+
+    def intpol(self, vector, day, direction=0, sat_time=0, bin_time_mid=0, detector_name=0, data_type='ctime'):
+        """This function interpolates a vector (from poshist- or count-files) and adjusts the length to the arrays of the other source-file and stores the data in an array of the form: vector\n
+        Input:\n
+        calc_intpol ( vector, \n
+        day = JJMMDD, \n
+        direction = 0(from poshist- to count-file(0) or the other way(1); default: 0), \n
+        sat_time = 0(input sat_time if available; default: 0), \n
+        bin_time_mid = 0(input bin_time_mid if available; default: 0), \n
+        detector = 0(input the detector in the form det.n0; default: 0), \n
+        data_type = 'ctime'(input ctime or cspec as string; default: 'ctime') )\n
+        Output:\n
+        0 = vector\n
+        1 = sat_time\n
+        2 = bin_time_mid"""
+
+        sat_time = np.array(sat_time)
+        # get the missing satellite and measurement data, if needed
+        if sat_time.all() == 0:
+            sat_data = ExternalProps.poshist(ExternalProps(), day)
+            sat_time = np.array(sat_data[0])  # time (MET) in seconds
+
+        bin_time_mid = np.array(bin_time_mid)
+        if bin_time_mid.all() == 0:
+            if detector_name != 0:
+                if data_type == 'ctime':
+                    bin_data = ExternalProps.ctime(ExternalProps(), detector_name, day)
+                    bin_time = np.array(bin_data[5])  # time (MET) in seconds
+                    bin_time_mid = np.array((bin_time[:, 0] + bin_time[:,
+                                                              1]) / 2)  # convert bin_time into 1-D array. Take the medium of start and stop time of the bin.
+                elif data_type == 'cspec':
+                    bin_data = ExternalProps.cspec(ExternalProps(), detector_name, day)
+                    bin_time = np.array(bin_data[5])  # time (MET) in seconds
+                    bin_time_mid = np.array((bin_time[:, 0] + bin_time[:,
+                                                              1]) / 2)  # convert bin_time into 1-D array. Take the medium of start and stop time of the bin.
+                else:
+                    print "Invalid data_type input. Please insert 'ctime' or 'cspec' for the data_type. See .__doc__ for further information."
+                    return vector, sat_time, bin_time_mid
+            else:
+                print "Missing or false detector input. Please insert the chosen detector (f. e. det.n0). See .__doc__ for further information."
+                return vector, sat_time, bin_time_mid
+
+        # define x-values depending on the direction of the interpolation
+        if direction == 0:
+            x1 = np.array(sat_time)
+            x2 = np.array(bin_time_mid)
+        elif direction == 1:
+            x1 = np.array(bin_time_mid)
+            x2 = np.array(sat_time)
+        else:
+            print 'Invalid direction input. Please insert 0 or 1 for the direction. See .__doc__ for further information.'
+            return vector, sat_time, bin_time_mid
+
+        vector_shape = np.shape(vector)
+        vector_dim = vector_shape[0]
+
+        # interpolate all subvectors of the input vector with splines and evaluate the splines at the new x-values
+        if len(vector_shape) == 1:
+            tck = interpolate.splrep(x1, vector, s=0)
+            new_vector = interpolate.splev(x2, tck, der=0)
+        else:
+            new_vector = np.zeros((vector_dim, len(x2)), float)
+            for i in range(0, vector_dim):
+                tck = interpolate.splrep(x1, vector[i], s=0)
+                new_vector[i] = interpolate.splev(x2, tck, der=0)
+
+        return new_vector, sat_time, bin_time_mid
+
+
+    def sat_to_geo(self, sat_q, sat_coor):
+        """This function converts the satellite coordinates into geographical coordinates depending on the quaternion-rotation of the satellite and stores the data in arrays of the form: geo_coor, geo_rad\n
+        Input:\n
+        calculate.sat_to_geo ( sat_q = quaternion-matrix, sat_coor = 3D-array(x, y, z) )\n
+        Output:\n
+        0 = geocentric coordinates[x[], y[], z[]]\n
+        1 = geocentric angles[(right ascension, declination)]"""
+
+        # calculate the rotation matrix for the satellite coordinate system as compared to the geographical coordinate system (J2000)
+        nt = np.size(sat_q[0])
+        scx = np.zeros((nt, 3), float)
+        scx[:, 0] = (sat_q[0] ** 2 - sat_q[1] ** 2 - sat_q[2] ** 2 + sat_q[3] ** 2)
+        scx[:, 1] = 2. * (sat_q[0] * sat_q[1] + sat_q[3] * sat_q[2])
+        scx[:, 2] = 2. * (sat_q[0] * sat_q[2] - sat_q[3] * sat_q[1])
+        scy = np.zeros((nt, 3), float)
+        scy[:, 0] = 2. * (sat_q[0] * sat_q[1] - sat_q[3] * sat_q[2])
+        scy[:, 1] = (-sat_q[0] ** 2 + sat_q[1] ** 2 - sat_q[2] ** 2 + sat_q[3] ** 2)
+        scy[:, 2] = 2. * (sat_q[1] * sat_q[2] + sat_q[3] * sat_q[0])
+        scz = np.zeros((nt, 3), float)
+        scz[:, 0] = 2. * (sat_q[0] * sat_q[2] + sat_q[3] * sat_q[1])
+        scz[:, 1] = 2. * (sat_q[1] * sat_q[2] - sat_q[3] * sat_q[0])
+        scz[:, 2] = (-sat_q[0] ** 2 - sat_q[1] ** 2 + sat_q[2] ** 2 + sat_q[3] ** 2)
+
+        # create geo_to_sat rotation matrix
+        sat_mat = np.array([scx, scy, scz])
+
+        # transpose into sat_to_geo rotation matrix
+        geo_mat = np.transpose(sat_mat)
+
+        # convert satellite coordinates into geocentric coordinates
+        sat_coor = np.array(sat_coor)
+        geo_coor = np.zeros((3, nt), float)
+        geo_coor[0] = geo_mat[0, :, 0] * sat_coor[0] + geo_mat[0, :, 1] * sat_coor[1] + geo_mat[0, :, 2] * sat_coor[2]
+        geo_coor[1] = geo_mat[1, :, 0] * sat_coor[0] + geo_mat[1, :, 1] * sat_coor[1] + geo_mat[1, :, 2] * sat_coor[2]
+        geo_coor[2] = geo_mat[2, :, 0] * sat_coor[0] + geo_mat[2, :, 1] * sat_coor[1] + geo_mat[2, :, 2] * sat_coor[2]
+
+        # calculate the right ascension and declination
+        geo_ra = np.arctan2(-geo_coor[1], -geo_coor[0]) * 360. / (2. * math.pi) + 180.
+        geo_dec = np.arctan(geo_coor[2] / (geo_coor[0] ** 2 + geo_coor[1] ** 2) ** 0.5) * 360. / (2. * math.pi)
+
+        # put the right ascension and declination together in one array as [:,0] and [:,1]
+        geo_rad = np.zeros((nt, 2), float)
+        geo_rad[:, 0] = geo_ra
+        geo_rad[:, 1] = geo_dec
+        return geo_coor, geo_rad
+
+
+
+    def sun_ang(self, detector_name, day):
+        """This function calculates the sun orientation for one detector and stores the data in arrays of the form: sun_ang, sat_time\n
+        Input:\n
+        calculate.sun_ang ( detector, day = JJMMDD )\n
+        Output:\n
+        0 = angle between the sun location and the detector orientation\n
+        1 = time (MET) in seconds"""
+
+        # get the detector and satellite data
+        data_det = calculate.det_or(calculate(), detector_name, day)
+        det_coor = data_det[0]  # unit-vector of the detector orientation
+        det_rad = data_det[1]  # detector orientation in right ascension and declination
+        sat_pos = data_det[2]  # position of the satellite
+        sat_time = np.array(data_det[3])  # time (MET) in seconds
+
+        # get the sun data
+        data_sun = calculate.sun_pos(calculate(), day)
+        sun_pos = data_sun[0]
+        sun_rad = data_sun[1]
+
+        # calculate the angle between the sun location and the detector orientation
+        scalar_product = det_coor[0] * sun_pos[0] + det_coor[1] * sun_pos[1] + det_coor[2] * sun_pos[2]
+        ang_det_sun = np.arccos(scalar_product)
+        sun_ang = (ang_det_sun) * 360. / (2. * math.pi)
+        sun_ang = np.array(sun_ang)
+        return sun_ang, sat_time, sun_rad
+
+    def sun_ang_bin(self, detector_name, day, bin_time_mid=0, data_type='ctime'):
+        """This function calculates the binned sun orientation for one detector and stores the data in arrays of the form: sun_ang_bin, sat_time_bin, bin_time_mid\n
+        Input:\n
+        calculate.sun_ang_bin ( detector, day = JJMMDD, bin_time_mid = 0, detector = 0, data_type = 'ctime' )\n
+        Output:\n
+        0 = angle between the sun location and the detector orientation\n
+        1 = time (MET) in seconds\n
+        2 = bin_time_mid"""
+
+        # get the detector and satellite data
+        data_det = calculate.det_or_bin(calculate(), detector_name, day, bin_time_mid, data_type)
+        det_coor_bin = data_det[0]  # unit-vector of the detector orientation
+        det_rad_bin = data_det[1]  # detector orientation in right ascension and declination
+        sat_pos_bin = data_det[2]  # position of the satellite
+        sat_time_bin = np.array(data_det[3])  # time (MET) in seconds
+        bin_time_mid = data_det[4]
+
+        # get the sun data
+        data_sun = calculate.sun_pos_bin(calculate(), day, bin_time_mid, detector_name, data_type)
+        sun_pos_bin = data_sun[0]
+        sun_rad_bin = data_sun[1]
+
+        # calculate the angle between the sun location and the detector orientation
+        scalar_product = det_coor_bin[0] * sun_pos_bin[0] + det_coor_bin[1] * sun_pos_bin[1] + det_coor_bin[2] * \
+                                                                                               sun_pos_bin[2]
+        ang_det_sun = np.arccos(scalar_product)
+        sun_ang_bin = (ang_det_sun) * 360. / (2. * math.pi)
+        sun_ang_bin = np.array(sun_ang_bin)
+        return sun_ang_bin, sat_time_bin, sun_rad_bin, bin_time_mid
+
+    def sun_pos(self, day):
+        """This function calculates the course of the sun during a certain day and stores the data in arrays of the form: sun_pos, sun_rad\n
+        Input:\n
+        calculate.sun_pos ( day = YYMMDD )\n
+        Output:\n
+        0 = unit-vector of the sun position[x[], y[], z[]]\n
+        1 = geocentric angles of the sun position[(right ascension, declination)]"""
+
+        # get the satellite data
+        data = ExternalProps.poshist(ExternalProps(), day)
+        sat_time = np.array(data[0])
+
+        if sat_time[-1] <= 252460801.000:
+            utc_tt_diff = 65.184
+        elif sat_time[-1] <= 362793602.000:
+            utc_tt_diff = 66.184
+        elif sat_time[-1] <= 457401603.000:
+            utc_tt_diff = 67.184
+        elif sat_time[-1] <= 504921604.000:
+            utc_tt_diff = 68.184
+        else:
+            utc_tt_diff = 69.184
+
+        sat_time = (sat_time - utc_tt_diff) / (3600 * 24) + 36890.50074287037037037
+        sat_pos = np.array(data[1])
+
+        # calculate the geocentric angles of the sun for each time-bin
+        sun = ephem.Sun()
+        sun_ra = []
+        sun_dec = []
+        for i in range(0, len(sat_time)):
+            sun.compute(sat_time[i])  # generate the sun information from the ephem module for the sat_time[i]
+            sun_ra.append(sun.ra)  # add to the right ascension vector
+            sun_dec.append(sun.dec)  # add to the declination vector
+
+        # put the right ascension and declination together in one array as [:,0] and [:,1]
+        sun_rad = np.zeros((len(sun_ra), 2), float)
+        sun_rad[:, 0] = sun_ra
+        sun_rad[:, 1] = sun_dec
+        sun_rad = np.array(sun_rad)
+
+        # derive the unit-vector of the sun location in geocentric coordinates
+        sun_pos = np.array([np.cos(sun_ra) * np.cos(sun_dec), np.sin(sun_ra) * np.cos(sun_dec), np.sin(sun_dec)])
+        return sun_pos, sun_rad
+
+    def sun_pos_bin(self, day, bin_time_mid=0, detector_name=0, data_type='ctime'):
+        """This function calculates the course of the sun during a certain day and stores the data in arrays of the form: sun_pos_bin, sun_rad_bin, bin_time_mid\n
+        Input:\n
+        calculate.sun_pos ( day = YYMMDD, bin_time_mid = 0, detector = 0, data_type = 'ctime' )\n
+        Output:\n
+        0 = unit-vector of the sun position[x[], y[], z[]]\n
+        1 = geocentric angles of the sun position[(right ascension, declination)]
+        2 = bin_time_mid"""
+
+        # get the satellite data
+        data = ExternalProps.poshist_bin(ExternalProps(), day, bin_time_mid, detector_name, data_type)
+        sat_time_bin = np.array(data[0])
+
+        if sat_time_bin[-1] <= 252460801.000:
+            utc_tt_diff = 65.184
+        elif sat_time_bin[-1] <= 362793602.000:
+            utc_tt_diff = 66.184
+        elif sat_time_bin[-1] <= 457401603.000:
+            utc_tt_diff = 67.184
+        elif sat_time_bin[-1] <= 504921604.000:
+            utc_tt_diff = 68.184
+        else:
+            utc_tt_diff = 69.184
+
+        sat_time_bin = (sat_time_bin - utc_tt_diff) / (3600 * 24) + 36890.50074287037037037
+        sat_pos_bin = np.array(data[1])
+        bin_time_mid = data[5]
+
+        # calculate the geocentric angles of the sun for each time-bin
+        sun = ephem.Sun()
+        sun_ra_bin = []
+        sun_dec_bin = []
+        for i in range(0, len(sat_time_bin)):
+            sun.compute(sat_time_bin[i])  # generate the sun information from the ephem module for the sat_time[i]
+            sun_ra_bin.append(sun.ra)  # add to the right ascension vector
+            sun_dec_bin.append(sun.dec)  # add to the declination vector
+
+        # put the right ascension and declination together in one array as [:,0] and [:,1]
+        sun_rad_bin = np.zeros((len(sun_ra_bin), 2), float)
+        sun_rad_bin[:, 0] = sun_ra_bin
+        sun_rad_bin[:, 1] = sun_dec_bin
+        sun_rad_bin = np.array(sun_rad_bin)
+
+        # derive the unit-vector of the sun location in geocentric coordinates
+        sun_pos_bin = np.array(
+            [np.cos(sun_ra_bin) * np.cos(sun_dec_bin), np.sin(sun_ra_bin) * np.cos(sun_dec_bin), np.sin(sun_dec_bin)])
+        return sun_pos_bin, sun_rad_bin, bin_time_mid
+
+        def rigidity(self, day, bin_time_mid=0):
+            """This function interpolates the rigidity of the lookup table from Humble et al., 1979, evaluates the values for the satellite position on a given day and stores the data in an array of the form: rigidity\n
+            Input:\n
+            calculate.rigidity ( day = JJMMDD )\n
+            Output:\n
+            0 = rigidity\n
+            1 = sat_lon_bin\n
+            2 = sat_lat_bin\n
+            3 = sat_time_bin"""
+
+            # data from the paper mentioned in the docstring. Rigidity at 400 km altitude
+            lon = np.arange(0., 360.001, 30.)
+            lat = np.arange(40., -40.001, -10.)
+            rigidity_matrix = [[6.1, 6.94, 7.66, 8.47, 9.08, 9.17, 7.44, 5., 3.26, 2.08, 2.44, 4.43, 6.1],
+                               [10.54, 11.07, 11.87, 12.73, 12.73, 11.99, 10.75, 9.08, 6.28, 4.39, 4.80, 8.81, 10.54],
+                               [12.48, 13.25, 14.2, 14.93, 14.49, 13.65, 12.48, 11.52, 10.13, 7.01, 8.9, 11.3, 12.48],
+                               [12.99, 13.92, 14.93, 15.53, 15.23, 14.34, 13.51, 12.86, 11.87, 10.75, 10.96, 12.23,
+                                12.99],
+                               [12.36, 13.25, 14.2, 14.93, 14.78, 14.2, 13.92, 13.38, 12.73, 11.87, 11.64, 12.11,
+                                12.36],
+                               [10.96, 11.41, 12.36, 12.99, 13.12, 13.12, 13.12, 13.12, 12.73, 11.99, 11.52, 11.07,
+                                10.96],
+                               [8.72, 8.81, 9.35, 9.63, 9.83, 10.33, 11.3, 11.99, 11.99, 11.52, 10.86, 9.93, 8.72],
+                               [6.34, 5.8, 5.2, 4.75, 4.85, 5.41, 7.01, 9.35, 10.64, 10.54, 9.83, 8.3, 6.34],
+                               [3.97, 3.42, 2.72, 2.06, 2.02, 2.42, 3.71, 5.2, 7.97, 9.08, 8.55, 6.1, 3.97]]
+
+            # interpolation
+            tck = interpolate.interp2d(lon, lat, rigidity_matrix, kind='cubic')
+
+            # get the satellite data
+            sat_data = ExternalProps.poshist_bin(ExternalProps(), day, bin_time_mid)
+            sat_lon = sat_data[3]
+            sat_lat = sat_data[2]
+            sat_time = sat_data[0]
+
+            # evaluate the rigidity -> for-loop is slow, but otherwise the tck-function doesn't seem to accept the sat_lon and sat_lat arrays
+            rigidity = []
+            for i in range(0, len(sat_lon)):
+                rig = tck(sat_lon[i], sat_lat[i])
+                rigidity.append(rig)
+            rigidity = np.array(rigidity)
+
+            return rigidity, sat_lon, sat_lat, sat_time
+
 
 class calculate(object):
     """This class contains all calculation functions needed for the GBM background model:\n
@@ -2237,323 +2798,6 @@ class calculate(object):
         met = (mjdutc - 51910 - 0.0007428703703) * 86400.0 + utc_tt_diff  # convert it into MET
         return met, mjdutc
 
-    def det_or(self, detector_name, day):
-        """This function reads a posthist file and the detector assembly table to calculate the detector orientation and stores it in arrays of the form: det_coor, det_rad, sat_pos, sat_time\n
-        Input:\n
-        calculate.det_or( detector = n0/n1/b0.., day = YYMMDD )\n
-        Output:\n
-        0 = detector coordinates[x[], y[], z[]]\n
-        1 = detector geocentric angles [(right ascension, declination)]\n
-        2 = satellite position [x[], y[], z[]]\n
-        3 = time (MET) in seconds"""
-
-        # get satellite data for the convertion
-        sat_data = ExternalProps.poshist(ExternalProps(), day)
-        sat_time = sat_data[0]
-        sat_pos = sat_data[1]
-        sat_q = sat_data[4]
-
-        # get detector orientation data (in sat-coordinates) from the defined detector-class
-        det = getattr(detector(), detector_name)
-        az = det.azimuth
-        zen = det.zenith
-        det_pos = np.array([math.cos(az) * math.sin(zen), math.sin(az) * math.sin(zen),
-                            math.cos(zen)])  # convert into unit-vector in the satellite coordinate system
-
-        # convert the orientation in geo-coordinates
-        det_geo = calculate.sat_to_geo(calculate(), sat_q, det_pos)
-        det_coor = det_geo[0]  # unit-vector
-        det_rad = det_geo[1]
-        return det_coor, det_rad, sat_pos, sat_time
-
-    def det_or_bin(self, detector_name, day, bin_time_mid=0, data_type='ctime'):
-        """This function reads a posthist file and the detector assembly table to calculate the binned detector orientation and stores it in arrays of the form: det_coor_bin, det_rad_bin, sat_pos_bin, sat_time_bin, bin_time_mid\n
-        Input:\n
-        calculate.det_or_bin( detector = n0/n1/b0.., day = YYMMDD, bin_time_mid = 0, detector = 0, data_type = 'ctime' )\n
-        Output:\n
-        0 = detector coordinates[x[], y[], z[]]\n
-        1 = detector geocentric angles [(right ascension, declination)]\n
-        2 = satellite position [x[], y[], z[]]\n
-        3 = time (MET) in seconds\n
-        4 = bin_time_mid"""
-
-        # get satellite data for the convertion
-        sat_data = ExternalProps.poshist_bin(ExternalProps(), day, bin_time_mid, detector_name, data_type)
-        sat_time_bin = sat_data[0]
-        sat_pos_bin = sat_data[1]
-        sat_q_bin = sat_data[4]
-        bin_time_mid = sat_data[5]
-
-        # get detector orientation data (in sat-coordinates) from the defined detector-class
-        det = getattr(detector(), detector_name)
-        az = det.azimuth
-        zen = det.zenith
-        det_pos = np.array([math.cos(az) * math.sin(zen), math.sin(az) * math.sin(zen),
-                            math.cos(zen)])  # convert into unit-vector in the satellite coordinate system
-
-        # convert the orientation in geo-coordinates
-        det_geo = calculate.sat_to_geo(calculate(), sat_q_bin, det_pos)
-        det_coor_bin = det_geo[0]  # unit-vector
-        det_rad_bin = det_geo[1]
-        return det_coor_bin, det_rad_bin, sat_pos_bin, sat_time_bin, bin_time_mid
-
-    def earth_ang(self, detector_name, day):
-        """This function calculates the earth occultation for one detector and stores the data in arrays of the form: earth_ang, sat_time\n
-        Input:\n
-        calculate.earth_ang ( detector, day = JJMMDD )\n
-        Output:\n
-        0 = angle between the detector orientation and the earth position\n
-        1 = time (MET) in seconds"""
-
-        # get the detector and satellite data
-        data = calculate.det_or(calculate(), detector_name, day)
-        det_coor = data[0]  # unit-vector of the detector orientation
-        det_rad = data[1]  # detector orientation in right ascension and declination
-        sat_pos = data[2]  # position of the satellite
-        sat_time = np.array(data[3])  # time (MET) in seconds
-
-        # calculate the earth location unit-vector
-        sat_dist = LA.norm(sat_pos, axis=0)  # get the altitude of the satellite (length of the position vector)
-        sat_pos_unit = sat_pos / sat_dist  # convert the position vector into a unit-vector
-        geo_pos_unit = -sat_pos_unit
-
-        # calculate the angle between the earth location and the detector orientation
-        scalar_product = det_coor[0] * geo_pos_unit[0] + det_coor[1] * geo_pos_unit[1] + det_coor[2] * geo_pos_unit[2]
-        ang_det_geo = np.arccos(scalar_product)
-        earth_ang = ang_det_geo * 360. / (2. * math.pi)
-        earth_ang = np.array(earth_ang)
-        return earth_ang, sat_time
-
-    def earth_ang_bin(self, detector_name, day, bin_time_mid=0, data_type='ctime'):
-        """This function calculates the binned earth occultation for one detector and stores the data in arrays of the form: earth_ang_bin, sat_time_bin, bin_time_mid\n
-        Input:\n
-        calculate.earth_ang_bin ( detector, day = JJMMDD, bin_time_mid = 0, detector = 0, data_type = 'ctime' )\n
-        Output:\n
-        0 = angle between the detector orientation and the earth position\n
-        1 = time (MET) in seconds
-        2 = bin_time_mid"""
-
-        # get the detector and satellite data
-        data = calculate.det_or_bin(calculate(), detector_name, day, bin_time_mid, data_type)
-        det_coor_bin = data[0]  # unit-vector of the detector orientation
-        det_rad_bin = data[1]  # detector orientation in right ascension and declination
-        sat_pos_bin = data[2]  # position of the satellite
-        sat_time_bin = np.array(data[3])  # time (MET) in seconds
-        bin_time_mid = data[4]
-
-        # calculate the earth location unit-vector
-        sat_dist = LA.norm(sat_pos_bin, axis=0)  # get the altitude of the satellite (length of the position vector)
-        sat_pos_unit = sat_pos_bin / sat_dist  # convert the position vector into a unit-vector
-        geo_pos_unit = -sat_pos_unit
-
-        # calculate the angle between the earth location and the detector orientation
-        scalar_product = det_coor_bin[0] * geo_pos_unit[0] + det_coor_bin[1] * geo_pos_unit[1] + det_coor_bin[2] * \
-                                                                                                 geo_pos_unit[2]
-        ang_det_geo = np.arccos(scalar_product)
-        earth_ang_bin = ang_det_geo * 360. / (2. * math.pi)
-        earth_ang_bin = np.array(earth_ang_bin)
-        return earth_ang_bin, sat_time_bin, bin_time_mid
-
-    def earth_occ_eff(self, earth_ang, echan, datatype='ctime', detectortype='NaI'):
-        """This function converts the earth angle into an effective earth occultation considering the angular dependence of the effective area and stores the data in an array of the form: earth_occ_eff\n
-        Input:\n
-        calculate.earth_occ_eff ( earth_ang (in degrees), echan (integer in the range of 0-7 or 0-127), datatype='ctime' (or 'cspec'), detectortype='NaI' (or 'BGO') )\n
-        Output:\n
-        0 = effective unocculted detector area"""
-
-        fitsname = 'peak_eff_area_angle_calib_GBM_all_DRM.fits'
-        user = getpass.getuser()
-        fits_path = '/home/' + user + '/Work/calibration/'
-        fitsfilepath = os.path.join(fits_path, fitsname)
-        fitsfile = fits.open(fitsfilepath, mode='update')
-        data = fitsfile[1].data
-        fitsfile.close()
-        x = data.field(0)
-        y0 = data.field(1)  # for NaI (4-12 keV) gewichteter Mittelwert = 10.76 keV
-        y1 = data.field(2)  # for NaI (12-27 keV) gewichteter Mittelwert = 20.42 keV
-        y2 = data.field(3)  # for NaI (27-50 keV) gewichteter Mittelwert = 38.80 keV
-        y3 = data.field(4)  # for NaI (50-102 keV) gewichteter Mittelwert = 76.37 keV
-        y4 = data.field(5)  # for NaI (102-295 keV) gewichteter Mittelwert = 190.19 keV
-        y5 = data.field(6)  # for NaI (295-540 keV) gewichteter Mittelwert = 410.91 keV
-        y6 = data.field(7)  # for NaI (540-985 keV) gewichteter Mittelwert = 751.94 keV
-        y7 = data.field(8)  # for NaI (985-2000 keV) gewichteter Mittelwert = 1466.43 keV
-        # y4 = data.field(4)#for BGO (898 keV)
-        # y5 = data.field(5)#for BGO (1836 keV)
-
-        y_all = np.array([y0, y1, y2, y3, y4, y5, y6, y7])
-
-        data = ExternalProps.earth_occ(ExternalProps())
-        earth_ang_0 = data[0]
-        angle_d = data[1][0]
-        area_frac = data[2]
-        free_area = data[3][0]
-        occ_area = data[4]
-
-        if detectortype == 'NaI':
-            if datatype == 'ctime':
-                # ctime linear-interpolation factors
-                # y1_fac = np.array([1.2, 1.08, 238./246., 196./246., 127./246., 0., 0., 0.])
-                # y2_fac = np.array([0., 0., 5./246., 40./246., 109./246., 230./383., 0., 0.])
-                # y3_fac = np.array([0., 0., 0., 0., 0., 133./383., .7, .5])
-
-                # y1_fac = np.array([1.2, 1.08, 238./246., 196./246., 77./246., 0., 0., 0.])
-                # y2_fac = np.array([0., 0., 5./246., 40./246., 159./246., 230./383., 0., 0.])
-                # y3_fac = np.array([0., 0., 0., 0., 0., 133./383., .7, .5])
-
-                # resulting effective area curve
-                y = y_all[echan]
-
-                # normalize
-                # y = y/y[90]
-
-                # calculate the angle factors
-                tck = interpolate.splrep(x, y)
-                ang_fac = interpolate.splev(angle_d, tck, der=0)
-
-            else:
-                print 'datatype cspec not yet implemented'
-
-        else:
-            print 'detectortype BGO not yet implemented'
-
-        free_circ_eff = [free_area[0] * ang_fac[0]]
-
-        for i in range(1, len(free_area)):
-            circ_area = free_area[i] - free_area[i - 1]
-            circ_area_eff = circ_area * ang_fac[i]
-            free_circ_eff.append(circ_area_eff)
-
-        free_circ_eff = np.array(free_circ_eff)
-
-        occ_circ_eff = []
-
-        for j in range(0, len(earth_ang_0)):
-            occ_circ_eff_0 = [occ_area[j][0] * ang_fac[0]]
-            for i in range(1, len(occ_area[j])):
-                circ_area = occ_area[j][i] - occ_area[j][i - 1]
-                circ_area_eff = circ_area * ang_fac[i]
-                occ_circ_eff_0.append(circ_area_eff)
-
-            occ_circ_eff.append(occ_circ_eff_0)
-
-        occ_circ_eff = np.array(occ_circ_eff)
-        # eff_area_frac = np.sum(occ_circ_eff)/np.sum(free_circ_eff)
-        eff_area_frac_0 = np.sum(occ_circ_eff, axis=1) / np.sum(free_circ_eff)
-
-        tck = interpolate.splrep(earth_ang_0, eff_area_frac_0, s=0)
-        eff_area_frac = interpolate.splev(earth_ang, tck, der=0)
-
-        return eff_area_frac
-
-    def geo_to_sat(self, sat_q, geo_coor):
-        """This function converts the geographical coordinates into satellite coordinates depending on the quaternion-rotation of the satellite and stores the data in arrays of the form: sat_coor, sat_rad\n
-        Input:\n
-        calculate.geo_to_sat ( sat_q = quaternion-matrix, geo_coor = 3D-array(x, y, z) )\n
-        Output:\n
-        0 = satellite coordinates[x[], y[], z[]]\n
-        1 = satellite angle[(azimuth, zenith)]"""
-
-        # calculate the rotation matrix for the satellite coordinate system as compared to the geographical coordinate system (J2000)
-        nt = np.size(sat_q[0])
-        scx = np.zeros((nt, 3), float)
-        scx[:, 0] = (sat_q[0] ** 2 - sat_q[1] ** 2 - sat_q[2] ** 2 + sat_q[3] ** 2)
-        scx[:, 1] = 2. * (sat_q[0] * sat_q[1] + sat_q[3] * sat_q[2])
-        scx[:, 2] = 2. * (sat_q[0] * sat_q[2] - sat_q[3] * sat_q[1])
-        scy = np.zeros((nt, 3), float)
-        scy[:, 0] = 2. * (sat_q[0] * sat_q[1] - sat_q[3] * sat_q[2])
-        scy[:, 1] = (-sat_q[0] ** 2 + sat_q[1] ** 2 - sat_q[2] ** 2 + sat_q[3] ** 2)
-        scy[:, 2] = 2. * (sat_q[1] * sat_q[2] + sat_q[3] * sat_q[0])
-        scz = np.zeros((nt, 3), float)
-        scz[:, 0] = 2. * (sat_q[0] * sat_q[2] + sat_q[3] * sat_q[1])
-        scz[:, 1] = 2. * (sat_q[1] * sat_q[2] - sat_q[3] * sat_q[0])
-        scz[:, 2] = (-sat_q[0] ** 2 - sat_q[1] ** 2 + sat_q[2] ** 2 + sat_q[3] ** 2)
-
-        # create geo_to_sat rotation matrix
-        sat_mat = np.array([scx, scy, scz])
-
-        # convert geo_coordinates to sat_coordinates
-        geo_coor = np.array(geo_coor)
-        sat_coor = np.zeros((3, nt), float)
-        sat_coor[0] = sat_mat[0, :, 0] * geo_coor[0] + sat_mat[0, :, 1] * geo_coor[1] + sat_mat[0, :, 2] * geo_coor[2]
-        sat_coor[1] = sat_mat[1, :, 0] * geo_coor[0] + sat_mat[1, :, 1] * geo_coor[1] + sat_mat[1, :, 2] * geo_coor[2]
-        sat_coor[2] = sat_mat[2, :, 0] * geo_coor[0] + sat_mat[2, :, 1] * geo_coor[1] + sat_mat[2, :, 2] * geo_coor[2]
-
-        # calculate the azimuth and zenith
-        sat_az = np.arctan2(-sat_coor[1], -sat_coor[0]) * 360. / (2. * math.pi) + 180.
-        sat_zen = 90. - np.arctan((sat_coor[2] / (sat_coor[0] ** 2 + sat_coor[1] ** 2) ** 0.5)) * 360. / (2. * math.pi)
-
-        # put azimuth and zenith together in one array as [:,0] and [:,1]
-        sat_rad = np.zeros((nt, 2), float)
-        sat_rad[:, 0] = np.array(sat_az)
-        sat_rad[:, 1] = np.array(sat_zen)
-        return sat_coor, sat_rad
-
-    def intpol(self, vector, day, direction=0, sat_time=0, bin_time_mid=0, detector_name=0, data_type='ctime'):
-        """This function interpolates a vector (from poshist- or count-files) and adjusts the length to the arrays of the other source-file and stores the data in an array of the form: vector\n
-        Input:\n
-        calc_intpol ( vector, \n
-        day = JJMMDD, \n
-        direction = 0(from poshist- to count-file(0) or the other way(1); default: 0), \n
-        sat_time = 0(input sat_time if available; default: 0), \n
-        bin_time_mid = 0(input bin_time_mid if available; default: 0), \n
-        detector = 0(input the detector in the form det.n0; default: 0), \n
-        data_type = 'ctime'(input ctime or cspec as string; default: 'ctime') )\n
-        Output:\n
-        0 = vector\n
-        1 = sat_time\n
-        2 = bin_time_mid"""
-
-        sat_time = np.array(sat_time)
-        # get the missing satellite and measurement data, if needed
-        if sat_time.all() == 0:
-            sat_data = ExternalProps.poshist(ExternalProps(), day)
-            sat_time = np.array(sat_data[0])  # time (MET) in seconds
-
-        bin_time_mid = np.array(bin_time_mid)
-        if bin_time_mid.all() == 0:
-            if detector_name != 0:
-                if data_type == 'ctime':
-                    bin_data = ExternalProps.ctime(ExternalProps(), detector_name, day)
-                    bin_time = np.array(bin_data[5])  # time (MET) in seconds
-                    bin_time_mid = np.array((bin_time[:, 0] + bin_time[:,
-                                                              1]) / 2)  # convert bin_time into 1-D array. Take the medium of start and stop time of the bin.
-                elif data_type == 'cspec':
-                    bin_data = ExternalProps.cspec(ExternalProps(), detector_name, day)
-                    bin_time = np.array(bin_data[5])  # time (MET) in seconds
-                    bin_time_mid = np.array((bin_time[:, 0] + bin_time[:,
-                                                              1]) / 2)  # convert bin_time into 1-D array. Take the medium of start and stop time of the bin.
-                else:
-                    print "Invalid data_type input. Please insert 'ctime' or 'cspec' for the data_type. See .__doc__ for further information."
-                    return vector, sat_time, bin_time_mid
-            else:
-                print "Missing or false detector input. Please insert the chosen detector (f. e. det.n0). See .__doc__ for further information."
-                return vector, sat_time, bin_time_mid
-
-        # define x-values depending on the direction of the interpolation
-        if direction == 0:
-            x1 = np.array(sat_time)
-            x2 = np.array(bin_time_mid)
-        elif direction == 1:
-            x1 = np.array(bin_time_mid)
-            x2 = np.array(sat_time)
-        else:
-            print 'Invalid direction input. Please insert 0 or 1 for the direction. See .__doc__ for further information.'
-            return vector, sat_time, bin_time_mid
-
-        vector_shape = np.shape(vector)
-        vector_dim = vector_shape[0]
-
-        # interpolate all subvectors of the input vector with splines and evaluate the splines at the new x-values
-        if len(vector_shape) == 1:
-            tck = interpolate.splrep(x1, vector, s=0)
-            new_vector = interpolate.splev(x2, tck, der=0)
-        else:
-            new_vector = np.zeros((vector_dim, len(x2)), float)
-            for i in range(0, vector_dim):
-                tck = interpolate.splrep(x1, vector[i], s=0)
-                new_vector[i] = interpolate.splev(x2, tck, der=0)
-
-        return new_vector, sat_time, bin_time_mid
 
     def met_to_date(self, met):
         """This function converts a MET to other times and stores it in the form: mjdutc, mjdtt, isot, date, decimal.\n
@@ -2834,51 +3078,6 @@ class calculate(object):
 
         return
 
-    def sat_to_geo(self, sat_q, sat_coor):
-        """This function converts the satellite coordinates into geographical coordinates depending on the quaternion-rotation of the satellite and stores the data in arrays of the form: geo_coor, geo_rad\n
-        Input:\n
-        calculate.sat_to_geo ( sat_q = quaternion-matrix, sat_coor = 3D-array(x, y, z) )\n
-        Output:\n
-        0 = geocentric coordinates[x[], y[], z[]]\n
-        1 = geocentric angles[(right ascension, declination)]"""
-
-        # calculate the rotation matrix for the satellite coordinate system as compared to the geographical coordinate system (J2000)
-        nt = np.size(sat_q[0])
-        scx = np.zeros((nt, 3), float)
-        scx[:, 0] = (sat_q[0] ** 2 - sat_q[1] ** 2 - sat_q[2] ** 2 + sat_q[3] ** 2)
-        scx[:, 1] = 2. * (sat_q[0] * sat_q[1] + sat_q[3] * sat_q[2])
-        scx[:, 2] = 2. * (sat_q[0] * sat_q[2] - sat_q[3] * sat_q[1])
-        scy = np.zeros((nt, 3), float)
-        scy[:, 0] = 2. * (sat_q[0] * sat_q[1] - sat_q[3] * sat_q[2])
-        scy[:, 1] = (-sat_q[0] ** 2 + sat_q[1] ** 2 - sat_q[2] ** 2 + sat_q[3] ** 2)
-        scy[:, 2] = 2. * (sat_q[1] * sat_q[2] + sat_q[3] * sat_q[0])
-        scz = np.zeros((nt, 3), float)
-        scz[:, 0] = 2. * (sat_q[0] * sat_q[2] + sat_q[3] * sat_q[1])
-        scz[:, 1] = 2. * (sat_q[1] * sat_q[2] - sat_q[3] * sat_q[0])
-        scz[:, 2] = (-sat_q[0] ** 2 - sat_q[1] ** 2 + sat_q[2] ** 2 + sat_q[3] ** 2)
-
-        # create geo_to_sat rotation matrix
-        sat_mat = np.array([scx, scy, scz])
-
-        # transpose into sat_to_geo rotation matrix
-        geo_mat = np.transpose(sat_mat)
-
-        # convert satellite coordinates into geocentric coordinates
-        sat_coor = np.array(sat_coor)
-        geo_coor = np.zeros((3, nt), float)
-        geo_coor[0] = geo_mat[0, :, 0] * sat_coor[0] + geo_mat[0, :, 1] * sat_coor[1] + geo_mat[0, :, 2] * sat_coor[2]
-        geo_coor[1] = geo_mat[1, :, 0] * sat_coor[0] + geo_mat[1, :, 1] * sat_coor[1] + geo_mat[1, :, 2] * sat_coor[2]
-        geo_coor[2] = geo_mat[2, :, 0] * sat_coor[0] + geo_mat[2, :, 1] * sat_coor[1] + geo_mat[2, :, 2] * sat_coor[2]
-
-        # calculate the right ascension and declination
-        geo_ra = np.arctan2(-geo_coor[1], -geo_coor[0]) * 360. / (2. * math.pi) + 180.
-        geo_dec = np.arctan(geo_coor[2] / (geo_coor[0] ** 2 + geo_coor[1] ** 2) ** 0.5) * 360. / (2. * math.pi)
-
-        # put the right ascension and declination together in one array as [:,0] and [:,1]
-        geo_rad = np.zeros((nt, 2), float)
-        geo_rad[:, 0] = geo_ra
-        geo_rad[:, 1] = geo_dec
-        return geo_coor, geo_rad
 
     def src_occultation(self, day, ra, dec):
         """This function calculates the angle between a source and the earth and stores the data in arrays of the form: ang_occ, src_pos, src_rad\n
@@ -2927,199 +3126,3 @@ class calculate(object):
 
         ang_occ[ang_occ < earth_opening_angle] = 0.
         return ang_occ, src_pos, src_rad
-
-    def sun_ang(self, detector_name, day):
-        """This function calculates the sun orientation for one detector and stores the data in arrays of the form: sun_ang, sat_time\n
-        Input:\n
-        calculate.sun_ang ( detector, day = JJMMDD )\n
-        Output:\n
-        0 = angle between the sun location and the detector orientation\n
-        1 = time (MET) in seconds"""
-
-        # get the detector and satellite data
-        data_det = calculate.det_or(calculate(), detector_name, day)
-        det_coor = data_det[0]  # unit-vector of the detector orientation
-        det_rad = data_det[1]  # detector orientation in right ascension and declination
-        sat_pos = data_det[2]  # position of the satellite
-        sat_time = np.array(data_det[3])  # time (MET) in seconds
-
-        # get the sun data
-        data_sun = calculate.sun_pos(calculate(), day)
-        sun_pos = data_sun[0]
-        sun_rad = data_sun[1]
-
-        # calculate the angle between the sun location and the detector orientation
-        scalar_product = det_coor[0] * sun_pos[0] + det_coor[1] * sun_pos[1] + det_coor[2] * sun_pos[2]
-        ang_det_sun = np.arccos(scalar_product)
-        sun_ang = (ang_det_sun) * 360. / (2. * math.pi)
-        sun_ang = np.array(sun_ang)
-        return sun_ang, sat_time, sun_rad
-
-    def sun_ang_bin(self, detector_name, day, bin_time_mid=0, data_type='ctime'):
-        """This function calculates the binned sun orientation for one detector and stores the data in arrays of the form: sun_ang_bin, sat_time_bin, bin_time_mid\n
-        Input:\n
-        calculate.sun_ang_bin ( detector, day = JJMMDD, bin_time_mid = 0, detector = 0, data_type = 'ctime' )\n
-        Output:\n
-        0 = angle between the sun location and the detector orientation\n
-        1 = time (MET) in seconds\n
-        2 = bin_time_mid"""
-
-        # get the detector and satellite data
-        data_det = calculate.det_or_bin(calculate(), detector_name, day, bin_time_mid, data_type)
-        det_coor_bin = data_det[0]  # unit-vector of the detector orientation
-        det_rad_bin = data_det[1]  # detector orientation in right ascension and declination
-        sat_pos_bin = data_det[2]  # position of the satellite
-        sat_time_bin = np.array(data_det[3])  # time (MET) in seconds
-        bin_time_mid = data_det[4]
-
-        # get the sun data
-        data_sun = calculate.sun_pos_bin(calculate(), day, bin_time_mid, detector_name, data_type)
-        sun_pos_bin = data_sun[0]
-        sun_rad_bin = data_sun[1]
-
-        # calculate the angle between the sun location and the detector orientation
-        scalar_product = det_coor_bin[0] * sun_pos_bin[0] + det_coor_bin[1] * sun_pos_bin[1] + det_coor_bin[2] * \
-                                                                                               sun_pos_bin[2]
-        ang_det_sun = np.arccos(scalar_product)
-        sun_ang_bin = (ang_det_sun) * 360. / (2. * math.pi)
-        sun_ang_bin = np.array(sun_ang_bin)
-        return sun_ang_bin, sat_time_bin, sun_rad_bin, bin_time_mid
-
-    def sun_pos(self, day):
-        """This function calculates the course of the sun during a certain day and stores the data in arrays of the form: sun_pos, sun_rad\n
-        Input:\n
-        calculate.sun_pos ( day = YYMMDD )\n
-        Output:\n
-        0 = unit-vector of the sun position[x[], y[], z[]]\n
-        1 = geocentric angles of the sun position[(right ascension, declination)]"""
-
-        # get the satellite data
-        data = ExternalProps.poshist(ExternalProps(), day)
-        sat_time = np.array(data[0])
-
-        if sat_time[-1] <= 252460801.000:
-            utc_tt_diff = 65.184
-        elif sat_time[-1] <= 362793602.000:
-            utc_tt_diff = 66.184
-        elif sat_time[-1] <= 457401603.000:
-            utc_tt_diff = 67.184
-        elif sat_time[-1] <= 504921604.000:
-            utc_tt_diff = 68.184
-        else:
-            utc_tt_diff = 69.184
-
-        sat_time = (sat_time - utc_tt_diff) / (3600 * 24) + 36890.50074287037037037
-        sat_pos = np.array(data[1])
-
-        # calculate the geocentric angles of the sun for each time-bin
-        sun = ephem.Sun()
-        sun_ra = []
-        sun_dec = []
-        for i in range(0, len(sat_time)):
-            sun.compute(sat_time[i])  # generate the sun information from the ephem module for the sat_time[i]
-            sun_ra.append(sun.ra)  # add to the right ascension vector
-            sun_dec.append(sun.dec)  # add to the declination vector
-
-        # put the right ascension and declination together in one array as [:,0] and [:,1]
-        sun_rad = np.zeros((len(sun_ra), 2), float)
-        sun_rad[:, 0] = sun_ra
-        sun_rad[:, 1] = sun_dec
-        sun_rad = np.array(sun_rad)
-
-        # derive the unit-vector of the sun location in geocentric coordinates
-        sun_pos = np.array([np.cos(sun_ra) * np.cos(sun_dec), np.sin(sun_ra) * np.cos(sun_dec), np.sin(sun_dec)])
-        return sun_pos, sun_rad
-
-    def sun_pos_bin(self, day, bin_time_mid=0, detector_name=0, data_type='ctime'):
-        """This function calculates the course of the sun during a certain day and stores the data in arrays of the form: sun_pos_bin, sun_rad_bin, bin_time_mid\n
-        Input:\n
-        calculate.sun_pos ( day = YYMMDD, bin_time_mid = 0, detector = 0, data_type = 'ctime' )\n
-        Output:\n
-        0 = unit-vector of the sun position[x[], y[], z[]]\n
-        1 = geocentric angles of the sun position[(right ascension, declination)]
-        2 = bin_time_mid"""
-
-        # get the satellite data
-        data = ExternalProps.poshist_bin(ExternalProps(), day, bin_time_mid, detector_name, data_type)
-        sat_time_bin = np.array(data[0])
-
-        if sat_time_bin[-1] <= 252460801.000:
-            utc_tt_diff = 65.184
-        elif sat_time_bin[-1] <= 362793602.000:
-            utc_tt_diff = 66.184
-        elif sat_time_bin[-1] <= 457401603.000:
-            utc_tt_diff = 67.184
-        elif sat_time_bin[-1] <= 504921604.000:
-            utc_tt_diff = 68.184
-        else:
-            utc_tt_diff = 69.184
-
-        sat_time_bin = (sat_time_bin - utc_tt_diff) / (3600 * 24) + 36890.50074287037037037
-        sat_pos_bin = np.array(data[1])
-        bin_time_mid = data[5]
-
-        # calculate the geocentric angles of the sun for each time-bin
-        sun = ephem.Sun()
-        sun_ra_bin = []
-        sun_dec_bin = []
-        for i in range(0, len(sat_time_bin)):
-            sun.compute(sat_time_bin[i])  # generate the sun information from the ephem module for the sat_time[i]
-            sun_ra_bin.append(sun.ra)  # add to the right ascension vector
-            sun_dec_bin.append(sun.dec)  # add to the declination vector
-
-        # put the right ascension and declination together in one array as [:,0] and [:,1]
-        sun_rad_bin = np.zeros((len(sun_ra_bin), 2), float)
-        sun_rad_bin[:, 0] = sun_ra_bin
-        sun_rad_bin[:, 1] = sun_dec_bin
-        sun_rad_bin = np.array(sun_rad_bin)
-
-        # derive the unit-vector of the sun location in geocentric coordinates
-        sun_pos_bin = np.array(
-            [np.cos(sun_ra_bin) * np.cos(sun_dec_bin), np.sin(sun_ra_bin) * np.cos(sun_dec_bin), np.sin(sun_dec_bin)])
-        return sun_pos_bin, sun_rad_bin, bin_time_mid
-
-        def rigidity(self, day, bin_time_mid=0):
-            """This function interpolates the rigidity of the lookup table from Humble et al., 1979, evaluates the values for the satellite position on a given day and stores the data in an array of the form: rigidity\n
-            Input:\n
-            calculate.rigidity ( day = JJMMDD )\n
-            Output:\n
-            0 = rigidity\n
-            1 = sat_lon_bin\n
-            2 = sat_lat_bin\n
-            3 = sat_time_bin"""
-
-            # data from the paper mentioned in the docstring. Rigidity at 400 km altitude
-            lon = np.arange(0., 360.001, 30.)
-            lat = np.arange(40., -40.001, -10.)
-            rigidity_matrix = [[6.1, 6.94, 7.66, 8.47, 9.08, 9.17, 7.44, 5., 3.26, 2.08, 2.44, 4.43, 6.1],
-                               [10.54, 11.07, 11.87, 12.73, 12.73, 11.99, 10.75, 9.08, 6.28, 4.39, 4.80, 8.81, 10.54],
-                               [12.48, 13.25, 14.2, 14.93, 14.49, 13.65, 12.48, 11.52, 10.13, 7.01, 8.9, 11.3, 12.48],
-                               [12.99, 13.92, 14.93, 15.53, 15.23, 14.34, 13.51, 12.86, 11.87, 10.75, 10.96, 12.23,
-                                12.99],
-                               [12.36, 13.25, 14.2, 14.93, 14.78, 14.2, 13.92, 13.38, 12.73, 11.87, 11.64, 12.11,
-                                12.36],
-                               [10.96, 11.41, 12.36, 12.99, 13.12, 13.12, 13.12, 13.12, 12.73, 11.99, 11.52, 11.07,
-                                10.96],
-                               [8.72, 8.81, 9.35, 9.63, 9.83, 10.33, 11.3, 11.99, 11.99, 11.52, 10.86, 9.93, 8.72],
-                               [6.34, 5.8, 5.2, 4.75, 4.85, 5.41, 7.01, 9.35, 10.64, 10.54, 9.83, 8.3, 6.34],
-                               [3.97, 3.42, 2.72, 2.06, 2.02, 2.42, 3.71, 5.2, 7.97, 9.08, 8.55, 6.1, 3.97]]
-
-            # interpolation
-            tck = interpolate.interp2d(lon, lat, rigidity_matrix, kind='cubic')
-
-            # get the satellite data
-            sat_data = ExternalProps.poshist_bin(ExternalProps(), day, bin_time_mid)
-            sat_lon = sat_data[3]
-            sat_lat = sat_data[2]
-            sat_time = sat_data[0]
-
-            # evaluate the rigidity -> for-loop is slow, but otherwise the tck-function doesn't seem to accept the sat_lon and sat_lat arrays
-            rigidity = []
-            for i in range(0, len(sat_lon)):
-                rig = tck(sat_lon[i], sat_lat[i])
-                rigidity.append(rig)
-            rigidity = np.array(rigidity)
-
-            return rigidity, sat_lon, sat_lat, sat_time
-
-
