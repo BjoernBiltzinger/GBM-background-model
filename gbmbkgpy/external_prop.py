@@ -414,3 +414,181 @@ class ExternalProps(object):
         def point_sources(self):
             return self._point_sources_properties
 
+
+class download(object):
+    """This class contains all functions for downloading the files needed for the GBM background model:\n
+    data(self, detector, day, data_type = 'ctime', seconds = 0)\n
+    flares(self, year)\n
+    lat_spacecraft (self, week)\n
+    poshist(self, day)\n\n\n"""
+
+    def data(self, detector_name, day, data_type='ctime'):
+        """This function downloads a daily data file and stores it in the appropriate folder\n
+        Input:\n
+        download.data ( detector, day = YYMMDD, data_type = 'ctime' (or 'cspec') )\n"""
+
+        user = getpass.getuser()
+
+        # create the appropriate folder if it doesn't already exist and switch to it
+        file_path = '/home/' + user + '/Work/' + str(data_type) + '/' + str(day) + '/'
+        if not os.access(file_path, os.F_OK):
+            print("Making New Directory")
+            os.mkdir(file_path)
+
+        os.chdir(file_path)
+
+        url = (
+        'http://heasarc.gsfc.nasa.gov/FTP/fermi/data/gbm/daily/20' + str(day)[:2] + '/' + str(day)[2:4] + '/' + str(
+            day)[4:] + '/current/glg_' + str(data_type) + '_' + detector_name + '_' + str(day) + '_v00.pha')
+        file_name = url.split('/')[-1]
+        u = urllib2.urlopen(url)
+        f = open(file_name, 'wb')
+        meta = u.info()
+        file_size = int(meta.getheaders("Content-Length")[0])
+        print "Downloading: %s Bytes: %s" % (file_name, file_size)
+
+        file_size_dl = 0
+        block_sz = 8192
+        while True:
+            buffer = u.read(block_sz)
+            if not buffer:
+                break
+
+            file_size_dl += len(buffer)
+            f.write(buffer)
+            status = r"%10d  [%3.2f%%]" % (file_size_dl, file_size_dl * 100. / file_size)
+            status = status + chr(8) * (len(status) + 1)
+            print status,
+
+        f.close()
+
+        return
+
+    def flares(self, year):
+        """This function downloads a yearly solar flar data file and stores it in the appropriate folder\n
+        Input:\n
+        download.flares ( year = YYYY )\n"""
+
+        user = getpass.getuser()
+
+        # create the appropriate folder if it doesn't already exist and switch to it
+        file_path = '/home/' + user + '/Work/flares/'
+        if not os.access(file_path, os.F_OK):
+            print("Making New Directory")
+            os.mkdir(file_path)
+
+        os.chdir(file_path)
+        if year == 2016:
+            url = (
+            'ftp://ftp.ngdc.noaa.gov/STP/space-weather/solar-data/solar-features/solar-flares/x-rays/goes/xrs/goes-xrs-report_' + str(
+                year) + 'ytd.txt')
+        else:
+            url = (
+            'ftp://ftp.ngdc.noaa.gov/STP/space-weather/solar-data/solar-features/solar-flares/x-rays/goes/xrs/goes-xrs-report_' + str(
+                year) + '.txt')
+        file_name = str(year) + '.dat'
+        u = urllib2.urlopen(url)
+        f = open(file_name, 'wb')
+        meta = u.info()
+        file_size = int(meta.getheaders("Content-Length")[0])
+        print "Downloading: %s Bytes: %s" % (file_name, file_size)
+
+        file_size_dl = 0
+        block_sz = 8192
+        while True:
+            buffer = u.read(block_sz)
+            if not buffer:
+                break
+
+            file_size_dl += len(buffer)
+            f.write(buffer)
+            status = r"%10d  [%3.2f%%]" % (file_size_dl, file_size_dl * 100. / file_size)
+            status = status + chr(8) * (len(status) + 1)
+            print status,
+
+        f.close()
+
+        return
+
+    def lat_spacecraft(self, week):
+        """This function downloads a weekly lat-data file and stores it in the appropriate folder\n
+        Input:\n
+        download.lat_spacecraft ( week = XXX )\n"""
+
+        user = getpass.getuser()
+
+        # create the appropriate folder if it doesn't already exist and switch to it
+        file_path = '/home/' + user + '/Work/lat/'
+        if not os.access(file_path, os.F_OK):
+            print("Making New Directory")
+            os.mkdir(file_path)
+
+        os.chdir(file_path)
+
+        url = ('http://heasarc.gsfc.nasa.gov/FTP/fermi/data/lat/weekly/spacecraft/lat_spacecraft_weekly_w' + str(
+            week) + '_p202_v001.fits')
+        file_name = url.split('/')[-1]
+        u = urllib2.urlopen(url)
+        f = open(file_name, 'wb')
+        meta = u.info()
+        file_size = int(meta.getheaders("Content-Length")[0])
+        print "Downloading: %s Bytes: %s" % (file_name, file_size)
+
+        file_size_dl = 0
+        block_sz = 8192
+        while True:
+            buffer = u.read(block_sz)
+            if not buffer:
+                break
+
+            file_size_dl += len(buffer)
+            f.write(buffer)
+            status = r"%10d  [%3.2f%%]" % (file_size_dl, file_size_dl * 100. / file_size)
+            status = status + chr(8) * (len(status) + 1)
+            print status,
+
+        f.close()
+
+        return
+
+    def poshist(self, day, version='v00'):
+        """This function downloads a daily poshist file and stores it in the appropriate folder\n
+        Input:\n
+        download.poshist ( day = YYMMDD, version = 'v00' )\n"""
+
+        user = getpass.getuser()
+
+        # create the appropriate folder if it doesn't already exist and switch to it
+        file_path = '/home/' + user + '/Work/poshist/'
+        if not os.access(file_path, os.F_OK):
+            print("Making New Directory")
+            os.mkdir(file_path)
+
+        os.chdir(file_path)
+
+        url = (
+        'http://heasarc.gsfc.nasa.gov/FTP/fermi/data/gbm/daily/20' + str(day)[:2] + '/' + str(day)[2:4] + '/' + str(
+            day)[4:] + '/current/glg_poshist_all_' + str(day) + '_' + str(version) + '.fit')
+        file_name = url.split('/')[-1]
+        u = urllib2.urlopen(url)
+        f = open(file_name, 'wb')
+        meta = u.info()
+        file_size = int(meta.getheaders("Content-Length")[0])
+        print "Downloading: %s Bytes: %s" % (file_name, file_size)
+
+        file_size_dl = 0
+        block_sz = 8192
+        while True:
+            buffer = u.read(block_sz)
+            if not buffer:
+                break
+
+            file_size_dl += len(buffer)
+            f.write(buffer)
+            status = r"%10d  [%3.2f%%]" % (file_size_dl, file_size_dl * 100. / file_size)
+            status = status + chr(8) * (len(status) + 1)
+            print status,
+
+        f.close()
+
+        return
