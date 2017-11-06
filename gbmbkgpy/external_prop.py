@@ -32,7 +32,7 @@ magfits (self, day) -> t_magn, h_magn, x_magn, y_magn, z_magn\n
 mcilwain (self, day) -> sat_time, mc_b, mc_l\n
 saa(self) -> saa\n\n\n
 """
-
+data_path = '/home/felix/documents/bachelor-thesis/GBM-background-model/data'
 
 class ExternalProps(object):
     def __init__(self, day):
@@ -56,10 +56,14 @@ class ExternalProps(object):
         """
 
         # TODO: path symbols on different OS's can change. Use os.path.join(<path1,path2>)
-
-        user = getpass.getuser()
-        saa_path = os.path.join('/home', user, 'Work', 'saa')
+        
+        global data_path
+        saa_path = os.path.join(data_path, 'saa')
         filepath = os.path.join(saa_path, 'saa.dat')
+
+        #user = getpass.getuser()
+        #saa_path = os.path.join('/home', user, 'Work', 'saa')
+        #filepath = os.path.join(saa_path, 'saa.dat')
 
         # context managers  allow for quick handling of files open/close
         with open(filepath, 'r') as poly:
@@ -430,7 +434,7 @@ class download(object):
         user = getpass.getuser()
 
         # create the appropriate folder if it doesn't already exist and switch to it
-        file_path = '/home/' + user + '/Work/' + str(data_type) + '/' + str(day) + '/'
+        file_path = os.path.join('/home/', user, '/Work/', str(data_type), '/', str(day), '/')
         if not os.access(file_path, os.F_OK):
             print("Making New Directory")
             os.mkdir(file_path)
@@ -472,7 +476,7 @@ class download(object):
         user = getpass.getuser()
 
         # create the appropriate folder if it doesn't already exist and switch to it
-        file_path = '/home/' + user + '/Work/flares/'
+        file_path = os.path.join('/home/', user, '/Work/flares/')
         if not os.access(file_path, os.F_OK):
             print("Making New Directory")
             os.mkdir(file_path)
@@ -486,7 +490,7 @@ class download(object):
             url = (
             'ftp://ftp.ngdc.noaa.gov/STP/space-weather/solar-data/solar-features/solar-flares/x-rays/goes/xrs/goes-xrs-report_' + str(
                 year) + '.txt')
-        file_name = str(year) + '.dat'
+        file_name = os.path.join(str(year), '.dat')
         u = urllib2.urlopen(url)
         f = open(file_name, 'wb')
         meta = u.info()
@@ -518,7 +522,7 @@ class download(object):
         user = getpass.getuser()
 
         # create the appropriate folder if it doesn't already exist and switch to it
-        file_path = '/home/' + user + '/Work/lat/'
+        file_path = os.path.join('/home/', user, '/Work/lat/')
         if not os.access(file_path, os.F_OK):
             print("Making New Directory")
             os.mkdir(file_path)
@@ -559,7 +563,7 @@ class download(object):
         user = getpass.getuser()
 
         # create the appropriate folder if it doesn't already exist and switch to it
-        file_path = '/home/' + user + '/Work/poshist/'
+        file_path = os.path.join('/home/', user, '/Work/poshist/')
         if not os.access(file_path, os.F_OK):
             print("Making New Directory")
             os.mkdir(file_path)
