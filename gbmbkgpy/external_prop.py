@@ -13,8 +13,7 @@ from gbmbkgpy.work_module_refactor import detector, calculate
 
 from io.package_data import get_path_of_data_dir, get_path_of_data_file
 
-data_path = '/home/felix/documents/bachelor-thesis/GBM-background-model/data'
-
+# TODO: Add fits_data and earth_occulation to data folder or different filepath and adjust path-handling
 
 class ExternalProps(object):
     def __init__(self, day):
@@ -36,8 +35,6 @@ class ExternalProps(object):
         Output\n
         0 = saa[latitude][longitude]\n
         """
-
-        # TODO: path symbols on different OS's can change. Use os.path.join(<path1,path2>)
 
         filepath = get_path_of_data_file('saa', 'saa.dat')
 
