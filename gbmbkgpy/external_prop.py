@@ -11,6 +11,8 @@ from astropy.table import Table
 
 from gbmbkgpy.work_module_refactor import detector, calculate
 
+from io.package_data import get_path_of_data_dir, get_path_of_data_file
+
 data_path = '/home/felix/documents/bachelor-thesis/GBM-background-model/data'
 
 
@@ -37,13 +39,7 @@ class ExternalProps(object):
 
         # TODO: path symbols on different OS's can change. Use os.path.join(<path1,path2>)
 
-        global data_path
-        saa_path = os.path.join(data_path, 'saa')
-        filepath = os.path.join(saa_path, 'saa.dat')
-
-        # user = getpass.getuser()
-        # saa_path = os.path.join('/home', user, 'Work', 'saa')
-        # filepath = os.path.join(saa_path, 'saa.dat')
+        filepath = get_path_of_data_file('saa', 'saa.dat')
 
         # context managers  allow for quick handling of files open/close
         with open(filepath, 'r') as poly:
@@ -76,10 +72,8 @@ class ExternalProps(object):
         4 = occulted area (matrix)"""
 
         # read the file
-        user = getpass.getuser()
-        fits_path = os.path.join('/home/', user, '/Work/earth_occultation/')
         fitsname = 'earth_occ_calc_total_kt.fits'
-        fitsfilepath = os.path.join(fits_path, fitsname)
+        fitsfilepath = get_path_of_data_file('earth_occulation', fitsname)
 
         e_occ_fits = fits.open(fitsfilepath)
         angle_d = []
@@ -156,8 +150,9 @@ class ExternalProps(object):
             print 'Invalid data type: ' + str(data_type) + '\n Please insert an appropriate data type (ctime or cspec).'
             return
 
-        user = getpass.getuser()
-        fits_path = os.path.join('/home/', user, '/Work/Fits_data/', str(day), '/')
+
+        data_path = get_path_of_data_dir()
+        fits_path = os.path.join(data_path, 'Fits_data/', str(day), '/')
         if not os.access(fits_path, os.F_OK):
             os.mkdir(fits_path)
         fitsfilepath = os.path.join(fits_path, fitsname)
@@ -216,9 +211,7 @@ class ExternalProps(object):
         0 = day ('YYMMDD')
         1 = time[start][stop] (in seconds on that day -> accuracy ~ 1 minute)\n"""
         filename = os.path.join(str(year), '.dat')
-        user = getpass.getuser()
-        fits_path = os.path.join('/home/', user, '/Work/flares/')
-        filepath = os.path.join(fits_path, str(filename))
+        filepath = get_path_of_data_file('flares', str(filename))
         while os.path.isfile(filepath) == False:
             download.flares(download(), year)
 
@@ -260,9 +253,7 @@ class ExternalProps(object):
 
         # read the file
         filename = os.path.join('lat_spacecraft_weekly_w', str(week), '_p202_v001.fits')
-        user = getpass.getuser()
-        fits_path = os.path.join('/home/', user, '/Work/lat/')
-        filepath = os.path.join(fits_path, str(filename))
+        filepath = get_path_of_data_file('lat', str(filename))
         while os.path.isfile(filepath) == False:
             download.lat_spacecraft(download(), week)
 
@@ -296,8 +287,7 @@ class ExternalProps(object):
 
         # read the file
         fitsname = os.path.join('magn_', str(day), '_kt.fits')
-        user = getpass.getuser()
-        path = os.path.join('/home/', user, '/Work/magnetic_field/', str(day), '/')
+        path = os.path.join(get_path_of_data_dir(), 'magnetic_field/', str(day), '/')
         filepath = os.path.join(path, str(fitsname))
         mag_fits = fits.open(filepath)
         data = mag_fits[1].data
@@ -329,9 +319,7 @@ class ExternalProps(object):
 
         # read the file
         filename = os.path.join('glg_mcilwain_all_', str(day), '_kt.fits')
-        user = getpass.getuser()
-        fits_path = os.path.join('/home/', user, '/Work/mcilwain/')
-        filepath = os.path.join(fits_path, str(filename))
+        filepath = get_path_of_data_file('mcilwain/', str(filename))
         while os.path.isfile(filepath) == False:
             begin_date = date(2008, 8, 7)  # first complete lat_spacecraft weekly-file
             year = int('20' + str(day)[:2])
@@ -374,9 +362,7 @@ class ExternalProps(object):
         Output\n
         0 = source_names
         1 = coordinates\n"""
-        user = getpass.getuser()
-        saa_path = os.path.join('/home/', user, '/Work/background_point_sources/')
-        filepath = os.path.join(saa_path, 'point_sources.dat')
+        filepath = get_path_of_data_file('background_point_sources/', 'point_sources.dat')
         with open(filepath, 'r') as poly:
             lines = poly.readlines()
         source_names = []
@@ -411,10 +397,8 @@ class download(object):
         Input:\n
         download.flares ( year = YYYY )\n"""
 
-        user = getpass.getuser()
-
         # create the appropriate folder if it doesn't already exist and switch to it
-        file_path = '/home/' + user + '/Work/flares/'
+        file_path = os.path.join(get_path_of_data_dir(), 'flares/')
         if not os.access(file_path, os.F_OK):
             print("Making New Directory")
             os.mkdir(file_path)
@@ -457,10 +441,8 @@ class download(object):
         Input:\n
         download.lat_spacecraft ( week = XXX )\n"""
 
-        user = getpass.getuser()
-
         # create the appropriate folder if it doesn't already exist and switch to it
-        file_path = '/home/' + user + '/Work/lat/'
+        file_path = os.path.join(get_path_of_data_dir(), 'lat/')
         if not os.access(file_path, os.F_OK):
             print("Making New Directory")
             os.mkdir(file_path)
@@ -522,7 +504,7 @@ class writefile(object):
         decimal_year = calc.met_to_date(sat_time)[4]
 
         user = getpass.getuser()
-        directory = '/home/' + user + '/Work/magnetic_field/' + str(day)
+        directory = os.path.join(get_path_of_data_dir(), 'magnetic_field/' + str(day))
         fits_path = os.path.join(os.path.dirname(__dir__), directory)
 
         filename1 = 'magn_coor_' + str(day) + '_kt_01.txt'
@@ -621,8 +603,7 @@ class writefile(object):
             print 'Invalid data type: ' + str(data_type) + '\n Please insert an appropriate data type (ctime or cspec).'
             return
 
-        user = getpass.getuser()
-        fits_path = '/home/' + user + '/Work/Fits_data/' + str(day) + '/'
+        fits_path = os.path.join(get_path_of_data_dir(), 'Fits_data/' + str(day) + '/')
         if not os.access(fits_path, os.F_OK):
             os.mkdir(fits_path)
         fitsfilepath = os.path.join(fits_path, fitsname)
@@ -701,7 +682,7 @@ class writefile(object):
         0 = fitsfilepath"""
 
         user = getpass.getuser()
-        directory = '/home/' + user + '/Work/magnetic_field/' + str(day)
+        directory = os.path.join(get_path_of_data_dir(),'magnetic_field/' + str(day))
         path = os.path.join(os.path.dirname(__dir__), directory)
         name1 = 'magn_' + str(day) + '_kt_01.txt'
         filename1 = os.path.join(path, name1)
@@ -824,10 +805,8 @@ class writefile(object):
         mc_l = interpol2[0]
 
         # first write the data into an ascii file and the convert it into a fits file
-        user = getpass.getuser()
-        path = '/home/' + user + '/Work/mcilwain/'
         filename = 'glg_mcilwain_all_' + str(day) + '_kt.txt'
-        filepath = os.path.join(path, str(filename))
+        filepath = get_path_of_data_file('mcilwain/', str(filename))
 
         mc_file = open(filepath, 'w')
         for i in range(0, len(sat_time)):
@@ -836,6 +815,6 @@ class writefile(object):
 
         content = Table.read(filepath, format='ascii')
         fitsname = 'glg_mcilwain_all_' + str(day) + '_kt.fits'
-        fitsfilepath = os.path.join(path, fitsname)
+        fitsfilepath = get_path_of_data_file('mcilwain/', fitsname)
         content.write(fitsfilepath, overwrite=True)
         return fitsfilepath
