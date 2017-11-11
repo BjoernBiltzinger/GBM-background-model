@@ -16,7 +16,7 @@ from numpy import linalg        as LA
 from scipy import interpolate
 
 from gbmbkgpy.external_prop import ExternalProps, writefile
-
+from gbmbkgpy.io.package_data import get_path_of_data_file, get_path_of_data_dir
 
 class detector(object):
     """This class contains the orientations of all detectors of the GBM setup (azimuth and zenith):\n
@@ -147,9 +147,7 @@ class calculate_geometry(object):
         1 = normalized photopeak effective area curve"""
 
         fitsname = 'peak_eff_area_angle_calib_GBM_all_DRM.fits'
-        user = getpass.getuser()
-        fits_path = '/home/' + user + '/Work/calibration/'
-        fitsfilepath = os.path.join(fits_path, fitsname)
+        fitsfilepath = get_path_of_data_file('calibration', fitsname)
         fitsfile = fits.open(fitsfilepath, mode='update')
         data = fitsfile[1].data
         fitsfile.close()
@@ -457,9 +455,7 @@ class calculate_geometry(object):
         0 = effective unocculted detector area"""
 
         fitsname = 'peak_eff_area_angle_calib_GBM_all_DRM.fits'
-        user = getpass.getuser()
-        fits_path = '/home/' + user + '/Work/calibration/'
-        fitsfilepath = os.path.join(fits_path, fitsname)
+        fitsfilepath = get_path_of_data_file('calibration', fitsname)
         fitsfile = fits.open(fitsfilepath, mode='update')
         data = fitsfile[1].data
         fitsfile.close()
@@ -984,8 +980,7 @@ class calculate(object):
             print 'Invalid data type: ' + str(data_type) + '\n Please insert an appropriate data type (ctime or cspec).'
             return
 
-        user = getpass.getuser()
-        fits_path_data = '/home/' + user + '/Work/Fits_data/' + str(day) + '/'
+        fits_path_data = os.path.join(get_path_of_data_dir(), 'Fits_data/', str(day), '/')
         if not os.access(fits_path_data, os.F_OK):
             os.mkdir(fits_path_data)
         fitsfilepath_data = os.path.join(fits_path_data, fitsname_data)
@@ -1214,8 +1209,7 @@ class calculate(object):
             return fit_function(x, a, b, c, d, addition, sources_coeff, np.fabs(exp1), np.fabs(exp2), deaths,
                                 sources_number)
 
-        user = getpass.getuser()
-        addition_path = '/home/' + user + '/Work/Fits/SAA_additions/' + str(day) + '/'
+        addition_path = os.path.join(get_path_of_data_dir(), 'Fits/SAA_additions/', str(day), '/')
         if counts.all == total_rate.all:
             addition_name = det.__name__ + '_add_tot.dat'
         else:
@@ -1375,7 +1369,7 @@ class calculate(object):
             plt.title(str(data_type) + '-fit of the ' + detector_name + '-detector on the ' + ordinal(
                 int(str(day)[4:6])) + ' ' + date.strftime('%B')[0:3] + ' ' + str(year), fontsize=45)
 
-            figure_path = '/home/' + user + '/Work/Fits/' + str(day) + '/'
+            figure_path = os.path.join(get_path_of_data_dir(), 'Fits/', str(day), '/')
             if not os.access(figure_path, os.F_OK):
                 os.mkdir(figure_path)
             if counts.all == total_rate.all:
@@ -1442,7 +1436,7 @@ class calculate(object):
             else:
                 plt.ylim([-300, 300])
 
-            figure_path = '/home/' + user + '/Work/Fits/' + str(day) + '/'
+            figure_path = os.path.join(get_path_of_data_dir(), 'Fits/', str(day), '/')
             if not os.access(figure_path, os.F_OK):
                 os.mkdir(figure_path)
             if counts.all == total_rate.all:
@@ -1514,7 +1508,6 @@ class calculate(object):
         # get the iso-date-format from the day
         date = datetime(year, int(str(day)[2:4]), int(str(day)[4:6]))
 
-        user = getpass.getuser()
 
         ##################################################################################################################
         #############################################energychannels#######################################################
@@ -1810,7 +1803,7 @@ class calculate(object):
                                                                                              0:3] + ' ' + str(year),
                           fontsize=40)
 
-                figure_path = '/home/' + user + '/Work/Fits/' + str(day) + '/'
+                figure_path = os.path.join(get_path_of_data_dir(), 'Fits/', str(day), '/')
                 if not os.access(figure_path, os.F_OK):
                     os.mkdir(figure_path)
 
@@ -1914,7 +1907,7 @@ class calculate(object):
 
                 plt.ylim([-600, 1100])
 
-                figure_path = '/home/' + user + '/Work/Fits/' + str(day) + '/'
+                figure_path = os.path.join(get_path_of_data_dir(), 'Fits/', str(day), '/')
                 if not os.access(figure_path, os.F_OK):
                     os.mkdir(figure_path)
 
@@ -2223,7 +2216,7 @@ class calculate(object):
                                                                                                    0:3] + ' ' + str(
                     year), fontsize=40)
 
-                figure_path = '/home/' + user + '/Work/Fits/' + str(day) + '/'
+                figure_path = os.path.join(get_path_of_data_dir(), 'Fits/', str(day), '/')
                 if not os.access(figure_path, os.F_OK):
                     os.mkdir(figure_path)
 
@@ -2326,7 +2319,7 @@ class calculate(object):
 
                 plt.ylim([-400, 500])
 
-                figure_path = '/home/' + user + '/Work/Fits/' + str(day) + '/'
+                figure_path = os.path.join(get_path_of_data_dir(), 'Fits/', str(day), '/')
                 if not os.access(figure_path, os.F_OK):
                     os.mkdir(figure_path)
 
@@ -2617,7 +2610,7 @@ class calculate(object):
                 'Combined fit on the ' + ordinal(int(str(day)[4:6])) + ' ' + date.strftime('%B')[0:3] + ' ' + str(year),
                 fontsize=40)
 
-            figure_path = '/home/' + user + '/Work/Fits/' + str(day) + '/'
+            figure_path = os.path.join(get_path_of_data_dir(), 'Fits/', str(day), '/')
             if not os.access(figure_path, os.F_OK):
                 os.mkdir(figure_path)
 
@@ -2718,7 +2711,7 @@ class calculate(object):
 
             plt.ylim([-2000, 3000])
 
-            figure_path = '/home/' + user + '/Work/Fits/' + str(day) + '/'
+            figure_path = os.path.join(get_path_of_data_dir(), 'Fits/', str(day), '/')
             if not os.access(figure_path, os.F_OK):
                 os.mkdir(figure_path)
 
@@ -2874,8 +2867,7 @@ class calculate(object):
             print 'Invalid data type: ' + str(data_type) + '\n Please insert an appropriate data type (ctime or cspec).'
             return
 
-        user = getpass.getuser()
-        fits_path_data = '/home/' + user + '/Work/Fits_data/' + str(day) + '/'
+        fits_path_data = os.path.join(get_path_of_data_dir(), 'Fits_data/', str(day), '/')
         if not os.access(fits_path_data, os.F_OK):
             os.mkdir(fits_path_data)
         fitsfilepath_data = os.path.join(fits_path_data, fitsname_data)
@@ -2988,7 +2980,7 @@ class calculate(object):
         plt.title(str(data_type) + '-fit of the ' + detector_name + '-detector on the ' + ordinal(
             int(str(day)[4:6])) + ' ' + date.strftime('%B')[0:3] + ' ' + str(year), fontsize=45)
 
-        figure_path = '/home/' + user + '/Work/Fits/' + str(day) + '/'
+        figure_path = os.path.join(get_path_of_data_dir(), 'Fits/', str(day), '/')
         if not os.access(figure_path, os.F_OK):
             os.mkdir(figure_path)
         # if counts.all == total_rate.all:
@@ -3057,7 +3049,7 @@ class calculate(object):
         # else:
         plt.ylim([-300, 300])
 
-        figure_path = '/home/' + user + '/Work/Fits/' + str(day) + '/'
+        figure_path = os.path.join(get_path_of_data_dir(), 'Fits/', str(day), '/')
         if not os.access(figure_path, os.F_OK):
             os.mkdir(figure_path)
         # if counts.all == total_rate.all:
