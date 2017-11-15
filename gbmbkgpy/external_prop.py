@@ -53,9 +53,9 @@ class ExternalProps(object):
 
         self._saa_properties = saa
 
-        @property
-        def saa(self):
-            return self._saa_properties
+    @property
+    def saa(self):
+        return self._saa_properties
 
     def _earth_occ(self):
         """This function reads the earth occultation fits file and stores the data in arrays of the form: earth_ang, angle_d, area_frac, free_area, occ_area.\n
@@ -95,9 +95,9 @@ class ExternalProps(object):
 
         self._earth_occ_properties = earth_occ_dic
 
-        @property
-        def earth_occ(self):
-            return self._earth_occ_properties
+    @property
+    def earth_occ(self):
+        return self._earth_occ_properties
 
     def _fits_data(self, day, detector_name, echan, data_type='ctime', sources_number='None'):
         """This function reads a Fits-data file and stores the data in arrays of the form: residuals, counts, fit_curve, cgb, magnetic, earth_ang_bin, sun_ang_bin, crab_ang_bin, plot_time_bin, plot_time_sat.\n
@@ -196,9 +196,9 @@ class ExternalProps(object):
 
         self._fits_data_properties = fits_data_dic
 
-        @property
-        def fits_data(self):
-            return self._fits_data_properties
+    @property
+    def fits_data(self):
+        return self._fits_data_properties
 
     def _flares(self, year):
         """This function reads the YYYY.txt file containing the GOES solar flares of the corresponding year and returns the data in arrays of the form: day, time\n
@@ -235,11 +235,11 @@ class ExternalProps(object):
 
         self._flares_properties = flares_dic
 
-        @property
-        def flares(self):
-            return self._flares_properties
+    @property
+    def flares(self):
+        return self._flares_properties
 
-    def lat_spacecraft(self, week):
+    def _lat_spacecraft(self, week):
         """This function reads a LAT-spacecraft file and stores the data in arrays of the form: lat_time, mc_b, mc_l.\n
         Input:\n
         readfile.lat_spacecraft ( week = WWW )\n
@@ -267,9 +267,9 @@ class ExternalProps(object):
 
         self._lat_properties = lat_dic
 
-        @property
-        def lat_spacecraft(self):
-            return self._lat_properties
+    @property
+    def lat_spacecraft(self):
+        return self._lat_properties
 
     def _magfits(self, day):
         """This function reads a magnetic field fits file and stores the data in arrays of the form: t_magn, h_magn, x_magn, y_magn, z_magn.\n
@@ -301,9 +301,9 @@ class ExternalProps(object):
 
         self._magfits_properties = magfits_dic
 
-        @property
-        def magfits(self):
-            return self._magfits_properties
+    @property
+    def magfits(self):
+        return self._magfits_properties
 
     def _mcilwain(self, day):
         """This function reads a mcilwain file and stores the data in arrays of the form: sat_time, mc_b, mc_l.\n
@@ -348,9 +348,9 @@ class ExternalProps(object):
 
         self._mcilwain_properties = mcilwain_dic
 
-        @property
-        def mcilwain(self):
-            return self._mcilwain_properties
+    @property
+    def mcilwain(self):
+        return self._mcilwain_properties
 
     def _point_sources(self):
         """This function reads the point_sources.dat file and returns the sources in the form: names, coordinates[ra][dec]\n
@@ -377,9 +377,9 @@ class ExternalProps(object):
 
         self._point_sources_properties = point_sources_dic
 
-        @property
-        def point_sources(self):
-            return self._point_sources_properties
+    @property
+    def point_sources(self):
+        return self._point_sources_properties
 
 
 class download(object):
