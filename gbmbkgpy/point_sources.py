@@ -8,7 +8,7 @@ class PointSources(object):
 
     def __init__(self, day, detector_name, echan, data_type):
 
-        self._point_sources = ExternalProps(day).point_sources
+        self._point_sources = ExternalProps(day).point_sources()
 
 
 
