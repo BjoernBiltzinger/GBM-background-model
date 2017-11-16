@@ -1,6 +1,5 @@
 #!/usr/bin python2.7
 
-import getpass
 import math
 import os
 from datetime import datetime
@@ -17,6 +16,7 @@ from scipy import interpolate
 
 from gbmbkgpy.external_prop import ExternalProps, writefile
 from gbmbkgpy.io.package_data import get_path_of_data_file, get_path_of_data_dir
+
 
 class detector(object):
     """This class contains the orientations of all detectors of the GBM setup (azimuth and zenith):\n
@@ -110,6 +110,7 @@ class detector(object):
         zenith = math.asin(1)
         azimuthg = 180.0
         zenithg = 90.0
+
 
 class calculate_geometry(object):
     def altitude(self, day):
@@ -646,7 +647,6 @@ class calculate_geometry(object):
 
         return new_vector, sat_time, bin_time_mid
 
-
     def sat_to_geo(self, sat_q, sat_coor):
         """This function converts the satellite coordinates into geographical coordinates depending on the quaternion-rotation of the satellite and stores the data in arrays of the form: geo_coor, geo_rad\n
         Input:\n
@@ -692,8 +692,6 @@ class calculate_geometry(object):
         geo_rad[:, 0] = geo_ra
         geo_rad[:, 1] = geo_dec
         return geo_coor, geo_rad
-
-
 
     def sun_ang(self, detector_name, day):
         """This function calculates the sun orientation for one detector and stores the data in arrays of the form: sun_ang, sat_time\n
@@ -913,8 +911,6 @@ class calculate(object):
     sun_pos_bin(self, day, bin_time_mid = 0, detector = 0, data_type = 'ctime') -> sun_pos_bin, sun_rad_bin, bin_time_mid\n
     rigidity(self, day, bin_time_mid = 0) -> rigidity, sat_lon, sat_lat, sat_time\n\n\n"""
 
-
-
     def curve_fit_plots(self, day, detector_name, echan, data_type='ctime', plot='yes', write='no', burst_time='none'):
         """This function calculates the chi-square fit to the data of a given detector, day and energy channel and saves the figure in the appropriate folder\n
         Input:\n
@@ -1106,7 +1102,8 @@ class calculate(object):
             src_ang_bin = src_data[0]
             src_ang_bin = calculate.ang_eff(calculate(), src_ang_bin, echan, data_type)[0]
             src_occ = \
-            calculate.src_occultation_bin(calculate(), day, src_ra, src_dec, bin_time_mid, detector_name, data_type)[0]
+                calculate.src_occultation_bin(calculate(), day, src_ra, src_dec, bin_time_mid, detector_name,
+                                              data_type)[0]
 
             src_ang_bin[np.where(src_occ == 0)] = 0
             src_ang_bin[np.where(total_rate == 0)] = 0
@@ -1507,7 +1504,6 @@ class calculate(object):
 
         # get the iso-date-format from the day
         date = datetime(year, int(str(day)[2:4]), int(str(day)[4:6]))
-
 
         ##################################################################################################################
         #############################################energychannels#######################################################
@@ -1926,9 +1922,9 @@ class calculate(object):
                 fig.clf()
                 plt.clf()
 
-            ##################################################################################################################
-            #############################################detectors############################################################
-            ##################################################################################################################
+                ##################################################################################################################
+                #############################################detectors############################################################
+                ##################################################################################################################
 
 
         elif analysis == 'detectors':
@@ -2340,9 +2336,9 @@ class calculate(object):
 
 
 
-            ##################################################################################################################
-            ################################################both#############################################################
-            ##################################################################################################################
+                ##################################################################################################################
+                ################################################both#############################################################
+                ##################################################################################################################
 
         elif analysis == 'both':
             # for all detectors and energy channels calculate the fits and sum up the results. Combine all of them.
@@ -2791,7 +2787,6 @@ class calculate(object):
         met = (mjdutc - 51910 - 0.0007428703703) * 86400.0 + utc_tt_diff  # convert it into MET
         return met, mjdutc
 
-
     def met_to_date(self, met):
         """This function converts a MET to other times and stores it in the form: mjdutc, mjdtt, isot, date, decimal.\n
         Input:\n
@@ -2827,7 +2822,7 @@ class calculate(object):
                 utc_tt_diff = 69.184
 
         mjdutc = ((
-                  met - utc_tt_diff) / 86400.0) + 51910 + 0.0007428703703  # -68.184 added to account for diff between TT and UTC and the 4 leapseconds since 2001
+                      met - utc_tt_diff) / 86400.0) + 51910 + 0.0007428703703  # -68.184 added to account for diff between TT and UTC and the 4 leapseconds since 2001
         mjdtt = ((met) / 86400.0) + 51910 + 0.00074287037037
         mjdtt = Time(mjdtt, scale='tt', format='mjd')
         isot = Time(mjdtt, scale='utc', format='isot')
@@ -3069,7 +3064,6 @@ class calculate(object):
         plt.clf()
 
         return
-
 
     def src_occultation(self, day, ra, dec):
         """This function calculates the angle between a source and the earth and stores the data in arrays of the form: ang_occ, src_pos, src_rad\n
