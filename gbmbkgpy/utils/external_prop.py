@@ -402,9 +402,10 @@ class ExternalProps(object):
 
         self._ps_df = pd.read_table(file_path,names=['name','ra','dec'])
 
-        # instantiate point source objects
+        # instantiate dic of point source objects
+        self._point_sources_dic = {}
         for row in self._ps_df.itertuples():
-            PointSource(row[0], row[1], row[2])
+            self._point_sources_dic[row[1]] = PointSource(row[1], row[2], row[3])
 
 
         # with open(filepath, 'r') as poly:
@@ -426,7 +427,7 @@ class ExternalProps(object):
 
     @property
     def point_sources(self):
-        return self._ps_df
+        return self._point_sources_dic
 
 
 
