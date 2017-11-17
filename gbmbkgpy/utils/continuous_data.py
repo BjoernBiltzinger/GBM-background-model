@@ -1,6 +1,7 @@
 import astropy.io.fits as fits
 import numpy as np
 import collections
+import matplotlib.pyplot as plt
 
 from gbmgeometry import PositionInterpolator, gbm_detector_list
 
@@ -225,7 +226,7 @@ class ContinuousData(object):
 
         # get the last data point
 
-        mean_time = self.mean_time[-1]
+        mean_time = self.mean_time[-2]
 
         det = gbm_detector_list[self._det](quaternion=self._position_interpolator.quaternion(mean_time),
                                            sc_pos=self._position_interpolator.sc_pos(mean_time),
@@ -246,4 +247,16 @@ class ContinuousData(object):
     def sun_angle(self, met):
 
         return self._sun_angle_interpolator(met)
+
+
+    def plot_sun_angle(self):
+
+        fig, ax = plt.subplots()
+
+        ax.plot(self.mean_time[:-1],self.sun_angle(self.mean_time[:-1]))
+
+        ax.set_xlabel('MET')
+        ax.set_ylabel('Sun Angle (deg)')
+
+        return fig
 
