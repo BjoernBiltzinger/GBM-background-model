@@ -1,7 +1,3 @@
-import astropy.io.fits as fits
-import numpy as np
-from gbmbkgpy.external_prop import ExternalProps, writefile
-
 class ModelBackground(object):
 
     def __init__(self):

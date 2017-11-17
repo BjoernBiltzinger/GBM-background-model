@@ -14,8 +14,8 @@ from astropy.time import Time
 from numpy import linalg        as LA
 from scipy import interpolate
 
-from gbmbkgpy.external_prop import ExternalProps, writefile
 from gbmbkgpy.io.package_data import get_path_of_data_file, get_path_of_data_dir
+from gbmbkgpy.utils.external_prop import ExternalProps, writefile
 
 
 class detector(object):
