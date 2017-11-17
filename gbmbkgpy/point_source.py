@@ -1,15 +1,12 @@
-import numpy as np
 import astropy.coordinates as coord
-
-from gbmbkgpy.utils.external_prop import ExternalProps
-from gbmbkgpy.work_module_refactor import calculate
+import astropy.units as u
 
 
 class PointSource(object):
 
     def __init__(self, name, ra, dec):
-
-        pass
+        self._name = name
+        self._ps_skycoord = coord.SkyCoord(ra*u.deg, dec*u.deg, frame='icrs')
 
 
     def set_relative_location(self, time, coordinate):
@@ -17,15 +14,11 @@ class PointSource(object):
         # get the separation
 
         #interpolate
-
-
-
         pass
 
 
 
     def separation_angle(self, met):
-
         pass
 
 
@@ -33,10 +26,10 @@ class PointSource(object):
     @property
     def location(self):
 
-        return
+        return self._ps_skycoord
 
 
     @property
     def name(self):
 
-        return
+        return self._name
