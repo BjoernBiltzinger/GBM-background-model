@@ -1,4 +1,3 @@
-import getpass
 import os
 import pandas as pd
 import subprocess
@@ -13,6 +12,8 @@ import numpy as np
 from astropy.io import fits
 
 from gbmbkgpy.io.file_utils import file_existing_and_readable
+
+from gbmbkgpy.point_source import PointSource
 
 
 from gbmbkgpy.io.package_data import get_path_of_data_dir, get_path_of_data_file
@@ -41,6 +42,8 @@ class ExternalProps(object):
         self._build_flares()
 
         self._read_saa()
+
+        self._build_point_sources()
 
         # self._point_sources()
 
@@ -399,6 +402,10 @@ class ExternalProps(object):
 
         self._ps_df = pd.read_table(file_path,names=['name','ra','dec'])
 
+        # instantiate point source objects
+        for row in self._ps_df.itertuples():
+            PointSource(row[0], row[1], row[2])
+
 
         # with open(filepath, 'r') as poly:
         #     lines = poly.readlines()
@@ -419,7 +426,7 @@ class ExternalProps(object):
 
     @property
     def point_sources(self):
-        return self._point_sources_properties
+        return self._ps_df
 
 
 
