@@ -11,6 +11,7 @@ import scipy.interpolate as interpolate
 from gbmbkgpy.io.file_utils import file_existing_and_readable
 
 import astropy.time as astro_time
+import astropy.coordinates as coord
 
 
 
@@ -198,7 +199,7 @@ class ContinuousData(object):
     def _setup_geometery(self):
 
 
-        n_bins_to_calculate = 1000.
+        n_bins_to_calculate = 800.
 
         self._position_interpolator = PositionInterpolator(poshist=self._pos_hist)
 
@@ -208,6 +209,8 @@ class ContinuousData(object):
 
         sun_angle = []
         sun_time = []
+        earth_angle = []
+        pointing = []
 
         # go thru a subset of times and calculate the sun angle with GBM geometry
 
@@ -221,6 +224,9 @@ class ContinuousData(object):
 
                 sun_angle.append(det.sun_angle.value)
                 sun_time.append(mean_time)
+                earth_angle.append(det.earth_angle.value)
+                pointing.append(det.center.icrs)
+
 
                 p.increase()
 
@@ -234,29 +240,54 @@ class ContinuousData(object):
 
         sun_angle.append(det.sun_angle.value)
         sun_time.append(mean_time)
+        earth_angle.append(det.earth_angle.value)
+
+
+        self._pointing = coord.concatenate(pointing)
 
 
 
         self._sun_angle = sun_angle
         self._sun_time = sun_time
+        self._earth_angle = earth_angle
+
 
         # interpolate it
 
         self._sun_angle_interpolator = interpolate.interp1d(self._sun_time,self._sun_angle)
+        self._earth_angle_interpolator = interpolate.interp1d(self._sun_time, self._earth_angle)
+
+
+    @property
+    def pointing(self):
+
+        return self._pointing
+
+    @property
+    def interpolation_time(self):
+
+        return self._sun_time
 
     def sun_angle(self, met):
 
         return self._sun_angle_interpolator(met)
 
 
-    def plot_sun_angle(self):
+    def earth_angle(self, met):
+
+        return self._earth_angle_interpolator(met)
+
+
+
+    def plot_angle(self):
 
         fig, ax = plt.subplots()
 
         ax.plot(self.mean_time[:-1],self.sun_angle(self.mean_time[:-1]))
+        ax.plot(self.mean_time[:-1], self.earth_angle(self.mean_time[:-1]))
 
         ax.set_xlabel('MET')
-        ax.set_ylabel('Sun Angle (deg)')
+        ax.set_ylabel('Angle (deg)')
 
         return fig
 
