@@ -6,6 +6,9 @@ import urllib2
 from datetime import date
 from subprocess import Popen
 
+from astropy.coordinates import SkyCoord
+
+
 import numpy as np
 from astropy.io import fits
 
@@ -383,30 +386,34 @@ class ExternalProps(object):
     def mcilwain(self):
         return self._mcilwain_properties
 
-    def _point_sources(self):
+    def _build_point_sources(self):
         """This function reads the point_sources.dat file and returns the sources in the form: names, coordinates[ra][dec]\n
         Input:\n
         readfile.saa()\n
         Output\n
         0 = source_names
         1 = coordinates\n"""
-        filepath = get_path_of_data_file('background_point_sources/', 'point_sources.dat')
-        with open(filepath, 'r') as poly:
-            lines = poly.readlines()
-        source_names = []
-        source_ra = []
-        source_dec = []
-        point_sources_dic = {}
-        # write file data into the arrays
-        for line in lines:
-            p = line.split()
-            source_names.append(p[0])
-            source_ra.append(float(p[1]))
-            source_dec.append(float(p[2]))
-        point_sources_dic['source_names'] = np.array(source_names)
-        point_sources_dic['coordinates'] = np.array([source_ra, source_dec])  # merge the arrays
+        file_path = get_path_of_data_file('background_point_sources/', 'point_sources.dat')
 
-        self._point_sources_properties = point_sources_dic
+        self._ps_df = pd.read_table(file_path,names=['name','ra','dec'])
+
+
+        # with open(filepath, 'r') as poly:
+        #     lines = poly.readlines()
+        # source_names = []
+        # source_ra = []
+        # source_dec = []
+        # point_sources_dic = {}
+        # # write file data into the arrays
+        # for line in lines:
+        #     p = line.split()
+        #     source_names.append(p[0])
+        #     source_ra.append(float(p[1]))
+        #     source_dec.append(float(p[2]))
+        # point_sources_dic['source_names'] = np.array(source_names)
+        # point_sources_dic['coordinates'] = np.array([source_ra, source_dec])  # merge the arrays
+
+        #self._point_sources_properties = point_sources_dic
 
     @property
     def point_sources(self):
