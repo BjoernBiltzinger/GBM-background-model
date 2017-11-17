@@ -1,5 +1,8 @@
 import astropy.io.fits as fits
 import numpy as np
+import collections
+
+import scipy.interpolate as interpolate
 
 from gbmbkgpy.io.file_utils import file_existing_and_readable
 
@@ -31,6 +34,11 @@ class ContinuousData(object):
             self._bin_start = f['SPECTRUM'].data['TIME']
 
 
+        self._n_channels, self._n_time_bins = self._counts.shape
+
+        #self._calculate_ang_eff()
+
+
     @property
     def day(self):
         return self._day
@@ -43,6 +51,16 @@ class ContinuousData(object):
     def detector_id(self):
 
         return self._det[-1]
+
+    @property
+    def n_channels(self):
+
+        return self._n_channels
+
+    @property
+    def n_time_bins(self):
+
+        return self._n_time_bins
 
     @property
     def rates(self):
@@ -64,7 +82,23 @@ class ContinuousData(object):
     def mean_time(self):
         return np.mean(self.time_bins, axis=1)
 
-    def _calculate_ang_eff(self, ang, echan, data_type='ctime', detector_type='NaI'):
+
+    def effective_angle(self,channel, angle):
+        """
+        
+        :param channel: 
+        :param angle: 
+        :return: 
+        """
+
+        assert isinstance(channel,int), 'channel must be an integer'
+        assert channel in range(self._n_channels), 'Invalid channel'
+
+
+        return  interpolate.splev(angle, self._tck[channel], der=0)
+
+
+    def _calculate_ang_eff(self):
         """This function converts the angle of one detectortype to a certain source into an effective angle considering the angular dependence of the effective area and stores the data in an array of the form: ang_eff\n
         Input:\n
         calculate.ang_eff ( ang (in degrees), echan (integer in the range of 0-7 or 0-127), datatype='ctime' (or 'cspec'), detectortype='NaI' (or 'BGO') )\n
@@ -94,9 +128,12 @@ class ContinuousData(object):
             y_all = np.array([y0, y1, y2, y3, y4, y5, y6, y7])
             ang_eff = []
 
+
+        self._tck = collections.OrderedDict()
+
         if self._det[0] == 'n':
 
-            if self._data_type == 'ctime':
+            #if self._data_type == 'ctime':
                 # ctime linear-interpolation factors
                 # y1_fac = np.array([1.2, 1.08, 238./246., 196./246., 127./246., 0., 0., 0.])
                 # y2_fac = np.array([0., 0., 5./246., 40./246., 109./246., 230./383., 0., 0.])
@@ -107,25 +144,30 @@ class ContinuousData(object):
                 # y3_fac = np.array([0., 0., 0., 0., 0., 133./383., .7, .5])
 
                 # resulting effective area curve
+
+
+            for echan in range(self._n_channels):
+
                 y = y_all[echan]
 
                 # normalize
                 # y = y/y1[90]
 
                 # calculate the angle factors
-                tck = interpolate.splrep(x, y)
-                ang_eff = interpolate.splev(ang, tck, der=0)
+                self._tck[echan] = interpolate.splrep(x, y)
+                #ang_eff = interpolate.splev(ang, tck, der=0)
 
                 # convert the angle according to their factors
                 # ang_eff = np.array(ang_fac*ang)
-
-            else:
-                print 'data_type cspec not yet implemented'
-
         else:
-            print 'detector_type BGO not yet implemented'
 
-        '''ang_rad = ang*(2.*math.pi)/360.
-        ang_eff = 110*np.cos(ang_rad)
-        ang_eff[np.where(ang > 90.)] = 0.'''
-        return ang_eff, y
+            raise NotImplementedError('BGO not implemented yet')
+
+        #
+        # else:
+        #     print 'detector_type BGO not yet implemented'
+        #
+        # '''ang_rad = ang*(2.*math.pi)/360.
+        # ang_eff = 110*np.cos(ang_rad)
+        # ang_eff[np.where(ang > 90.)] = 0.'''
+        # return ang_eff, y
