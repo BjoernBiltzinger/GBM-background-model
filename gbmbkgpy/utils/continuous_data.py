@@ -2,16 +2,22 @@ import astropy.io.fits as fits
 import numpy as np
 import collections
 
+from gbmgeometry import PositionInterpolator, gbm_detector_list
+
+
 import scipy.interpolate as interpolate
 
 from gbmbkgpy.io.file_utils import file_existing_and_readable
 
+import astropy.time as astro_time
+
+
 
 from gbmbkgpy.io.package_data import get_path_of_data_dir, get_path_of_data_file
-
+from gbmbkgpy.utils.progress_bar import progress_bar
 
 class ContinuousData(object):
-    def __init__(self, file_name):
+    def __init__(self, file_name, position_history):
 
 
 
@@ -20,6 +26,13 @@ class ContinuousData(object):
 
         assert 'ctime' in self._data_type, 'currently only working for CTIME data'
         assert 'n' in self._det, 'currently only working NAI detectors'
+
+        self._pos_hist = position_history
+
+        _, _,_,pos_hist_day,_ = self._pos_hist.split('_')
+
+        assert pos_hist_day == self._day, 'Position history file does not match data file day'
+
 
 
 
@@ -33,8 +46,11 @@ class ContinuousData(object):
             self._exposure = f['SPECTRUM'].data['EXPOSURE']
             self._bin_start = f['SPECTRUM'].data['TIME']
 
+        self._n_time_bins, self._n_channels  = self._counts.shape
 
-        self._n_channels, self._n_time_bins = self._counts.shape
+        self._setup_geometery()
+
+
 
         #self._calculate_ang_eff()
 
@@ -46,6 +62,7 @@ class ContinuousData(object):
     @property
     def data_type(self):
         return self._data_type
+
 
     @property
     def detector_id(self):
@@ -81,6 +98,11 @@ class ContinuousData(object):
     @property
     def mean_time(self):
         return np.mean(self.time_bins, axis=1)
+
+
+    def get_quaternion(self, met):
+
+        return self._position_interpolator.quaternion(met)
 
 
     def effective_angle(self,channel, angle):
@@ -171,3 +193,57 @@ class ContinuousData(object):
         # ang_eff = 110*np.cos(ang_rad)
         # ang_eff[np.where(ang > 90.)] = 0.'''
         # return ang_eff, y
+
+    def _setup_geometery(self):
+
+
+        n_bins_to_calculate = 1000.
+
+        self._position_interpolator = PositionInterpolator(poshist=self._pos_hist)
+
+        # ok we need to get the sun angle
+
+        n_skip = int(np.ceil(self._n_time_bins/n_bins_to_calculate))
+
+        sun_angle = []
+        sun_time = []
+
+        # go thru a subset of times and calculate the sun angle with GBM geometry
+
+        with progress_bar(n_bins_to_calculate,title='Calculating sun position') as p:
+
+            for mean_time in self.mean_time[::n_skip]:
+
+                det = gbm_detector_list[self._det]( quaternion = self._position_interpolator.quaternion(mean_time),
+                                                    sc_pos=self._position_interpolator.sc_pos(mean_time),
+                                                    time=astro_time.Time(self._position_interpolator.utc(mean_time)))
+
+                sun_angle.append(det.sun_angle.value)
+                sun_time.append(mean_time)
+
+                p.increase()
+
+        # get the last data point
+
+        mean_time = self.mean_time[-1]
+
+        det = gbm_detector_list[self._det](quaternion=self._position_interpolator.quaternion(mean_time),
+                                           sc_pos=self._position_interpolator.sc_pos(mean_time),
+                                           time=astro_time.Time(self._position_interpolator.utc(mean_time)))
+
+        sun_angle.append(det.sun_angle.value)
+        sun_time.append(mean_time)
+
+
+
+        self._sun_angle = sun_angle
+        self._sun_time = sun_time
+
+        # interpolate it
+
+        self._sun_angle_interpolator = interpolate.interp1d(self._sun_time,self._sun_angle)
+
+    def sun_angle(self, met):
+
+        return self._sun_angle_interpolator(met)
+
