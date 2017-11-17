@@ -1,23 +1,14 @@
 #!/usr/bin python2.7
 
-import subprocess
-from subprocess import Popen, PIPE
-import os
-import matplotlib.pyplot as plt
-import numpy as np
 import math
+import os
+
+import matplotlib.pyplot as plt
 import pyfits
-from numpy import linalg as LA
-import ephem
-from scipy import interpolate
-import scipy.optimize as optimization
-from astropy.time import Time
-from astropy.table import Table
-import fileinput
-from datetime import datetime
+
+from gbmbkgpy.utils.external_prop import ExternalProps
 from gbmbkgpy.work_module_refactor import calculate
 from gbmbkgpy.work_module_refactor import detector
-from gbmbkgpy.external_prop import ExternalProps
 
 calc = calculate()
 det = detector()

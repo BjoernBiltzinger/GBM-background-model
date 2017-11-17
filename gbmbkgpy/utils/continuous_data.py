@@ -243,7 +243,7 @@ class ContinuousData(object):
         earth_angle.append(det.earth_angle.value)
 
 
-        self._pointing = coord.concatenate(pointing)
+        self._pointing = np.array(pointing)#coord.concatenate(pointing)
 
 
 

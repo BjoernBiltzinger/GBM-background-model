@@ -1,15 +1,10 @@
 #!/usr/bin python2.7
 
-import os
-import matplotlib.pyplot as plt
-import numpy as np
 import math
-import pyfits
-from numpy import linalg as LA
-import ephem
+
+from gbmbkgpy.utils.external_prop import ExternalProps
 from gbmbkgpy.work_module_refactor import calculate
 from gbmbkgpy.work_module_refactor import detector
-from gbmbkgpy.external_prop import ExternalProps
 
 calc = calculate()
 det = detector()

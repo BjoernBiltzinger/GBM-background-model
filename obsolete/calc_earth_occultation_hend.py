@@ -1,14 +1,12 @@
-import math
-from math import cos, sin, atan, acos, fabs
-import numpy
-import matplotlib.pyplot as plt
-import pylab
-from tables import *
+from math import cos, sin, atan, acos
+
 from pylab import *
 from scipy import integrate
+from tables import *
+
+from gbmbkgpy.utils.external_prop import ExternalProps, writefile
 from gbmbkgpy.work_module_refactor import calculate
 from gbmbkgpy.work_module_refactor import detector
-from gbmbkgpy.external_prop import ExternalProps, writefile
 
 calc = calculate()
 det = detector()
