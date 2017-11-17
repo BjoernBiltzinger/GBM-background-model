@@ -42,12 +42,14 @@ class ExternalProps(object):
 
         self._read_saa()
 
+        # self._point_sources()
+
         # self._earth_occ()
         # self._fits_data()
-        # self._flares()
+
         # self._magfits()
         # self._mcilwain()
-        # self._point_sources()
+
 
     def _read_saa(self):
         """

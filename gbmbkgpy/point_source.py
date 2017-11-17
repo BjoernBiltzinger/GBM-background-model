@@ -1,4 +1,5 @@
 import numpy as np
+import astropy.coordinates as coord
 
 from gbmbkgpy.utils.external_prop import ExternalProps
 from gbmbkgpy.work_module_refactor import calculate

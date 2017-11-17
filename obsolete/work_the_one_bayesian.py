@@ -1,28 +1,17 @@
 #!/usr/bin python2.7
 
-import subprocess
-import fileinput
-import os
-import ephem
 import math
-import pyfits
-import theano
-import pymc3                       as pm
-import theano.tensor               as T
-import scipy.optimize              as optimize
-import matplotlib.pyplot           as plt
+from   datetime import datetime
+
 import numpy                       as np
-from   numpy         import linalg as LA
-from   scipy         import interpolate
-from   scipy         import integrate
-from   astropy.time  import Time
-from   astropy.table import Table
-from   astropy.io    import fits
-from   subprocess    import Popen, PIPE
-from   datetime      import datetime
+import pymc3                       as pm
+import scipy.optimize              as optimize
+import theano
+import theano.tensor               as T
+
+from gbmbkgpy.utils.external_prop import ExternalProps, writefile
 from   gbmbkgpy.work_module_refactor import calculate
 from   gbmbkgpy.work_module_refactor import detector
-from gbmbkgpy.external_prop import ExternalProps, writefile
 
 calc = calculate()
 det = detector()
