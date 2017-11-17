@@ -37,7 +37,8 @@ class ExternalProps(object):
 
         self._build_flares()
 
-        # self._read_saa()
+        self._read_saa()
+
         # self._earth_occ()
         # self._fits_data()
         # self._flares()
@@ -45,7 +46,7 @@ class ExternalProps(object):
         # self._mcilwain()
         # self._point_sources()
 
-    def _saa(self):
+    def _read_saa(self):
         """
         This function reads the saa.dat file and returns the polygon in the form: saa[lat][lon]\n
         Input:\n

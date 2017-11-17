@@ -1,22 +1,13 @@
 #!/usr/bin python2.7
 
 import getpass
-import math
 import os
-from datetime import datetime
 
-import ephem
-import matplotlib                          as mpl
-import matplotlib.pyplot                   as plt
 import numpy                               as np
-import scipy.optimize                      as optimization
 from astropy.io import fits
-from astropy.time import Time
-from numpy import linalg        as LA
-from scipy import interpolate
 
-from gbmbkgpy.external_prop import ExternalProps, writefile
 from gbmbkgpy.work_module_refactor import calculate, detector
+
 
 class readfile(object):
     """This class contains all functions for reading the files needed for the GBM background model:\n
