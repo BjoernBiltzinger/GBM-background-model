@@ -22,7 +22,20 @@ class ExternalProps(object):
 
 
     def __init__(self, day):
+        """
+        Build the external properties for a given day
+        :param day: YYMMDD
+        """
+
+        assert isinstance(day,str), 'Day must be a string'
+        assert len(day) == 6, 'Day must be in format YYMMDD'
+
+
         self._day = day
+        self._year = '20%s'%day[:2]
+
+
+        self._build_flares()
 
         # self._read_saa()
         # self._earth_occ()
@@ -205,21 +218,21 @@ class ExternalProps(object):
     def fits_data(self):
         return self._fits_data_properties
 
-    def _flares(self, year):
+    def _build_flares(self):
         """This function reads the YYYY.txt file containing the GOES solar flares of the corresponding year and returns the data in arrays of the form: day, time\n
         Input:\n
         year = YYYY\n
         Output\n
         0 = day ('YYMMDD')
         1 = time[start][stop] (in seconds on that day -> accuracy ~ 1 minute)\n"""
-        filename =  '%s.dat' % year
+        filename =  '%s.dat' % self._year
         filepath = get_path_of_data_file('flares', str(filename))
 
 
         #while os.path.isfile(filepath) == False:
         if not file_existing_and_readable(filepath):
 
-            _download_flares(year)
+            _download_flares(self._year)
 
         with open(filepath, 'r') as flares:
             lines = flares.readlines()
@@ -231,12 +244,13 @@ class ExternalProps(object):
         for line in lines:  # write file data into the arrays
             p = line.split()
             # print p[0]
-            day.append(int(p[0][5:]))
+
+            day.append(p[0][5:])
             start.append(int(p[1][0:2]) * 3600. + int(p[1][2:4]) * 60.)
             stop.append(int(p[2][0:2]) * 3600. + int(p[2][2:4]) * 60.)
 
         # create numpy arrays
-        flares_dic['day'] = np.array(day)  # array of days when solar flares occured
+        flares_dic['day'] = np.array(map(str,day))  # array of days when solar flares occured
         start = np.array(start)
         stop = np.array(stop)
         flares_dic['tstart'] = np.array(start)
@@ -245,9 +259,13 @@ class ExternalProps(object):
 
         self._flares_properties = pd.DataFrame(flares_dic)
 
+        self._flare_idx = self._flares_properties['day'] == self._day
+
+
+
     @property
     def flares(self):
-        return self._flares_properties
+        return self._flares_properties[self._flare_idx]
 
     def _lat_spacecraft(self, week):
         """This function reads a LAT-spacecraft file and stores the data in arrays of the form: lat_time, mc_b, mc_l.\n
