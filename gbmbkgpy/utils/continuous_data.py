@@ -260,3 +260,20 @@ class ContinuousData(object):
 
         return fig
 
+
+    def plot_eff_angle(self):
+
+        fig, ax = plt.subplots()
+
+
+        x_grid = np.linspace(-180,180,200)
+
+        for i in range(self._n_channels):
+
+            ax.plot(x_grid,self.effective_angle(i,x_grid))
+
+
+        ax.set_xlabel('angle (deg)')
+        ax.set_ylabel('effective area')
+
+
