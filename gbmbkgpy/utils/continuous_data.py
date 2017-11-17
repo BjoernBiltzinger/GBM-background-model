@@ -241,6 +241,7 @@ class ContinuousData(object):
         sun_angle.append(det.sun_angle.value)
         sun_time.append(mean_time)
         earth_angle.append(det.earth_angle.value)
+        pointing.append(det.center.icrs)
 
 
         self._pointing = np.array(pointing)#coord.concatenate(pointing)
