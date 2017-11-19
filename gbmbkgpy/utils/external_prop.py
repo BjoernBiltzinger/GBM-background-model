@@ -25,7 +25,7 @@ class ExternalProps(object):
 
 
 
-    def __init__(self, day):
+    def __init__(self, day, data_in = 'data_in'):
         """
         Build the external properties for a given day
         :param day: YYMMDD
@@ -37,7 +37,7 @@ class ExternalProps(object):
 
         self._day = day
         self._year = '20%s'%day[:2]
-
+        self._data_in = data_in
 
         self._build_flares()
 
@@ -405,7 +405,7 @@ class ExternalProps(object):
         # instantiate dic of point source objects
         self._point_sources_dic = {}
         for row in self._ps_df.itertuples():
-            self._point_sources_dic[row[1]] = PointSource(row[1], row[2], row[3])
+            self._point_sources_dic[row[1]] = PointSource(row[1], row[2], row[3], self._data_in)
 
 
         # with open(filepath, 'r') as poly:
