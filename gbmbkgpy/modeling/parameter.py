@@ -111,4 +111,7 @@ class Parameter(object):
     def normalization(self):
         return self._normalization
 
+    @property
+    def name(self):
 
+        return self._name
