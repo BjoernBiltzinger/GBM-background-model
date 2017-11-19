@@ -43,3 +43,35 @@ class Function(object):
     def parameters(self):
 
         return self._parameter_dict
+
+
+class ContinuumFunction(Function):
+    def __init__(self, coefficient_name):
+        """
+        A continuum function that is parametrized by a constant multiplied by
+        a an interpolated function
+
+        :param coefficient_name: the name of the coefficient
+        """
+
+        assert isinstance(coefficient_name, str)
+
+        # build the constant
+
+        K = Parameter(coefficient_name, initial_value=1., min_value=0, max_value=1, delta=0.1, normalization=True)
+
+        super(ContinuumFunction, self).__init__(K)
+
+    def set_interpolated_function(self, interpolation):
+        """
+        Set the temporal interpolation that will be used for the function
+
+
+        :param interpolation: a scipy interpolation function
+        :return: 
+        """
+
+        self._interpolation = interpolation
+
+    def _evaluate(self, x, K):
+        K * self._interpolation(x)
