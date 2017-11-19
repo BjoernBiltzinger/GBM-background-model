@@ -15,6 +15,8 @@ class Model(object):
 
         self._update_parameters()
 
+        self._saa_regions = []
+
     @property
     def free_parameters(self):
         """
@@ -135,8 +137,15 @@ class Model(object):
 
         return self._point_sources.values()[id](t)
 
-    def __call__(self, x):
-        return self._a * x + self._b
+    def add_SAA_regions(self, *regions):
+        """
+        Add SAA temporal regions which cause the model to be set to zero
+        
+        :param regions: 
+        :return: 
+        """
+
+        pass
 
     def set_fit_parameters(self, a, b):
         self._a = a
@@ -147,9 +156,7 @@ class Model(object):
         # get continuous data
         pass
 
-    def _build_model(self, x):
-        self._a = "calculating parameter"
-        self._b = "calculating parameter"
+
 
     def plot_model(self, model):
         pass
