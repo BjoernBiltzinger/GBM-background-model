@@ -51,10 +51,13 @@ class Model(object):
 
         parameters = collections.OrderedDict()
 
-        for source in [self._continuum_sources, self._flare_sources, self._point_sources]:
+        for sources in [self._continuum_sources, self._flare_sources, self._point_sources]:
 
-            for parameter_name, parameter in source.parameters.iteritems():
-                parameters[parameter_name] = parameter
+            for source in sources.itervalues():
+
+                for parameter_name, parameter in source.parameters.iteritems():
+
+                    parameters[parameter_name] = parameter
 
         self._parameters = parameters
 
@@ -86,6 +89,51 @@ class Model(object):
     def continuum_sources(self):
 
         return self._continuum_sources
+
+    @property
+    def n_point_sources(self):
+
+        return len(self._point_sources)
+
+    @property
+    def n_flare_sources(self):
+
+        return len(self._flare_sources)
+
+    @property
+    def n_continuum_sources(self):
+
+        return len(self._continuum_sources)
+
+    def get_continuum_flux(self, id, t):
+        """
+        
+        :param id: 
+        :param t: 
+        :return: 
+        """
+
+        return self._continuum_sources.values()[id](t)
+
+    def get_flare_flux(self, id, t):
+        """
+        
+        :param id: 
+        :param t: 
+        :return: 
+        """
+
+        return self._flare_sources.values()[id](t)
+
+    def get_point_source_flux(self, id, t):
+        """
+        
+        :param id: 
+        :param t: 
+        :return: 
+        """
+
+        return self._point_sources.values()[id](t)
 
     def __call__(self, x):
         return self._a * x + self._b
