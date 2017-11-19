@@ -1,4 +1,4 @@
-from gbmbkgpy.modeling.function import Function
+from gbmbkgpy.modeling.function import Function, ContinuumFunction
 from gbmbkgpy.modeling.parameter import Parameter
 import numpy as np
 
@@ -31,37 +31,16 @@ class SAA_Decay(Function):
 
         pass
 
-
-class ContinuumFunction(Function):
-
-
-    def __init__(self, coefficient_name):
-
-        K =  Parameter(coefficient_name, initial_value=1., min_value=0, max_value= 1, delta= 0.1, normalization = True)
-
-        super(ContinuumFunction, self).__init__(K)
-
-
-    def set_interpolated_function(self, interpolation):
-
-        self._interpolation = interpolation
-
-
-    def _evaluate(self, x, K):
-
-
-         K * self._interpolation(x)
-
+# The continuums 
 
 class Cosmic_Gamma_Ray_Background(ContinuumFunction):
-
     def __init__(self):
-
         super(Cosmic_Gamma_Ray_Background, self).__init__('a')
 
+class Magnetic_Continuum(ContinuumFunction):
+    def __init__(self):
+        super(Magnetic_Continuum, self).__init__('b')
 
-class Magnetic_Continuum(Function):
-    pass
-
-class Solar_Continuum(Function):
-    pass
+class Solar_Continuum(ContinuumFunction):
+    def __init__(self):
+        super(Solar_Continuum, self).__init__('c')
