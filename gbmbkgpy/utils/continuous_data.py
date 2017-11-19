@@ -17,6 +17,7 @@ import astropy.coordinates as coord
 
 from gbmbkgpy.io.package_data import get_path_of_data_dir, get_path_of_data_file
 from gbmbkgpy.utils.progress_bar import progress_bar
+from gbmbkgpy.io.plotting.step_plots import step_plot, slice_disjoint, disjoint_patch_plot
 
 class ContinuousData(object):
     def __init__(self, file_name, position_history):
@@ -51,6 +52,8 @@ class ContinuousData(object):
         self._n_time_bins, self._n_channels  = self._counts.shape
 
         self._setup_geometery()
+
+        self._compute_saa_regions()
 
 
 
@@ -258,6 +261,35 @@ class ContinuousData(object):
         self._sun_angle_interpolator = interpolate.interp1d(self._sun_time,self._sun_angle)
         self._earth_angle_interpolator = interpolate.interp1d(self._sun_time, self._earth_angle)
 
+    def _compute_saa_regions(self):
+
+        # find where the counts are zero
+
+        self._zero_idx = self._counts[:, 0] == 0.
+
+        idx = (self._zero_idx).nonzero()[0]
+
+        slice_idx = np.array(slice_disjoint(idx))
+
+        # now find the times of the exits
+
+        if slice_idx[-1 , 1] == self._n_time_bins - 1:
+
+            # the last exit is just the end of the array
+            self._saa_exit_idx = slice_idx[:-1, 1]
+
+        else:
+
+            self._saa_exit_idx = slice_idx[:, 1]
+
+        self._saa_exit_mean_times = self.mean_time[self._saa_exit_idx]
+        self._saa_exit_bin_start = self._bin_start[self._saa_exit_idx]
+        self._saa_exit_bin_stop = self._bin_stop[self._saa_exit_idx]
+
+        self._saa_slices = slice_idx
+
+
+
 
     @property
     def pointing(self):
@@ -277,6 +309,43 @@ class ContinuousData(object):
     def earth_angle(self, met):
 
         return self._earth_angle_interpolator(met)
+
+    @property
+    def saa_mask(self):
+
+        return ~ self._zero_idx
+
+
+    @property
+    def saa_mean_times(self):
+
+        return self._saa_exit_mean_times
+
+
+    def plot_light_curve(self,channel=0, ax=None):
+
+        if ax is None:
+
+            fig, ax = plt.subplots()
+
+        else:
+
+            fig = ax.get_figure()
+
+
+
+        step_plot(self.time_bins, self.rates[:,0], ax, fill=False, fill_min=0,color='green')
+
+
+        # disjoint_patch_plot(ax, self._bin_start, self._bin_stop, ~self._zero_idx, )
+
+
+        ax.set_ylabel('rate (cnts/s)')
+        ax.set_xlabel('MET (s)')
+
+        return fig
+
+
 
 
 
@@ -307,5 +376,4 @@ class ContinuousData(object):
 
         ax.set_xlabel('angle (deg)')
         ax.set_ylabel('effective area')
-
 
