@@ -1,0 +1,46 @@
+from gbmbkgpy.modeling.function import Function, ContinuumFunction
+from gbmbkgpy.modeling.parameter import Parameter
+import numpy as np
+
+
+class Solar_Flare(Function):
+
+    def __init__(self):
+
+        K = Parameter('K', initial_value=1., min_value=0, max_value= 1, delta= 0.1, normalization = True)
+        decay_constant = Parameter('decay_constant', initial_value=1., min_value=0, max_value= 1, delta= 0.1)
+
+
+        super(Solar_Flare, self).__init__(K, decay_constant)
+
+
+    def _evaluate(self, x, K, decay_constant):
+
+
+        return K * np.exp(-x / decay_constant)
+
+
+class SAA_Decay(Function):
+
+    def __init__(self):
+
+        pass
+
+
+    def _evaluate(self, x):
+
+        pass
+
+# The continuums 
+
+class Cosmic_Gamma_Ray_Background(ContinuumFunction):
+    def __init__(self):
+        super(Cosmic_Gamma_Ray_Background, self).__init__('a')
+
+class Magnetic_Continuum(ContinuumFunction):
+    def __init__(self):
+        super(Magnetic_Continuum, self).__init__('b')
+
+class Solar_Continuum(ContinuumFunction):
+    def __init__(self):
+        super(Solar_Continuum, self).__init__('c')
