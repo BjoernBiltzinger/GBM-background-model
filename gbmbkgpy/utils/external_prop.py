@@ -317,7 +317,7 @@ class ExternalProps(object):
         # instantiate dic of point source objects
         self._point_sources_dic = {}
         for row in self._ps_df.itertuples():
-            self._point_sources_dic[row[1]] = PointSource(row[1], row[2], row[3])
+            self._point_sources_dic[row[1]] = PointSource(row[1], row[2], row[3], self._data_in)
 
 
             # with open(filepath, 'r') as poly:
