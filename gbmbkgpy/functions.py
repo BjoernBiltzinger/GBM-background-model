@@ -30,9 +30,15 @@ class SAA_Decay(Function):
         super(SAA_Decay, self).__init__(A, saa_decay_constant)
 
 
-    def _evaluate(self, A, time, saa_decay_constant, exit_time):
+    def _evaluate(self, A, time, saa_decay_constant, t0):
 
-        return A * np.exp(saa_decay_constant * (time - exit_time))
+        out = np.zeros_like(time)
+        idx = time < t0
+
+        out[~idx] = A * np.exp(saa_decay_constant * (time[~idx] - t0))
+
+        return out
+
 
 # The continuums 
 
