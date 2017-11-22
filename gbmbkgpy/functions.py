@@ -24,12 +24,15 @@ class SAA_Decay(Function):
 
     def __init__(self):
 
-        pass
+        A = Parameter('A', initial_value=1., min_value=0, max_value=1, delta=0.1, normalization=True)
+        saa_decay_constant = Parameter('saa_decay_constant', initial_value=1., min_value=0, max_value=1, delta=0.1)
+
+        super(SAA_Decay, self).__init__(A, saa_decay_constant)
 
 
-    def _evaluate(self, x):
+    def _evaluate(self, A, time, saa_decay_constant, exit_time):
 
-        pass
+        return A * np.exp(saa_decay_constant * (time - exit_time))
 
 # The continuums 
 
