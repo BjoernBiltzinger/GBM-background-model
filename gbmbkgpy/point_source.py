@@ -48,14 +48,14 @@ class PointSource(object):
 
         # go through a subset of times and calculate the sun angle with GBM geometry
 
-        with progress_bar(len(interpolation_time),title='Calculating point source seperation angles') as p:
+        with progress_bar(len(interpolation_time)-1,title='Calculating point source seperation angles') as p:
 
             for point in pointing:
-                sep_angle.append(coord.SkyCoord.separation(self._ps_skycoord,point))
+                sep_angle.append(coord.SkyCoord.separation(self._ps_skycoord,point).value)
 
                 p.increase()
 
-        # interpolate it
+            # interpolate it
 
         self._point_source_interpolator = interpolate.interp1d(interpolation_time, sep_angle)
 
