@@ -1,5 +1,5 @@
 FLARE_SOURCE, CONTINUUM_SOURCE, POINT_SOURCE = 'flare_source', 'continuum_source', 'point_source'
-
+from scipy import integrate
 
 class Source(object):
     def __init__(self, name, source_type, shape):
@@ -13,6 +13,9 @@ class Source(object):
 
         return self._shape(x)
 
+    def get_flux(self, a, b):
+        return integrate.quad(self._shape, a, b)
+
     @property
     def name(self):
         return self._name
@@ -20,7 +23,6 @@ class Source(object):
     @property
     def source_type(self):
         return self._source_type
-
 
     @property
     def parameters(self):
