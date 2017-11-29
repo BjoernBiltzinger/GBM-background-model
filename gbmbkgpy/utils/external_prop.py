@@ -316,8 +316,31 @@ class ExternalProps(object):
 
         # instantiate dic of point source objects
         self._point_sources_dic = {}
+
+        
+        ###Single core calc###
         for row in self._ps_df.itertuples():
             self._point_sources_dic[row[1]] = PointSource(row[1], row[2], row[3], self._data_in)
+
+
+        """
+        ###multicore calc###
+        from pathos.multiprocessing import ProcessPool
+        # define function for multiprocess calculation
+        def calc_pointsources(x):
+            return self._ps_df.loc[x][0], PointSource(self._ps_df.loc[x][0], self._ps_df.loc[x][1],
+                                                      self._ps_df.loc[x][2], self._data_in)
+
+        # Initialize Process pool with 8 threads       
+        pool = ProcessPool(8)
+
+        results = pool.map(calc_pointsources, range(len(self._ps_df)))
+
+        # instantiate dic of point source objects
+        for i in range(len(results)):
+            self._point_sources_dic[results[i][0]] = results[i][1]
+        
+        """
 
 
             # with open(filepath, 'r') as poly:
