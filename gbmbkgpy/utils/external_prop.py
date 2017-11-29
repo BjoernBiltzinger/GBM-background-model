@@ -50,7 +50,7 @@ class ExternalProps(object):
 
         self._build_flares()
         self._read_saa()
-        self._build_point_sources()
+        #self._build_point_sources()
         self._build_lat_spacecraft()
 
         # self._earth_occ()
