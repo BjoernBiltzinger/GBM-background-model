@@ -1,4 +1,5 @@
 import collections
+from gbmbkgpy.modeling.parameter import Parameter
 
 
 class Function(object):
