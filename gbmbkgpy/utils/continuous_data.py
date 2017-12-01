@@ -218,24 +218,85 @@ class ContinuousData(object):
         earth_angle = []
         pointing = []
 
-        # go thru a subset of times and calculate the sun angle with GBM geometry
+        # go through a subset of times and calculate the sun angle with GBM geometry
 
-        with progress_bar(n_bins_to_calculate,title='Calculating sun position') as p:
+        
+        ###SINGLECORE CALC###
+        with progress_bar(n_bins_to_calculate, title='Calculating sun position') as p:
 
             for mean_time in self.mean_time[::n_skip]:
-
-                det = gbm_detector_list[self._det]( quaternion = self._position_interpolator.quaternion(mean_time),
-                                                    sc_pos=self._position_interpolator.sc_pos(mean_time),
-                                                    time=astro_time.Time(self._position_interpolator.utc(mean_time)))
+                det = gbm_detector_list[self._det](quaternion=self._position_interpolator.quaternion(mean_time),
+                                                   sc_pos=self._position_interpolator.sc_pos(mean_time),
+                                                   time=astro_time.Time(self._position_interpolator.utc(mean_time)))
 
                 sun_angle.append(det.sun_angle.value)
                 sun_time.append(mean_time)
                 earth_angle.append(det.earth_angle.value)
                 pointing.append(det.center.icrs)
 
-
                 p.increase()
 
+        """
+        ###MULTICORE CALC###
+        time_array = self.mean_time[::n_skip]
+        sun_angle_mul = []
+        sun_time_mul = []
+        earth_angle_mul = []
+        pointing_mul = []
+
+        def calc_geo(i):
+
+            time_array_slice = time_array[i * 100:i * 100 + 100]
+
+            with progress_bar(len(time_array_slice), title='Calculating sun position') as p:
+                for mean_time in time_array_slice:
+                    det = gbm_detector_list[self._det](quaternion=self._position_interpolator.quaternion(mean_time),
+                                                       sc_pos=self._position_interpolator.sc_pos(mean_time),
+                                                       time=astro_time.Time(self._position_interpolator.utc(mean_time)))
+
+                    sun_angle_mul.append(det.sun_angle.value)
+                    sun_time_mul.append(mean_time)
+                    earth_angle_mul.append(det.earth_angle.value)
+                    pointing_mul.append(det.center.icrs)
+
+                    p.increase()
+            geo_dic = {}
+            geo_dic['sun_angle'] = {}
+            geo_dic['sun_time'] = {}
+            geo_dic['earth_angle'] = {}
+            geo_dic['pointing'] = {}
+
+            geo_dic['sun_angle'][i] = sun_angle_mul
+            geo_dic['sun_time'][i] = sun_time_mul
+            geo_dic['earth_angle'][i] = earth_angle_mul
+            geo_dic['pointing'][i] = pointing_mul
+            return geo_dic
+
+        from pathos.multiprocessing import ProcessPool
+
+        # Initialize Process pool with 8 threads
+        pool = ProcessPool(8)
+
+        results = pool.map(calc_geo, range(8))
+
+        sun_angle_dic = {}
+        sun_time_dic = {}
+        earth_angle_dic = {}
+        pointing_dic = {}
+
+        for result in results:
+            sun_angle_dic.update(result['sun_angle'])
+            sun_time_dic.update(result['sun_time'])
+            earth_angle_dic.update(result['earth_angle'])
+            pointing_dic.update(result['pointing'])
+
+        for i in range(8):
+            sun_angle.extend(sun_angle_dic[i])
+            sun_time.extend(sun_time_dic[i])
+            earth_angle.extend(earth_angle_dic[i])
+            pointing.extend(pointing_dic[i])
+            ##############
+        """
         # get the last data point
 
         mean_time = self.mean_time[-2]
@@ -445,7 +506,7 @@ class ContinuousData(object):
 
         return fig
 
-    def calc_earth_occ(angle):
+    def calc_earth_occ(self, angle):
         """This function calculates the overlapping area fraction for a certain earth-angle and stores the data in arrays of the form: opening_ang, earth_occ\n
         Input:\n
         calc_earth_occ ( angle )\n
