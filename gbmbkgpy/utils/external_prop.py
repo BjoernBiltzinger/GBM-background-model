@@ -19,7 +19,7 @@ class ExternalProps(object):
 
 
 
-    def __init__(self, day, data_in = 'data_in'):
+    def __init__(self, day):
         """
         Build the external properties for a given day
         :param day: YYMMDD
@@ -34,7 +34,6 @@ class ExternalProps(object):
 
         self._day = day
         self._year = '20%s'%day[:2]
-        self._data_in = data_in
         self._month = day[2:-2]
         self._dd = day[-2:]
 
@@ -55,7 +54,9 @@ class ExternalProps(object):
 
         # self._earth_occ()
 
-
+    def build_point_sources(self, data_in):
+        self._data_in = data_in
+        self._build_point_sources()
 
     def mc_l(self, met):
         """
@@ -317,7 +318,7 @@ class ExternalProps(object):
         # instantiate dic of point source objects
         self._point_sources_dic = {}
 
-        
+
         ###Single core calc###
         for row in self._ps_df.itertuples():
             self._point_sources_dic[row[1]] = PointSource(row[1], row[2], row[3], self._data_in)
