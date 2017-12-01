@@ -39,7 +39,6 @@ class SAA_Decay(Function):
 
         return out
 
-
 # The continuums 
 
 class Cosmic_Gamma_Ray_Background(ContinuumFunction):
@@ -53,3 +52,7 @@ class Magnetic_Continuum(ContinuumFunction):
 class Solar_Continuum(ContinuumFunction):
     def __init__(self):
         super(Solar_Continuum, self).__init__('c')
+
+class Point_Source_Continuum(ContinuumFunction):
+    def __init__(self):
+        super(Point_Source_Continuum, self).__init__('d')
