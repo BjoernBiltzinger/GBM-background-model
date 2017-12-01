@@ -36,8 +36,8 @@ class Function(object):
 
 
 
-    def _evaluate(self):
-        pass
+    #def _evaluate(self):
+    #    pass
 
 
     @property
@@ -75,4 +75,4 @@ class ContinuumFunction(Function):
         self._interpolation = interpolation
 
     def _evaluate(self, x, K):
-        K * self._interpolation(x)
+        return K * self._interpolation(x)
