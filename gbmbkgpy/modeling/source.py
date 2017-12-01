@@ -14,7 +14,7 @@ class Source(object):
         return self._shape(x)
 
     def get_flux(self, a, b):
-        return integrate.quad(self._shape, a, b)
+        return (b-a)/6*(self._shape(a)+4*self._shape((a+b)/2)+self._shape(b)) #integrate.quad(self._shape, a, b)
 
     @property
     def name(self):
