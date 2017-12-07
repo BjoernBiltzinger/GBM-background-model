@@ -232,6 +232,7 @@ class ContinuousData(object):
         sun_angle = []
         sun_time = []
         earth_angle = []
+        earth_position = []
         pointing = []
 
         # go through a subset of times and calculate the sun angle with GBM geometry
@@ -247,6 +248,7 @@ class ContinuousData(object):
                 sun_angle.append(det.sun_angle.value)
                 sun_time.append(mean_time)
                 earth_angle.append(det.earth_angle.value)
+                earth_position.append(det.earth_position)
                 pointing.append(det.center.icrs)
 
                 p.increase()
@@ -257,13 +259,14 @@ class ContinuousData(object):
         sun_angle_mul = []
         sun_time_mul = []
         earth_angle_mul = []
+        earth_position_mul = []
         pointing_mul = []
 
         def calc_geo(i):
 
             time_array_slice = time_array[i * 100:i * 100 + 100]
 
-            #with progress_bar(len(time_array_slice), title='Calculating sun position') as p:
+            #with progress_bar(len(time_array_slice), title='Calculating sun position') as p:   #porgress bar seems to make break in multiprocess calculation
             for mean_time in time_array_slice:
                 det = gbm_detector_list[self._det](quaternion=self._position_interpolator.quaternion(mean_time),
                                                    sc_pos=self._position_interpolator.sc_pos(mean_time),
@@ -272,6 +275,7 @@ class ContinuousData(object):
                 sun_angle_mul.append(det.sun_angle.value)
                 sun_time_mul.append(mean_time)
                 earth_angle_mul.append(det.earth_angle.value)
+                earth_position_mul.append(det.earth_position)
                 pointing_mul.append(det.center.icrs)
 
             #   p.increase()
@@ -279,11 +283,13 @@ class ContinuousData(object):
             geo_dic['sun_angle'] = {}
             geo_dic['sun_time'] = {}
             geo_dic['earth_angle'] = {}
+            geo_dic['earth_position'] = {}
             geo_dic['pointing'] = {}
 
             geo_dic['sun_angle'][i] = sun_angle_mul
             geo_dic['sun_time'][i] = sun_time_mul
             geo_dic['earth_angle'][i] = earth_angle_mul
+            geo_dic['earth_position'][i] = earth_position_mul
             geo_dic['pointing'][i] = pointing_mul
             return geo_dic
 
@@ -297,18 +303,21 @@ class ContinuousData(object):
         sun_angle_dic = {}
         sun_time_dic = {}
         earth_angle_dic = {}
+        earth_position_dic = {}
         pointing_dic = {}
 
         for result in results:
             sun_angle_dic.update(result['sun_angle'])
             sun_time_dic.update(result['sun_time'])
             earth_angle_dic.update(result['earth_angle'])
+            earth_position_dic.update(result['earth_position'])
             pointing_dic.update(result['pointing'])
 
         for i in range(8):
             sun_angle.extend(sun_angle_dic[i])
             sun_time.extend(sun_time_dic[i])
             earth_angle.extend(earth_angle_dic[i])
+            earth_position.extend(earth_position_dic[i])
             pointing.extend(pointing_dic[i])
         ##############
 
@@ -323,6 +332,7 @@ class ContinuousData(object):
         sun_angle.append(det.sun_angle.value)
         sun_time.append(mean_time)
         earth_angle.append(det.earth_angle.value)
+        earth_position.append(det.earth_position)
         pointing.append(det.center.icrs)
 
 
@@ -333,6 +343,7 @@ class ContinuousData(object):
         self._sun_angle = sun_angle
         self._sun_time = sun_time
         self._earth_angle = earth_angle
+        self._earth_position = earth_position
 
 
         # interpolate it
@@ -470,7 +481,7 @@ class ContinuousData(object):
         Output:\n
         0 = effective unocculted detector area"""
 
-        earth_ang_0 = self._earth_angs
+        earth_ang_0 = self._earth_angs  #np.arange(0, 180.5, .5)
         angle_d = self._angle_d[0]
         area_frac = self._area_frac
         free_area = self._free_area#[0]
@@ -527,6 +538,11 @@ class ContinuousData(object):
     def earth_angle(self, met):
 
         return self._earth_angle_interpolator(met)
+
+    @property
+    def earth_position(self):
+
+        return self._earth_position
 
     @property
     def saa_mask(self):
