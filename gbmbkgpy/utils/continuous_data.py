@@ -58,9 +58,12 @@ class ContinuousData(object):
 
         self._compute_saa_regions()
 
+        self._calculate_ang_eff()
 
+        self._calculate_earth_occ()
 
-        #self._calculate_ang_eff()
+        self._calculate_earth_occ_eff()
+
 
 
     @property
@@ -126,6 +129,19 @@ class ContinuousData(object):
 
 
         return  interpolate.splev(angle, self._tck[channel], der=0)
+
+
+    def effective_area(self, channel):
+        """
+        :param channel:
+        :param angle:
+        :return:
+        """
+
+        assert isinstance(channel, int), 'channel must be an integer'
+        assert channel in range(self._n_channels), 'Invalid channel'
+
+        return interpolate.splev(self._earth_angle, self._tck_occ[channel], der=0)
 
 
     def _calculate_ang_eff(self):
@@ -219,8 +235,7 @@ class ContinuousData(object):
         pointing = []
 
         # go through a subset of times and calculate the sun angle with GBM geometry
-
-        
+        """
         ###SINGLECORE CALC###
         with progress_bar(n_bins_to_calculate, title='Calculating sun position') as p:
 
@@ -248,18 +263,18 @@ class ContinuousData(object):
 
             time_array_slice = time_array[i * 100:i * 100 + 100]
 
-            with progress_bar(len(time_array_slice), title='Calculating sun position') as p:
-                for mean_time in time_array_slice:
-                    det = gbm_detector_list[self._det](quaternion=self._position_interpolator.quaternion(mean_time),
-                                                       sc_pos=self._position_interpolator.sc_pos(mean_time),
-                                                       time=astro_time.Time(self._position_interpolator.utc(mean_time)))
+            #with progress_bar(len(time_array_slice), title='Calculating sun position') as p:
+            for mean_time in time_array_slice:
+                det = gbm_detector_list[self._det](quaternion=self._position_interpolator.quaternion(mean_time),
+                                                   sc_pos=self._position_interpolator.sc_pos(mean_time),
+                                                   time=astro_time.Time(self._position_interpolator.utc(mean_time)))
 
-                    sun_angle_mul.append(det.sun_angle.value)
-                    sun_time_mul.append(mean_time)
-                    earth_angle_mul.append(det.earth_angle.value)
-                    pointing_mul.append(det.center.icrs)
+                sun_angle_mul.append(det.sun_angle.value)
+                sun_time_mul.append(mean_time)
+                earth_angle_mul.append(det.earth_angle.value)
+                pointing_mul.append(det.center.icrs)
 
-                    p.increase()
+            #   p.increase()
             geo_dic = {}
             geo_dic['sun_angle'] = {}
             geo_dic['sun_time'] = {}
@@ -295,8 +310,8 @@ class ContinuousData(object):
             sun_time.extend(sun_time_dic[i])
             earth_angle.extend(earth_angle_dic[i])
             pointing.extend(pointing_dic[i])
-            ##############
-        """
+        ##############
+
         # get the last data point
 
         mean_time = self.mean_time[-2]
@@ -352,7 +367,7 @@ class ContinuousData(object):
 
         self._saa_slices = slice_idx
 
-    def _calc_earth_occ(self):
+    def _calculate_earth_occ(self):
         """This function calculates the overlapping area fraction for a certain earth-angle and stores the data in arrays of the form: opening_ang, earth_occ\n
         Input:\n
         calc_earth_occ ( angle )\n
@@ -364,38 +379,33 @@ class ContinuousData(object):
 
         angle_d = []
         area_frac = []
-        free_area = []
+        free_ar = []
         occ_area = []
 
-        for angle in angles:
+        for i, angle in enumerate(angles):
+
             # get the distance from the satellite to the center of the earth
             sat_dist = 6912000.
-
             # get the earth_radius at the satellite's position
             earth_radius = 6371000.8
             atmosphere = 12000.
             r = earth_radius + atmosphere  # the full radius of the occulting earth-sphere
 
-            # define the opening angles of the overlapping cones (earth and detector). The defined angles are just half of the opening angle, from the central line to the surface of the cone.
+            # define the opening angles of the overlapping cones (earth and detector).
             theta = math.asin(r / sat_dist)  # earth-cone
-            opening_ang = np.arange(math.pi / 36000., math.pi / 2. + math.pi / 36000.,
-                                    math.pi / 36000.)  # detector-cone
+            opening_ang = np.arange(math.pi / 36000., math.pi / 2. + math.pi / 36000., math.pi / 36000.)
 
             # get the angle between the detector direction and the earth direction
-            earth_ang = angle * 2. * math.pi / 360.  # input parameter
+            earth_ang = angle * 2. * math.pi / 360.
 
             # geometric considerations for the two overlapping spherical cap problem
-            phi = math.pi / 2 - earth_ang  # angle between the earth-direction and the axis perpendicular to the detector-orientation on the earth-detector-plane
-            f = (np.cos(theta) - np.cos(opening_ang) * np.sin(phi)) / (
-                np.cos(
-                    phi))  # distance perpendicular to the detector-orientation to the intersection-plane of the spherical caps
-            beta = np.arctan2(f, (np.cos(opening_ang)))  # angle of the intersection-plane to the detector orientation
+            phi = math.pi / 2 - earth_ang
+            f = (np.cos(theta) - np.cos(opening_ang) * np.sin(phi)) / (np.cos(phi))
+            beta = np.arctan2(f, (np.cos(opening_ang)))
 
             # same considerations for the earth-component
-            f_e = (np.cos(opening_ang) - np.cos(theta) * np.sin(phi)) / (
-                np.cos(
-                    phi))  # distance perpendicular to the detector-orientation to the intersection-plane of the spherical caps
-            beta_e = np.arctan2(f_e, (np.cos(theta)))  # angle of the intersection-plane to the detector orientation
+            f_e = (np.cos(opening_ang) - np.cos(theta) * np.sin(phi)) / (np.cos(phi))
+            beta_e = np.arctan2(f_e, (np.cos(theta)))
 
             # calculate one part of the overlapping area of the spherical caps. This area belongs to the detector-cone
             A_d_an2 = 2 * (np.arctan2(
@@ -425,7 +435,7 @@ class ContinuousData(object):
             free_area = 2 * math.pi * (1 - np.cos(opening_ang))
 
             # add values to the overlapping area, where either the detector-cone is completely embedded within the earth-cone or the other way around. Within this function both could be the case, because we are changing the angle of the detector-cone!
-            A_an2[np.where(opening_ang <= theta - earth_ang)] = free_area
+            A_an2[np.where(opening_ang <= theta - earth_ang)] = free_area[np.where(opening_ang <= theta - earth_ang)]
             A_an2[np.where(opening_ang >= theta + earth_ang)] = 2 * math.pi * (1 - np.cos(theta))
             A_an2[np.where(opening_ang <= earth_ang - theta)] = 0.
 
@@ -443,13 +453,60 @@ class ContinuousData(object):
 
             angle_d.append(opening_ang * 180. / math.pi)
             area_frac.append(earth_occ)
-            free_area.append(free_area)
+            free_ar.append(free_area)
             occ_area.append(A_an2)
 
+        self._earth_angs = angles
         self._angle_d = angle_d
         self._area_frac = area_frac
         self._free_area = free_area
         self._occ_area = occ_area
+
+
+    def _calculate_earth_occ_eff(self):
+        """This function converts the earth angle into an effective earth occultation considering the angular dependence of the effective area and stores the data in an array of the form: earth_occ_eff\n
+        Input:\n
+        calculate.earth_occ_eff ( earth_ang (in degrees), echan (integer in the range of 0-7 or 0-127), datatype='ctime' (or 'cspec'), detectortype='NaI' (or 'BGO') )\n
+        Output:\n
+        0 = effective unocculted detector area"""
+
+        earth_ang_0 = self._earth_angs
+        angle_d = self._angle_d[0]
+        area_frac = self._area_frac
+        free_area = self._free_area#[0]
+        occ_area = self._occ_area
+
+        self._tck_occ = collections.OrderedDict()
+
+        for echan in range(self._n_channels):
+
+            ang_fac = interpolate.splev(angle_d, self._tck[echan], der=0)
+
+            free_circ_eff = [free_area[0] * ang_fac[0]]
+
+            for i in range(1, len(free_area)):
+                circ_area = free_area[i] - free_area[i - 1]
+                circ_area_eff = circ_area * ang_fac[i]
+                free_circ_eff.append(circ_area_eff)
+
+            free_circ_eff = np.array(free_circ_eff)
+
+            occ_circ_eff = []
+
+            for j in range(0, len(earth_ang_0)):
+                occ_circ_eff_0 = [occ_area[j][0] * ang_fac[0]]
+                for i in range(1, len(occ_area[j])):
+                    circ_area = occ_area[j][i] - occ_area[j][i - 1]
+                    circ_area_eff = circ_area * ang_fac[i]
+                    occ_circ_eff_0.append(circ_area_eff)
+
+                occ_circ_eff.append(occ_circ_eff_0)
+
+            occ_circ_eff = np.array(occ_circ_eff)
+            # eff_area_frac = np.sum(occ_circ_eff)/np.sum(free_circ_eff)
+            eff_area_frac_0 = np.sum(occ_circ_eff, axis=1) / np.sum(free_circ_eff)
+
+            self._tck_occ[echan] = interpolate.splrep(earth_ang_0, eff_area_frac_0, s=0)
 
 
     @property
