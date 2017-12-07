@@ -5,3 +5,7 @@ build/
 *.pyc
 .idea/
 .DS_Store
+gbmbkgpy.egg-info
+.ipynb_checkpoints
+dist
+
