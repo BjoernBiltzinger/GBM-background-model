@@ -27,9 +27,10 @@ class PointSource(object):
         self._name = name
         self._data_in = data_in
         self._ps_skycoord = coord.SkyCoord(ra*u.deg, dec*u.deg, frame='icrs')
+        self._interpolation_time = ContinuousData.interpolation_time.fget(self._data_in)
         self._calc_src_occ()
         self._set_relative_location()
-        self._interpolation_time = ContinuousData.interpolation_time.fget(self._data_in)
+
 
 
 
@@ -45,7 +46,7 @@ class PointSource(object):
         sat_dist = 6912000.
         earth_opening_angle = math.asin(r / sat_dist) * 360. / (2. * math.pi)  # earth-cone
 
-        with progress_bar(len(self._interpolation_time) - 1, title='Calculating point source seperation angles') as p:
+        with progress_bar(len(self._interpolation_time) - 1, title='Calculating earth occultation of point source') as p:
             for earth_position in earth_positions:
                 src_occ_ang.append(coord.SkyCoord.separation(self._ps_skycoord, earth_position).value)
 
@@ -54,6 +55,11 @@ class PointSource(object):
         src_occ_ang[src_occ_ang < earth_opening_angle] = 0.
 
         self._src_occ_ang = src_occ_ang
+
+
+    def _zero(self):
+        print "Numpy where condition true"
+        return 0
 
 
     def _set_relative_location(self):
@@ -83,8 +89,8 @@ class PointSource(object):
 
             # interpolate it
 
-        src_ang_bin = sep_angle
-        src_ang_bin[np.where(self._src_occ_ang == 0)] = 0
+        self._src_ang_bin = np.array(sep_angle)
+        self._src_ang_bin[np.where(self._src_occ_ang == 0)] = self._zero()
 
         self._point_source_interpolator = interpolate.interp1d(self._interpolation_time, sep_angle)
 
@@ -96,11 +102,15 @@ class PointSource(object):
         return self._point_source_interpolator(met)
 
 
-
     @property
     def location(self):
 
         return self._ps_skycoord
+
+    @property
+    def src_ang_bin(self):
+
+        return self._src_ang_bin
 
 
     @property
