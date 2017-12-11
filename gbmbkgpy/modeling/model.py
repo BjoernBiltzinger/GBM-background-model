@@ -153,6 +153,15 @@ class Model(object):
 
         return self._point_sources.values()[id](t)
 
+    def get_saa_source_flux(self, id, t):
+        """
+
+        :param id:
+        :param t:
+        :return:
+        """
+        return self._saa_sources.values()[id](t)
+
     def add_SAA_regions(self, *regions):
         """
         Add SAA temporal regions which cause the model to be set to zero
