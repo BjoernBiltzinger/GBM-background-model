@@ -1,5 +1,5 @@
 import collections
-from source import CONTINUUM_SOURCE, POINT_SOURCE, FLARE_SOURCE
+from source import CONTINUUM_SOURCE, POINT_SOURCE, FLARE_SOURCE, SAA_SOURCE
 
 class Model(object):
     def __init__(self, *sources):
@@ -9,6 +9,8 @@ class Model(object):
         self._flare_sources = collections.OrderedDict()
 
         self._point_sources = collections.OrderedDict()
+
+        self._saa_sources = collections.OrderedDict()
 
         for source in sources:
             self._add_source(source)
@@ -53,7 +55,7 @@ class Model(object):
 
         parameters = collections.OrderedDict()
 
-        for sources in [self._continuum_sources, self._flare_sources, self._point_sources]:
+        for sources in [self._continuum_sources, self._flare_sources, self._point_sources, self._saa_sources]:
 
             for source in sources.itervalues():
 
@@ -77,6 +79,10 @@ class Model(object):
 
             self._continuum_sources[source.name] = source
 
+        if source.source_type == SAA_SOURCE:
+
+            self._saa_sources[source.name] = source
+
     @property
     def point_sources(self):
 
@@ -93,6 +99,11 @@ class Model(object):
         return self._continuum_sources
 
     @property
+    def saa_sources(self):
+
+        return self._saa_sources
+
+    @property
     def n_point_sources(self):
 
         return len(self._point_sources)
@@ -106,6 +117,11 @@ class Model(object):
     def n_continuum_sources(self):
 
         return len(self._continuum_sources)
+
+    @property
+    def n_saa_sources(self):
+
+        return len(self._saa_sources)
 
     def get_continuum_flux(self, id, t):
         """
