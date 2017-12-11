@@ -30,9 +30,15 @@ class SAA_Decay(Function):
         super(SAA_Decay, self).__init__(A, saa_decay_constant)
 
 
-    def _evaluate(self, A, time, saa_decay_constant, t0):
+    def set_saa_exit_time(self, time):
+
+        self._saa_exit_time = time
+
+
+    def _evaluate(self, time, A, saa_decay_constant):
 
         out = np.zeros_like(time)
+        t0 = self._saa_exit_time
         idx = time < t0
 
         out[~idx] = A * np.exp(saa_decay_constant * (time[~idx] - t0))
