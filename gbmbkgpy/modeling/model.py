@@ -181,8 +181,6 @@ class Model(object):
         # get continuous data
         pass
 
-
-
     def plot_model(self, model):
         pass
 

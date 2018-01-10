@@ -30,9 +30,7 @@ class PointSource(object):
         self._interpolation_time = ContinuousData.interpolation_time.fget(self._data_in)
         self._calc_src_occ()
         self._set_relative_location()
-
-
-
+        self._cleanup()
 
     def _calc_src_occ(self):
 
@@ -55,6 +53,8 @@ class PointSource(object):
         src_occ_ang[src_occ_ang < earth_opening_angle] = 0.
 
         self._src_occ_ang = src_occ_ang
+
+        del src_occ_ang, earth_positions
 
 
     def _zero(self):
@@ -87,13 +87,16 @@ class PointSource(object):
 
                 p.increase()
 
-            # interpolate it
+
 
         self._src_ang_bin = np.array(sep_angle)
         self._src_ang_bin[np.where(self._src_occ_ang == 0)] = self._zero()
 
+        #TODO: How do we handle the occultation with the interpolation function?
+        # interpolate it
         self._point_source_interpolator = interpolate.interp1d(self._interpolation_time, sep_angle)
 
+        del sep_angle, pointing
 
     def separation_angle(self, met):
         """
@@ -101,6 +104,8 @@ class PointSource(object):
         """
         return self._point_source_interpolator(met)
 
+    def _cleanup(self):
+        del self._interpolation_time, self._src_occ_ang, self._src_ang_bin
 
     @property
     def location(self):
