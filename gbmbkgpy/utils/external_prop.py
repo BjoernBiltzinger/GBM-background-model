@@ -12,12 +12,7 @@ from gbmbkgpy.io.package_data import get_path_of_data_file
 from gbmbkgpy.point_source import PointSource
 
 
-# TODO: Add fits_data and earth_occulation to data folder or different filepath and adjust path-handling
-
 class ExternalProps(object):
-
-
-
 
     def __init__(self, day):
         """
@@ -119,6 +114,8 @@ class ExternalProps(object):
 
         self._saa_properties = saa
 
+        del saa, saa_lat, saa_lon
+
     def _earth_occ(self):
         """This function reads the earth occultation fits file and stores the data in arrays of the form: earth_ang, angle_d, area_frac, free_area, occ_area.\n
         Input:\n
@@ -156,6 +153,7 @@ class ExternalProps(object):
         earth_occ_dic['earth_ang'] = np.arange(0, 180.5, .5)
 
         self._earth_occ_properties = earth_occ_dic
+
 
     def _build_flares(self):
         """This function reads the YYYY.txt file containing the GOES solar flares of the corresponding year and returns the data in arrays of the form: day, time\n
@@ -199,6 +197,8 @@ class ExternalProps(object):
         self._flares_properties = pd.DataFrame(flares_dic)
 
         self._flare_idx = self._flares_properties['day'] == self._day
+
+        del flares_dic, day, start, stop
 
     def _build_lat_spacecraft(self):
         """This function reads a LAT-spacecraft file and stores the data in arrays of the form: lat_time, mc_b, mc_l.\n
@@ -256,9 +256,6 @@ class ExternalProps(object):
                 after_filename = 'lat_spacecraft_weekly_w%d_p202_v001.fits' % (mission_week + 1)
 
 
-
-
-
             # first lets get the primary file
 
             lat_time = np.mean( np.vstack( (f['SC_DATA'].data['START'],f['SC_DATA'].data['STOP'])),axis=0)
@@ -292,7 +289,7 @@ class ExternalProps(object):
             mc_l = np.append((mc_l, mc_l_after))
             lat_time = np.append((lat_time, lat_time_after))
 
-
+        """
         # save them
         #TODO: do we need use the mean here?
         self._mc_l = mc_l
@@ -303,6 +300,12 @@ class ExternalProps(object):
 
         self._mc_b_interp = interpolate.interp1d(self._mc_time, self._mc_b)
         self._mc_l_interp = interpolate.interp1d(self._mc_time, self._mc_l)
+        """
+        #remove the self-variables for memory saving
+        self._mc_b_interp = interpolate.interp1d(lat_time, mc_b)
+        self._mc_l_interp = interpolate.interp1d(lat_time, mc_l)
+
+        del mc_l, mc_b, lat_time
 
     def _build_point_sources(self):
         """This function reads the point_sources.dat file and returns the sources in the form: names, coordinates[ra][dec]\n
@@ -340,109 +343,5 @@ class ExternalProps(object):
         # instantiate dic of point source objects
         for i in range(len(results)):
             self._point_sources_dic[results[i][0]] = results[i][1]
-        
 
-
-
-            # with open(filepath, 'r') as poly:
-            #     lines = poly.readlines()
-            # source_names = []
-            # source_ra = []
-            # source_dec = []
-            # point_sources_dic = {}
-            # # write file data into the arrays
-            # for line in lines:
-            #     p = line.split()
-            #     source_names.append(p[0])
-            #     source_ra.append(float(p[1]))
-            #     source_dec.append(float(p[2]))
-            # point_sources_dic['source_names'] = np.array(source_names)
-            # point_sources_dic['coordinates'] = np.array([source_ra, source_dec])  # merge the arrays
-
-            # self._point_sources_properties = point_sources_dic
-
-
-
-
-
-    # def _magfits(self, day):
-    #     """This function reads a magnetic field fits file and stores the data in arrays of the form: t_magn, h_magn, x_magn, y_magn, z_magn.\n
-    #     Input:\n
-    #     readfile.magfits ( day = YYMMDD )\n
-    #     Output:\n
-    #     0 = t_magn\n
-    #     1 = h_magn\n
-    #     2 = x_magn\n
-    #     3 = y_magn\n
-    #     4 = z_magn"""
-    #
-    #     # read the file
-    #     fitsname = os.path.join('magn_', str(day), '_kt.fits')
-    #     path = os.path.join(get_path_of_data_dir(), 'magnetic_field/', str(day), '/')
-    #     filepath = os.path.join(path, str(fitsname))
-    #     mag_fits = fits.open(filepath)
-    #     data = mag_fits[1].data
-    #     mag_fits.close()
-    #     magfits_dic = {}
-    #
-    #     # extract the data
-    #     altitude = data.Altitude  # altitude of the satellite above the WGS 84 ellipsoid
-    #     magfits_dic['t_magn'] = data.F_nT  # total intensity of the geomagnetic field
-    #     magfits_dic['h_magn'] = data.H_nT  # horizontal intensity of the geomagnetic field
-    #     magfits_dic['x_magn'] = data.X_nT  # north component of the geomagnetic field
-    #     magfits_dic['y_magn'] = data.Y_nT  # east component of the geomagnetic field
-    #     magfits_dic['z_magn'] = data.Z_nT  # vertical component of the geomagnetic field
-    #
-    #     self._magfits_properties = magfits_dic
-    #
-    # @property
-    # def magfits(self):
-    #     return self._magfits_properties
-
-    # def _mcilwain(self, day):
-    #     """This function reads a mcilwain file and stores the data in arrays of the form: sat_time, mc_b, mc_l.\n
-    #     Input:\n
-    #     readfile.mcilwain ( day = YYMMDD )\n
-    #     Output:\n
-    #     0 = time\n
-    #     1 = mcilwain parameter B\n
-    #     2 = mcilwain parameter L"""
-    #
-    #     # read the file
-    #     filename = os.path.join('glg_mcilwain_all_', str(day), '_kt.fits')
-    #     filepath = get_path_of_data_file('mcilwain/', str(filename))
-    #     while os.path.isfile(filepath) == False:
-    #         begin_date = date(2008, 8, 7)  # first complete lat_spacecraft weekly-file
-    #         year = int('20' + str(day)[:2])
-    #         month = int(str(day)[2:4])
-    #         this_day = int(str(day)[4:])
-    #         this_date = date(year, month, this_day)
-    #         delta = this_date - begin_date
-    #         days_diff = delta.days
-    #         week_diff = int(days_diff / 7)
-    #         week = 10 + week_diff  # the first complete file is saved as week 010.
-    #         if week < 10:
-    #             week = '00' + str(week)
-    #         elif week < 100:
-    #             week = '0' + str(week)
-    #         else:
-    #             week = str(week)
-    #         writefile.mcilwain_fits(writefile(), week, day)
-    #
-    #     mc_fits = fits.open(filepath)
-    #     data = mc_fits[1].data
-    #     mc_fits.close()
-    #     mcilwain_dic = {}
-    #
-    #     # extract the data
-    #     mcilwain_dic[
-    #         'sat_time'] = data.col1  # Mission Elapsed Time (MET) seconds. The reference time used for MET is midnight (0h:0m:0s) on January 1, 2001, in Coordinated Universal Time (UTC). The FERMI convention is that MJDREF=51910 (UTC)=51910.0007428703703703703 (TT)
-    #     mcilwain_dic['mc_b'] = data.col2  # Position in J2000 equatorial coordinates
-    #     mcilwain_dic['mc_l'] = data.col3
-    #
-    #     self._mcilwain_properties = mcilwain_dic
-
-    # @property
-    # def mcilwain(self):
-    #     return self._mcilwain_properties
-
+        del results
