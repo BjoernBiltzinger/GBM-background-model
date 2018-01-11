@@ -123,7 +123,7 @@ class Model(object):
 
         return len(self._saa_sources)
 
-    def get_continuum_flux(self, id, t):
+    def get_continuum_flux(self, id, t_start, t_stop):
         """
         
         :param id: 
@@ -131,9 +131,9 @@ class Model(object):
         :return: 
         """
 
-        return self._continuum_sources.values()[id](t)
+        return self._continuum_sources.values()[id].get_flux(t_start, t_stop)
 
-    def get_flare_flux(self, id, t):
+    def get_flare_flux(self, id, t_start, t_stop):
         """
         
         :param id: 
@@ -141,9 +141,9 @@ class Model(object):
         :return: 
         """
 
-        return self._flare_sources.values()[id](t)
+        return self._flare_sources.values()[id].get_flux(t_start, t_stop)
 
-    def get_point_source_flux(self, id, t):
+    def get_point_source_flux(self, id, t_start, t_stop):
         """
         
         :param id: 
@@ -151,16 +151,16 @@ class Model(object):
         :return: 
         """
 
-        return self._point_sources.values()[id](t)
+        return self._point_sources.values()[id].get_flux(t_start, t_stop)
 
-    def get_saa_source_flux(self, id, t):
+    def get_saa_source_flux(self, id, t_start, t_stop):
         """
 
         :param id:
         :param t:
         :return:
         """
-        return self._saa_sources.values()[id](t)
+        return self._saa_sources.values()[id].get_flux(t_start, t_stop)
 
     def add_SAA_regions(self, *regions):
         """
@@ -174,7 +174,16 @@ class Model(object):
 
         total_flux = 0.
 
-        # for source in self._sources
-        # get the flux
+        for continuum_source in self._continuum_sources.values():
+            total_flux += continuum_source.get_flux(tmin, tmax)
+
+        for flare_source in self._flare_sources.values():
+            total_flux += flare_source.get_flux(tmin, tmax)
+
+        for point_source in self._point_sources.values():
+            total_flux += point_source.get_flux(tmin, tmax)
+
+        for saa_source in self._saa_sources.values():
+            total_flux += saa_source.get_flux(tmin, tmax)
 
         return total_flux
