@@ -170,17 +170,11 @@ class Model(object):
         :return: 
         """
 
-        pass
+    def get_flux(self, tmin, tmax):
 
-    def set_fit_parameters(self, a, b):
-        self._a = a
-        self._b = b
+        total_flux = 0.
 
-    def set_data(self):
-        # get data from external_prop
-        # get continuous data
-        pass
+        # for source in self._sources
+        # get the flux
 
-    def plot_model(self, model):
-        pass
-
+        return total_flux
