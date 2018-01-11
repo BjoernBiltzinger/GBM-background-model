@@ -1,25 +1,28 @@
 import numpy as np
+from gbmbkgpy.utils.continuous_data import ContinuousData
+from gbmbkgpy.modeling.model import Model
 
 class BackgroundLike(object):
 
-    def __init__(self,data, model):
+    def __init__(self, data, model):
         """
         
         :param data: 
         :param model: 
         """
+        self._data = data #type: ContinuousData
 
-        self._model = model
+        self._model = model #type: Model
 
         self._free_parameters = self._model.free_parameters
 
 
         #TODO: the data object should return all the time bins that are valid... i.e. non-zero
-        self._time_bins = None
+        self._total_time_bins = self._data.time_bins
+        self._time_bins = self._data.time_bins[self._data.saa_mask]
 
         #TODO: extract the counts from the data object. should be same size as time bins
-        self._counts = None
-
+        self._counts = self._data.counts[self._data.saa_mask]
 
 
 
@@ -32,9 +35,12 @@ class BackgroundLike(object):
         
         :return: 
         """
+        model_flux = []
 
-        pass
+        for bin in self._time_bins:
+            model_flux.append(self._model.get_flux(bin[0], bin[1]))
 
+        return model_flux
 
 
     def _set_free_parameters(self, new_parameters):
