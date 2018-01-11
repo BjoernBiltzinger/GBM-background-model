@@ -62,3 +62,7 @@ class Solar_Continuum(ContinuumFunction):
 class Point_Source_Continuum(ContinuumFunction):
     def __init__(self):
         super(Point_Source_Continuum, self).__init__('d')
+
+class Earth_Albedo_Continuum(ContinuumFunction):
+    def __init__(self):
+        super(Earth_Albedo_Continuum, self).__init__('e')
