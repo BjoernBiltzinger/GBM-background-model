@@ -25,9 +25,9 @@ class PointSource(object):
 
     def __init__(self, name, ra, dec, data_in):
         self._name = name
-        self._data_in = data_in
+        self._data_in = data_in #type: ContinuousData
         self._ps_skycoord = coord.SkyCoord(ra*u.deg, dec*u.deg, frame='icrs')
-        self._interpolation_time = ContinuousData.interpolation_time.fget(self._data_in)
+        self._interpolation_time = self._data_in.interpolation_time #type: ContinuousData.interpolation_time
         self._calc_src_occ()
         self._set_relative_location()
         self._cleanup()
@@ -35,7 +35,7 @@ class PointSource(object):
     def _calc_src_occ(self):
 
         src_occ_ang = []
-        earth_positions = ContinuousData.earth_position.fget(self._data_in)
+        earth_positions = self._data_in.earth_position #type: ContinuousData.earth_position
 
         # define the size of the earth
         earth_radius = 6371000.8  # geometrically one doesn't need the earth radius at the satellite's position. Instead one needs the radius at the visible horizon. Because this is too much effort to calculate, if one considers the earth as an ellipsoid, it was decided to use the mean earth radius.
@@ -76,7 +76,7 @@ class PointSource(object):
         """
 
         sep_angle = []
-        pointing = ContinuousData.pointing.fget(self._data_in)
+        pointing = self._data_in.pointing #type: ContinuousData.pointing
 
         # go through a subset of times and calculate the sun angle with GBM geometry
 
