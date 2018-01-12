@@ -112,9 +112,9 @@ class ContinuousData(object):
         return self._position_interpolator.quaternion(met)
 
 
-    def effective_angle(self,channel, angle):
+    def effective_angle(self,channel):
         """
-        
+        Interpolation function for the Solar Continuum
         :param channel: 
         :param angle: 
         :return: 
@@ -124,11 +124,12 @@ class ContinuousData(object):
         assert channel in range(self._n_channels), 'Invalid channel'
 
 
-        return  interpolate.splev(angle, self._tck[channel], der=0)
+        return  interpolate.splev(self._sun_angle, self._tck[channel], der=0)
 
 
     def effective_area(self, channel):
         """
+        Interpolation function for the earth albedo continuum
         :param channel:
         :param angle:
         :return:
@@ -138,6 +139,10 @@ class ContinuousData(object):
         assert channel in range(self._n_channels), 'Invalid channel'
 
         return interpolate.splev(self._earth_angle, self._tck_occ[channel], der=0)
+
+    def cgb_background(self, met):
+
+        return 1.
 
 
     def _calculate_ang_eff(self):
