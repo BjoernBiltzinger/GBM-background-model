@@ -15,7 +15,7 @@ from gbmgeometry import PositionInterpolator, gbm_detector_list
 import scipy.interpolate as interpolate
 
 from gbmbkgpy.io.file_utils import file_existing_and_readable
-from gbmbkgpy.utils.continuous_data import ContinuousData
+#from gbmbkgpy.utils.continuous_data import ContinuousData
 
 from gbmbkgpy.io.package_data import get_path_of_data_dir, get_path_of_data_file
 from gbmbkgpy.utils.progress_bar import progress_bar
@@ -30,7 +30,7 @@ class PointSource(object):
         self._interpolation_time = self._data_in.interpolation_time #type: ContinuousData.interpolation_time
         self._calc_src_occ()
         self._set_relative_location()
-        self._cleanup()
+        #self._cleanup()
 
     def _calc_src_occ(self):
 
@@ -52,7 +52,11 @@ class PointSource(object):
 
         src_occ_ang[src_occ_ang < earth_opening_angle] = 0.
 
-        self._src_occ_ang = src_occ_ang
+        self._src_occ_ang = np.array(src_occ_ang)
+
+        self._occulted_time = np.array(self._interpolation_time)
+
+        self._occulted_time[np.where(self._src_occ_ang != 0)] = 0
 
         del src_occ_ang, earth_positions
 
