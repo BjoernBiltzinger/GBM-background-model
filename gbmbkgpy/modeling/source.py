@@ -37,6 +37,9 @@ class ContinuumSource(Source):
     def __init__(self, name, continuum_shape):
         super(ContinuumSource, self).__init__(name, CONTINUUM_SOURCE, continuum_shape)
 
+    def get_flux(self, shape, time_bins):
+        return integrate.cumtrapz(shape, time_bins)
+
 
 class FlareSource(Source):
     def __init__(self, name, flare_shape):
