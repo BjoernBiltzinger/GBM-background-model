@@ -76,3 +76,40 @@ class ContinuumFunction(Function):
 
     def _evaluate(self, x, K):
         return K * self._interpolation(x)
+
+
+class ContinuumFunctionSpecial(Function):
+    def __init__(self, coefficient_name):
+        """
+        A continuum function that is parametrized by a constant multiplied by
+        a an interpolated function
+
+        :param coefficient_name: the name of the coefficient
+        """
+
+        assert isinstance(coefficient_name, str)
+
+        # build the constant
+
+        K = Parameter(coefficient_name, initial_value=1., min_value=0, max_value=1, delta=0.1, normalization=True)
+
+        super(ContinuumFunctionSpecial, self).__init__(K)
+
+    def set_function_array(self, function_array):
+        """
+        Set the temporal interpolation that will be used for the function
+
+
+        :param interpolation: a scipy interpolation function
+        :return:
+        """
+
+        self._function_array = function_array
+
+    def _evaluate(self, K):
+        return K * self._function_array
+
+
+    def __call__(self):
+
+        return self._evaluate(*self.parameter_values)

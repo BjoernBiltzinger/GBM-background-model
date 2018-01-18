@@ -35,10 +35,15 @@ class BackgroundLike(object):
         
         :return: 
         """
-        model_flux = []
 
+        model_flux = self._model.get_flux(self._time_bins)
+
+        """ OLD:
+        model_flux = []
+        
         for bin in self._time_bins:
             model_flux.append(self._model.get_flux(bin[0], bin[1]))
+        """
 
         return model_flux
 
