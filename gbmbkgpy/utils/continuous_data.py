@@ -103,6 +103,10 @@ class ContinuousData(object):
         return np.vstack((self._bin_start, self._bin_stop)).T
 
     @property
+    def time_bin_length(self):
+        return self._bin_stop - self._bin_start
+
+    @property
     def mean_time(self):
         return np.mean(self.time_bins, axis=1)
 
@@ -220,7 +224,6 @@ class ContinuousData(object):
         del y_all, x, y0, y1, y2, y3, y4, y5, y6, y7
 
     def _setup_geometery(self):
-
 
         n_bins_to_calculate = 800.
 
