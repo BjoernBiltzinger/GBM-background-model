@@ -1,4 +1,4 @@
-from gbmbkgpy.modeling.function import Function, ContinuumFunction
+from gbmbkgpy.modeling.function import Function, ContinuumFunction, ContinuumFunctionSpecial
 from gbmbkgpy.modeling.parameter import Parameter
 import numpy as np
 
@@ -51,11 +51,11 @@ class Cosmic_Gamma_Ray_Background(ContinuumFunction):
     def __init__(self):
         super(Cosmic_Gamma_Ray_Background, self).__init__('a')
 
-class Magnetic_Continuum(ContinuumFunction):
+class Magnetic_Continuum(ContinuumFunctionSpecial):
     def __init__(self):
         super(Magnetic_Continuum, self).__init__('b')
 
-class Solar_Continuum(ContinuumFunction):
+class Solar_Continuum(ContinuumFunctionSpecial):
     def __init__(self):
         super(Solar_Continuum, self).__init__('c')
 
@@ -63,6 +63,6 @@ class Point_Source_Continuum(ContinuumFunction):
     def __init__(self):
         super(Point_Source_Continuum, self).__init__('d')
 
-class Earth_Albedo_Continuum(ContinuumFunction):
+class Earth_Albedo_Continuum(ContinuumFunctionSpecial):
     def __init__(self):
         super(Earth_Albedo_Continuum, self).__init__('e')

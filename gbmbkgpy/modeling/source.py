@@ -13,11 +13,14 @@ class Source(object):
 
         return self._shape(x)
 
-    def get_flux(self, a, b):
+    def get_flux_old(self, a, b):
         return (b-a)/6*(self._shape(a)+4*self._shape((a+b)/2)+self._shape(b)) #integrate.quad(self._shape, a, b)
 
     def get_flux_quad(self, a, b):
         return integrate.quad(self._shape, a, b)
+
+    def get_flux(self, time_bins):
+        return integrate.cumtrapz(self._shape(time_bins), time_bins)
 
     @property
     def name(self):
@@ -37,9 +40,8 @@ class ContinuumSource(Source):
     def __init__(self, name, continuum_shape):
         super(ContinuumSource, self).__init__(name, CONTINUUM_SOURCE, continuum_shape)
 
-    def get_flux(self, shape, time_bins):
-        return integrate.cumtrapz(shape, time_bins)
-
+    def get_flux(self, time_bins):
+        return integrate.cumtrapz(self._shape(), time_bins)
 
 class FlareSource(Source):
     def __init__(self, name, flare_shape):

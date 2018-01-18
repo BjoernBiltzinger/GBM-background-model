@@ -1,5 +1,6 @@
 import collections
 from source import CONTINUUM_SOURCE, POINT_SOURCE, FLARE_SOURCE, SAA_SOURCE
+import numpy as np
 
 class Model(object):
     def __init__(self, *sources):
@@ -123,15 +124,15 @@ class Model(object):
 
         return len(self._saa_sources)
 
-    def get_continuum_flux(self, id, t_start, t_stop):
+    def get_continuum_flux(self, id, time_bins):
         """
         
         :param id: 
-        :param t: 
+        :param time_bins:
         :return: 
         """
 
-        return self._continuum_sources.values()[id].get_flux(t_start, t_stop)
+        return self._continuum_sources.values()[id].get_flux(time_bins)
 
     def get_flare_flux(self, id, t_start, t_stop):
         """
@@ -170,20 +171,20 @@ class Model(object):
         :return: 
         """
 
-    def get_flux(self, tmin, tmax):
+    def get_flux(self, time_bins):
 
-        total_flux = 0.
+        total_flux = np.zeros_like(time_bins)
 
         for continuum_source in self._continuum_sources.values():
-            total_flux += continuum_source.get_flux(tmin, tmax)
+            total_flux += continuum_source.get_flux(time_bins)
 
         for flare_source in self._flare_sources.values():
-            total_flux += flare_source.get_flux(tmin, tmax)
+            total_flux += flare_source.get_flux(time_bins)
 
         for point_source in self._point_sources.values():
-            total_flux += point_source.get_flux(tmin, tmax)
+            total_flux += point_source.get_flux(time_bins)
 
         for saa_source in self._saa_sources.values():
-            total_flux += saa_source.get_flux(tmin, tmax)
+            total_flux += saa_source.get_flux(time_bins)
 
         return total_flux
