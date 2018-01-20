@@ -173,10 +173,10 @@ class Model(object):
 
     def get_flux(self, time_bins):
 
-        total_flux = np.zeros_like(time_bins)
+        total_flux = np.zeros(len(time_bins))
 
         for continuum_source in self._continuum_sources.values():
-            total_flux += continuum_source.get_flux(time_bins)
+            total_flux += np.ndarray.flatten(continuum_source.get_flux(time_bins))
 
         for flare_source in self._flare_sources.values():
             total_flux += flare_source.get_flux(time_bins)
