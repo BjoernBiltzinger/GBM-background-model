@@ -1,6 +1,6 @@
 import collections
 from gbmbkgpy.modeling.parameter import Parameter
-
+import numpy as np
 
 class Function(object):
 
@@ -105,6 +105,19 @@ class ContinuumFunctionSpecial(Function):
         """
 
         self._function_array = function_array
+
+
+    def set_saa_zero(self, saa_mask):
+
+        self._function_array[np.where(~saa_mask)] = 0.
+
+    def remove_vertical_movement(self):
+
+        self._function_array[self._function_array > 0] = self._function_array[self._function_array > 0] - np.min(self._function_array[self._function_array > 0])
+
+    def remove_vertical_movement_mean(self):
+
+        self._function_array[self._function_array != 0] = self._function_array[self._function_array != 0] - np.mean(self._function_array[self._function_array != 0], dtype=np.float64)
 
     def _evaluate(self, K):
         return K * self._function_array
