@@ -1,5 +1,6 @@
 FLARE_SOURCE, CONTINUUM_SOURCE, POINT_SOURCE, SAA_SOURCE = 'flare_source', 'continuum_source', 'point_source', 'saa_source'
 from scipy import integrate
+import numpy as np
 
 class Source(object):
     def __init__(self, name, source_type, shape):
@@ -40,8 +41,12 @@ class ContinuumSource(Source):
     def __init__(self, name, continuum_shape):
         super(ContinuumSource, self).__init__(name, CONTINUUM_SOURCE, continuum_shape)
 
-    def get_flux(self, time_bins):
-        return integrate.cumtrapz(self._shape(), time_bins)
+    def get_flux(self, time_bins, bin_mask=None):
+
+        if bin_mask is None:
+            bin_mask = np.full(len(time_bins), True)
+
+        return integrate.cumtrapz(self._shape()[bin_mask], time_bins)
 
 class FlareSource(Source):
     def __init__(self, name, flare_shape):
