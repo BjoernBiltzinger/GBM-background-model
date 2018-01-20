@@ -99,6 +99,14 @@ class ContinuousData(object):
         return self._exposure
 
     @property
+    def time_bin_start(self):
+        return self._bin_start
+
+    @property
+    def time_bin_stop(self):
+        return self._bin_stop
+
+    @property
     def time_bins(self):
         return np.vstack((self._bin_start, self._bin_stop)).T
 
