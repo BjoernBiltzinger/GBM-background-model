@@ -171,12 +171,15 @@ class Model(object):
         :return: 
         """
 
-    def get_flux(self, time_bins):
+    def get_flux(self, time_bins, bin_mask=None):
+
+        if bin_mask is None:
+            bin_mask = np.full(len(time_bins), True)
 
         total_flux = np.zeros(len(time_bins))
 
         for continuum_source in self._continuum_sources.values():
-            total_flux += np.ndarray.flatten(continuum_source.get_flux(time_bins))
+            total_flux += np.ndarray.flatten(continuum_source.get_flux(time_bins, bin_mask))
 
         for flare_source in self._flare_sources.values():
             total_flux += flare_source.get_flux(time_bins)

@@ -36,7 +36,7 @@ class BackgroundLike(object):
         :return: 
         """
 
-        model_flux = self._model.get_flux(self._time_bins)
+        model_flux = self._model.get_flux(self._time_bins[2:-2], self._data.saa_mask[2:-2])
 
         """ OLD:
         model_flux = []
