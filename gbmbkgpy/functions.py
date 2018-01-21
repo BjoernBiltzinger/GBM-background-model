@@ -59,7 +59,7 @@ class Solar_Continuum(ContinuumFunctionSpecial):
     def __init__(self):
         super(Solar_Continuum, self).__init__('c')
 
-class Point_Source_Continuum(ContinuumFunction):
+class Point_Source_Continuum(ContinuumFunctionSpecial):
     def __init__(self):
         super(Point_Source_Continuum, self).__init__('d')
 

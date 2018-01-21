@@ -57,6 +57,13 @@ class PointSource(Source):
     def __init__(self, name, point_shape):
         super(PointSource, self).__init__(name, POINT_SOURCE, point_shape)
 
+    def get_flux(self, time_bins, bin_mask=None):
+
+        if bin_mask is None:
+            bin_mask = np.full(len(time_bins), True)
+
+        return integrate.cumtrapz(self._shape()[bin_mask], time_bins)
+
 
 class SAASource(Source):
     def __init__(self, name, saa_shape):
