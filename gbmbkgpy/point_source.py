@@ -95,7 +95,6 @@ class PointSource(object):
 
                 p.increase()
 
-        #TODO: How do we handle the occultation with the interpolation function?
         # interpolate it
         self._point_source_interpolator = interpolate.interp1d(self._interpolation_time, sep_angle)
 
