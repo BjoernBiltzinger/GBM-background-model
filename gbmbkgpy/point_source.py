@@ -34,7 +34,7 @@ class PointSource(object):
 
     def _calc_src_occ(self):
         """
-        
+
         :return:
         """
 
