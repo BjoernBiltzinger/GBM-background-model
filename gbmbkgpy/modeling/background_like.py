@@ -1,10 +1,11 @@
 import numpy as np
 from gbmbkgpy.utils.continuous_data import ContinuousData
 from gbmbkgpy.modeling.model import Model
+import copy
 
 class BackgroundLike(object):
 
-    def __init__(self, data, model):
+    def __init__(self, data, model, echan):
         """
         
         :param data: 
@@ -16,15 +17,15 @@ class BackgroundLike(object):
 
         self._free_parameters = self._model.free_parameters
 
+        self._echan = str(echan)
 
         #TODO: the data object should return all the time bins that are valid... i.e. non-zero
-        self._total_time_bins = self._data.time_bins
-        self._time_bins = self._data.time_bins[self._data.saa_mask]
+        self._total_time_bins = self._data.time_bins[2:-2]
+        self._saa_mask = self._data.saa_mask[2:-2]
+        self._time_bins = self._data.time_bins[self._data.saa_mask][2:-2]
 
         #TODO: extract the counts from the data object. should be same size as time bins
-        self._counts = self._data.counts[self._data.saa_mask]
-
-
+        self._counts = self._data.counts_echan[self._echan][self._data.saa_mask][2:-2]
 
 
     def _evaluate_model(self):
@@ -36,7 +37,7 @@ class BackgroundLike(object):
         :return: 
         """
 
-        model_flux = self._model.get_flux(self._time_bins[2:-2], self._data.saa_mask[2:-2])
+        model_flux = self._model.get_flux(self._time_bins, self._saa_mask)
 
         """ OLD:
         model_flux = []
@@ -59,6 +60,29 @@ class BackgroundLike(object):
 
 
             parameter.value = new_parameters[i]
+
+
+    def get_synthetic_data(self, synth_parameters):
+        """
+
+        :param synth_parameters:
+        :return:
+        """
+
+        synth_data = copy.deepcopy(self._data)
+
+        synth_model = copy.deepcopy(self._model)
+
+
+        for i, parameter in enumerate(synth_model.free_parameters.itervalues()):
+            parameter.value = synth_parameters[i]
+
+
+        synth_data.counts_echan[self._echan][2:-2] = np.random.poisson(synth_model.get_flux(synth_data.time_bins[2:-2]))
+
+        self._synth_model = synth_model
+
+        return synth_data
 
 
     def __call__(self, parameters):
