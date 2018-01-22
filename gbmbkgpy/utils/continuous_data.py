@@ -60,7 +60,18 @@ class ContinuousData(object):
 
         self._calculate_earth_occ_eff()
 
+        counts_flat = np.ndarray.flatten(self._counts)
+        counts_dic = {}
+        counts_dic['0'] = counts_flat[::8]
+        counts_dic['1'] = counts_flat[1::8]
+        counts_dic['2'] = counts_flat[2::8]
+        counts_dic['3'] = counts_flat[3::8]
+        counts_dic['4'] = counts_flat[4::8]
+        counts_dic['5'] = counts_flat[5::8]
+        counts_dic['6'] = counts_flat[6::8]
+        counts_dic['7'] = counts_flat[7::8]
 
+        self._counts_echan = counts_dic
 
     @property
     def day(self):
@@ -93,6 +104,10 @@ class ContinuousData(object):
     @property
     def counts(self):
         return self._counts
+
+    @property
+    def counts_echan(self):
+        return self._counts_echan
 
     @property
     def exposure(self):
