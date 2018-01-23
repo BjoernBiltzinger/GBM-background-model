@@ -20,8 +20,12 @@ class Source(object):
     def get_flux_quad(self, a, b):
         return integrate.quad(self._shape, a, b)
 
-    def get_flux(self, time_bins):
-        return integrate.cumtrapz(self._shape(time_bins), time_bins)
+    def get_flux(self, time_bins, bin_mask=None):
+
+        if bin_mask is None:
+            bin_mask = np.full(len(time_bins), True)
+
+        return integrate.cumtrapz(self._shape()[bin_mask], time_bins)
 
     @property
     def name(self):
@@ -41,12 +45,6 @@ class ContinuumSource(Source):
     def __init__(self, name, continuum_shape):
         super(ContinuumSource, self).__init__(name, CONTINUUM_SOURCE, continuum_shape)
 
-    def get_flux(self, time_bins, bin_mask=None):
-
-        if bin_mask is None:
-            bin_mask = np.full(len(time_bins), True)
-
-        return integrate.cumtrapz(self._shape()[bin_mask], time_bins)
 
 class FlareSource(Source):
     def __init__(self, name, flare_shape):
@@ -56,13 +54,6 @@ class FlareSource(Source):
 class PointSource(Source):
     def __init__(self, name, point_shape):
         super(PointSource, self).__init__(name, POINT_SOURCE, point_shape)
-
-    def get_flux(self, time_bins, bin_mask=None):
-
-        if bin_mask is None:
-            bin_mask = np.full(len(time_bins), True)
-
-        return integrate.cumtrapz(self._shape()[bin_mask], time_bins)
 
 
 class SAASource(Source):

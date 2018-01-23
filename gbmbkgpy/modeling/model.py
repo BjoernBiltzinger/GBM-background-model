@@ -134,34 +134,37 @@ class Model(object):
 
         return self._continuum_sources.values()[id].get_flux(time_bins)
 
-    def get_flare_flux(self, id, t_start, t_stop):
+    def get_flare_flux(self, id, time_bins):
         """
         
-        :param id: 
+        :param time_bins:
+        :param id:
         :param t: 
         :return: 
         """
 
-        return self._flare_sources.values()[id].get_flux(t_start, t_stop)
+        return self._flare_sources.values()[id].get_flux(time_bins)
 
-    def get_point_source_flux(self, id, t_start, t_stop):
+    def get_point_source_flux(self, id, time_bins):
         """
         
-        :param id: 
+        :param time_bins:
+        :param id:
         :param t: 
         :return: 
         """
 
-        return self._point_sources.values()[id].get_flux(t_start, t_stop)
+        return self._point_sources.values()[id].get_flux(time_bins)
 
-    def get_saa_source_flux(self, id, t_start, t_stop):
+    def get_saa_source_flux(self, id, time_bins):
         """
 
+        :param time_bins:
         :param id:
         :param t:
         :return:
         """
-        return self._saa_sources.values()[id].get_flux(t_start, t_stop)
+        return self._saa_sources.values()[id].get_flux(time_bins)
 
     def add_SAA_regions(self, *regions):
         """
@@ -182,12 +185,12 @@ class Model(object):
             total_flux += np.ndarray.flatten(continuum_source.get_flux(time_bins, bin_mask))
 
         for flare_source in self._flare_sources.values():
-            total_flux += flare_source.get_flux(time_bins)
+            total_flux += np.ndarray.flatten(flare_source.get_flux(time_bins, bin_mask))
 
         for point_source in self._point_sources.values():
-            total_flux += point_source.get_flux(time_bins)
+            total_flux += np.ndarray.flatten(point_source.get_flux(time_bins, bin_mask))
 
         for saa_source in self._saa_sources.values():
-            total_flux += saa_source.get_flux(time_bins)
+            total_flux += np.ndarray.flatten(saa_source.get_flux(time_bins, bin_mask))
 
         return total_flux
