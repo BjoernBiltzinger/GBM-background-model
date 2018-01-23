@@ -47,7 +47,7 @@ class SAA_Decay(Function):
 
 # The continuums 
 
-class Cosmic_Gamma_Ray_Background(ContinuumFunction):
+class Cosmic_Gamma_Ray_Background(ContinuumFunctionSpecial):
     def __init__(self):
         super(Cosmic_Gamma_Ray_Background, self).__init__('a')
 

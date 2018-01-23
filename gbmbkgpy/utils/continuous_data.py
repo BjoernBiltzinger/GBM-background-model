@@ -166,9 +166,9 @@ class ContinuousData(object):
 
         return np.array(interpolate.splev(angle, self._tck_occ[channel], der=0))
 
-    def cgb_background(self, met):
+    def cgb_background(self, time_bins):
 
-        return 1.
+        return np.ones_like(time_bins)
 
 
     def _calculate_ang_eff(self):
