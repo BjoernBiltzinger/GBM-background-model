@@ -17,7 +17,7 @@ class BackgroundLike(object):
 
         self._free_parameters = self._model.free_parameters
 
-        self._echan = str(echan)
+        self._echan = echan
 
         #TODO: the data object should return all the time bins that are valid... i.e. non-zero
         self._total_time_bins = self._data.time_bins[2:-2]
@@ -25,7 +25,7 @@ class BackgroundLike(object):
         self._time_bins = self._data.time_bins[self._data.saa_mask][2:-2]
 
         #TODO: extract the counts from the data object. should be same size as time bins
-        self._counts = self._data.counts_echan[self._echan][self._data.saa_mask][2:-2]
+        self._counts = self._data.counts[:, echan][self._data.saa_mask][2:-2]
 
 
     def _evaluate_model(self):
@@ -78,7 +78,7 @@ class BackgroundLike(object):
             parameter.value = synth_parameters[i]
 
 
-        synth_data.counts_echan[self._echan][2:-2] = np.random.poisson(synth_model.get_flux(synth_data.time_bins[2:-2]))
+        synth_data.counts[:, self._echan][2:-2] = np.random.poisson(synth_model.get_flux(synth_data.time_bins[2:-2]))
 
         self._synth_model = synth_model
 
