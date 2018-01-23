@@ -30,9 +30,9 @@ class Function(object):
 
         return [par.value for par in self._parameter_dict.itervalues()]
 
-    def __call__(self, x):
+    def __call__(self):
 
-        return self._evaluate(x, *self.parameter_values)
+        return self._evaluate(*self.parameter_values)
 
 
 
