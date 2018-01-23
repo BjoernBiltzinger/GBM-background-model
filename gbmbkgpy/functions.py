@@ -22,10 +22,10 @@ class Solar_Flare(Function):
 
 class SAA_Decay(Function):
 
-    def __init__(self):
+    def __init__(self, saa_number):
 
-        A = Parameter('A', initial_value=1., min_value=0, max_value=1, delta=0.1, normalization=True)
-        saa_decay_constant = Parameter('saa_decay_constant', initial_value=1., min_value=0, max_value=1, delta=0.1)
+        A = Parameter('A-' + saa_number, initial_value=1., min_value=0, max_value=1, delta=0.1, normalization=True)
+        saa_decay_constant = Parameter('saa_decay_constant-' + saa_number, initial_value=-1., min_value=-np.inf, max_value=0, delta=0.1)
 
         super(SAA_Decay, self).__init__(A, saa_decay_constant)
 
@@ -35,13 +35,17 @@ class SAA_Decay(Function):
         self._saa_exit_time = time
 
 
-    def _evaluate(self, time, A, saa_decay_constant):
+    def set_time_bins(self, time_bins):
 
-        out = np.zeros_like(time)
+        self._time_bins = time_bins
+
+    def _evaluate(self, A, saa_decay_constant):
+
+        out = np.zeros_like(self._time_bins)
         t0 = self._saa_exit_time
-        idx = time < t0
+        idx = self._time_bins < t0
 
-        out[~idx] = A * np.exp(saa_decay_constant * (time[~idx] - t0))
+        out[~idx] = A * np.exp(saa_decay_constant * (self._time_bins[~idx] - t0))
 
         return out
 
