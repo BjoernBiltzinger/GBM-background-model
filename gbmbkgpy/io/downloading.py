@@ -16,10 +16,10 @@ def download_flares(year):
         os.mkdir(file_path)
 
     os.chdir(file_path)
-    if year == 2016:
+    if year == 2017:
         url = (
         'ftp://ftp.ngdc.noaa.gov/STP/space-weather/solar-data/solar-features/solar-flares/x-rays/goes/xrs/goes-xrs-report_' + str(
-            year) + 'ytd.txt')
+            year) + '-ytd.txt')
     else:
         url = (
         'ftp://ftp.ngdc.noaa.gov/STP/space-weather/solar-data/solar-features/solar-flares/x-rays/goes/xrs/goes-xrs-report_' + str(
