@@ -98,6 +98,14 @@ class ContinuousData(object):
         return self._counts
 
     @property
+    def counts_combined(self):
+        return self._counts_combined
+
+    @property
+    def counts_combined_rate(self):
+        return self._counts_combined_rate
+
+    @property
     def exposure(self):
         return self._exposure
 
