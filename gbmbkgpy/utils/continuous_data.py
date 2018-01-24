@@ -48,6 +48,10 @@ class ContinuousData(object):
             self._exposure = f['SPECTRUM'].data['EXPOSURE']
             self._bin_start = f['SPECTRUM'].data['TIME']
 
+        self._counts_combined = np.sum(self._counts, axis=1)
+
+        self._counts_combined_rate = self._counts_combined / self.time_bin_length
+
         self._n_time_bins, self._n_channels  = self._counts.shape
 
         self._setup_geometery()
@@ -92,10 +96,6 @@ class ContinuousData(object):
     @property
     def counts(self):
         return self._counts
-
-    @property
-    def counts_echan(self):
-        return self._counts_echan
 
     @property
     def exposure(self):
@@ -374,11 +374,13 @@ class ContinuousData(object):
 
         # find where the counts are zero
 
-        self._zero_idx = self._counts[:, 0] == 0.
+        self._zero_idx = self._counts_combined == 0.
 
         idx = (self._zero_idx).nonzero()[0]
 
         slice_idx = np.array(slice_disjoint(idx))
+
+        slice_idx = slice_idx[np.where(slice_idx[:, 1] - slice_idx[:, 0] > 10)]
 
         # now find the times of the exits
 
