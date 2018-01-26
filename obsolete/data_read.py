@@ -6,7 +6,7 @@ import os
 import numpy                               as np
 from astropy.io import fits
 
-from gbmbkgpy.work_module_refactor import calculate, detector
+from obsolete.work_module_refactor import calculate, detector
 
 
 class readfile(object):

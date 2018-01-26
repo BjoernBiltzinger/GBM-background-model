@@ -7,8 +7,8 @@ import numpy as np
 from scipy import integrate
 
 from gbmbkgpy.utils.external_prop import ExternalProps, writefile
-from gbmbkgpy.work_module_refactor import calculate
-from gbmbkgpy.work_module_refactor import detector
+from obsolete.work_module_refactor import calculate
+from obsolete.work_module_refactor import detector
 
 calc = calculate()
 det = detector()

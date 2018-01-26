@@ -2,11 +2,10 @@ from math import cos, sin, atan, acos
 
 from pylab import *
 from scipy import integrate
-from tables import *
 
 from gbmbkgpy.utils.external_prop import ExternalProps, writefile
-from gbmbkgpy.work_module_refactor import calculate
-from gbmbkgpy.work_module_refactor import detector
+from obsolete.work_module_refactor import calculate
+from obsolete.work_module_refactor import detector
 
 calc = calculate()
 det = detector()

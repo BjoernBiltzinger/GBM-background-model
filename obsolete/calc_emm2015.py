@@ -10,9 +10,9 @@ from astropy.table import Table
 from numpy import linalg as LA
 
 from gbmbkgpy.utils.external_prop import ExternalProps
-from gbmbkgpy.work_module_refactor import calculate
-from gbmbkgpy.work_module_refactor import detector
-from gbmbkgpy.work_module_refactor import writefile
+from obsolete.work_module_refactor import calculate
+from obsolete.work_module_refactor import detector
+from obsolete.work_module_refactor import writefile
 
 calc = calculate()
 det = detector()
