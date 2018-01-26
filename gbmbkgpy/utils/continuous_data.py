@@ -587,6 +587,12 @@ class ContinuousData(object):
 
         return self._saa_exit_mean_times
 
+    @property
+    def saa_start_value(self, echan, saa_nr):
+
+        return np.mean(self._counts[self._saa_exit_idx[saa_nr]:self._saa_exit_idx[saa_nr]+10, echan] /
+                       self.time_bin_length[self._saa_exit_idx[saa_nr]:self._saa_exit_idx[saa_nr]+10])
+
 
     def plot_light_curve(self,channel=0, ax=None):
 
