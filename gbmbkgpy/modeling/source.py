@@ -10,9 +10,9 @@ class Source(object):
 
         assert source_type in [POINT_SOURCE, CONTINUUM_SOURCE, FLARE_SOURCE, SAA_SOURCE], 'improper source'
 
-    def __call__(self, x):
+    def __call__(self):
 
-        return self._shape(x)
+        return self._shape()
 
     def get_flux_old(self, a, b):
         return (b-a)/6*(self._shape(a)+4*self._shape((a+b)/2)+self._shape(b)) #integrate.quad(self._shape, a, b)
