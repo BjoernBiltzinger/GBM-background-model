@@ -9,7 +9,7 @@ from gbmgeometry import GBMTime
 from gbmbkgpy.io.downloading import download_flares, download_lat_spacecraft
 from gbmbkgpy.io.file_utils import file_existing_and_readable
 from gbmbkgpy.io.package_data import get_path_of_data_file
-from gbmbkgpy.point_source import PointSource
+from gbmbkgpy.point_source import PointSrc
 
 
 class ExternalProps(object):
@@ -49,8 +49,8 @@ class ExternalProps(object):
 
         # self._earth_occ()
 
-    def build_point_sources(self, data_in):
-        self._data_in = data_in
+    def build_point_sources(self, data):
+        self._data = data
         self._build_point_sources()
 
     def mc_l(self, met):
@@ -324,7 +324,7 @@ class ExternalProps(object):
 
         ###Single core calc###
         for row in self._ps_df.itertuples():
-            self._point_sources_dic[row[1]] = PointSource(row[1], row[2], row[3], self._data_in)
+            self._point_sources_dic[row[1]] = PointSrc(row[1], row[2], row[3], self._data)
 
 
         """
@@ -333,7 +333,7 @@ class ExternalProps(object):
         # define function for multiprocess calculation
         def calc_pointsources(x):
             return self._ps_df.loc[x][0], PointSource(self._ps_df.loc[x][0], self._ps_df.loc[x][1],
-                                                      self._ps_df.loc[x][2], self._data_in)
+                                                      self._ps_df.loc[x][2], self._data)
 
         # Initialize Process pool with 8 threads       
         pool = ProcessPool(8)

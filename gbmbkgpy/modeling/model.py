@@ -178,7 +178,7 @@ class Model(object):
 
         return self._point_sources.values()[id].get_flux(time_bins)
 
-    def get_saa_source_flux(self, id, time_bins):
+    def get_saa_flux(self, id, time_bins):
         """
 
         :param time_bins:
