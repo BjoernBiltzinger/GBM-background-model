@@ -45,7 +45,7 @@ class SAA_Decay(Function):
         t0 = self._saa_exit_time
         idx = self._time_bins < t0
 
-        out[~idx] = A * np.exp(saa_decay_constant * (self._time_bins[~idx] - t0))
+        out[~idx] = A * (-saa_decay_constant) * np.exp(saa_decay_constant * (self._time_bins[~idx] - t0))
 
         return out
 
