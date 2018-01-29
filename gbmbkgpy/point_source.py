@@ -21,13 +21,13 @@ from gbmbkgpy.io.package_data import get_path_of_data_dir, get_path_of_data_file
 from gbmbkgpy.utils.progress_bar import progress_bar
 
 
-class PointSource(object):
+class PointSrc(object):
 
-    def __init__(self, name, ra, dec, data_in):
+    def __init__(self, name, ra, dec, data):
         self._name = name
-        self._data_in = data_in #type: ContinuousData
+        self._data = data #type: ContinuousData
         self._ps_skycoord = coord.SkyCoord(ra*u.deg, dec*u.deg, frame='icrs')
-        self._interpolation_time = self._data_in.interpolation_time #type: ContinuousData.interpolation_time
+        self._interpolation_time = self._data.interpolation_time #type: ContinuousData.interpolation_time
         self._calc_src_occ()
         self._set_relative_location()
         #self._cleanup()
@@ -39,7 +39,7 @@ class PointSource(object):
         """
 
         src_occ_ang = []
-        earth_positions = self._data_in.earth_position #type: ContinuousData.earth_position
+        earth_positions = self._data.earth_position #type: ContinuousData.earth_position
 
         # define the size of the earth
         earth_radius = 6371000.8  # geometrically one doesn't need the earth radius at the satellite's position. Instead one needs the radius at the visible horizon. Because this is too much effort to calculate, if one considers the earth as an ellipsoid, it was decided to use the mean earth radius.
@@ -84,7 +84,7 @@ class PointSource(object):
         """
 
         sep_angle = []
-        pointing = self._data_in.pointing #type: ContinuousData.pointing
+        pointing = self._data.pointing #type: ContinuousData.pointing
 
         # go through a subset of times and calculate the sun angle with GBM geometry
 
