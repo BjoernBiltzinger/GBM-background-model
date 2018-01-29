@@ -130,7 +130,7 @@ class BackgroundLike(object):
         self._synth_model = synth_model
 
         return synth_data
-    
+
 
     def __call__(self, parameters):
         """
