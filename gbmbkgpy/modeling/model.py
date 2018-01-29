@@ -65,6 +65,28 @@ class Model(object):
         return normalization_parameters_dictionary
 
     @property
+    def not_normalization_parameters(self):
+        """
+        Get a dictionary with all the parameters that are not normalization in this model
+        :return: dictionary of not normalization parameters
+        """
+
+        # Refresh the list
+
+        self._update_parameters()
+
+        # Filter selecting only normalization parameters
+
+        normalization_parameters_dictionary = collections.OrderedDict()
+
+        for parameter_name, parameter in self._parameters.iteritems():
+
+            if parameter.normalization == False:
+                normalization_parameters_dictionary[parameter_name] = parameter
+
+        return normalization_parameters_dictionary
+
+    @property
     def parameters(self):
         """
         Return a dictionary with all parameters
