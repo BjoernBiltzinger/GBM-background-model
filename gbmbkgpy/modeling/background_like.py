@@ -62,7 +62,11 @@ class BackgroundLike(object):
             parameter.value = new_parameters[i]
 
     @property
-    def get_normalization_parameters(self):
+    def get_normalization_parameter_list(self):
+        """
+        Gets a list of the parameter names in the model which are for normalization
+        :return:
+        """
 
         norm_param_list = []
 
@@ -72,7 +76,27 @@ class BackgroundLike(object):
 
         return norm_param_list
 
+    @property
+    def get_not_normalization_parameter_list(self):
+        """
+        Gets a list of the parameter names in the model which are NOT for normalization
+        :return: not_norm_param_list
+        """
+
+        not_norm_param_list = []
+
+        for parameter_name in self._model.not_normalization_parameters:
+
+            not_norm_param_list.append(parameter_name)
+
+        return not_norm_param_list
+
     def fix_parameters(self, parameter_names):
+        """
+        Fixe the parameters to their value
+        :param parameter_names:
+        :return:
+        """
 
         for param_name in parameter_names:
 
@@ -91,7 +115,15 @@ class BackgroundLike(object):
             if parameter_exits == False:
                 print ("Parameter does not exist in parameter list")
 
+        # update the free parameter list
+        self._free_parameters = self._model.free_parameters
+
     def unfix_parameters(self, parameter_names):
+        """
+        Unfix the parameters
+        :param parameter_names:
+        :return:
+        """
 
         for param_name in parameter_names:
 
@@ -104,10 +136,26 @@ class BackgroundLike(object):
 
                     parameter_exits = True
 
-                    print ("Parameter {0} has been fixed".format(param_name))
+                    print ("Parameter {0} has been unfixed".format(param_name))
 
             if parameter_exits == False:
                 print ("Parameter does not exist in parameter list")
+
+        # update the free parameter list
+        self._free_parameters = self._model.free_parameters
+
+    #TODO: Include that functionality in fitting class!
+    @property
+    def get_free_parameter_values(self):
+        """
+        Gets a list with all free parameter values to pass as starting values.
+        :return:
+        """
+        param_value_list = []
+        for i, parameter in enumerate(self._free_parameters.itervalues()):
+            param_value_list.append(parameter.value)
+
+        return param_value_list
 
     def get_synthetic_data(self, synth_parameters):
         """
