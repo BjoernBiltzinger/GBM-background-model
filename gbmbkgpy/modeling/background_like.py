@@ -17,6 +17,8 @@ class BackgroundLike(object):
 
         self._free_parameters = self._model.free_parameters
 
+        self._parameters = self._model.parameters
+
         self._echan = echan
 
         #TODO: the data object should return all the time bins that are valid... i.e. non-zero
@@ -48,7 +50,6 @@ class BackgroundLike(object):
 
         return model_flux
 
-
     def _set_free_parameters(self, new_parameters):
         """
         Set the free parameters to the new values
@@ -58,9 +59,55 @@ class BackgroundLike(object):
 
         for i, parameter in enumerate(self._free_parameters.itervalues()):
 
-
             parameter.value = new_parameters[i]
 
+    @property
+    def get_normalization_parameters(self):
+
+        norm_param_list = []
+
+        for parameter_name in self._model.normalization_parameters:
+
+            norm_param_list.append(parameter_name)
+
+        return norm_param_list
+
+    def fix_parameters(self, parameter_names):
+
+        for param_name in parameter_names:
+
+            parameter_exits = False
+
+            for parameter_name in self._parameters:
+
+                if param_name == parameter_name:
+
+                    self._parameters[param_name]._free = False
+
+                    parameter_exits = True
+
+                    print ("Parameter {0} has been fixed".format(param_name))
+
+            if parameter_exits == False:
+                print ("Parameter does not exist in parameter list")
+
+    def unfix_parameters(self, parameter_names):
+
+        for param_name in parameter_names:
+
+            parameter_exits = False
+
+            for parameter_name in self._parameters:
+
+                if param_name == parameter_name:
+                    self._parameters[param_name]._free = True
+
+                    parameter_exits = True
+
+                    print ("Parameter {0} has been fixed".format(param_name))
+
+            if parameter_exits == False:
+                print ("Parameter does not exist in parameter list")
 
     def get_synthetic_data(self, synth_parameters):
         """
@@ -83,7 +130,7 @@ class BackgroundLike(object):
         self._synth_model = synth_model
 
         return synth_data
-
+    
 
     def __call__(self, parameters):
         """
