@@ -66,7 +66,7 @@ class PointSrc(object):
 
 
     def _zero(self):
-        print "Numpy where condition true"
+        print( "Numpy where condition true")
         return 0
 
 
