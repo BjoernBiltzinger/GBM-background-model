@@ -1,4 +1,4 @@
-from gbmbkgpy.modeling.function import Function, ContinuumFunction, ContinuumFunctionSpecial
+from gbmbkgpy.modeling.function import Function, ContinuumFunction, PointSourceFunction
 from gbmbkgpy.modeling.parameter import Parameter
 import numpy as np
 
@@ -51,22 +51,23 @@ class SAA_Decay(Function):
 
 # The continuums 
 
-class Cosmic_Gamma_Ray_Background(ContinuumFunctionSpecial):
+class Cosmic_Gamma_Ray_Background(ContinuumFunction):
     def __init__(self):
         super(Cosmic_Gamma_Ray_Background, self).__init__('a')
 
-class Magnetic_Continuum(ContinuumFunctionSpecial):
+class Magnetic_Continuum(ContinuumFunction):
     def __init__(self):
         super(Magnetic_Continuum, self).__init__('b')
 
-class Solar_Continuum(ContinuumFunctionSpecial):
+class Solar_Continuum(ContinuumFunction):
     def __init__(self):
         super(Solar_Continuum, self).__init__('c')
 
-class Point_Source_Continuum(ContinuumFunctionSpecial):
+class Earth_Albedo_Continuum(PointSourceFunction):
     def __init__(self):
-        super(Point_Source_Continuum, self).__init__('d')
+        super(Earth_Albedo_Continuum, self).__init__('d')
 
-class Earth_Albedo_Continuum(ContinuumFunctionSpecial):
+class Point_Source_Continuum(PointSourceFunction):
     def __init__(self):
-        super(Earth_Albedo_Continuum, self).__init__('e')
+        super(Point_Source_Continuum, self).__init__('e')
+
