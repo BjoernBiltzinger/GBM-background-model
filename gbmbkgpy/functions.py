@@ -8,7 +8,7 @@ class Solar_Flare(Function):
     def __init__(self):
 
         K = Parameter('K', initial_value=1., min_value=0, max_value=None, delta=0.1, normalization = True)
-        decay_constant = Parameter('decay_constant', initial_value=-0.1, min_value=-1, max_value=0, delta= 0.1)
+        decay_constant = Parameter('decay_constant', initial_value=-0.01, min_value=-1, max_value=0, delta= 0.1)
 
 
         super(Solar_Flare, self).__init__(K, decay_constant)
@@ -25,7 +25,7 @@ class SAA_Decay(Function):
     def __init__(self, saa_number):
 
         A = Parameter('A-' + saa_number, initial_value=1., min_value=0, max_value=None, delta=0.1, normalization=True)
-        saa_decay_constant = Parameter('saa_decay_constant-' + saa_number, initial_value=-0.1, min_value=-1., max_value=0, delta=0.1)
+        saa_decay_constant = Parameter('saa_decay_constant-' + saa_number, initial_value=-0.01, min_value=-1., max_value=0, delta=0.1)
 
         super(SAA_Decay, self).__init__(A, saa_decay_constant)
 
