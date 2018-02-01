@@ -186,7 +186,7 @@ class BackgroundLike(object):
             parameter.value = synth_parameters[i]
 
 
-        synth_data.counts[:, self._echan][2:-2] = np.random.poisson(synth_model.counts(synth_data.time_bins[2:-2]))
+        synth_data.counts[:, self._echan][2:-2] = np.random.poisson(synth_model.get_counts(synth_data.time_bins[2:-2]))
 
         self._synth_model = synth_model
 
