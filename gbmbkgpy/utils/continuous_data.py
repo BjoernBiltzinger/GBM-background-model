@@ -388,6 +388,7 @@ class ContinuousData(object):
 
         slice_idx = np.array(slice_disjoint(idx))
 
+        #Only the slices which are longer than 8 time bins are used as saa
         slice_idx = slice_idx[np.where(slice_idx[:, 1] - slice_idx[:, 0] > 8)]
 
         # now find the times of the exits
