@@ -179,7 +179,7 @@ class Model(object):
 
         return len(self._saa_sources)
 
-    def get_continuum_flux(self, id, time_bins):
+    def get_continuum_counts(self, id, time_bins):
         """
         
         :param id: 
@@ -187,9 +187,9 @@ class Model(object):
         :return: 
         """
 
-        return self._continuum_sources.values()[id].get_flux(time_bins)
+        return self._continuum_sources.values()[id].get_counts(time_bins)
 
-    def get_flare_flux(self, id, time_bins):
+    def get_flare_counts(self, id, time_bins):
         """
         
         :param time_bins:
@@ -198,9 +198,9 @@ class Model(object):
         :return: 
         """
 
-        return self._flare_sources.values()[id].get_flux(time_bins)
+        return self._flare_sources.values()[id].get_counts(time_bins)
 
-    def get_point_source_flux(self, id, time_bins):
+    def get_point_source_counts(self, id, time_bins):
         """
         
         :param time_bins:
@@ -209,9 +209,9 @@ class Model(object):
         :return: 
         """
 
-        return self._point_sources.values()[id].get_flux(time_bins)
+        return self._point_sources.values()[id].get_counts(time_bins)
 
-    def get_saa_flux(self, id, time_bins):
+    def get_saa_counts(self, id, time_bins):
         """
 
         :param time_bins:
@@ -219,7 +219,7 @@ class Model(object):
         :param t:
         :return:
         """
-        return self._saa_sources.values()[id].get_flux(time_bins)
+        return self._saa_sources.values()[id].get_counts(time_bins)
 
     def add_SAA_regions(self, *regions):
         """
