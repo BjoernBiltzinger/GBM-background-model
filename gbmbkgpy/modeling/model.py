@@ -128,6 +128,17 @@ class Model(object):
 
             self._saa_sources[source.name] = source
 
+    def set_initial_SAA_amplitudes(self, norm_array):
+        """
+        Sets the initial normalization of the saa_sources
+        :param norm_array:
+        :return:
+        """
+        for i, saa_source in enumerate(self._saa_sources.itervalues()):
+
+                saa_source.parameters['A-%s' % (i + 1)].value = norm_array[i]
+
+
     @property
     def point_sources(self):
 

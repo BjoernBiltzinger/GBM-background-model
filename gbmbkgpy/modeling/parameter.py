@@ -30,9 +30,18 @@ class Parameter(object):
         else:
             ff = "fixed"
 
+        if self._min_value == None:
+            min_value = "None"
+        else:
+            min_value = "%g" % self._min_value
 
-        return "%20s: %10g %10g %10g %10g %s" % (
-            self._name, self._value, self._min_value, self._max_value, self._delta, ff)
+        if self._max_value == None:
+            max_value = "None"
+        else:
+            max_value = "%g" % self._max_value
+
+        return "%20s: %10g %10s %10s %10g %s" % (
+            self._name, self._value, min_value, max_value, self._delta, ff)
 
 
     def _get_value(self):
@@ -90,18 +99,18 @@ class Parameter(object):
 
         # Remove old boundaries to avoid problems with the new one, if the current value was within the old boundaries
         # but is not within the new ones (it will then be adjusted automatically later)
-        self.min_value = None
-        self.max_value = None
+        self._min_value = None
+        self._max_value = None
 
-        self.min_value = min_value
+        self._min_value = min_value
 
-        self.max_value = max_value
+        self._max_value = max_value
 
 
     def _get_bounds(self):
         """Returns the current boundaries for the parameter"""
 
-        return self.min_value, self.max_value
+        return self._min_value, self._max_value
 
 
     bounds = property(_get_bounds, _set_bounds, doc="Gets or sets the boundaries (minimum and maximum) for this "
