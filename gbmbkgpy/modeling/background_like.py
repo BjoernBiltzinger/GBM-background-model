@@ -39,7 +39,7 @@ class BackgroundLike(object):
         :return: 
         """
 
-        model_flux = self._model.get_flux(self._time_bins, self._saa_mask)
+        model_counts = self._model.get_counts(self._time_bins, self._saa_mask)
 
         """ OLD:
         model_flux = []
@@ -48,7 +48,7 @@ class BackgroundLike(object):
             model_flux.append(self._model.get_flux(bin[0], bin[1]))
         """
 
-        return model_flux
+        return model_counts
 
     def _set_free_parameters(self, new_parameters):
         """
@@ -186,7 +186,7 @@ class BackgroundLike(object):
             parameter.value = synth_parameters[i]
 
 
-        synth_data.counts[:, self._echan][2:-2] = np.random.poisson(synth_model.get_flux(synth_data.time_bins[2:-2]))
+        synth_data.counts[:, self._echan][2:-2] = np.random.poisson(synth_model.counts(synth_data.time_bins[2:-2]))
 
         self._synth_model = synth_model
 
