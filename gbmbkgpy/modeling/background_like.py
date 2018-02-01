@@ -157,6 +157,18 @@ class BackgroundLike(object):
 
         return param_value_list
 
+    @property
+    def get_free_parameter_bounds(self):
+        """
+        Returns a list with all free parameter bounds.
+        :return:
+        """
+        param_bound_list = []
+        for i, parameter in enumerate(self._free_parameters.itervalues()):
+            param_bound_list.append(parameter.bounds)
+
+        return param_bound_list
+
     def get_synthetic_data(self, synth_parameters):
         """
 
