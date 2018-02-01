@@ -32,7 +32,7 @@ class Minimizer(object):
         step = datetime.now()
         start_params = self._likelihood.get_free_parameter_values
         bounds = self._likelihood.get_free_parameter_bounds
-        self._result_steps['1'] = minimize(self._likelihood, start_params, method='L-BFGS-B', bounds=bounds, options={'maxiter': 10000, 'gtol': 1e-08})
+        self._result_steps['1'] = minimize(self._likelihood, start_params, method='L-BFGS-B', bounds=bounds, options={'maxiter': 10000, 'gtol': 1e-08, 'ftol':1e-10})
         print "1. The linear optimization took: {}".format(datetime.now() - step)
 
 
@@ -43,7 +43,7 @@ class Minimizer(object):
         step = datetime.now()
         start_params = self._likelihood.get_free_parameter_values
         bounds = self._likelihood.get_free_parameter_bounds
-        self._result_steps['2'] = minimize(self._likelihood, start_params, method='L-BFGS-B', bounds=bounds, options={'maxiter': 10000, 'gtol': 1e-08})
+        self._result_steps['2'] = minimize(self._likelihood, start_params, method='L-BFGS-B', bounds=bounds, options={'maxiter': 10000, 'gtol': 1e-08, 'ftol':1e-10})
         print "2. The SAA optimization took: {}".format(datetime.now() - step)
 
 
@@ -53,7 +53,7 @@ class Minimizer(object):
         step = datetime.now()
         start_params = self._likelihood.get_free_parameter_values
         bounds = self._likelihood.get_free_parameter_bounds
-        self._result_steps['3'] = minimize(self._likelihood, start_params, method='L-BFGS-B', bounds=bounds, options={'maxiter': 10000, 'gtol': 1e-08})
+        self._result_steps['3'] = minimize(self._likelihood, start_params, method='L-BFGS-B', bounds=bounds, options={'maxiter': 10000, 'gtol': 1e-08, 'ftol':1e-10})
         print "3. The full constrained optimization took: {}".format(datetime.now() - step)
 
         if n_interations > 3:
