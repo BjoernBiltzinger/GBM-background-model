@@ -168,16 +168,18 @@ class BackgroundLike(object):
 
         return param_bound_list
 
-    def get_synthetic_data(self, synth_parameters):
+    def get_synthetic_data(self, synth_parameters, synth_model=None):
         """
-
+        Creates a ContinousData object with synthetic data based on the total counts from the synth_model
+        If no synth_model is passed it makes a deepcopy of the existing model
         :param synth_parameters:
         :return:
         """
 
         synth_data = copy.deepcopy(self._data)
 
-        synth_model = copy.deepcopy(self._model)
+        if synth_model == None:
+            synth_model = copy.deepcopy(self._model)
 
 
         for i, parameter in enumerate(synth_model.free_parameters.itervalues()):

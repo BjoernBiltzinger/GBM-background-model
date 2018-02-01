@@ -50,6 +50,35 @@ class SAA_Decay(Function):
         out[:, 1][~idx_stop] = A * (-saa_decay_constant) * np.exp(saa_decay_constant * (self._time_bins[:, 1][~idx_stop] - t0))
         return out
 
+class GRB(Function):
+
+    def __init__(self):
+
+        super(GRB, self).__init__()
+
+    def set_time_bins(self, time_bins):
+
+        self._time_bins = time_bins
+
+    def set_grb_params(self, A, t_start, t_rise, t_decay):
+
+        self._A = A
+        self._t_start = t_start
+        self._t_rise = t_rise
+        self._t_decay = t_decay
+
+
+    def _evaluate(self):
+
+        out = np.zeros_like(self._time_bins)
+        idx_start = self._time_bins[:, 0] < self._t_start
+        idx_stop = self._time_bins[:, 1] < self._t_start
+
+        out[:, 0][~idx_start] = self._A * np.exp(2*(self._t_rise / self._t_decay)**(1/2)) * np.exp(-self._t_rise /
+                    (self._time_bins[:, 0][~idx_start] - self._t_start) - (self._time_bins[:, 0][~idx_start] - self._t_start) / self._t_decay)
+
+        out[:, 1][~idx_stop] = self._A * np.exp(2*(self._t_rise / self._t_decay)**(1/2)) * np.exp(-self._t_rise /
+                    (self._time_bins[:, 1][~idx_stop] - self._t_start) - (self._time_bins[:, 1][~idx_stop] - self._t_start) / self._t_decay)
         return out
 
 # The continuums 
