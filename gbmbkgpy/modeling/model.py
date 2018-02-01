@@ -229,9 +229,9 @@ class Model(object):
         :return: 
         """
 
-    def get_flux(self, time_bins, bin_mask=None):
+    def get_counts(self, time_bins, bin_mask=None):
         """
-        Calculates the flux for all sources in the model and returns the summed up array.
+        Calculates the counts for all sources in the model and returns the summed up array.
         :param time_bins:
         :param bin_mask:
         :return:
@@ -240,18 +240,18 @@ class Model(object):
         if bin_mask is None:
             bin_mask = np.full(len(time_bins), True)
 
-        total_flux = np.zeros(len(time_bins))
+        total_counts = np.zeros(len(time_bins))
 
         for continuum_source in self._continuum_sources.values():
-            total_flux += np.ndarray.flatten(continuum_source.get_flux(time_bins, bin_mask))
+            total_counts += np.ndarray.flatten(continuum_source.get_counts(time_bins, bin_mask))
 
         for flare_source in self._flare_sources.values():
-            total_flux += np.ndarray.flatten(flare_source.get_flux(time_bins, bin_mask))
+            total_counts += np.ndarray.flatten(flare_source.get_counts(time_bins, bin_mask))
 
         for point_source in self._point_sources.values():
-            total_flux += np.ndarray.flatten(point_source.get_flux(time_bins, bin_mask))
+            total_counts += np.ndarray.flatten(point_source.get_counts(time_bins, bin_mask))
 
         for saa_source in self._saa_sources.values():
-            total_flux += np.ndarray.flatten(saa_source.get_flux(time_bins, bin_mask))
+            total_counts += np.ndarray.flatten(saa_source.get_counts(time_bins, bin_mask))
 
-        return total_flux
+        return total_counts
