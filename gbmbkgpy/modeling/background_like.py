@@ -110,7 +110,7 @@ class BackgroundLike(object):
 
                     parameter_exits = True
 
-                    print ("Parameter {0} has been fixed".format(param_name))
+                    #print ("Parameter {0} has been fixed".format(param_name))
 
             if parameter_exits == False:
                 print ("Parameter does not exist in parameter list")
@@ -136,7 +136,7 @@ class BackgroundLike(object):
 
                     parameter_exits = True
 
-                    print ("Parameter {0} has been unfixed".format(param_name))
+                    #print ("Parameter {0} has been unfixed".format(param_name))
 
             if parameter_exits == False:
                 print ("Parameter does not exist in parameter list")
@@ -144,11 +144,10 @@ class BackgroundLike(object):
         # update the free parameter list
         self._free_parameters = self._model.free_parameters
 
-    #TODO: Include that functionality in fitting class!
     @property
     def get_free_parameter_values(self):
         """
-        Gets a list with all free parameter values to pass as starting values.
+        Returns a list with all free parameter values.
         :return:
         """
         param_value_list = []
