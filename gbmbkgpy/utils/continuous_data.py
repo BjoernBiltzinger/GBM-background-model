@@ -596,7 +596,7 @@ class ContinuousData(object):
             start_value_array.append(
                 np.mean(self._counts[exit_idx:exit_idx+10, echan] / self.time_bin_length[exit_idx:exit_idx+10]))
 
-        return start_value_array
+        return np.array(start_value_array)
 
     def plot_light_curve(self,channel=0, ax=None):
 
