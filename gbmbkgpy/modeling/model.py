@@ -230,6 +230,12 @@ class Model(object):
         """
 
     def get_flux(self, time_bins, bin_mask=None):
+        """
+        Calculates the flux for all sources in the model and returns the summed up array.
+        :param time_bins:
+        :param bin_mask:
+        :return:
+        """
 
         if bin_mask is None:
             bin_mask = np.full(len(time_bins), True)

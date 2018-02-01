@@ -75,14 +75,26 @@ class ContinuumFunction(Function):
 
 
     def set_saa_zero(self, saa_mask):
-
+        """
+        Set the SAA sections in the function array to zero
+        :param saa_mask:
+        :return:
+        """
         self._function_array[np.where(~saa_mask)] = 0.
 
     def remove_vertical_movement(self):
+        """
+        Remove the vertical movement of the values in the function array by subtracting the minimal value of the array
+        :return:
+        """
 
         self._function_array[self._function_array > 0] = self._function_array[self._function_array > 0] - np.min(self._function_array[self._function_array > 0])
 
     def remove_vertical_movement_mean(self):
+        """
+        Remove the vertical movement of the values in the function array by subtracting the mean value of the array
+        :return:
+        """
 
         self._function_array[self._function_array != 0] = self._function_array[self._function_array != 0] - np.mean(self._function_array[self._function_array != 0], dtype=np.float64)
 
@@ -124,13 +136,26 @@ class PointSourceFunction(Function):
         self._function_array = function_array
 
     def set_saa_zero(self, saa_mask):
+        """
+        Set the SAA sections in the function array to zero
+        :param saa_mask:
+        :return:
+        """
         self._function_array[np.where(~saa_mask)] = 0.
 
     def remove_vertical_movement(self):
+        """
+        Remove the vertical movement of the values in the function array by subtracting the minimal value of the array
+        :return:
+        """
         self._function_array[self._function_array > 0] = self._function_array[self._function_array > 0] - np.min(
             self._function_array[self._function_array > 0])
 
     def remove_vertical_movement_mean(self):
+        """
+        Remove the vertical movement of the values in the function array by subtracting the mean value of the array
+        :return:
+        """
         self._function_array[self._function_array != 0] = self._function_array[self._function_array != 0] - np.mean(
             self._function_array[self._function_array != 0], dtype=np.float64)
 

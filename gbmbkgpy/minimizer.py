@@ -12,6 +12,17 @@ class Minimizer(object):
         self._result_steps = {}
 
     def fit(self, n_interations = 6):
+        """
+        Fits the model stepwise by calling the scipy.minimize in the following steps:
+        1. Fit linear/normalization paramters
+        2. Fit SAA parameters
+        3. Fit all parameters with bounds
+        4. Fit all parameters without bounds: Powell
+        5. Fit all parameters without bounds: Powell
+        6. Fit all parameters without bounds and high precision: Powell
+        :param n_interations:
+        :return:
+        """
 
         start = datetime.now()
 

@@ -40,6 +40,13 @@ class SAA_Decay(Function):
         self._time_bins = time_bins
 
     def _evaluate(self, A, saa_decay_constant):
+        """
+        Calculates the exponential decay for the SAA exit
+        The the values are calculated for the start and stop times of the bins for vectorized integration
+        :param A:
+        :param saa_decay_constant:
+        :return:
+        """
 
         out = np.zeros_like(self._time_bins)
         t0 = self._saa_exit_time
@@ -69,6 +76,11 @@ class GRB(Function):
 
 
     def _evaluate(self):
+        """
+        Calculates a "typical" GRB pulse with a preset rise and decay time.
+        The the values are calculated for the start and stop times of the bins for vectorized integration
+        :return:
+        """
 
         out = np.zeros_like(self._time_bins)
         idx_start = self._time_bins[:, 0] < self._t_start
