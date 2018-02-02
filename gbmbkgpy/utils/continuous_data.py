@@ -388,6 +388,7 @@ class ContinuousData(object):
 
         slice_idx = np.array(slice_disjoint(idx))
 
+        #Only the slices which are longer than 8 time bins are used as saa
         slice_idx = slice_idx[np.where(slice_idx[:, 1] - slice_idx[:, 0] > 8)]
 
         # now find the times of the exits
@@ -588,11 +589,15 @@ class ContinuousData(object):
         return self._saa_exit_mean_times
 
 
-    def saa_start_value(self, echan, saa_nr):
+    def saa_initial_values(self, echan):
 
-        return np.mean(self._counts[self._saa_exit_idx[saa_nr]:self._saa_exit_idx[saa_nr]+10, echan] /
-                       self.time_bin_length[self._saa_exit_idx[saa_nr]:self._saa_exit_idx[saa_nr]+10])
+        start_value_array = []
 
+        for i, exit_idx in enumerate(self._saa_exit_idx):
+            start_value_array.append(
+                np.mean(self._counts[exit_idx:exit_idx+10, echan] / self.time_bin_length[exit_idx:exit_idx+10]))
+
+        return np.array(start_value_array)
 
     def plot_light_curve(self,channel=0, ax=None):
 

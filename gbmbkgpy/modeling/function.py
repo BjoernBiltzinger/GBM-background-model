@@ -45,7 +45,6 @@ class Function(object):
 
         return self._parameter_dict
 
-
 class ContinuumFunction(Function):
     def __init__(self, coefficient_name):
         """
@@ -59,48 +58,16 @@ class ContinuumFunction(Function):
 
         # build the constant
 
-        K = Parameter(coefficient_name, initial_value=1., min_value=0, max_value=1, delta=0.1, normalization=True)
+        K = Parameter(coefficient_name, initial_value=1., min_value=0, max_value=None, delta=0.1, normalization=True)
 
         super(ContinuumFunction, self).__init__(K)
-
-    def set_interpolated_function(self, interpolation):
-        """
-        Set the temporal interpolation that will be used for the function
-
-
-        :param interpolation: a scipy interpolation function
-        :return: 
-        """
-
-        self._interpolation = interpolation
-
-    def _evaluate(self, x, K):
-        return K * self._interpolation(x)
-
-
-class ContinuumFunctionSpecial(Function):
-    def __init__(self, coefficient_name):
-        """
-        A continuum function that is parametrized by a constant multiplied by
-        a an interpolated function
-
-        :param coefficient_name: the name of the coefficient
-        """
-
-        assert isinstance(coefficient_name, str)
-
-        # build the constant
-
-        K = Parameter(coefficient_name, initial_value=1., min_value=0, max_value=1, delta=0.1, normalization=True)
-
-        super(ContinuumFunctionSpecial, self).__init__(K)
 
     def set_function_array(self, function_array):
         """
         Set the temporal interpolation that will be used for the function
 
 
-        :param interpolation: a scipy interpolation function
+        :param function_array: a scipy interpolation function
         :return:
         """
 
@@ -108,14 +75,26 @@ class ContinuumFunctionSpecial(Function):
 
 
     def set_saa_zero(self, saa_mask):
-
+        """
+        Set the SAA sections in the function array to zero
+        :param saa_mask:
+        :return:
+        """
         self._function_array[np.where(~saa_mask)] = 0.
 
     def remove_vertical_movement(self):
+        """
+        Remove the vertical movement of the values in the function array by subtracting the minimal value of the array
+        :return:
+        """
 
         self._function_array[self._function_array > 0] = self._function_array[self._function_array > 0] - np.min(self._function_array[self._function_array > 0])
 
     def remove_vertical_movement_mean(self):
+        """
+        Remove the vertical movement of the values in the function array by subtracting the mean value of the array
+        :return:
+        """
 
         self._function_array[self._function_array != 0] = self._function_array[self._function_array != 0] - np.mean(self._function_array[self._function_array != 0], dtype=np.float64)
 
@@ -125,4 +104,63 @@ class ContinuumFunctionSpecial(Function):
 
     def __call__(self):
 
+        return self._evaluate(*self.parameter_values)
+
+
+class PointSourceFunction(Function):
+    def __init__(self, coefficient_name):
+        """
+        A PointSource function that is parametrized by a constant multiplied by
+        a an interpolated function
+
+        :param coefficient_name: the name of the coefficient
+        """
+
+        assert isinstance(coefficient_name, str)
+
+        # build the constant
+
+        K = Parameter(coefficient_name, initial_value=1., min_value=0, max_value=None, delta=0.1, normalization=True)
+
+        super(PointSourceFunction, self).__init__(K)
+
+    def set_function_array(self, function_array):
+        """
+        Set the temporal interpolation that will be used for the function
+
+
+        :param function_array: a scipy interpolation function
+        :return:
+        """
+
+        self._function_array = function_array
+
+    def set_saa_zero(self, saa_mask):
+        """
+        Set the SAA sections in the function array to zero
+        :param saa_mask:
+        :return:
+        """
+        self._function_array[np.where(~saa_mask)] = 0.
+
+    def remove_vertical_movement(self):
+        """
+        Remove the vertical movement of the values in the function array by subtracting the minimal value of the array
+        :return:
+        """
+        self._function_array[self._function_array > 0] = self._function_array[self._function_array > 0] - np.min(
+            self._function_array[self._function_array > 0])
+
+    def remove_vertical_movement_mean(self):
+        """
+        Remove the vertical movement of the values in the function array by subtracting the mean value of the array
+        :return:
+        """
+        self._function_array[self._function_array != 0] = self._function_array[self._function_array != 0] - np.mean(
+            self._function_array[self._function_array != 0], dtype=np.float64)
+
+    def _evaluate(self, K):
+        return K * self._function_array
+
+    def __call__(self):
         return self._evaluate(*self.parameter_values)
