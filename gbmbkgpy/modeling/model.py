@@ -128,6 +128,17 @@ class Model(object):
 
             self._saa_sources[source.name] = source
 
+    def set_initial_SAA_amplitudes(self, norm_array):
+        """
+        Sets the initial normalization of the saa_sources
+        :param norm_array:
+        :return:
+        """
+        for i, saa_source in enumerate(self._saa_sources.itervalues()):
+
+                saa_source.parameters['A-%s' % (i + 1)].value = norm_array[i]
+
+
     @property
     def point_sources(self):
 
@@ -219,6 +230,12 @@ class Model(object):
         """
 
     def get_flux(self, time_bins, bin_mask=None):
+        """
+        Calculates the flux for all sources in the model and returns the summed up array.
+        :param time_bins:
+        :param bin_mask:
+        :return:
+        """
 
         if bin_mask is None:
             bin_mask = np.full(len(time_bins), True)

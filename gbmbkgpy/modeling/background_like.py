@@ -110,7 +110,7 @@ class BackgroundLike(object):
 
                     parameter_exits = True
 
-                    print ("Parameter {0} has been fixed".format(param_name))
+                    #print ("Parameter {0} has been fixed".format(param_name))
 
             if parameter_exits == False:
                 print ("Parameter does not exist in parameter list")
@@ -136,7 +136,7 @@ class BackgroundLike(object):
 
                     parameter_exits = True
 
-                    print ("Parameter {0} has been unfixed".format(param_name))
+                    #print ("Parameter {0} has been unfixed".format(param_name))
 
             if parameter_exits == False:
                 print ("Parameter does not exist in parameter list")
@@ -144,11 +144,10 @@ class BackgroundLike(object):
         # update the free parameter list
         self._free_parameters = self._model.free_parameters
 
-    #TODO: Include that functionality in fitting class!
     @property
     def get_free_parameter_values(self):
         """
-        Gets a list with all free parameter values to pass as starting values.
+        Returns a list with all free parameter values.
         :return:
         """
         param_value_list = []
@@ -157,16 +156,30 @@ class BackgroundLike(object):
 
         return param_value_list
 
-    def get_synthetic_data(self, synth_parameters):
+    @property
+    def get_free_parameter_bounds(self):
         """
+        Returns a list with all free parameter bounds.
+        :return:
+        """
+        param_bound_list = []
+        for i, parameter in enumerate(self._free_parameters.itervalues()):
+            param_bound_list.append(parameter.bounds)
 
+        return param_bound_list
+
+    def get_synthetic_data(self, synth_parameters, synth_model=None):
+        """
+        Creates a ContinousData object with synthetic data based on the total counts from the synth_model
+        If no synth_model is passed it makes a deepcopy of the existing model
         :param synth_parameters:
         :return:
         """
 
         synth_data = copy.deepcopy(self._data)
 
-        synth_model = copy.deepcopy(self._model)
+        if synth_model == None:
+            synth_model = copy.deepcopy(self._model)
 
 
         for i, parameter in enumerate(synth_model.free_parameters.itervalues()):
