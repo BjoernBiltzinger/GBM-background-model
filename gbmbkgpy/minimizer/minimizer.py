@@ -26,8 +26,8 @@ class Minimizer(object):
 
         start = datetime.now()
 
-        #method_1 = 'L-BFGS-B'
-        method_1 = 'TNC'
+        method_1 = 'L-BFGS-B'
+        #method_1 = 'TNC'
         method_2 = 'Powell'
 
         # First do the linear fit for normalizations and fix the other parameters
