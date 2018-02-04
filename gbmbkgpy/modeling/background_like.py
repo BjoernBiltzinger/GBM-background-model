@@ -1,6 +1,7 @@
 import numpy as np
 from gbmbkgpy.utils.continuous_data import ContinuousData
 from gbmbkgpy.modeling.model import Model
+from gbmbkgpy.utils.statistics.stats_tools import Significance
 import copy
 
 class BackgroundLike(object):
@@ -20,6 +21,8 @@ class BackgroundLike(object):
         self._parameters = self._model.parameters
 
         self._echan = echan
+
+        self._total_scale_factor = 1.
 
         #TODO: the data object should return all the time bins that are valid... i.e. non-zero
         self._total_time_bins = self._data.time_bins[2:-2]
@@ -268,3 +271,15 @@ class BackgroundLike(object):
             logM = np.log(M)
 
         return logM
+
+    def _calc_significance(self):
+
+        rebinned_observed_counts = self._counts
+        rebinned_background_counts = np.zeros_like(self._counts)
+        rebinned_model_counts = self._model.get_counts(self._time_bins, self._saa_mask)
+
+
+        significance_calc = Significance(rebinned_observed_counts,rebinned_background_counts + rebinned_model_counts /
+                                         self._total_scale_factor, self._total_scale_factor)
+
+        self.residuals = significance_calc.known_background()
