@@ -2,6 +2,7 @@ import numpy as np
 from gbmbkgpy.utils.continuous_data import ContinuousData
 from gbmbkgpy.modeling.model import Model
 from gbmbkgpy.utils.statistics.stats_tools import Significance
+from gbmbkgpy.io.plotting.data_residual_plot import ResidualPlot
 import copy
 
 class BackgroundLike(object):
@@ -283,3 +284,174 @@ class BackgroundLike(object):
                                          self._total_scale_factor, self._total_scale_factor)
 
         self.residuals = significance_calc.known_background()
+
+
+    def display_model(self, data_color='k', model_color='r', step=True, show_data=True, show_residuals=True,
+                      show_legend=True, min_rate=1E-99, model_label=None,
+                      **kwargs):
+
+        """
+        Plot the current model with or without the data and the residuals. Multiple models can be plotted by supplying
+        a previous axis to 'model_subplot'.
+        Example usage:
+        fig = data.display_model()
+        fig2 = data2.display_model(model_subplot=fig.axes)
+        :param data_color: the color of the data
+        :param model_color: the color of the model
+        :param step: (bool) create a step count histogram or interpolate the model
+        :param show_data: (bool) show_the data with the model
+        :param show_residuals: (bool) shoe the residuals
+        :param ratio_residuals: (bool) use model ratio instead of residuals
+        :param show_legend: (bool) show legend
+        :param min_rate: the minimum rate per bin
+        :param model_label: (optional) the label to use for the model default is plugin name
+        :param model_subplot: (optional) axis or list of axes to plot to
+        :return:
+        """
+
+        if model_label is None:
+            model_label = "%s Model" % self._name
+
+        residual_plot = ResidualPlot(show_residuals=show_residuals, **kwargs)
+
+        # energy_min, energy_max = self._rsp.ebounds[:-1], self._rsp.ebounds[1:]
+
+        energy_min = np.array(self._observed_spectrum.edges[:-1])
+        energy_max = np.array(self._observed_spectrum.edges[1:])
+
+        chan_width = energy_max - energy_min
+
+        expected_model_rate = self.expected_model_rate
+
+        # figure out the type of data
+
+        src_rate = self.source_rate
+        src_rate_err = self.source_rate_error
+
+        # rebin on the source rate
+
+        # Create a rebinner if either a min_rate has been given, or if the current data set has no rebinned on its own
+
+        if (min_rate is not NO_REBIN) or (self._rebinner is None):
+
+
+            this_rebinner = Rebinner(src_rate, min_rate, self._mask)
+
+        else:
+
+            # Use the rebinner already in the data
+            this_rebinner = self._rebinner
+
+        # get the rebinned counts
+        new_rate, new_model_rate = this_rebinner.rebin(src_rate, expected_model_rate)
+        new_err, = this_rebinner.rebin_errors(src_rate_err)
+
+        # adjust channels
+        new_energy_min, new_energy_max = this_rebinner.get_new_start_and_stop(energy_min, energy_max)
+        new_chan_width = new_energy_max - new_energy_min
+
+        # mean_energy = np.mean([new_energy_min, new_energy_max], axis=0)
+
+        # For each bin find the weighted average of the channel center
+        mean_energy = []
+        delta_energy = [[], []]
+        mean_energy_unrebinned = (energy_max + energy_min) / 2.0
+
+        for e_min, e_max in zip(new_energy_min, new_energy_max):
+
+
+            # Find all channels in this rebinned bin
+            idx = (mean_energy_unrebinned >= e_min) & (mean_energy_unrebinned <= e_max)
+
+            # Find the rates for these channels
+            r = src_rate[idx]
+
+            if r.max() == 0:
+
+                # All empty, cannot weight
+                this_mean_energy = (e_min + e_max) / 2.0
+
+
+            else:
+
+
+                # negative src rates cause the energy mean to
+                # go outside of the bounds. So we fix negative rates to
+                # zero when computing the mean
+
+                idx_negative = r<0.
+
+                r[idx_negative] =0.
+
+                # Do the weighted average of the mean energies
+                weights = r / np.sum(r)
+
+                this_mean_energy = np.average(mean_energy_unrebinned[idx], weights=weights)
+
+
+            # Compute "errors" for X (which aren't really errors, just to mark the size of the bin)
+
+            delta_energy[0].append(this_mean_energy - e_min)
+            delta_energy[1].append(e_max - this_mean_energy)
+            mean_energy.append(this_mean_energy)
+
+        # Residuals
+
+        # we need to get the rebinned counts
+        rebinned_observed_counts, = this_rebinner.rebin(self.observed_counts)
+
+        rebinned_observed_count_errors, = this_rebinner.rebin_errors(self.observed_count_errors)
+
+        # the rebinned counts expected from the model
+        rebinned_model_counts = new_model_rate * self._observed_spectrum.exposure
+
+        rebinned_background_counts = np.zeros_like(rebinned_observed_counts)
+
+
+        significance_calc = Significance(rebinned_observed_counts,
+                                         rebinned_background_counts + rebinned_model_counts / self._total_scale_factor,
+                                         self._total_scale_factor)
+
+
+        residual_errors = None
+        residuals = significance_calc.known_background()
+
+
+        residual_plot.add_data(mean_energy,
+                               new_rate / new_chan_width,
+                               residuals,
+                               residual_yerr=residual_errors,
+                               yerr=new_err / new_chan_width,
+                               xerr=delta_energy,
+                               label=self._name,
+                               color=data_color,
+                               show_data=show_data)
+
+        if step:
+
+            residual_plot.add_model_step(new_energy_min,
+                                         new_energy_max,
+                                         new_chan_width,
+                                         new_model_rate,
+                                         label=model_label,
+                                         color=model_color)
+        else:
+
+            # We always plot the model un-rebinned here
+
+            # Mask the array so we don't plot the model where data have been excluded
+            # y = expected_model_rate / chan_width
+            y = np.ma.masked_where(~self._mask, expected_model_rate / chan_width)
+
+            x = np.mean([energy_min, energy_max], axis=0)
+
+            residual_plot.add_model(x,
+                                    y,
+                                    label=model_label,
+                                    color=model_color)
+
+        return residual_plot.finalize(xlabel="Energy\n(keV)",
+                                      ylabel="Net rate\n(counts s$^{-1}$ keV$^{-1}$)",
+                                      xscale='log',
+                                      yscale='log',
+                                      show_legend=show_legend)
