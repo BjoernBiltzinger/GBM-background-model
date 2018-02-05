@@ -249,13 +249,13 @@ class Model(object):
         total_counts = np.zeros(len(time_bins))
 
         for continuum_source in self._continuum_sources.values():
-            total_counts += np.ndarray.flatten(continuum_source.get_counts(time_bins, bin_mask))
+            total_counts += continuum_source.get_counts(time_bins, bin_mask)[:, 0]
 
         for flare_source in self._flare_sources.values():
-            total_counts += np.ndarray.flatten(flare_source.get_counts(time_bins, bin_mask))
+            total_counts += flare_source.get_counts(time_bins, bin_mask)[:, 0]
 
         for point_source in self._point_sources.values():
-            total_counts += np.ndarray.flatten(point_source.get_counts(time_bins, bin_mask))
+            total_counts += point_source.get_counts(time_bins, bin_mask)[:, 0]
 
         for saa_source in self._saa_sources.values():
             total_counts += saa_source.get_counts(time_bins, bin_mask)[:, 0]
