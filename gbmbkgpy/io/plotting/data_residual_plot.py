@@ -3,9 +3,8 @@ from matplotlib.ticker import MaxNLocator
 import numpy as np
 
 from gbmbkgpy.io.plotting.step_plots import step_plot
-from threeML.config.config import threeML_config
-
-from threeML.exceptions.custom_exceptions import custom_warnings
+#from threeML.config.config import config
+from gbmbkgpy.exceptions.custom_exceptions import custom_warnings
 
 class ResidualPlot(object):
 
@@ -148,7 +147,7 @@ class ResidualPlot(object):
         :param color: the color of the model
         :return: None
         """
-        self._data_axis.plot(x, y, label=label, color=color, alpha=.8)
+        self._data_axis.plot(x, y, label=label, color=color, alpha=.8, zorder=20)
 
 
     def add_data(self, x, y, residuals, label, xerr=None, yerr=None, residual_yerr=None, color='r', show_data=True):
@@ -172,10 +171,10 @@ class ResidualPlot(object):
                                      y,
                                      yerr=yerr,
                                      xerr=xerr,
-                                     fmt=threeML_config['residual plot']['error marker'],
-                                     markersize=threeML_config['residual plot']['error marker size'],
+                                     fmt='.',
+                                     markersize=3,
                                      linestyle='',
-                                     elinewidth=threeML_config['residual plot']['error line width'],
+                                     elinewidth=1,
                                      alpha=.9,
                                      capsize=0,
                                      label=label,
@@ -199,9 +198,9 @@ class ResidualPlot(object):
                                          residuals,
                                          yerr=residual_yerr,
                                          capsize=0,
-                                         fmt=threeML_config['residual plot']['error marker'],
-                                         elinewidth=threeML_config['residual plot']['error line width'],
-                                         markersize=threeML_config['residual plot']['error marker size'],
+                                         fmt='.',
+                                         elinewidth=1,
+                                         markersize=3,
                                          color=color)
 
 
