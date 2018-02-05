@@ -26,13 +26,17 @@ class Minimizer(object):
 
         start = datetime.now()
 
+        method_1 = 'L-BFGS-B'
+        #method_1 = 'TNC'
+        method_2 = 'Powell'
+
         # First do the linear fit for normalizations and fix the other parameters
         self._likelihood.fix_parameters(self._likelihood.get_not_normalization_parameter_list)
 
         step = datetime.now()
         start_params = self._likelihood.get_free_parameter_values
         bounds = self._likelihood.get_free_parameter_bounds
-        self._result_steps['1'] = minimize(self._likelihood, start_params, method='L-BFGS-B', bounds=bounds, options={'maxiter': 10000, 'gtol': 1e-08})
+        self._result_steps['1'] = minimize(self._likelihood, start_params, method=method_1, bounds=bounds, options={'maxiter': 10000, 'gtol': 1e-08, 'ftol':1e-10})
         print "1. The linear optimization took: {}".format(datetime.now() - step)
 
 
@@ -43,7 +47,7 @@ class Minimizer(object):
         step = datetime.now()
         start_params = self._likelihood.get_free_parameter_values
         bounds = self._likelihood.get_free_parameter_bounds
-        self._result_steps['2'] = minimize(self._likelihood, start_params, method='L-BFGS-B', bounds=bounds, options={'maxiter': 10000, 'gtol': 1e-08})
+        self._result_steps['2'] = minimize(self._likelihood, start_params, method=method_1, bounds=bounds, options={'maxiter': 10000, 'gtol': 1e-08, 'ftol':1e-10})
         print "2. The SAA optimization took: {}".format(datetime.now() - step)
 
 
@@ -53,7 +57,7 @@ class Minimizer(object):
         step = datetime.now()
         start_params = self._likelihood.get_free_parameter_values
         bounds = self._likelihood.get_free_parameter_bounds
-        self._result_steps['3'] = minimize(self._likelihood, start_params, method='L-BFGS-B', bounds=bounds, options={'maxiter': 10000, 'gtol': 1e-08})
+        self._result_steps['3'] = minimize(self._likelihood, start_params, method=method_1, bounds=bounds, options={'maxiter': 10000, 'gtol': 1e-08, 'ftol':1e-10})
         print "3. The full constrained optimization took: {}".format(datetime.now() - step)
 
         if n_interations > 3:
