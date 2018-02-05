@@ -9,7 +9,7 @@ from gbmgeometry import GBMTime
 from gbmbkgpy.io.downloading import download_flares, download_lat_spacecraft
 from gbmbkgpy.io.file_utils import file_existing_and_readable
 from gbmbkgpy.io.package_data import get_path_of_data_file
-from gbmbkgpy.point_source import PointSrc
+from gbmbkgpy.modeling.point_source import PointSrc
 
 
 class ExternalProps(object):

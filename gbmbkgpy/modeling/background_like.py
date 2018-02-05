@@ -1,7 +1,12 @@
 import numpy as np
 from gbmbkgpy.utils.continuous_data import ContinuousData
 from gbmbkgpy.modeling.model import Model
+from gbmbkgpy.utils.statistics.stats_tools import Significance
+from gbmbkgpy.io.plotting.data_residual_plot import ResidualPlot
+from gbmbkgpy.utils.binner import Rebinner
 import copy
+
+NO_REBIN = 1E-99
 
 class BackgroundLike(object):
 
@@ -21,14 +26,20 @@ class BackgroundLike(object):
 
         self._echan = echan
 
-        #TODO: the data object should return all the time bins that are valid... i.e. non-zero
+        self._total_scale_factor = 1.
+
+        self._name = "gbmbkgpy"
+
+        # The data object should return all the time bins that are valid... i.e. non-zero
         self._total_time_bins = self._data.time_bins[2:-2]
         self._saa_mask = self._data.saa_mask[2:-2]
         self._time_bins = self._data.time_bins[self._data.saa_mask][2:-2]
 
-        #TODO: extract the counts from the data object. should be same size as time bins
+        # Extract the counts from the data object. should be same size as time bins
         self._counts = self._data.counts[:, echan][self._data.saa_mask][2:-2]
+        self._total_counts = self._data.counts[:, echan][2:-2]
 
+        self._rebinner = None
 
     def _evaluate_model(self):
         """
@@ -39,7 +50,7 @@ class BackgroundLike(object):
         :return: 
         """
 
-        model_flux = self._model.get_flux(self._time_bins, self._saa_mask)
+        model_counts = self._model.get_counts(self._time_bins, bin_mask=self._saa_mask)
 
         """ OLD:
         model_flux = []
@@ -48,7 +59,7 @@ class BackgroundLike(object):
             model_flux.append(self._model.get_flux(bin[0], bin[1]))
         """
 
-        return model_flux
+        return model_counts
 
     def _set_free_parameters(self, new_parameters):
         """
@@ -60,6 +71,16 @@ class BackgroundLike(object):
         for i, parameter in enumerate(self._free_parameters.itervalues()):
 
             parameter.value = new_parameters[i]
+
+    @property
+    def model_counts(self):
+        """
+        Returns the predicted counts from the model for all time bins,
+        the saa_mask sets the SAA sections to zero.
+        :return:
+        """
+
+        return self._model.get_counts(self._total_time_bins, saa_mask=self._saa_mask)
 
     @property
     def get_normalization_parameter_list(self):
@@ -186,7 +207,7 @@ class BackgroundLike(object):
             parameter.value = synth_parameters[i]
 
 
-        synth_data.counts[:, self._echan][2:-2] = np.random.poisson(synth_model.get_flux(synth_data.time_bins[2:-2]))
+        synth_data.counts[:, self._echan][2:-2] = np.random.poisson(synth_model.get_counts(synth_data.time_bins[2:-2]))
 
         self._synth_model = synth_model
 
@@ -268,3 +289,117 @@ class BackgroundLike(object):
             logM = np.log(M)
 
         return logM
+
+    def _calc_significance(self):
+
+        rebinned_observed_counts = self._counts
+        rebinned_background_counts = np.zeros_like(self._counts)
+        rebinned_model_counts = self._model.get_counts(self._time_bins, self._saa_mask)
+
+
+        significance_calc = Significance(rebinned_observed_counts,rebinned_background_counts + rebinned_model_counts /
+                                         self._total_scale_factor, self._total_scale_factor)
+
+        self.residuals = significance_calc.known_background()
+
+
+    def display_model(self, data_color='k', model_color='r', step=True, show_data=True, show_residuals=True,
+                      show_legend=True, min_bin_width=1E-99, model_label=None,
+                      **kwargs):
+
+        """
+        Plot the current model with or without the data and the residuals. Multiple models can be plotted by supplying
+        a previous axis to 'model_subplot'.
+        Example usage:
+        fig = data.display_model()
+        fig2 = data2.display_model(model_subplot=fig.axes)
+        :param data_color: the color of the data
+        :param model_color: the color of the model
+        :param step: (bool) create a step count histogram or interpolate the model
+        :param show_data: (bool) show_the data with the model
+        :param show_residuals: (bool) shoe the residuals
+        :param ratio_residuals: (bool) use model ratio instead of residuals
+        :param show_legend: (bool) show legend
+        :param min_rate: the minimum rate per bin
+        :param model_label: (optional) the label to use for the model default is plugin name
+        :param model_subplot: (optional) axis or list of axes to plot to
+        :return:
+        """
+
+        if model_label is None:
+            model_label = "%s Model" % self._name
+
+        residual_plot = ResidualPlot(show_residuals=show_residuals, **kwargs)
+
+
+        # Create a rebinner if either a min_rate has been given, or if the current data set has no rebinned on its own
+
+        if (min_bin_width is not NO_REBIN) or (self._rebinner is None):
+
+
+            this_rebinner = Rebinner(self._total_time_bins, min_bin_width, self._saa_mask)
+
+        else:
+
+            # Use the rebinner already in the data
+            this_rebinner = self._rebinner
+
+
+        # Residuals
+
+        # we need to get the rebinned counts
+        self._rebinned_observed_counts, = this_rebinner.rebin(self._total_counts)
+
+        # the rebinned counts expected from the model
+        self._rebinned_model_counts, = this_rebinner.rebin(self.model_counts)
+
+        self._rebinned_background_counts = np.zeros_like(self._rebinned_observed_counts)
+
+        self._rebinned_time_bins = this_rebinner.time_rebinned
+
+        significance_calc = Significance(self._rebinned_observed_counts,
+                                         self._rebinned_background_counts + self._rebinned_model_counts / self._total_scale_factor,
+                                         self._total_scale_factor)
+
+
+        residual_errors = None
+        self._residuals = significance_calc.known_background()
+
+
+        residual_plot.add_data(np.mean(self._rebinned_time_bins, axis=1), self._rebinned_observed_counts,
+                               self._residuals,
+                               residual_yerr=residual_errors,
+                               yerr=None,
+                               xerr=None,
+                               label=self._name,
+                               color=data_color,
+                               show_data=show_data)
+
+        # if step:
+        #
+        #     residual_plot.add_model_step(new_energy_min,
+        #                                  new_energy_max,
+        #                                  new_chan_width,
+        #                                  new_model_rate,
+        #                                  label=model_label,
+        #                                  color=model_color)
+        # else:
+
+        # We always plot the model un-rebinned here
+
+        # Mask the array so we don't plot the model where data have been excluded
+        # y = expected_model_rate / chan_width
+        y = self.model_counts #np.ma.masked_where(~self._saa_mask, self.model_counts)
+
+        x = np.mean(self._total_time_bins, axis=1)
+
+        residual_plot.add_model(x,
+                                y,
+                                label=model_label,
+                                color=model_color)
+
+        return residual_plot.finalize(xlabel="Time\n(MET)",
+                                      ylabel="Counts\n",#(counts s$^{-1}$ keV$^{-1}$)",
+                                      xscale='linear',
+                                      yscale='linear',
+                                      show_legend=show_legend)
