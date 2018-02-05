@@ -32,6 +32,8 @@ class BackgroundLike(object):
 
         # The data object should return all the time bins that are valid... i.e. non-zero
         self._total_time_bins = self._data.time_bins[2:-2]
+        self._total_time_bin_widths = np.diff(self._total_time_bins, axis=1)[:, 0]
+
         self._saa_mask = self._data.saa_mask[2:-2]
         self._time_bins = self._data.time_bins[self._data.saa_mask][2:-2]
 
@@ -357,6 +359,8 @@ class BackgroundLike(object):
 
         self._rebinned_time_bins = this_rebinner.time_rebinned
 
+        self._rebinned_time_bin_widths = np.diff(self._rebinned_time_bins, axis=1)[:, 0]
+
         significance_calc = Significance(self._rebinned_observed_counts,
                                          self._rebinned_background_counts + self._rebinned_model_counts / self._total_scale_factor,
                                          self._total_scale_factor)
@@ -366,14 +370,15 @@ class BackgroundLike(object):
         self._residuals = significance_calc.known_background()
 
 
-        residual_plot.add_data(np.mean(self._rebinned_time_bins, axis=1), self._rebinned_observed_counts,
-                               self._residuals,
-                               residual_yerr=residual_errors,
-                               yerr=None,
-                               xerr=None,
-                               label=self._name,
-                               color=data_color,
-                               show_data=show_data)
+        residual_plot.add_data(np.mean( self._rebinned_time_bins, axis=1),
+                                        self._rebinned_observed_counts / self._rebinned_time_bin_widths,
+                                        self._residuals,
+                                        residual_yerr=residual_errors,
+                                        yerr=None,
+                                        xerr=None,
+                                        label=self._name,
+                                        color=data_color,
+                                        show_data=show_data)
 
         # if step:
         #
@@ -389,7 +394,7 @@ class BackgroundLike(object):
 
         # Mask the array so we don't plot the model where data have been excluded
         # y = expected_model_rate / chan_width
-        y = self.model_counts #np.ma.masked_where(~self._saa_mask, self.model_counts)
+        y = self.model_counts / self._total_time_bin_widths
 
         x = np.mean(self._total_time_bins, axis=1)
 
@@ -399,7 +404,7 @@ class BackgroundLike(object):
                                 color=model_color)
 
         return residual_plot.finalize(xlabel="Time\n(MET)",
-                                      ylabel="Counts\n",#(counts s$^{-1}$ keV$^{-1}$)",
+                                      ylabel="Count Rate\n(counts s$^{-1}$",# keV$^{-1}$)",
                                       xscale='linear',
                                       yscale='linear',
                                       show_legend=show_legend)

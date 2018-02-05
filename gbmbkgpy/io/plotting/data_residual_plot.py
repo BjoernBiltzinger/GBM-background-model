@@ -147,7 +147,7 @@ class ResidualPlot(object):
         :param color: the color of the model
         :return: None
         """
-        self._data_axis.plot(x, y, label=label, color=color, alpha=.8, zorder=20)
+        self._data_axis.plot(x, y, label=label, color=color, alpha=.6, zorder=20)
 
 
     def add_data(self, x, y, residuals, label, xerr=None, yerr=None, residual_yerr=None, color='r', show_data=True):
