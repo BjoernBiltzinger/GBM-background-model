@@ -3,7 +3,10 @@ from gbmbkgpy.utils.continuous_data import ContinuousData
 from gbmbkgpy.modeling.model import Model
 from gbmbkgpy.utils.statistics.stats_tools import Significance
 from gbmbkgpy.io.plotting.data_residual_plot import ResidualPlot
+from gbmbkgpy.utils.binner import Rebinner
 import copy
+
+NO_REBIN = 1E-99
 
 class BackgroundLike(object):
 
@@ -25,14 +28,18 @@ class BackgroundLike(object):
 
         self._total_scale_factor = 1.
 
-        #TODO: the data object should return all the time bins that are valid... i.e. non-zero
+        self._name = "gbmbkgpy"
+
+        # The data object should return all the time bins that are valid... i.e. non-zero
         self._total_time_bins = self._data.time_bins[2:-2]
         self._saa_mask = self._data.saa_mask[2:-2]
         self._time_bins = self._data.time_bins[self._data.saa_mask][2:-2]
 
-        #TODO: extract the counts from the data object. should be same size as time bins
+        # Extract the counts from the data object. should be same size as time bins
         self._counts = self._data.counts[:, echan][self._data.saa_mask][2:-2]
+        self._total_counts = self._data.counts[:, echan][2:-2]
 
+        self._rebinner = None
 
     def _evaluate_model(self):
         """
@@ -43,7 +50,7 @@ class BackgroundLike(object):
         :return: 
         """
 
-        model_counts = self._model.get_counts(self._time_bins, self._saa_mask)
+        model_counts = self._model.get_counts(self._time_bins, bin_mask=self._saa_mask)
 
         """ OLD:
         model_flux = []
@@ -64,6 +71,16 @@ class BackgroundLike(object):
         for i, parameter in enumerate(self._free_parameters.itervalues()):
 
             parameter.value = new_parameters[i]
+
+    @property
+    def model_counts(self):
+        """
+        Returns the predicted counts from the model for all time bins,
+        the saa_mask sets the SAA sections to zero.
+        :return:
+        """
+
+        return self._model.get_counts(self._total_time_bins, saa_mask=self._saa_mask)
 
     @property
     def get_normalization_parameter_list(self):
@@ -287,7 +304,7 @@ class BackgroundLike(object):
 
 
     def display_model(self, data_color='k', model_color='r', step=True, show_data=True, show_residuals=True,
-                      show_legend=True, min_rate=1E-99, model_label=None,
+                      show_legend=True, min_bin_width=1E-99, model_label=None,
                       **kwargs):
 
         """
@@ -314,144 +331,75 @@ class BackgroundLike(object):
 
         residual_plot = ResidualPlot(show_residuals=show_residuals, **kwargs)
 
-        # energy_min, energy_max = self._rsp.ebounds[:-1], self._rsp.ebounds[1:]
-
-        energy_min = np.array(self._observed_spectrum.edges[:-1])
-        energy_max = np.array(self._observed_spectrum.edges[1:])
-
-        chan_width = energy_max - energy_min
-
-        expected_model_rate = self.expected_model_rate
-
-        # figure out the type of data
-
-        src_rate = self.source_rate
-        src_rate_err = self.source_rate_error
-
-        # rebin on the source rate
 
         # Create a rebinner if either a min_rate has been given, or if the current data set has no rebinned on its own
 
-        if (min_rate is not NO_REBIN) or (self._rebinner is None):
+        if (min_bin_width is not NO_REBIN) or (self._rebinner is None):
 
 
-            this_rebinner = Rebinner(src_rate, min_rate, self._mask)
+            this_rebinner = Rebinner(self._total_time_bins, min_bin_width, self._saa_mask)
 
         else:
 
             # Use the rebinner already in the data
             this_rebinner = self._rebinner
 
-        # get the rebinned counts
-        new_rate, new_model_rate = this_rebinner.rebin(src_rate, expected_model_rate)
-        new_err, = this_rebinner.rebin_errors(src_rate_err)
-
-        # adjust channels
-        new_energy_min, new_energy_max = this_rebinner.get_new_start_and_stop(energy_min, energy_max)
-        new_chan_width = new_energy_max - new_energy_min
-
-        # mean_energy = np.mean([new_energy_min, new_energy_max], axis=0)
-
-        # For each bin find the weighted average of the channel center
-        mean_energy = []
-        delta_energy = [[], []]
-        mean_energy_unrebinned = (energy_max + energy_min) / 2.0
-
-        for e_min, e_max in zip(new_energy_min, new_energy_max):
-
-
-            # Find all channels in this rebinned bin
-            idx = (mean_energy_unrebinned >= e_min) & (mean_energy_unrebinned <= e_max)
-
-            # Find the rates for these channels
-            r = src_rate[idx]
-
-            if r.max() == 0:
-
-                # All empty, cannot weight
-                this_mean_energy = (e_min + e_max) / 2.0
-
-
-            else:
-
-
-                # negative src rates cause the energy mean to
-                # go outside of the bounds. So we fix negative rates to
-                # zero when computing the mean
-
-                idx_negative = r<0.
-
-                r[idx_negative] =0.
-
-                # Do the weighted average of the mean energies
-                weights = r / np.sum(r)
-
-                this_mean_energy = np.average(mean_energy_unrebinned[idx], weights=weights)
-
-
-            # Compute "errors" for X (which aren't really errors, just to mark the size of the bin)
-
-            delta_energy[0].append(this_mean_energy - e_min)
-            delta_energy[1].append(e_max - this_mean_energy)
-            mean_energy.append(this_mean_energy)
 
         # Residuals
 
         # we need to get the rebinned counts
-        rebinned_observed_counts, = this_rebinner.rebin(self.observed_counts)
-
-        rebinned_observed_count_errors, = this_rebinner.rebin_errors(self.observed_count_errors)
+        self._rebinned_observed_counts, = this_rebinner.rebin(self._total_counts)
 
         # the rebinned counts expected from the model
-        rebinned_model_counts = new_model_rate * self._observed_spectrum.exposure
+        self._rebinned_model_counts, = this_rebinner.rebin(self.model_counts)
 
-        rebinned_background_counts = np.zeros_like(rebinned_observed_counts)
+        self._rebinned_background_counts = np.zeros_like(self._rebinned_observed_counts)
 
+        self._rebinned_time_bins = this_rebinner.time_rebinned
 
-        significance_calc = Significance(rebinned_observed_counts,
-                                         rebinned_background_counts + rebinned_model_counts / self._total_scale_factor,
+        significance_calc = Significance(self._rebinned_observed_counts,
+                                         self._rebinned_background_counts + self._rebinned_model_counts / self._total_scale_factor,
                                          self._total_scale_factor)
 
 
         residual_errors = None
-        residuals = significance_calc.known_background()
+        self._residuals = significance_calc.known_background()
 
 
-        residual_plot.add_data(mean_energy,
-                               new_rate / new_chan_width,
-                               residuals,
+        residual_plot.add_data(np.mean(self._rebinned_time_bins, axis=1), self._rebinned_observed_counts,
+                               self._residuals,
                                residual_yerr=residual_errors,
-                               yerr=new_err / new_chan_width,
-                               xerr=delta_energy,
+                               yerr=None,
+                               xerr=None,
                                label=self._name,
                                color=data_color,
                                show_data=show_data)
 
-        if step:
+        # if step:
+        #
+        #     residual_plot.add_model_step(new_energy_min,
+        #                                  new_energy_max,
+        #                                  new_chan_width,
+        #                                  new_model_rate,
+        #                                  label=model_label,
+        #                                  color=model_color)
+        # else:
 
-            residual_plot.add_model_step(new_energy_min,
-                                         new_energy_max,
-                                         new_chan_width,
-                                         new_model_rate,
-                                         label=model_label,
-                                         color=model_color)
-        else:
+        # We always plot the model un-rebinned here
 
-            # We always plot the model un-rebinned here
+        # Mask the array so we don't plot the model where data have been excluded
+        # y = expected_model_rate / chan_width
+        y = self.model_counts #np.ma.masked_where(~self._saa_mask, self.model_counts)
 
-            # Mask the array so we don't plot the model where data have been excluded
-            # y = expected_model_rate / chan_width
-            y = np.ma.masked_where(~self._mask, expected_model_rate / chan_width)
+        x = np.mean(self._total_time_bins, axis=1)
 
-            x = np.mean([energy_min, energy_max], axis=0)
+        residual_plot.add_model(x,
+                                y,
+                                label=model_label,
+                                color=model_color)
 
-            residual_plot.add_model(x,
-                                    y,
-                                    label=model_label,
-                                    color=model_color)
-
-        return residual_plot.finalize(xlabel="Energy\n(keV)",
-                                      ylabel="Net rate\n(counts s$^{-1}$ keV$^{-1}$)",
-                                      xscale='log',
-                                      yscale='log',
+        return residual_plot.finalize(xlabel="Time\n(MET)",
+                                      ylabel="Counts\n",#(counts s$^{-1}$ keV$^{-1}$)",
+                                      xscale='linear',
+                                      yscale='linear',
                                       show_legend=show_legend)
