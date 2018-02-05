@@ -229,13 +229,19 @@ class Model(object):
         :return: 
         """
 
-    def get_counts(self, time_bins, bin_mask=None):
+    def get_counts(self, time_bins, bin_mask=None, saa_mask=None):
         """
         Calculates the counts for all sources in the model and returns the summed up array.
+        Only one of the following usecases can be used!
+        1) The bin_mask serves for masking the saa sections for faster fitting
+        2) The saa_mask sets the SAA sections to zero when the counts for all time bins are returned
+
         :param time_bins:
         :param bin_mask:
         :return:
         """
+        if bin_mask is not None:
+            assert saa_mask is None, "There should only be a bin mask or a saa_mask provided"
 
         if bin_mask is None:
             bin_mask = np.full(len(time_bins), True)
@@ -252,6 +258,11 @@ class Model(object):
             total_counts += np.ndarray.flatten(point_source.get_counts(time_bins, bin_mask))
 
         for saa_source in self._saa_sources.values():
-            total_counts += np.ndarray.flatten(saa_source.get_counts(time_bins, bin_mask))
+            total_counts += saa_source.get_counts(time_bins, bin_mask)[:, 0]
+
+        # The SAA sections will be set to zero if a saa_mask is provided
+        if saa_mask is not None:
+            assert len(time_bins) == len(saa_mask), "The time_bins and saa_mask should be of equal length"
+            total_counts[np.where(~saa_mask)] = 0.
 
         return total_counts
