@@ -32,7 +32,6 @@ class ExternalProps(object):
         self._month = day[2:-2]
         self._dd = day[-2:]
 
-        self._build_flares()
         day_at = astro_time.Time("%s-%s-%s" % (self._year, self._month, self._dd))
 
         self._min_met = GBMTime(day_at).met
@@ -42,7 +41,7 @@ class ExternalProps(object):
         # now read external files which can be downloaded
         # as needed
 
-        self._build_flares()
+        #self._build_flares()
         self._read_saa()
         #self._build_point_sources()
         self._build_lat_spacecraft()
@@ -165,8 +164,6 @@ class ExternalProps(object):
         filename =  '%s.dat' % self._year
         filepath = get_path_of_data_file('flares', str(filename))
 
-
-        #while os.path.isfile(filepath) == False:
         if not file_existing_and_readable(filepath):
 
             download_flares(self._year)
@@ -223,7 +220,6 @@ class ExternalProps(object):
 
 
         if not file_existing_and_readable(filepath):
-
 
             download_lat_spacecraft(mission_week)
 
