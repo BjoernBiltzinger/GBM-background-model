@@ -44,7 +44,7 @@ class Minimizer(object):
 
         # Fit all parameters without bounds in three runs to improve speed and accuracy
         if n_interations > 3:
-            for i in range(4, n_interations-1):
+            for i in range(4, n_interations):
                 self._fit_without_bounds(method_2, iter_nr=i, options={})
 
             # Final run with improved accuracy
@@ -53,11 +53,11 @@ class Minimizer(object):
         self.result = self._result_steps['%s' % n_interations]
 
 
-        print "The total Optimization took: {}".format(datetime.now() - start)
+        print ("The total Optimization took: {}".format(datetime.now() - start))
 
-        print "The Optimization ended with message:  {}".format(self.result.message)
+        print ("The Optimization ended with message:  {}".format(self.result.message))
 
-        print "Success = {}".format(self.result.success)
+        print ("Success = {}".format(self.result.success))
 
         # save the fit results and errors
 
@@ -65,8 +65,8 @@ class Minimizer(object):
 
         # display the results
 
-        self.display()
-
+        print self.display()
+        
         return self.result
 
     def _fit_with_bounds(self, method, type, iter_nr):
@@ -76,13 +76,13 @@ class Minimizer(object):
         bounds = self._likelihood.get_free_parameter_bounds
         self._result_steps[str(iter_nr)] = minimize(self._likelihood, start_params, method=method, bounds=bounds,
                                            options={'maxiter': 10000, 'gtol': 1e-08, 'ftol': 1e-10})
-        print "{}. The {} optimization took: {}".format(str(iter_nr), type, datetime.now() - step)
+        print ("{}. The {} optimization took: {}".format(str(iter_nr), type, datetime.now() - step))
 
     def _fit_without_bounds(self, method, iter_nr, options):
         step = datetime.now()
         start_params = self._likelihood.get_free_parameter_values
         self._result_steps[str(iter_nr)] = minimize(self._likelihood, start_params, method=method, options=options)
-        print "{}. The {}st unconstrained optimization took: {}".format(iter_nr, iter_nr - 3, datetime.now() - step)
+        print ("{}. The {}st unconstrained optimization took: {}".format(iter_nr, iter_nr - 3, datetime.now() - step))
 
     def _save(self):
 
@@ -103,6 +103,6 @@ class Minimizer(object):
         for i, parameter in enumerate(self._likelihood._parameters.itervalues()):
                     data_dic[parameter.name] = {}
                     data_dic[parameter.name]['fitted value'] = parameter.value
-        fittet_params = pd.DataFrame.from_dict(data_dic, orient='index')
+        self.fitted_params = pd.DataFrame.from_dict(data_dic, orient='index')
 
-
+        return self.fitted_params
