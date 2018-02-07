@@ -55,7 +55,7 @@ class Minimizer(object):
 
         print "The total Optimization took: {}".format(datetime.now() - start)
 
-        print "The Optimization ended with status:  {}".format(self.result.status)
+        print "The Optimization ended with message:  {}".format(self.result.message)
 
         print "Success = {}".format(self.result.success)
 
