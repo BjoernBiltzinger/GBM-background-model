@@ -179,17 +179,23 @@ class Model(object):
 
         return len(self._saa_sources)
 
-    def get_continuum_counts(self, id, time_bins):
+    def get_continuum_counts(self, id, time_bins, saa_mask):
         """
         
         :param id: 
         :param time_bins:
         :return: 
         """
+        source_counts = self._continuum_sources.values()[id].get_counts(time_bins)[:, 0]
 
-        return self._continuum_sources.values()[id].get_counts(time_bins)
+        # The SAA sections will be set to zero if a saa_mask is provided
+        if saa_mask is not None:
+            assert len(time_bins) == len(saa_mask), "The time_bins and saa_mask should be of equal length"
+            source_counts[np.where(~saa_mask)] = 0.
 
-    def get_flare_counts(self, id, time_bins):
+        return source_counts
+
+    def get_flare_counts(self, id, time_bins, saa_mask):
         """
         
         :param time_bins:
@@ -197,10 +203,16 @@ class Model(object):
         :param t: 
         :return: 
         """
+        source_counts = self._flare_sources.values()[id].get_counts(time_bins)[:, 0]
 
-        return self._flare_sources.values()[id].get_counts(time_bins)
+        # The SAA sections will be set to zero if a saa_mask is provided
+        if saa_mask is not None:
+            assert len(time_bins) == len(saa_mask), "The time_bins and saa_mask should be of equal length"
+            source_counts[np.where(~saa_mask)] = 0.
 
-    def get_point_source_counts(self, id, time_bins):
+        return source_counts
+
+    def get_point_source_counts(self, time_bins, saa_mask):
         """
         
         :param time_bins:
@@ -208,10 +220,19 @@ class Model(object):
         :param t: 
         :return: 
         """
+        source_counts = np.zeros(len(time_bins))
 
-        return self._point_sources.values()[id].get_counts(time_bins)
+        for i, point_source in enumerate(self._point_sources):
+            source_counts += self._point_sources.values()[i].get_counts(time_bins)[:, 0]
 
-    def get_saa_counts(self, id, time_bins):
+        # The SAA sections will be set to zero if a saa_mask is provided
+        if saa_mask is not None:
+            assert len(time_bins) == len(saa_mask), "The time_bins and saa_mask should be of equal length"
+            source_counts[np.where(~saa_mask)] = 0.
+
+        return source_counts
+
+    def get_saa_counts(self, time_bins, saa_mask):
         """
 
         :param time_bins:
@@ -219,7 +240,17 @@ class Model(object):
         :param t:
         :return:
         """
-        return self._saa_sources.values()[id].get_counts(time_bins)
+        source_counts = np.zeros(len(time_bins))
+
+        for i, saa in enumerate(self._saa_sources):
+            source_counts += self._saa_sources.values()[i].get_counts(time_bins)[:, 0]
+
+        # The SAA sections will be set to zero if a saa_mask is provided
+        if saa_mask is not None:
+            assert len(time_bins) == len(saa_mask), "The time_bins and saa_mask should be of equal length"
+            source_counts[np.where(~saa_mask)] = 0.
+
+        return source_counts
 
     def add_SAA_regions(self, *regions):
         """

@@ -302,11 +302,11 @@ class BackgroundLike(object):
         significance_calc = Significance(rebinned_observed_counts,rebinned_background_counts + rebinned_model_counts /
                                          self._total_scale_factor, self._total_scale_factor)
 
-        self.residuals = significance_calc.known_background()
+        self._unbinned_residuals = significance_calc.known_background()
 
 
     def display_model(self, data_color='k', model_color='r', step=True, show_data=True, show_residuals=True,
-                      show_legend=True, min_bin_width=1E-99, model_label=None,
+                      show_legend=True, min_bin_width=1E-99, model_label=None, plot_sources=False,
                       **kwargs):
 
         """
@@ -403,8 +403,35 @@ class BackgroundLike(object):
                                 label=model_label,
                                 color=model_color)
 
+        if plot_sources:
+
+            source_list = self._get_list_of_sources(self._total_time_bin_widths)
+
+            residual_plot.add_list_of_sources(x, source_list)
+
         return residual_plot.finalize(xlabel="Time\n(MET)",
                                       ylabel="Count Rate\n(counts s$^{-1}$",# keV$^{-1}$)",
                                       xscale='linear',
                                       yscale='linear',
                                       show_legend=show_legend)
+
+    def _get_list_of_sources(self, time_bin_width=1.):
+        """
+        Builds a list of the different model sources.
+        Each source is a dict containing the label of the source, the data, and the plotting color
+        :return:
+        """
+
+        source_list = []
+        color_list = ['b', 'g', 'c', 'm', 'y', 'k', 'w']
+
+        for i, source_name in enumerate(self._model.continuum_sources):
+            data = self._model.get_continuum_counts(i, self._total_time_bins, self._saa_mask)
+            source_list.append({"label": source_name, "data": data / time_bin_width, "color": color_list[i]})
+
+        saa_data = self._model.get_saa_counts(self._total_time_bins, self._saa_mask)
+
+        source_list.append({"label": "SAA_decays", "data": saa_data / time_bin_width, "color": color_list[i+1]})
+
+        return source_list
+
