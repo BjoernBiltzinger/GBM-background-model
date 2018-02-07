@@ -2,7 +2,7 @@ import os
 import urllib2
 
 from gbmbkgpy.io.package_data import get_path_of_data_dir
-
+from astropy.utils.data import download_file
 
 def download_flares(year):
     """This function downloads a yearly solar flar data file and stores it in the appropriate folder\n
@@ -15,7 +15,7 @@ def download_flares(year):
         print("Making New Directory")
         os.mkdir(file_path)
 
-    os.chdir(file_path)
+    #os.chdir(file_path)
     if year == 2017:
         url = (
         'ftp://ftp.ngdc.noaa.gov/STP/space-weather/solar-data/solar-features/solar-flares/x-rays/goes/xrs/goes-xrs-report_' + str(
@@ -26,6 +26,11 @@ def download_flares(year):
             year) + '.txt')
     file_name = '%s.dat' % str(year)
 
+    path_to_file = download_file(url)
+
+    os.rename(path_to_file, file_path + file_name)
+
+    """
     u = urllib2.urlopen(url)
 
 
@@ -46,7 +51,7 @@ def download_flares(year):
             status = r"%10d  [%3.2f%%]" % (file_size_dl, file_size_dl * 100. / file_size)
             status = status + chr(8) * (len(status) + 1)
    #         print status,
-
+    """
 
 
 def download_lat_spacecraft(week):
@@ -63,6 +68,15 @@ def download_lat_spacecraft(week):
     #os.chdir(file_path)
 
     url = 'http://heasarc.gsfc.nasa.gov/FTP/fermi/data/lat/weekly/spacecraft/lat_spacecraft_weekly_w%d_p202_v001.fits' % week
+
+    path_to_file = download_file(url)
+
+    file_name = 'lat_spacecraft_weekly_w%d_p202_v001.fits' % week
+
+    os.rename(path_to_file, file_path + file_name)
+
+
+    """
     file_name = os.path.join(file_path,url.split('/')[-1])
     u = urllib2.urlopen(url)
     f = open(file_name, 'wb')
@@ -84,3 +98,4 @@ def download_lat_spacecraft(week):
         #print status,
 
     f.close()
+    """
