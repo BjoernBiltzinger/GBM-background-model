@@ -140,7 +140,7 @@ class ResidualPlot(object):
 
     def add_model(self,x,y,label,color):
         """
-        Add a model and interpolate it across the energy span for the plotting.
+        Add a model and interpolate it across the time span for the plotting.
         :param x: the evaluation energies
         :param y: the model values
         :param label: the label of the model
@@ -148,6 +148,19 @@ class ResidualPlot(object):
         :return: None
         """
         self._data_axis.plot(x, y, label=label, color=color, alpha=.6, zorder=20)
+
+    def add_list_of_sources(self, x, source_list):
+        """
+         Add a list of model sources and interpolate them across the time span for the plotting.
+         :param x: the evaluation energies
+         :param y: the model values
+         :param label: the label of the model
+         :param color: the color of the model
+         :return: None
+         """
+        for i, source in enumerate(source_list):
+
+            self._data_axis.plot(x, source['data'], color=source['color'], label=source['label'], alpha=.6)
 
 
     def add_data(self, x, y, residuals, label, xerr=None, yerr=None, residual_yerr=None, color='r', show_data=True):
