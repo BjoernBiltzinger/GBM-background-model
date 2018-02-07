@@ -5,6 +5,7 @@ from gbmbkgpy.utils.statistics.stats_tools import Significance
 from gbmbkgpy.io.plotting.data_residual_plot import ResidualPlot
 from gbmbkgpy.utils.binner import Rebinner
 import copy
+import re
 
 NO_REBIN = 1E-99
 
@@ -30,18 +31,26 @@ class BackgroundLike(object):
 
         self._name = "gbmbkgpy"
 
+        self._grb_mask_calculated = False
+
         # The data object should return all the time bins that are valid... i.e. non-zero
         self._total_time_bins = self._data.time_bins[2:-2]
         self._total_time_bin_widths = np.diff(self._total_time_bins, axis=1)[:, 0]
 
         self._saa_mask = self._data.saa_mask[2:-2]
-        self._time_bins = self._data.time_bins[self._data.saa_mask][2:-2]
+        self._grb_mask = np.full(len(self._total_time_bins), True)
+        # Total mask is False when one of the two masks is False
+        self._total_mask = ~ np.logical_xor(self._saa_mask, self._grb_mask)
+
+        self._time_bins = self._total_time_bins[self._total_mask]
 
         # Extract the counts from the data object. should be same size as time bins
-        self._counts = self._data.counts[:, echan][self._data.saa_mask][2:-2]
+        self._counts = self._data.counts[:, echan][2:-2][self._total_mask]
         self._total_counts = self._data.counts[:, echan][2:-2]
 
         self._rebinner = None
+
+
 
     def _evaluate_model(self):
         """
@@ -52,7 +61,7 @@ class BackgroundLike(object):
         :return: 
         """
 
-        model_counts = self._model.get_counts(self._time_bins, bin_mask=self._saa_mask)
+        model_counts = self._model.get_counts(self._time_bins, bin_mask=self._total_mask)
 
         """ OLD:
         model_flux = []
@@ -291,6 +300,47 @@ class BackgroundLike(object):
             logM = np.log(M)
 
         return logM
+
+
+    def _set_grb_mask(self, *intervals):
+        """
+        Sets the grb_mask for the provided intervals to False
+        These are intervals specified as "-10 -- 5", "0-10", and so on
+        :param intervals:
+        :return:
+        """
+
+        list_of_intervals = []
+
+        for interval in intervals:
+            imin, imax = self._parse_interval(interval)
+
+            list_of_intervals.append([imin, imax])
+
+            bin_exclude = np.logical_and(self._time_bins[:, 0] > imin, self._time_bins[:, 1] < imax)
+
+            self._grb_mask[np.where(bin_exclude)] = False
+
+
+    def _parse_interval(self, time_interval):
+        """
+        The following regular expression matches any two numbers, positive or negative,
+        like "-10 --5","-10 - -5", "-10-5", "5-10" and so on
+
+        :param time_interval:
+        :return:
+        """
+        tokens = re.match('(\-?\+?[0-9]+\.?[0-9]*)\s*-\s*(\-?\+?[0-9]+\.?[0-9]*)', time_interval).groups()
+
+        return map(float, tokens)
+
+
+    def _reset_grb_mask(self):
+        """
+
+        :return:
+        """
+        self._grb_mask = np.full(len(self._time_bins), True)
 
     def _calc_significance(self):
 
