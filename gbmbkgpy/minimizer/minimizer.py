@@ -10,6 +10,7 @@ class Minimizer(object):
 
         self._likelihood = likelihood
         self._result_steps = {}
+        self._fitted_params_steps = {}
 
     def fit(self, n_interations = 6):
         """
@@ -66,7 +67,7 @@ class Minimizer(object):
         # display the results
 
         print self.display()
-        
+
         return self.result
 
     def _fit_with_bounds(self, method, type, iter_nr):
@@ -76,12 +77,15 @@ class Minimizer(object):
         bounds = self._likelihood.get_free_parameter_bounds
         self._result_steps[str(iter_nr)] = minimize(self._likelihood, start_params, method=method, bounds=bounds,
                                            options={'maxiter': 10000, 'gtol': 1e-08, 'ftol': 1e-10})
+
+        self._fitted_params_steps[str(iter_nr)] = self.display()
         print ("{}. The {} optimization took: {}".format(str(iter_nr), type, datetime.now() - step))
 
     def _fit_without_bounds(self, method, iter_nr, options):
         step = datetime.now()
         start_params = self._likelihood.get_free_parameter_values
         self._result_steps[str(iter_nr)] = minimize(self._likelihood, start_params, method=method, options=options)
+        self._fitted_params_steps[str(iter_nr)] = self.display()
         print ("{}. The {}st unconstrained optimization took: {}".format(iter_nr, iter_nr - 3, datetime.now() - step))
 
     def _save(self):
