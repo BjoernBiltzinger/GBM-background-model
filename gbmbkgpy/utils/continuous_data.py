@@ -146,7 +146,7 @@ class ContinuousData(object):
         assert isinstance(channel,int), 'channel must be an integer'
         assert channel in range(self._n_channels), 'Invalid channel'
 
-        return  np.array(interpolate.splev(angle, self._tck[channel], der=0))
+        return np.array(interpolate.splev(angle, self._tck[channel], der=0))
 
 
     def effective_area(self, angle, channel):
