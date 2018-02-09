@@ -16,7 +16,7 @@ def download_flares(year):
         print("Making New Directory")
         os.mkdir(file_path)
 
-    #os.chdir(file_path)
+    
     if year == 2017:
         url = (
         'ftp://ftp.ngdc.noaa.gov/STP/space-weather/solar-data/solar-features/solar-flares/x-rays/goes/xrs/goes-xrs-report_' + str(
@@ -44,7 +44,7 @@ def download_lat_spacecraft(week):
         print("Making New Directory")
         os.mkdir(file_path)
 
-    #os.chdir(file_path)
+
 
     url = 'http://heasarc.gsfc.nasa.gov/FTP/fermi/data/lat/weekly/spacecraft/lat_spacecraft_weekly_w%d_p202_v001.fits' % week
 
