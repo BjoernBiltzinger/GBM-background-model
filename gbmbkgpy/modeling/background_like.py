@@ -33,7 +33,7 @@ class BackgroundLike(object):
 
         self._total_scale_factor = 1.
 
-        self._name = "gbmbkgpy"
+        self._name = "Count rate detector %s" %self._data._det
 
         self._grb_mask_calculated = False
 
@@ -360,7 +360,7 @@ class BackgroundLike(object):
 
 
     def display_model(self, data_color='k', model_color='r', step=True, show_data=True, show_residuals=True,
-                      show_legend=True, min_bin_width=1E-99, model_label=None, plot_sources=False,
+                      show_legend=True, min_bin_width=1E-99, plot_sources=False,
                       **kwargs):
 
         """
@@ -382,8 +382,8 @@ class BackgroundLike(object):
         :return:
         """
 
-        if model_label is None:
-            model_label = "%s Model" % self._name
+
+        model_label = "Geometric Background Model"
 
         residual_plot = ResidualPlot(show_residuals=show_residuals, **kwargs)
 
@@ -493,10 +493,10 @@ class BackgroundLike(object):
     def _read_fits_file(self, date, detector, echan):
 
         file_name = 'Fit_' + str(date) + '_' + str(detector) + '_' + str(echan) + '.json'
-        file_path = os.path.join(get_path_of_external_data_dir(),'fits', file_name)
+        file_path = os.path.join(get_path_of_external_data_dir(), 'fits', file_name)
 
         # Reading data back
-        with open('data.json', 'r') as f:
+        with open(file_path, 'r') as f:
             data = json.load(f)
 
         return data
@@ -508,3 +508,5 @@ class BackgroundLike(object):
         fit_result = np.array(data['fit-result']['param-values'])
 
         self._set_free_parameters(fit_result)
+
+        print("Fits file successfully loaded and parameters set")
