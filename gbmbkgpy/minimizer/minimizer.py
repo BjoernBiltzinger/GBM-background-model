@@ -11,6 +11,9 @@ class Minimizer(object):
         self._likelihood = likelihood
         self._result_steps = {}
         self._fitted_params_steps = {}
+        self._fitted_params = {}
+
+
 
     def fit(self, n_interations = 6):
         """
@@ -70,22 +73,22 @@ class Minimizer(object):
 
         return self.result
 
-    def _fit_with_bounds(self, method, type, iter_nr):
+    def _fit_with_bounds(self, method, type, iter_nr, ftol=1e-9):
 
         step = datetime.now()
         start_params = self._likelihood.get_free_parameter_values
         bounds = self._likelihood.get_free_parameter_bounds
         self._result_steps[str(iter_nr)] = minimize(self._likelihood, start_params, method=method, bounds=bounds,
-                                           options={'maxiter': 10000, 'gtol': 1e-08, 'ftol': 1e-10})
+                                           options={'maxiter': 15000, 'gtol': 1e-10, 'ftol': ftol})
 
-        self._fitted_params_steps[str(iter_nr)] = self.display()
+        self._build_fit_param_df('Fit-'+str(iter_nr))
         print ("{}. The {} optimization took: {}".format(str(iter_nr), type, datetime.now() - step))
 
     def _fit_without_bounds(self, method, iter_nr, options):
         step = datetime.now()
         start_params = self._likelihood.get_free_parameter_values
         self._result_steps[str(iter_nr)] = minimize(self._likelihood, start_params, method=method, options=options)
-        self._fitted_params_steps[str(iter_nr)] = self.display()
+        self._build_fit_param_df('Fit-' + str(iter_nr))
         print ("{}. The {}st unconstrained optimization took: {}".format(iter_nr, iter_nr - 3, datetime.now() - step))
 
     def _fit_basinhopping(self, iter_nr):
@@ -100,7 +103,7 @@ class Minimizer(object):
         pass
 
 
-    def display(self):
+    def display(self, label = "fitted_value"):
         """
         display the results using pandas series or dataframe
         
@@ -109,11 +112,31 @@ class Minimizer(object):
         :return: 
         """
 
-        data_dic = {}
+        self._fit_params = {}
+        self._fit_params['parameter'] = []
+        self._fit_params[label] = []
 
         for i, parameter in enumerate(self._likelihood._parameters.itervalues()):
-                    data_dic[parameter.name] = {}
-                    data_dic[parameter.name]['fitted value'] = parameter.value
-        self.fitted_params = pd.DataFrame.from_dict(data_dic, orient='index')
+            self._fit_params['parameter'].append(parameter.name)
+            self._fit_params[label].append(parameter.value)
+
+        self.fitted_params = pd.DataFrame(data=self._fit_params)
 
         return self.fitted_params
+
+
+
+    def _build_fit_param_df(self, label):
+
+        param_index = []
+        self._fitted_params[label] = []
+
+        for i, parameter in enumerate(self._likelihood._parameters.itervalues()):
+            param_index.append(parameter.name)
+            self._fitted_params[label].append(parameter.value)
+
+        self._param_index = param_index
+
+    @property
+    def fitted_param_steps(self):
+        return pd.DataFrame(data=self._fitted_params, index=self._param_index)
