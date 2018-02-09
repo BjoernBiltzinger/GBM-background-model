@@ -5,40 +5,53 @@ import matplotlib.pyplot as plt
 
 from gbmgeometry import PositionInterpolator, gbm_detector_list
 
-
 import scipy.interpolate as interpolate
 
 from gbmbkgpy.io.file_utils import file_existing_and_readable
+from gbmbkgpy.io.downloading import download_data_file
 
 import astropy.time as astro_time
 import astropy.coordinates as coord
 import math
 import numpy as np
 from scipy import interpolate
-
-
-
-from gbmbkgpy.io.package_data import get_path_of_data_dir, get_path_of_data_file
+import os
+from gbmbkgpy.io.package_data import get_path_of_data_dir, get_path_of_data_file, get_path_of_external_data_dir
 from gbmbkgpy.utils.progress_bar import progress_bar
 from gbmbkgpy.io.plotting.step_plots import step_plot, slice_disjoint, disjoint_patch_plot
 
+
 class ContinuousData(object):
 
-    def __init__(self, file_name, position_history):
+    def __init__(self, date, detector, data_type):
 
-        _, self._data_type, self._det, self._day, _ = file_name.split('_')
+        self._data_type = data_type
+        self._det = detector
+        self._day = date
 
         assert 'ctime' in self._data_type, 'currently only working for CTIME data'
         assert 'n' in self._det, 'currently only working NAI detectors'
 
-        self._pos_hist = position_history
 
-        _, _,_,pos_hist_day,_ = self._pos_hist.split('_')
+        ### Download data-file and poshist file if not existing:
+        datafile_name = 'glg_{0}_{1}_{2}_v00.pha'.format(self._data_type, self._det, self._day)
+        datafile_path = os.path.join(get_path_of_external_data_dir(), self._data_type, self._day, datafile_name)
 
-        assert pos_hist_day == self._day, 'Position history file does not match data file day'
+        poshistfile_name = 'glg_{0}_all_{1}_v00.fit'.format('poshist', self._day)
+        poshistfile_path = os.path.join(get_path_of_external_data_dir(), 'poshist', poshistfile_name)
 
+        if not file_existing_and_readable(datafile_path):
 
-        with fits.open(file_name) as f:
+            download_data_file(self._day, self._data_type, self._det)
+
+        if not file_existing_and_readable(poshistfile_path):
+
+            download_data_file(self._day, 'poshist')
+        ###
+
+        self._pos_hist = poshistfile_path
+
+        with fits.open(datafile_path) as f:
             self._counts = f['SPECTRUM'].data['COUNTS']
             self._bin_start = f['SPECTRUM'].data['TIME']
             self._bin_stop = f['SPECTRUM'].data['ENDTIME']
@@ -52,7 +65,7 @@ class ContinuousData(object):
 
         self._counts_combined_rate = self._counts_combined / self.time_bin_length
 
-        self._n_time_bins, self._n_channels  = self._counts.shape
+        self._n_time_bins, self._n_channels = self._counts.shape
 
         self._setup_geometery()
 
