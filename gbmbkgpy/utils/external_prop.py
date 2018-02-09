@@ -317,6 +317,7 @@ class ExternalProps(object):
         # instantiate dic of point source objects
         self._point_sources_dic = {}
 
+        # TODO: investigate why calculation runs non stop, print ps_df and look
 
         ###Single core calc###
         for row in self._ps_df.itertuples():
