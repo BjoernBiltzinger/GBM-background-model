@@ -6,6 +6,10 @@ from gbmbkgpy.io.plotting.data_residual_plot import ResidualPlot
 from gbmbkgpy.utils.binner import Rebinner
 import copy
 import re
+import os
+import json
+from gbmbkgpy.io.package_data import get_path_of_external_data_dir
+
 
 NO_REBIN = 1E-99
 
@@ -485,3 +489,22 @@ class BackgroundLike(object):
 
         return source_list
 
+
+    def _read_fits_file(self, date, detector, echan):
+
+        file_name = 'Fit_' + str(date) + '_' + str(detector) + '_' + str(echan) + '.json'
+        file_path = os.path.join(get_path_of_external_data_dir(),'fits', file_name)
+
+        # Reading data back
+        with open('data.json', 'r') as f:
+            data = json.load(f)
+
+        return data
+
+    def load_fits_file(self, date, detector, echan):
+
+        data = self._read_fits_file(date, detector, echan)
+
+        fit_result = np.array(data['fit-result']['param-values'])
+
+        self._set_free_parameters(fit_result)
