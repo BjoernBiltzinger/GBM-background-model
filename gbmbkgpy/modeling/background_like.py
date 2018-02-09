@@ -5,6 +5,11 @@ from gbmbkgpy.utils.statistics.stats_tools import Significance
 from gbmbkgpy.io.plotting.data_residual_plot import ResidualPlot
 from gbmbkgpy.utils.binner import Rebinner
 import copy
+import re
+import os
+import json
+from gbmbkgpy.io.package_data import get_path_of_external_data_dir
+
 
 NO_REBIN = 1E-99
 
@@ -28,18 +33,28 @@ class BackgroundLike(object):
 
         self._total_scale_factor = 1.
 
-        self._name = "gbmbkgpy"
+        self._name = "Count rate detector %s" %self._data._det
+
+        self._grb_mask_calculated = False
 
         # The data object should return all the time bins that are valid... i.e. non-zero
         self._total_time_bins = self._data.time_bins[2:-2]
+        self._total_time_bin_widths = np.diff(self._total_time_bins, axis=1)[:, 0]
+
         self._saa_mask = self._data.saa_mask[2:-2]
-        self._time_bins = self._data.time_bins[self._data.saa_mask][2:-2]
+        self._grb_mask = np.full(len(self._total_time_bins), True)
+        # Total mask is False when one of the two masks is False
+        self._total_mask = ~ np.logical_xor(self._saa_mask, self._grb_mask)
+
+        self._time_bins = self._total_time_bins[self._total_mask]
 
         # Extract the counts from the data object. should be same size as time bins
-        self._counts = self._data.counts[:, echan][self._data.saa_mask][2:-2]
+        self._counts = self._data.counts[:, echan][2:-2][self._total_mask]
         self._total_counts = self._data.counts[:, echan][2:-2]
 
         self._rebinner = None
+
+
 
     def _evaluate_model(self):
         """
@@ -50,7 +65,7 @@ class BackgroundLike(object):
         :return: 
         """
 
-        model_counts = self._model.get_counts(self._time_bins, bin_mask=self._saa_mask)
+        model_counts = self._model.get_counts(self._time_bins, bin_mask=self._total_mask)
 
         """ OLD:
         model_flux = []
@@ -290,6 +305,47 @@ class BackgroundLike(object):
 
         return logM
 
+
+    def _set_grb_mask(self, *intervals):
+        """
+        Sets the grb_mask for the provided intervals to False
+        These are intervals specified as "-10 -- 5", "0-10", and so on
+        :param intervals:
+        :return:
+        """
+
+        list_of_intervals = []
+
+        for interval in intervals:
+            imin, imax = self._parse_interval(interval)
+
+            list_of_intervals.append([imin, imax])
+
+            bin_exclude = np.logical_and(self._time_bins[:, 0] > imin, self._time_bins[:, 1] < imax)
+
+            self._grb_mask[np.where(bin_exclude)] = False
+
+
+    def _parse_interval(self, time_interval):
+        """
+        The following regular expression matches any two numbers, positive or negative,
+        like "-10 --5","-10 - -5", "-10-5", "5-10" and so on
+
+        :param time_interval:
+        :return:
+        """
+        tokens = re.match('(\-?\+?[0-9]+\.?[0-9]*)\s*-\s*(\-?\+?[0-9]+\.?[0-9]*)', time_interval).groups()
+
+        return map(float, tokens)
+
+
+    def _reset_grb_mask(self):
+        """
+
+        :return:
+        """
+        self._grb_mask = np.full(len(self._time_bins), True)
+
     def _calc_significance(self):
 
         rebinned_observed_counts = self._counts
@@ -300,11 +356,11 @@ class BackgroundLike(object):
         significance_calc = Significance(rebinned_observed_counts,rebinned_background_counts + rebinned_model_counts /
                                          self._total_scale_factor, self._total_scale_factor)
 
-        self.residuals = significance_calc.known_background()
+        self._unbinned_residuals = significance_calc.known_background()
 
 
     def display_model(self, data_color='k', model_color='r', step=True, show_data=True, show_residuals=True,
-                      show_legend=True, min_bin_width=1E-99, model_label=None,
+                      show_legend=True, min_bin_width=1E-99, plot_sources=False,
                       **kwargs):
 
         """
@@ -326,8 +382,8 @@ class BackgroundLike(object):
         :return:
         """
 
-        if model_label is None:
-            model_label = "%s Model" % self._name
+
+        model_label = "Geometric Background Model"
 
         residual_plot = ResidualPlot(show_residuals=show_residuals, **kwargs)
 
@@ -357,6 +413,8 @@ class BackgroundLike(object):
 
         self._rebinned_time_bins = this_rebinner.time_rebinned
 
+        self._rebinned_time_bin_widths = np.diff(self._rebinned_time_bins, axis=1)[:, 0]
+
         significance_calc = Significance(self._rebinned_observed_counts,
                                          self._rebinned_background_counts + self._rebinned_model_counts / self._total_scale_factor,
                                          self._total_scale_factor)
@@ -366,14 +424,15 @@ class BackgroundLike(object):
         self._residuals = significance_calc.known_background()
 
 
-        residual_plot.add_data(np.mean(self._rebinned_time_bins, axis=1), self._rebinned_observed_counts,
-                               self._residuals,
-                               residual_yerr=residual_errors,
-                               yerr=None,
-                               xerr=None,
-                               label=self._name,
-                               color=data_color,
-                               show_data=show_data)
+        residual_plot.add_data(np.mean( self._rebinned_time_bins, axis=1),
+                                        self._rebinned_observed_counts / self._rebinned_time_bin_widths,
+                                        self._residuals,
+                                        residual_yerr=residual_errors,
+                                        yerr=None,
+                                        xerr=None,
+                                        label=self._name,
+                                        color=data_color,
+                                        show_data=show_data)
 
         # if step:
         #
@@ -389,7 +448,7 @@ class BackgroundLike(object):
 
         # Mask the array so we don't plot the model where data have been excluded
         # y = expected_model_rate / chan_width
-        y = self.model_counts #np.ma.masked_where(~self._saa_mask, self.model_counts)
+        y = self.model_counts / self._total_time_bin_widths
 
         x = np.mean(self._total_time_bins, axis=1)
 
@@ -398,8 +457,56 @@ class BackgroundLike(object):
                                 label=model_label,
                                 color=model_color)
 
+        if plot_sources:
+
+            source_list = self._get_list_of_sources(self._total_time_bin_widths)
+
+            residual_plot.add_list_of_sources(x, source_list)
+
         return residual_plot.finalize(xlabel="Time\n(MET)",
-                                      ylabel="Counts\n",#(counts s$^{-1}$ keV$^{-1}$)",
+                                      ylabel="Count Rate\n(counts s$^{-1}$",# keV$^{-1}$)",
                                       xscale='linear',
                                       yscale='linear',
                                       show_legend=show_legend)
+
+    def _get_list_of_sources(self, time_bin_width=1.):
+        """
+        Builds a list of the different model sources.
+        Each source is a dict containing the label of the source, the data, and the plotting color
+        :return:
+        """
+
+        source_list = []
+        color_list = ['b', 'g', 'c', 'm', 'y', 'k', 'w']
+
+        for i, source_name in enumerate(self._model.continuum_sources):
+            data = self._model.get_continuum_counts(i, self._total_time_bins, self._saa_mask)
+            source_list.append({"label": source_name, "data": data / time_bin_width, "color": color_list[i]})
+
+        saa_data = self._model.get_saa_counts(self._total_time_bins, self._saa_mask)
+
+        source_list.append({"label": "SAA_decays", "data": saa_data / time_bin_width, "color": color_list[i+1]})
+
+        return source_list
+
+
+    def _read_fits_file(self, date, detector, echan):
+
+        file_name = 'Fit_' + str(date) + '_' + str(detector) + '_' + str(echan) + '.json'
+        file_path = os.path.join(get_path_of_external_data_dir(), 'fits', file_name)
+
+        # Reading data back
+        with open(file_path, 'r') as f:
+            data = json.load(f)
+
+        return data
+
+    def load_fits_file(self, date, detector, echan):
+
+        data = self._read_fits_file(date, detector, echan)
+
+        fit_result = np.array(data['fit-result']['param-values'])
+
+        self._set_free_parameters(fit_result)
+
+        print("Fits file successfully loaded and parameters set")
