@@ -309,3 +309,4 @@ class Model(object):
             total_counts[np.where(~saa_mask)] = 0.
 
         return total_counts
+

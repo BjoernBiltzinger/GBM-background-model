@@ -16,6 +16,9 @@ class Minimizer(object):
         self._fitted_params_steps = {}
         self._fitted_params = {}
 
+        self._day = self._likelihood._data._day
+        self._det = self._likelihood._data._det
+        self._echan = self._likelihood._echan
 
 
     def fit(self, n_interations = 6):
@@ -68,7 +71,7 @@ class Minimizer(object):
 
         # save the fit results and errors
 
-        self._save()
+        self._save_fits_file()
 
         # display the results
 
@@ -101,10 +104,29 @@ class Minimizer(object):
         self._build_fit_param_df('Fit-' + str(iter_nr))
         print ("{}. The basinhopping optimization took: {}".format(iter_nr, iter_nr - 3, datetime.now() - step))
 
-    def _save(self):
+    def _save_fits_file(self):
 
-        pass
+        data = {}
 
+        data['fitted-param-steps'] = {'param-names': self._param_index, 'param-values': self._fitted_params}
+
+        data['fit-result'] = {'param-names': [], 'param-values': []}
+
+        for i, parameter in enumerate(self._likelihood._parameters.itervalues()):
+            data['fit-result']['param-names'].append(parameter.name)
+            data['fit-result']['param-values'].append(parameter.value)
+
+        file_name = 'Fit_' + str(self._day) + '_' + str(self._det) + '_' + str(self._echan) + '.json'
+        file_path = os.path.join(get_path_of_external_data_dir(), 'fits')
+
+        # create directory if it doesn't exist
+        if not os.access(file_path, os.F_OK):
+            print("Making New Directory")
+            os.mkdir(file_path)
+
+        # Writing JSON data
+        with open(os.path.join(file_path, file_name), 'w') as f:
+            json.dump(data, f)
 
     def display(self, label = "fitted_value"):
         """
@@ -126,8 +148,6 @@ class Minimizer(object):
         self.fitted_params = pd.DataFrame(data=self._fit_params)
 
         return self.fitted_params
-
-
 
     def _build_fit_param_df(self, label):
 
