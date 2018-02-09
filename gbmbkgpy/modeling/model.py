@@ -139,6 +139,18 @@ class Model(object):
                 saa_source.parameters['A-%s' % (i + 1)].value = norm_array[i]
 
 
+    def set_initial_continuum_amplitudes(self, norm_array):
+        """
+        Sets the initial normalization of the continuum sources
+        :param norm_array:
+        :return:
+        """
+        for i, continuum_source in enumerate(self._continuum_sources.itervalues()):
+
+            for j, parameter in enumerate(continuum_source.parameters.itervalues()):
+
+                parameter.value = norm_array[i]
+
     @property
     def point_sources(self):
 
