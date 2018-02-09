@@ -1,7 +1,10 @@
 import numpy as np
-from scipy.optimize import minimize
+from scipy.optimize import minimize, basinhopping
 import pandas as pd
 from datetime import datetime
+import json
+import os
+from gbmbkgpy.io.package_data import get_path_of_external_data_dir
 
 
 class Minimizer(object):
@@ -10,6 +13,13 @@ class Minimizer(object):
 
         self._likelihood = likelihood
         self._result_steps = {}
+        self._fitted_params_steps = {}
+        self._fitted_params = {}
+
+        self._day = self._likelihood._data._day
+        self._det = self._likelihood._data._det
+        self._echan = self._likelihood._echan
+
 
     def fit(self, n_interations = 6):
         """
@@ -17,9 +27,8 @@ class Minimizer(object):
         1. Fit linear/normalization paramters
         2. Fit SAA parameters
         3. Fit all parameters with bounds
-        4. Fit all parameters without bounds: Powell
-        5. Fit all parameters without bounds: Powell
-        6. Fit all parameters without bounds and high precision: Powell
+        4. Fit all parameters without bounds multiple times: Powell
+        5. Fit all parameters without bounds and high precision: Powell
         :param n_interations:
         :return:
         """
@@ -32,74 +41,94 @@ class Minimizer(object):
 
         # First do the linear fit for normalizations and fix the other parameters
         self._likelihood.fix_parameters(self._likelihood.get_not_normalization_parameter_list)
-
-        step = datetime.now()
-        start_params = self._likelihood.get_free_parameter_values
-        bounds = self._likelihood.get_free_parameter_bounds
-        self._result_steps['1'] = minimize(self._likelihood, start_params, method=method_1, bounds=bounds, options={'maxiter': 10000, 'gtol': 1e-08, 'ftol':1e-10})
-        print "1. The linear optimization took: {}".format(datetime.now() - step)
-
+        self._fit_with_bounds(method_1, type="linear", iter_nr=1)
 
         # Fix the normalizations and fit for the other parameters
         self._likelihood.fix_parameters(self._likelihood.get_normalization_parameter_list[0:4])
         self._likelihood.unfix_parameters(self._likelihood.get_not_normalization_parameter_list)
-
-        step = datetime.now()
-        start_params = self._likelihood.get_free_parameter_values
-        bounds = self._likelihood.get_free_parameter_bounds
-        self._result_steps['2'] = minimize(self._likelihood, start_params, method=method_1, bounds=bounds, options={'maxiter': 10000, 'gtol': 1e-08, 'ftol':1e-10})
-        print "2. The SAA optimization took: {}".format(datetime.now() - step)
-
+        self._fit_with_bounds(method_1, type="SAA", iter_nr=2)
 
         # Unfix all parameters and fit all with bounds
         self._likelihood.unfix_parameters(self._likelihood.get_normalization_parameter_list)
+        self._fit_with_bounds(method_1, type="full constrained", iter_nr=3)
+
+        # Fit all parameters without bounds in three runs to improve speed and accuracy
+        if n_interations > 3:
+            for i in range(4, n_interations):
+                self._fit_without_bounds(method_2, iter_nr=i, options={})
+
+            # Final run with improved accuracy
+            self._fit_without_bounds(method_2, iter_nr=n_interations, options={'xtol': 0.000001, 'ftol': 0.000001})
+
+        self.result = self._result_steps['%s' % n_interations]
+
+
+        print ("The total Optimization took: {}".format(datetime.now() - start))
+
+        print ("The Optimization ended with message:  {}".format(self.result.message))
+
+        print ("Success = {}".format(self.result.success))
+
+        # save the fit results and errors
+
+        self._save_fits_file()
+
+        # display the results
+
+        print self.display()
+
+        return self.result
+
+    def _fit_with_bounds(self, method, type, iter_nr, ftol=1e-9):
 
         step = datetime.now()
         start_params = self._likelihood.get_free_parameter_values
         bounds = self._likelihood.get_free_parameter_bounds
-        self._result_steps['3'] = minimize(self._likelihood, start_params, method=method_1, bounds=bounds, options={'maxiter': 10000, 'gtol': 1e-08, 'ftol':1e-10})
-        print "3. The full constrained optimization took: {}".format(datetime.now() - step)
+        self._result_steps[str(iter_nr)] = minimize(self._likelihood, start_params, method=method, bounds=bounds,
+                                           options={'maxiter': 15000, 'gtol': 1e-10, 'ftol': ftol})
 
-        if n_interations > 3:
-            # Fit all parameters without bounds in three runs to improve speed and accuracy
-            step = datetime.now()
-            start_params = self._likelihood.get_free_parameter_values
-            self._result_steps['4'] = minimize(self._likelihood, start_params, method='Powell', options={})
-            print "4. The 1st unconstrained optimization took: {}".format(datetime.now() - step)
+        self._build_fit_param_df('Fit-'+str(iter_nr))
+        print ("{}. The {} optimization took: {}".format(str(iter_nr), type, datetime.now() - step))
 
-        if n_interations > 4:
-            step = datetime.now()
-            start_params = self._likelihood.get_free_parameter_values
-            self._result_steps['5'] = minimize(self._likelihood, start_params, method='Powell', options={})
-            print "5. The 2nd unconstrained optimization took: {}".format(datetime.now() - step)
+    def _fit_without_bounds(self, method, iter_nr, options):
+        step = datetime.now()
+        start_params = self._likelihood.get_free_parameter_values
+        self._result_steps[str(iter_nr)] = minimize(self._likelihood, start_params, method=method, options=options)
+        self._build_fit_param_df('Fit-' + str(iter_nr))
+        print ("{}. The {}st unconstrained optimization took: {}".format(iter_nr, iter_nr - 3, datetime.now() - step))
 
-        if n_interations > 5:
-            #Final run with improved accuracy
-            step = datetime.now()
-            start_params = self._likelihood.get_free_parameter_values
-            self._result_steps['6'] = minimize(self._likelihood, start_params, method='Powell', options={'xtol': 0.000001, 'ftol': 0.000001})
-            print "6. The 3rd unconstrained optimization took: {}".format(datetime.now() - step)
-            self.result = self._result_steps['6']
-        print "The total Optimization took: {}".format(datetime.now() - start)
+    def _fit_basinhopping(self, iter_nr):
+        step = datetime.now()
+        start_params = self._likelihood.get_free_parameter_values
+        self._result_steps[str(iter_nr)] = basinhopping(self._likelihood, start_params)
+        self._build_fit_param_df('Fit-' + str(iter_nr))
+        print ("{}. The basinhopping optimization took: {}".format(iter_nr, iter_nr - 3, datetime.now() - step))
 
-        if n_interations < 6:
-            self.result = self._result_steps['%s' % n_interations]
-        # save the fit results and errors
+    def _save_fits_file(self):
 
-        self._save()
+        data = {}
 
-        # display the results
+        data['fitted-param-steps'] = {'param-names': self._param_index, 'param-values': self._fitted_params}
 
-        self.display()
+        data['fit-result'] = {'param-names': [], 'param-values': []}
 
-        return self.result
+        for i, parameter in enumerate(self._likelihood._parameters.itervalues()):
+            data['fit-result']['param-names'].append(parameter.name)
+            data['fit-result']['param-values'].append(parameter.value)
 
-    def _save(self):
+        file_name = 'Fit_' + str(self._day) + '_' + str(self._det) + '_' + str(self._echan) + '.json'
+        file_path = os.path.join(get_path_of_external_data_dir(), 'fits')
 
-        pass
+        # create directory if it doesn't exist
+        if not os.access(file_path, os.F_OK):
+            print("Making New Directory")
+            os.mkdir(file_path)
 
+        # Writing JSON data
+        with open(os.path.join(file_path, file_name), 'w') as f:
+            json.dump(data, f)
 
-    def display(self):
+    def display(self, label = "fitted_value"):
         """
         display the results using pandas series or dataframe
         
@@ -108,11 +137,29 @@ class Minimizer(object):
         :return: 
         """
 
-        data_dic = {}
+        self._fit_params = {}
+        self._fit_params['parameter'] = []
+        self._fit_params[label] = []
 
         for i, parameter in enumerate(self._likelihood._parameters.itervalues()):
-                    data_dic[parameter.name] = {}
-                    data_dic[parameter.name]['fitted value'] = parameter.value
-        fittet_params = pd.DataFrame.from_dict(data_dic, orient='index')
+            self._fit_params['parameter'].append(parameter.name)
+            self._fit_params[label].append(parameter.value)
 
+        self.fitted_params = pd.DataFrame(data=self._fit_params)
 
+        return self.fitted_params
+
+    def _build_fit_param_df(self, label):
+
+        param_index = []
+        self._fitted_params[label] = []
+
+        for i, parameter in enumerate(self._likelihood._parameters.itervalues()):
+            param_index.append(parameter.name)
+            self._fitted_params[label].append(parameter.value)
+
+        self._param_index = param_index
+
+    @property
+    def fitted_param_steps(self):
+        return pd.DataFrame(data=self._fitted_params, index=self._param_index)

@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import scipy.interpolate as interpolate
 from gbmgeometry import GBMTime
-
+import os
 from gbmbkgpy.io.downloading import download_flares, download_lat_spacecraft
 from gbmbkgpy.io.file_utils import file_existing_and_readable
 from gbmbkgpy.io.package_data import get_path_of_data_file
@@ -32,7 +32,6 @@ class ExternalProps(object):
         self._month = day[2:-2]
         self._dd = day[-2:]
 
-        self._build_flares()
         day_at = astro_time.Time("%s-%s-%s" % (self._year, self._month, self._dd))
 
         self._min_met = GBMTime(day_at).met
@@ -42,7 +41,7 @@ class ExternalProps(object):
         # now read external files which can be downloaded
         # as needed
 
-        self._build_flares()
+        #self._build_flares()
         self._read_saa()
         #self._build_point_sources()
         self._build_lat_spacecraft()
@@ -165,8 +164,6 @@ class ExternalProps(object):
         filename =  '%s.dat' % self._year
         filepath = get_path_of_data_file('flares', str(filename))
 
-
-        #while os.path.isfile(filepath) == False:
         if not file_existing_and_readable(filepath):
 
             download_flares(self._year)
@@ -224,7 +221,6 @@ class ExternalProps(object):
 
         if not file_existing_and_readable(filepath):
 
-
             download_lat_spacecraft(mission_week)
 
 
@@ -239,21 +235,26 @@ class ExternalProps(object):
 
                 # we need to get week before
 
-                download_lat_spacecraft(mission_week - 1)
-
                 week_before = True
 
                 before_filename = 'lat_spacecraft_weekly_w%d_p202_v001.fits' % (mission_week - 1)
+                before_filepath = get_path_of_data_file('lat', before_filename)
+
+                if not file_existing_and_readable(before_filepath):
+                    download_lat_spacecraft(mission_week - 1)
+
 
             if (f['PRIMARY'].header['TSTOP'] <= self._max_met):
 
                 # we need to get week after
 
-                download_lat_spacecraft(mission_week + 1)
-
                 week_after = True
 
                 after_filename = 'lat_spacecraft_weekly_w%d_p202_v001.fits' % (mission_week + 1)
+                after_filepath = get_path_of_data_file('lat', after_filename)
+
+                if not file_existing_and_readable( after_filepath):
+                    download_lat_spacecraft(mission_week + 1)
 
 
             # first lets get the primary file
@@ -268,26 +269,27 @@ class ExternalProps(object):
         # do it here... thanks Fermi!
         if week_before:
 
-            with fits.open(before_filename) as f:
+            with fits.open(before_filepath) as f:
 
                 lat_time_before = np.mean(np.vstack((f['SC_DATA'].data['START'], f['SC_DATA'].data['STOP'])), axis=0)
                 mc_l_before = f['SC_DATA'].data['L_MCILWAIN']
                 mc_b_before = f['SC_DATA'].data['B_MCILWAIN']
 
 
-            mc_b = np.append((mc_b_before, mc_b))
-            mc_l = np.append((mc_l_before, mc_l))
-            lat_time = np.append((lat_time_before, lat_time))
+            mc_b = np.append(mc_b_before, mc_b)
+            mc_l = np.append(mc_l_before, mc_l)
+            lat_time = np.append(lat_time_before, lat_time)
 
         if week_after:
-            with fits.open(after_filename) as f:
+
+            with fits.open(after_filepath) as f:
                 lat_time_after = np.mean(np.vstack((f['SC_DATA'].data['START'], f['SC_DATA'].data['STOP'])), axis=0)
                 mc_l_after = f['SC_DATA'].data['L_MCILWAIN']
                 mc_b_after = f['SC_DATA'].data['B_MCILWAIN']
 
-            mc_b = np.append((mc_b, mc_b_after))
-            mc_l = np.append((mc_l, mc_l_after))
-            lat_time = np.append((lat_time, lat_time_after))
+            mc_b = np.append(mc_b, mc_b_after)
+            mc_l = np.append(mc_l, mc_l_after)
+            lat_time = np.append(lat_time, lat_time_after)
 
         """
         # save them
@@ -321,6 +323,7 @@ class ExternalProps(object):
         # instantiate dic of point source objects
         self._point_sources_dic = {}
 
+        # TODO: investigate why calculation runs non stop, print ps_df and look
 
         ###Single core calc###
         for row in self._ps_df.itertuples():
