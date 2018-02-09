@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.optimize import minimize
+from scipy.optimize import minimize, basinhopping
 import pandas as pd
 from datetime import datetime
 
@@ -87,6 +87,13 @@ class Minimizer(object):
         self._result_steps[str(iter_nr)] = minimize(self._likelihood, start_params, method=method, options=options)
         self._fitted_params_steps[str(iter_nr)] = self.display()
         print ("{}. The {}st unconstrained optimization took: {}".format(iter_nr, iter_nr - 3, datetime.now() - step))
+
+    def _fit_basinhopping(self, iter_nr):
+        step = datetime.now()
+        start_params = self._likelihood.get_free_parameter_values
+        self._result_steps[str(iter_nr)] = basinhopping(self._likelihood, start_params)
+        self._build_fit_param_df('Fit-' + str(iter_nr))
+        print ("{}. The basinhopping optimization took: {}".format(iter_nr, iter_nr - 3, datetime.now() - step))
 
     def _save(self):
 
