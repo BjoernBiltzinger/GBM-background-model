@@ -2,6 +2,9 @@ import numpy as np
 from scipy.optimize import minimize, basinhopping
 import pandas as pd
 from datetime import datetime
+import json
+import os
+from gbmbkgpy.io.package_data import get_path_of_external_data_dir
 
 
 class Minimizer(object):
