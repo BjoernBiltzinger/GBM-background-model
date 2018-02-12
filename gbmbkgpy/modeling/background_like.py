@@ -54,12 +54,30 @@ class BackgroundLike(object):
 
         self._rebinner = None
 
+        self._fit_rebinned = False
+
+        self._fit_rebinner = None
+
+    def _rebin_counts(self, min_bin_width):
+
+        self._fit_rebinned = True
+
+        self._fit_rebinner = Rebinner(self._total_time_bins, min_bin_width, self._saa_mask)
+
+        # Rebinn the observec counts on time
+        self._rebinned_observed_counts_fitting, = self._fit_rebinner.rebin(self._total_counts)
+
+    @property
+    def _rebinned_model_counts_fiting(self):
+
+        # the rebinned counts expected from the model
+        return self._fit_rebinner.rebin(self.model_counts)[0]
 
 
     def _evaluate_model(self):
         """
         
-        loops over time bins and extracts the model flux and returns this array
+        loops over time bins and extracts the model counts and returns this array
         
         
         :return: 
@@ -67,14 +85,12 @@ class BackgroundLike(object):
 
         model_counts = self._model.get_counts(self._time_bins, bin_mask=self._total_mask)
 
-        """ OLD:
-        model_flux = []
-        
-        for bin in self._time_bins:
-            model_flux.append(self._model.get_flux(bin[0], bin[1]))
-        """
+        if self._fit_rebinned == True:
 
-        return model_counts
+            return self._rebinned_model_counts_fiting
+
+        else:
+            return model_counts
 
     def _set_free_parameters(self, new_parameters):
         """
@@ -258,8 +274,13 @@ class BackgroundLike(object):
         # to zero, then overwrite the elements corresponding to D_i > 0
 
 
+        #Use rebinned counts if fir_rebinned is set to true:
+        if self._fit_rebinned == True:
+            d_times_logM = self._rebinned_observed_counts_fitting * logM
 
-        d_times_logM = self._counts * logM
+        else:
+            d_times_logM = self._counts * logM
+
 
         log_likelihood = np.sum(M_fixed - d_times_logM)
 
@@ -371,7 +392,7 @@ class BackgroundLike(object):
         """
 
 
-        model_label = "Geometric Background Model"
+        model_label = "Background fit"
 
         residual_plot = ResidualPlot(show_residuals=show_residuals, **kwargs)
 
@@ -497,4 +518,4 @@ class BackgroundLike(object):
 
         self._set_free_parameters(fit_result)
 
-        print("Fits file successfully loaded and parameters set")
+        print("Fits file was successfully loaded and the free parameters set")
