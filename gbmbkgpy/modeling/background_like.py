@@ -4,6 +4,8 @@ from gbmbkgpy.modeling.model import Model
 from gbmbkgpy.utils.statistics.stats_tools import Significance
 from gbmbkgpy.io.plotting.data_residual_plot import ResidualPlot
 from gbmbkgpy.utils.binner import Rebinner
+from gbmgeometry import GBMTime
+import astropy.time as astro_time
 import copy
 import re
 import os
@@ -57,6 +59,8 @@ class BackgroundLike(object):
         self._fit_rebinned = False
 
         self._fit_rebinner = None
+
+        self._grb_triggers = {}
 
     def _rebin_counts(self, min_bin_width):
 
@@ -369,7 +373,7 @@ class BackgroundLike(object):
 
 
     def display_model(self, data_color='k', model_color='r', step=True, show_data=True, show_residuals=True,
-                      show_legend=True, min_bin_width=1E-99, plot_sources=False,
+                      show_legend=True, min_bin_width=1E-99, plot_sources=False, show_grb_trigger=False,
                       **kwargs):
 
         """
@@ -472,6 +476,11 @@ class BackgroundLike(object):
 
             residual_plot.add_list_of_sources(x, source_list)
 
+        # Add vertical lines for grb triggers
+
+        if show_grb_trigger:
+            residual_plot.add_vertical_line(self._grb_triggers)
+
         return residual_plot.finalize(xlabel="Time\n(MET)",
                                       ylabel="Count Rate\n(counts s$^{-1}$",# keV$^{-1}$)",
                                       xscale='linear',
@@ -497,6 +506,26 @@ class BackgroundLike(object):
         source_list.append({"label": "SAA_decays", "data": saa_data / time_bin_width, "color": color_list[i+1]})
 
         return source_list
+
+
+    def add_grb_trigger(self, grb_name, trigger_time):
+        """
+        Add a GRB Trigger for to plot a vertical line
+        :param grb_name: string
+        :param trigger_time: string in UTC '00:23:11.997'
+        :return:
+        """
+
+        day = self._data.day
+        year = '20%s'%day[:2]
+        month = day[2:-2]
+        dd = day[-2:]
+
+        day_at = astro_time.Time("%s-%s-%sT%s(UTC)" % (year, month, dd, trigger_time))
+
+        met = GBMTime(day_at).met
+
+        self._grb_triggers[grb_name] = met
 
 
     def _read_fits_file(self, date, detector, echan):
