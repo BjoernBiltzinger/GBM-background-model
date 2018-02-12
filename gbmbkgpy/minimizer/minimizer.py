@@ -21,7 +21,7 @@ class Minimizer(object):
         self._echan = self._likelihood._echan
 
 
-    def fit(self, n_interations = 6):
+    def fit(self, n_interations = 6, method_1 = 'L-BFGS-B',  method_2 = 'Powell'):
         """
         Fits the model stepwise by calling the scipy.minimize in the following steps:
         1. Fit linear/normalization paramters
@@ -35,9 +35,9 @@ class Minimizer(object):
 
         start = datetime.now()
 
-        method_1 = 'L-BFGS-B'
-        #method_1 = 'TNC'
-        method_2 = 'Powell'
+        # method_1 = 'L-BFGS-B'
+        # #method_1 = 'TNC'
+        # method_2 = 'Powell'
 
         # First do the linear fit for normalizations and fix the other parameters
         self._likelihood.fix_parameters(self._likelihood.get_not_normalization_parameter_list)

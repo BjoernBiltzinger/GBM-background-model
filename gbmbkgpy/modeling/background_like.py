@@ -346,18 +346,6 @@ class BackgroundLike(object):
         """
         self._grb_mask = np.full(len(self._time_bins), True)
 
-    def _calc_significance(self):
-
-        rebinned_observed_counts = self._counts
-        rebinned_background_counts = np.zeros_like(self._counts)
-        rebinned_model_counts = self._model.get_counts(self._time_bins, self._saa_mask)
-
-
-        significance_calc = Significance(rebinned_observed_counts,rebinned_background_counts + rebinned_model_counts /
-                                         self._total_scale_factor, self._total_scale_factor)
-
-        self._unbinned_residuals = significance_calc.known_background()
-
 
     def display_model(self, data_color='k', model_color='r', step=True, show_data=True, show_residuals=True,
                       show_legend=True, min_bin_width=1E-99, plot_sources=False,
