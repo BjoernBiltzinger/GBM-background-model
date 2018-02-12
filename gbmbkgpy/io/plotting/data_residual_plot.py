@@ -138,6 +138,11 @@ class ResidualPlot(object):
                   label=label,
                   color=color)
 
+    def add_vertical_line(self, grb_triggers):
+
+        for key, value in grb_triggers.iteritems():
+            self._data_axis.axvline(x=value, label=key)
+
     def add_model(self,x,y,label,color):
         """
         Add a model and interpolate it across the time span for the plotting.
