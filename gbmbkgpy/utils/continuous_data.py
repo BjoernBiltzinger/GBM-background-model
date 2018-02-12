@@ -59,7 +59,7 @@ class ContinuousData(object):
             self._n_entries = len(self._bin_start)
 
             self._exposure = f['SPECTRUM'].data['EXPOSURE']
-            self._bin_start = f['SPECTRUM'].data['TIME']
+            #self._bin_start = f['SPECTRUM'].data['TIME']
 
         self._counts_combined = np.sum(self._counts, axis=1)
 
