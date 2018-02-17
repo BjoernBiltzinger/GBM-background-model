@@ -62,6 +62,9 @@ class BackgroundLike(object):
 
         self._grb_triggers = {}
 
+        # The MET start time of the day
+        self._day_met = self._data._day_met
+
     def _rebin_counts(self, min_bin_width):
 
         self._fit_rebinned = True
@@ -374,7 +377,7 @@ class BackgroundLike(object):
 
     def display_model(self, data_color='k', model_color='r', step=True, show_data=True, show_residuals=True,
                       show_legend=True, min_bin_width=1E-99, plot_sources=False, show_grb_trigger=False,
-                      **kwargs):
+                      show_model=True, change_time=False, **kwargs):
 
         """
         Plot the current model with or without the data and the residuals. Multiple models can be plotted by supplying
@@ -395,6 +398,13 @@ class BackgroundLike(object):
         :return:
         """
 
+        # Change time reference to seconds since beginning of the day
+        if change_time:
+            time_ref = self._day_met
+            time_frame = 'Seconds since midnight'
+        else:
+            time_ref = 0.
+            time_frame = 'MET'
 
         model_label = "Background fit"
 
@@ -406,7 +416,7 @@ class BackgroundLike(object):
         if (min_bin_width is not NO_REBIN) or (self._rebinner is None):
 
 
-            this_rebinner = Rebinner(self._total_time_bins, min_bin_width, self._saa_mask)
+            this_rebinner = Rebinner(self._total_time_bins - time_ref, min_bin_width, self._saa_mask)
 
         else:
 
@@ -463,31 +473,33 @@ class BackgroundLike(object):
         # y = expected_model_rate / chan_width
         y = self.model_counts / self._total_time_bin_widths
 
-        x = np.mean(self._total_time_bins, axis=1)
+        x = np.mean(self._total_time_bins - time_ref, axis=1)
 
-        residual_plot.add_model(x,
-                                y,
-                                label=model_label,
-                                color=model_color)
+        if show_model:
+            residual_plot.add_model(x,
+                                    y,
+                                    label=model_label,
+                                    color=model_color)
 
         if plot_sources:
 
-            source_list = self._get_list_of_sources(self._total_time_bin_widths)
+            source_list = self._get_list_of_sources(self._total_time_bins - time_ref, self._total_time_bin_widths)
 
             residual_plot.add_list_of_sources(x, source_list)
 
         # Add vertical lines for grb triggers
 
         if show_grb_trigger:
-            residual_plot.add_vertical_line(self._grb_triggers)
+            residual_plot.add_vertical_line(self._grb_triggers, time_ref)
 
-        return residual_plot.finalize(xlabel="Time\n(MET)",
-                                      ylabel="Count Rate\n(counts s$^{-1}$",# keV$^{-1}$)",
+
+        return residual_plot.finalize(xlabel="Time\n(%s)" %time_frame,
+                                      ylabel="Count Rate\n(counts s$^{-1}$)",
                                       xscale='linear',
                                       yscale='linear',
                                       show_legend=show_legend)
 
-    def _get_list_of_sources(self, time_bin_width=1.):
+    def _get_list_of_sources(self,time_bins, time_bin_width=1.):
         """
         Builds a list of the different model sources.
         Each source is a dict containing the label of the source, the data, and the plotting color
@@ -498,7 +510,7 @@ class BackgroundLike(object):
         color_list = ['b', 'g', 'c', 'm', 'y', 'k', 'w']
 
         for i, source_name in enumerate(self._model.continuum_sources):
-            data = self._model.get_continuum_counts(i, self._total_time_bins, self._saa_mask)
+            data = self._model.get_continuum_counts(i, time_bins, self._saa_mask)
             source_list.append({"label": source_name, "data": data / time_bin_width, "color": color_list[i]})
 
         saa_data = self._model.get_saa_counts(self._total_time_bins, self._saa_mask)
@@ -519,7 +531,7 @@ class BackgroundLike(object):
         day = self._data.day
         year = '20%s'%day[:2]
         month = day[2:-2]
-        dd = day[-2:]
+        dd = day[-2:] 
 
         day_at = astro_time.Time("%s-%s-%sT%s(UTC)" % (year, month, dd, trigger_time))
 
