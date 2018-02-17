@@ -280,7 +280,7 @@ class ContinuousData(object):
         pointing = []
 
         # go through a subset of times and calculate the sun angle with GBM geometry
-        """
+
         ###SINGLECORE CALC###
         with progress_bar(n_bins_to_calculate, title='Calculating sun position') as p:
 
@@ -366,7 +366,7 @@ class ContinuousData(object):
 
         del sun_angle_dic, sun_time_dic, earth_angle_dic, earth_position_dic, pointing_dic
         ##############
-
+        """
         # get the last data point
 
         mean_time = self.mean_time[-2]
@@ -613,6 +613,9 @@ class ContinuousData(object):
     def saa_initial_values(self, echan):
 
         start_value_array = []
+
+        # Add mean of first 10 time bins for leftover decay from day before
+        start_value_array.append(np.mean(self._counts[0:11, echan] / self.time_bin_length[0:11]))
 
         for i, exit_idx in enumerate(self._saa_exit_idx):
             start_value_array.append(
