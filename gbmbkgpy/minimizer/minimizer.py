@@ -79,7 +79,7 @@ class Minimizer(object):
 
         return self.result
 
-    def _fit_with_bounds(self, method, type, iter_nr, ftol=1e-9):
+    def _fit_with_bounds(self, method='L-BFGS-B', type='bounded', iter_nr=1, ftol=1e-9):
 
         step = datetime.now()
         start_params = self._likelihood.get_free_parameter_values
@@ -90,7 +90,7 @@ class Minimizer(object):
         self._build_fit_param_df('Fit-'+str(iter_nr))
         print ("{}. The {} optimization took: {}".format(str(iter_nr), type, datetime.now() - step))
 
-    def _fit_without_bounds(self, method, iter_nr, options):
+    def _fit_without_bounds(self, method='Powell', iter_nr=1, options={}):
         step = datetime.now()
         start_params = self._likelihood.get_free_parameter_values
         self._result_steps[str(iter_nr)] = minimize(self._likelihood, start_params, method=method, options=options)
