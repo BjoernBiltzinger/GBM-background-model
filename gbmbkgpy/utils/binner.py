@@ -126,6 +126,12 @@ class Rebinner(object):
             for low_bound, hi_bound in zip(self._starts, self._stops):
                 rebinned_vector.append(np.sum(vector_a[low_bound:hi_bound]))
 
+            #If the last time_bin is the last rebinned time bin fix the sum
+            if self._starts[-1] == self._stops[-1]:
+                rebinned_vector[-1] = np.sum(vector_a[self._starts[-1]:])
+
+            #if self._starts
+
             # Vector might not contain counts, so we use a relative comparison to check that we didn't miss
             # anything.
             # NOTE: we add 1e-100 because if both rebinned_vector and vector_a contains only 0, the check would
