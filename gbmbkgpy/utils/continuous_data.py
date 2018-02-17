@@ -19,7 +19,8 @@ import os
 from gbmbkgpy.io.package_data import get_path_of_data_dir, get_path_of_data_file, get_path_of_external_data_dir
 from gbmbkgpy.utils.progress_bar import progress_bar
 from gbmbkgpy.io.plotting.step_plots import step_plot, slice_disjoint, disjoint_patch_plot
-
+from gbmgeometry import GBMTime
+import astropy.time as astro_time
 
 class ContinuousData(object):
 
@@ -77,6 +78,13 @@ class ContinuousData(object):
 
         self._calculate_earth_occ_eff()
 
+        # Calculate the MET time for the day
+        day = self._day
+        year = '20%s' % day[:2]
+        month = day[2:-2]
+        dd = day[-2:]
+        day_at = astro_time.Time("%s-%s-%s" % (year, month, dd))
+        self._day_met = GBMTime(day_at).met
 
     @property
     def day(self):
