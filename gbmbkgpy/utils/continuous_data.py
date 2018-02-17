@@ -403,6 +403,9 @@ class ContinuousData(object):
 
         # find where the counts are zero
 
+        min_saa_bin_width = 8
+        bins_to_add = 8
+
         self._zero_idx = self._counts_combined == 0.
 
         idx = (self._zero_idx).nonzero()[0]
@@ -410,7 +413,15 @@ class ContinuousData(object):
         slice_idx = np.array(slice_disjoint(idx))
 
         #Only the slices which are longer than 8 time bins are used as saa
-        slice_idx = slice_idx[np.where(slice_idx[:, 1] - slice_idx[:, 0] > 8)]
+        slice_idx = slice_idx[np.where(slice_idx[:, 1] - slice_idx[:, 0] > min_saa_bin_width)]
+
+
+        #Add bins_to_add to bin_mask to exclude the bins with corrupt data:
+
+        slice_idx[:, 0][np.where(slice_idx[:, 0] >= 8)] = slice_idx[:, 0] - bins_to_add
+        slice_idx[:, 1][np.where(slice_idx[:, 1] <= self._n_time_bins - 1 - bins_to_add)] = slice_idx[:, 1] + bins_to_add
+
+
 
         # now find the times of the exits
 
@@ -426,6 +437,13 @@ class ContinuousData(object):
         self._saa_exit_mean_times = self.mean_time[self._saa_exit_idx]
         self._saa_exit_bin_start = self._bin_start[self._saa_exit_idx]
         self._saa_exit_bin_stop = self._bin_stop[self._saa_exit_idx]
+
+        # make a saa mask from the slices:
+        self._saa_mask = np.ones_like(self._counts_combined, bool)
+
+        for i in range(len(slice_idx)):
+            self._saa_mask[slice_idx[i, 0]:slice_idx[i, 1] + 1] = False
+            self._zero_idx[slice_idx[i, 0]:slice_idx[i, 1] + 1] = True
 
         self._saa_slices = slice_idx
 
@@ -601,7 +619,7 @@ class ContinuousData(object):
     @property
     def saa_mask(self):
 
-        return ~ self._zero_idx
+        return self._saa_mask
 
 
     @property
