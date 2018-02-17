@@ -136,7 +136,7 @@ class Model(object):
         """
         for i, saa_source in enumerate(self._saa_sources.itervalues()):
 
-                saa_source.parameters['A-%s' % (i + 1)].value = norm_array[i]
+                saa_source.parameters['A-%s' % i].value = norm_array[i]
 
 
     def set_initial_continuum_amplitudes(self, norm_array):
