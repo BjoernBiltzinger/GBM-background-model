@@ -138,10 +138,10 @@ class ResidualPlot(object):
                   label=label,
                   color=color)
 
-    def add_vertical_line(self, grb_triggers):
+    def add_vertical_line(self, grb_triggers, time_ref):
 
         for key, value in grb_triggers.iteritems():
-            self._data_axis.axvline(x=value, label=key)
+            self._data_axis.axvline(x=value - time_ref, label=key)
 
     def add_model(self,x,y,label,color):
         """
@@ -165,10 +165,11 @@ class ResidualPlot(object):
          """
         for i, source in enumerate(source_list):
 
-            self._data_axis.plot(x, source['data'], color=source['color'], label=source['label'], alpha=.6)
+            self._data_axis.plot(x, source['data'], color=source['color'], label=source['label'], alpha=.6, zorder=18)
 
 
-    def add_data(self, x, y, residuals, label, xerr=None, yerr=None, residual_yerr=None, color='r', show_data=True):
+
+    def add_data(self, x, y, residuals, label, xerr=None, yerr=None, residual_yerr=None, color='r', show_data=True, marker_size=3):
         """
         Add the data for the this model
         :param x: energy of the data
@@ -190,7 +191,7 @@ class ResidualPlot(object):
                                      yerr=yerr,
                                      xerr=xerr,
                                      fmt='.',
-                                     markersize=3,
+                                     markersize=marker_size,
                                      linestyle='',
                                      elinewidth=1,
                                      alpha=.9,
