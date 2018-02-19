@@ -23,50 +23,48 @@ class BackgroundLike(object):
         :param data: 
         :param model: 
         """
-        self._data = data #type: ContinuousData
+        self._name = "Count rate detector %s" % self._data._det
+        # The MET start time of the day
+        self._day_met = self._data._day_met
 
+        self._data = data #type: ContinuousData
         self._model = model #type: Model
 
         self._free_parameters = self._model.free_parameters
-
         self._parameters = self._model.parameters
-
         self._echan = echan
 
-        self._total_scale_factor = 1.
-
-        self._name = "Count rate detector %s" %self._data._det
-
-        self._grb_mask_calculated = False
+        # Get the SAA and GRB mask:
+        self._saa_mask = self._data.saa_mask[2:-2]
+        self._grb_mask = np.full(len(self._total_time_bins), True)
+        # An entry in the total mask is False when one of the two masks is False
+        self._total_mask = ~ np.logical_xor(self._saa_mask, self._grb_mask)
 
         # The data object should return all the time bins that are valid... i.e. non-zero
         self._total_time_bins = self._data.time_bins[2:-2]
         self._total_time_bin_widths = np.diff(self._total_time_bins, axis=1)[:, 0]
-
-        self._saa_mask = self._data.saa_mask[2:-2]
-        self._grb_mask = np.full(len(self._total_time_bins), True)
-        # Total mask is False when one of the two masks is False
-        self._total_mask = ~ np.logical_xor(self._saa_mask, self._grb_mask)
-
         self._time_bins = self._total_time_bins[self._total_mask]
 
         # Extract the counts from the data object. should be same size as time bins
         self._counts = self._data.counts[:, echan][2:-2][self._total_mask]
         self._total_counts = self._data.counts[:, echan][2:-2]
 
+        self._total_scale_factor = 1.
         self._rebinner = None
-
         self._fit_rebinned = False
-
         self._fit_rebinner = None
-
+        self._grb_mask_calculated = False
         self._grb_triggers = {}
+        self._occ_region = {}
 
-        # The MET start time of the day
-        self._day_met = self._data._day_met
 
     def _rebin_counts(self, min_bin_width):
-
+        """
+        This method rebins the observed counts bevore the fitting process.
+        The fitting will be done on the rebinned counts afterwards!
+        :param min_bin_width:
+        :return:
+        """
         self._fit_rebinned = True
 
         self._fit_rebinner = Rebinner(self._total_time_bins, min_bin_width, self._saa_mask)
@@ -76,8 +74,7 @@ class BackgroundLike(object):
 
     @property
     def _rebinned_model_counts_fiting(self):
-
-        # the rebinned counts expected from the model
+        # the rebinned expected counts from the model
         return self._fit_rebinner.rebin(self.model_counts)[0]
 
 
@@ -334,7 +331,7 @@ class BackgroundLike(object):
         return logM
 
 
-    def _set_grb_mask(self, *intervals):
+    def set_grb_mask(self, *intervals):
         """
         Sets the grb_mask for the provided intervals to False
         These are intervals specified as "-10 -- 5", "0-10", and so on
