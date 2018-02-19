@@ -1,6 +1,6 @@
 import os
 import shutil
-import urllib2
+
 
 from gbmbkgpy.io.package_data import get_path_of_data_dir, get_path_of_external_data_dir
 from astropy.utils.data import download_file
