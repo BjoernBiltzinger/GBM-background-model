@@ -147,9 +147,25 @@ class ResidualPlot(object):
         """
 
         for key, value in grb_triggers.iteritems():
-            self._data_axis.axvline(x=value - time_ref, label=key)
+            self._data_axis.axvline(x=value['met'] - time_ref, color=value['color'], alpha=0.3, label=key)
 
-    def add_model(self,x,y,label,color):
+
+    def add_occ_region(self, occ_region, time_ref):
+        """
+
+        :param occ_region:
+        :param time_ref:
+        :return:
+        """
+
+        for key, value in occ_region.iteritems():
+
+            self._data_axis.axvspan(xmin=value['met'][0] - time_ref,
+                                    xmax=value['met'][1] - time_ref,
+                                    color=value['color'], alpha=0.1, label=key)
+
+
+    def add_model(self, x, y, label, color):
         """
         Add a model and interpolate it across the time span for the plotting.
         :param x: the evaluation energies
