@@ -520,18 +520,27 @@ class BackgroundLike(object):
         return source_list
 
 
-    def add_grb_trigger(self, grb_name, trigger_time):
+    def add_grb_trigger(self, grb_name, trigger_time, time_format='UTC', time_offset= 0, color='b'):
         """
-        Add a GRB Trigger for to plot a vertical line
+        Add a GRB Trigger to plot a vertical line
+        The grb is added to a dictionary with the name as key and the time (met) and the color as values in a subdict
+        A time offset can be used to add line in reference to a trigger
         :param grb_name: string
         :param trigger_time: string in UTC '00:23:11.997'
         :return:
         """
+        if time_format == 'UTC':
+            day = self._data.day
+            year = '20%s'%day[:2]
+            month = day[2:-2]
+            dd = day[-2:]
 
-        day = self._data.day
-        year = '20%s'%day[:2]
-        month = day[2:-2]
-        dd = day[-2:] 
+            day_at = astro_time.Time("%s-%s-%sT%s(UTC)" % (year, month, dd, trigger_time))
+
+            met = GBMTime(day_at).met + time_offset
+
+        if time_format == 'MET':
+            met = trigger_time
 
         day_at = astro_time.Time("%s-%s-%sT%s(UTC)" % (year, month, dd, trigger_time))
 
