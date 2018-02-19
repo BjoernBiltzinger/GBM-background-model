@@ -116,16 +116,25 @@ class Minimizer(object):
             data['fit-result']['param-names'].append(parameter.name)
             data['fit-result']['param-values'].append(parameter.value)
 
-        file_name = 'Fit_' + str(self._day) + '_' + str(self._det) + '_' + str(self._echan) + '.json'
-        file_path = os.path.join(get_path_of_external_data_dir(), 'fits')
+        folder_path = os.path.join(get_path_of_external_data_dir(), 'fits')
 
         # create directory if it doesn't exist
-        if not os.access(file_path, os.F_OK):
+        if not os.access(folder_path, os.F_OK):
             print("Making New Directory")
-            os.mkdir(file_path)
+            os.mkdir(folder_path)
+
+        file_number = 0
+        file_name = 'Fit_' + str(self._day) + '_' + str(self._det) + '_' + str(self._echan) + '_' + str(
+            file_number) + '.json'
+
+        # If file already exists increase file number
+        while os.path.isfile(os.path.join(folder_path, file_name)):
+            file_number += 1
+            file_name = 'Fit_' + str(self._day) + '_' + str(self._det) + '_' + str(self._echan) + '_' + str(
+                file_number) + '.json'
 
         # Writing JSON data
-        with open(os.path.join(file_path, file_name), 'w') as f:
+        with open(os.path.join(folder_path, file_name), 'w') as f:
             json.dump(data, f)
 
     def display(self, label = "fitted_value"):
