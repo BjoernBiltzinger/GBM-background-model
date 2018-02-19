@@ -367,17 +367,16 @@ class BackgroundLike(object):
         return map(float, tokens)
 
 
-    def _reset_grb_mask(self):
+    def reset_grb_mask(self):
         """
 
         :return:
         """
         self._grb_mask = np.full(len(self._time_bins), True)
 
-
     def display_model(self, data_color='k', model_color='r', step=True, show_data=True, show_residuals=True,
                       show_legend=True, min_bin_width=1E-99, plot_sources=False, show_grb_trigger=False,
-                      show_model=True, change_time=False, **kwargs):
+                      show_model=True, change_time=False, show_occ_region=False, **kwargs):
 
         """
         Plot the current model with or without the data and the residuals. Multiple models can be plotted by supplying
@@ -385,16 +384,18 @@ class BackgroundLike(object):
         Example usage:
         fig = data.display_model()
         fig2 = data2.display_model(model_subplot=fig.axes)
+        :param show_occ_region:
+        :param show_grb_trigger:
+        :param plot_sources:
+        :param min_bin_width:
+        :param change_time:
+        :param show_model:
         :param data_color: the color of the data
         :param model_color: the color of the model
         :param step: (bool) create a step count histogram or interpolate the model
         :param show_data: (bool) show_the data with the model
         :param show_residuals: (bool) shoe the residuals
-        :param ratio_residuals: (bool) use model ratio instead of residuals
         :param show_legend: (bool) show legend
-        :param min_rate: the minimum rate per bin
-        :param model_label: (optional) the label to use for the model default is plugin name
-        :param model_subplot: (optional) axis or list of axes to plot to
         :return:
         """
 
@@ -492,6 +493,9 @@ class BackgroundLike(object):
         if show_grb_trigger:
             residual_plot.add_vertical_line(self._grb_triggers, time_ref)
 
+        if show_occ_region:
+            residual_plot.add_occ_region(self._occ_region, time_ref)
+
 
         return residual_plot.finalize(xlabel="Time\n(%s)" %time_frame,
                                       ylabel="Count Rate\n(counts s$^{-1}$)",
@@ -542,12 +546,33 @@ class BackgroundLike(object):
         if time_format == 'MET':
             met = trigger_time
 
-        day_at = astro_time.Time("%s-%s-%sT%s(UTC)" % (year, month, dd, trigger_time))
+        self._grb_triggers[grb_name] = {'met': met, 'color': color}
 
-        met = GBMTime(day_at).met
+    def add_occ_region(self, occ_name, time_start, time_stop, time_format='UTC', color='grey'):
+        """
 
-        self._grb_triggers[grb_name] = met
+        :param occ_name:
+        :param start_time:
+        :param stop_time:
+        :param color:
+        :return:
+        """
+        if time_format == 'UTC':
+            day = self._data.day
+            year = '20%s' % day[:2]
+            month = day[2:-2]
+            dd = day[-2:]
+            t_start = astro_time.Time("%s-%s-%sT%s(UTC)" % (year, month, dd, time_start))
+            t_stop = astro_time.Time("%s-%s-%sT%s(UTC)" % (year, month, dd, time_stop))
 
+            met_start = GBMTime(t_start).met
+            met_stop = GBMTime(t_stop).met
+
+        if time_format == 'MET':
+            met_start = time_start
+            met_stop = time_stop
+
+        self._occ_region[occ_name] = {'met': (met_start, met_stop), 'color': color}
 
     def _read_fits_file(self, date, detector, echan):
 
