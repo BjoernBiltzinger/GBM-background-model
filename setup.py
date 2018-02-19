@@ -30,8 +30,8 @@ setup(
     requires=[
         'numpy',
         'matplotlib',
-        'astropy'
-
+        'astropy',
+        'scipy'
     ]
 
 )

@@ -21,7 +21,7 @@ class Minimizer(object):
         self._echan = self._likelihood._echan
 
 
-    def fit(self, n_interations = 6):
+    def fit(self, n_interations = 6, method_1 = 'L-BFGS-B',  method_2 = 'Powell'):
         """
         Fits the model stepwise by calling the scipy.minimize in the following steps:
         1. Fit linear/normalization paramters
@@ -35,9 +35,9 @@ class Minimizer(object):
 
         start = datetime.now()
 
-        method_1 = 'L-BFGS-B'
-        #method_1 = 'TNC'
-        method_2 = 'Powell'
+        # method_1 = 'L-BFGS-B'
+        # #method_1 = 'TNC'
+        # method_2 = 'Powell'
 
         # First do the linear fit for normalizations and fix the other parameters
         self._likelihood.fix_parameters(self._likelihood.get_not_normalization_parameter_list)
@@ -79,7 +79,7 @@ class Minimizer(object):
 
         return self.result
 
-    def _fit_with_bounds(self, method, type, iter_nr, ftol=1e-9):
+    def _fit_with_bounds(self, method='L-BFGS-B', type='bounded', iter_nr=1, ftol=1e-9):
 
         step = datetime.now()
         start_params = self._likelihood.get_free_parameter_values
@@ -90,7 +90,7 @@ class Minimizer(object):
         self._build_fit_param_df('Fit-'+str(iter_nr))
         print ("{}. The {} optimization took: {}".format(str(iter_nr), type, datetime.now() - step))
 
-    def _fit_without_bounds(self, method, iter_nr, options):
+    def _fit_without_bounds(self, method='Powell', iter_nr=1, options={}):
         step = datetime.now()
         start_params = self._likelihood.get_free_parameter_values
         self._result_steps[str(iter_nr)] = minimize(self._likelihood, start_params, method=method, options=options)
@@ -116,16 +116,25 @@ class Minimizer(object):
             data['fit-result']['param-names'].append(parameter.name)
             data['fit-result']['param-values'].append(parameter.value)
 
-        file_name = 'Fit_' + str(self._day) + '_' + str(self._det) + '_' + str(self._echan) + '.json'
-        file_path = os.path.join(get_path_of_external_data_dir(), 'fits')
+        folder_path = os.path.join(get_path_of_external_data_dir(), 'fits')
 
         # create directory if it doesn't exist
-        if not os.access(file_path, os.F_OK):
+        if not os.access(folder_path, os.F_OK):
             print("Making New Directory")
-            os.mkdir(file_path)
+            os.mkdir(folder_path)
+
+        file_number = 0
+        file_name = 'Fit_' + str(self._day) + '_' + str(self._det) + '_' + str(self._echan) + '_' + str(
+            file_number) + '.json'
+
+        # If file already exists increase file number
+        while os.path.isfile(os.path.join(folder_path, file_name)):
+            file_number += 1
+            file_name = 'Fit_' + str(self._day) + '_' + str(self._det) + '_' + str(self._echan) + '_' + str(
+                file_number) + '.json'
 
         # Writing JSON data
-        with open(os.path.join(file_path, file_name), 'w') as f:
+        with open(os.path.join(folder_path, file_name), 'w') as f:
             json.dump(data, f)
 
     def display(self, label = "fitted_value"):
