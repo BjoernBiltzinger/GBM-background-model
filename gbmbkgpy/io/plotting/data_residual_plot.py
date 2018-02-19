@@ -138,7 +138,34 @@ class ResidualPlot(object):
                   label=label,
                   color=color)
 
-    def add_model(self,x,y,label,color):
+    def add_vertical_line(self, grb_triggers, time_ref):
+        """
+
+        :param grb_triggers:
+        :param time_ref:
+        :return:
+        """
+
+        for key, value in grb_triggers.iteritems():
+            self._data_axis.axvline(x=value['met'] - time_ref, color=value['color'], alpha=0.3, label=key)
+
+
+    def add_occ_region(self, occ_region, time_ref):
+        """
+
+        :param occ_region:
+        :param time_ref:
+        :return:
+        """
+
+        for key, value in occ_region.iteritems():
+
+            self._data_axis.axvspan(xmin=value['met'][0] - time_ref,
+                                    xmax=value['met'][1] - time_ref,
+                                    color=value['color'], alpha=0.1, label=key)
+
+
+    def add_model(self, x, y, label, color):
         """
         Add a model and interpolate it across the time span for the plotting.
         :param x: the evaluation energies
@@ -152,6 +179,7 @@ class ResidualPlot(object):
     def add_list_of_sources(self, x, source_list):
         """
          Add a list of model sources and interpolate them across the time span for the plotting.
+         :param source_list:
          :param x: the evaluation energies
          :param y: the model values
          :param label: the label of the model
@@ -160,10 +188,11 @@ class ResidualPlot(object):
          """
         for i, source in enumerate(source_list):
 
-            self._data_axis.plot(x, source['data'], color=source['color'], label=source['label'], alpha=.6)
+            self._data_axis.plot(x, source['data'], color=source['color'], label=source['label'], alpha=.6, zorder=18)
 
 
-    def add_data(self, x, y, residuals, label, xerr=None, yerr=None, residual_yerr=None, color='r', show_data=True):
+
+    def add_data(self, x, y, residuals, label, xerr=None, yerr=None, residual_yerr=None, color='r', show_data=True, marker_size=3):
         """
         Add the data for the this model
         :param x: energy of the data
@@ -185,7 +214,7 @@ class ResidualPlot(object):
                                      yerr=yerr,
                                      xerr=xerr,
                                      fmt='.',
-                                     markersize=3,
+                                     markersize=marker_size,
                                      linestyle='',
                                      elinewidth=1,
                                      alpha=.9,

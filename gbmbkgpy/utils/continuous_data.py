@@ -19,6 +19,7 @@ import os
 from gbmbkgpy.io.package_data import get_path_of_data_dir, get_path_of_data_file, get_path_of_external_data_dir
 from gbmbkgpy.utils.progress_bar import progress_bar
 from gbmbkgpy.io.plotting.step_plots import step_plot, slice_disjoint, disjoint_patch_plot
+from gbmgeometry import GBMTime
 
 
 class ContinuousData(object):
@@ -41,11 +42,9 @@ class ContinuousData(object):
         poshistfile_path = os.path.join(get_path_of_external_data_dir(), 'poshist', poshistfile_name)
 
         if not file_existing_and_readable(datafile_path):
-
             download_data_file(self._day, self._data_type, self._det)
 
         if not file_existing_and_readable(poshistfile_path):
-
             download_data_file(self._day, 'poshist')
         ###
 
@@ -59,24 +58,26 @@ class ContinuousData(object):
             self._n_entries = len(self._bin_start)
 
             self._exposure = f['SPECTRUM'].data['EXPOSURE']
-            self._bin_start = f['SPECTRUM'].data['TIME']
+            #self._bin_start = f['SPECTRUM'].data['TIME']
 
         self._counts_combined = np.sum(self._counts, axis=1)
-
         self._counts_combined_rate = self._counts_combined / self.time_bin_length
-
         self._n_time_bins, self._n_channels = self._counts.shape
 
+        # Start precomputation of arrays:
         self._setup_geometery()
-
         self._compute_saa_regions()
-
         self._calculate_ang_eff()
-
         self._calculate_earth_occ()
-
         self._calculate_earth_occ_eff()
 
+        # Calculate the MET time for the day
+        day = self._day
+        year = '20%s' % day[:2]
+        month = day[2:-2]
+        dd = day[-2:]
+        day_at = astro_time.Time("%s-%s-%s" % (year, month, dd))
+        self._day_met = GBMTime(day_at).met
 
     @property
     def day(self):
@@ -272,9 +273,9 @@ class ContinuousData(object):
         pointing = []
 
         # go through a subset of times and calculate the sun angle with GBM geometry
-        """
+
         ###SINGLECORE CALC###
-        with progress_bar(n_bins_to_calculate, title='Calculating sun position') as p:
+        with progress_bar(n_bins_to_calculate, title='Calculating sun and earth position') as p:
 
             for mean_time in self.mean_time[::n_skip]:
                 det = gbm_detector_list[self._det](quaternion=self._position_interpolator.quaternion(mean_time),
@@ -358,7 +359,7 @@ class ContinuousData(object):
 
         del sun_angle_dic, sun_time_dic, earth_angle_dic, earth_position_dic, pointing_dic
         ##############
-
+        """
         # get the last data point
 
         mean_time = self.mean_time[-2]
@@ -395,14 +396,29 @@ class ContinuousData(object):
 
         # find where the counts are zero
 
+        min_saa_bin_width = 8
+        bins_to_add = 8
+
         self._zero_idx = self._counts_combined == 0.
 
         idx = (self._zero_idx).nonzero()[0]
 
         slice_idx = np.array(slice_disjoint(idx))
 
-        #Only the slices which are longer than 8 time bins are used as saa
-        slice_idx = slice_idx[np.where(slice_idx[:, 1] - slice_idx[:, 0] > 8)]
+        # Only the slices which are longer than 8 time bins are used as saa
+        slice_idx = slice_idx[np.where(slice_idx[:, 1] - slice_idx[:, 0] > min_saa_bin_width)]
+
+
+        # Add bins_to_add to bin_mask to exclude the bins with corrupt data:
+        # Check first that the start and stop stop of the mask is not the beginning or end of the day
+
+        slice_idx[:, 0][np.where(slice_idx[:, 0] >= 8)] =\
+            slice_idx[:, 0][np.where(slice_idx[:, 0] >= 8)] - bins_to_add
+
+        slice_idx[:, 1][np.where(slice_idx[:, 1] <= self._n_time_bins - 1 - bins_to_add)] =\
+            slice_idx[:, 1][np.where(slice_idx[:, 1] <= self._n_time_bins - 1 - bins_to_add)] + bins_to_add
+
+
 
         # now find the times of the exits
 
@@ -418,6 +434,13 @@ class ContinuousData(object):
         self._saa_exit_mean_times = self.mean_time[self._saa_exit_idx]
         self._saa_exit_bin_start = self._bin_start[self._saa_exit_idx]
         self._saa_exit_bin_stop = self._bin_stop[self._saa_exit_idx]
+
+        # make a saa mask from the slices:
+        self._saa_mask = np.ones_like(self._counts_combined, bool)
+
+        for i in range(len(slice_idx)):
+            self._saa_mask[slice_idx[i, 0]:slice_idx[i, 1] + 1] = False
+            self._zero_idx[slice_idx[i, 0]:slice_idx[i, 1] + 1] = True
 
         self._saa_slices = slice_idx
 
@@ -593,7 +616,7 @@ class ContinuousData(object):
     @property
     def saa_mask(self):
 
-        return ~ self._zero_idx
+        return self._saa_mask
 
 
     @property
@@ -605,6 +628,9 @@ class ContinuousData(object):
     def saa_initial_values(self, echan):
 
         start_value_array = []
+
+        # Add mean of first 10 time bins for leftover decay from day before
+        start_value_array.append(np.mean(self._counts[0:11, echan] / self.time_bin_length[0:11]))
 
         for i, exit_idx in enumerate(self._saa_exit_idx):
             start_value_array.append(
