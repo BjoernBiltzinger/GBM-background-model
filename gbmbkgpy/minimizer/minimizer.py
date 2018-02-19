@@ -135,7 +135,7 @@ class Minimizer(object):
 
         # Writing JSON data
         with open(os.path.join(folder_path, file_name), 'w') as f:
-            json.dump(data, f)
+            json.dump(data, f, sort_keys=True, indent=4)
 
     def display(self, label = "fitted_value"):
         """
