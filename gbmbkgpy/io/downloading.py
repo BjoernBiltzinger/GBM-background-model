@@ -68,12 +68,17 @@ def download_data_file(date, type, detector='all'):
     month = date[2:-2]
     day = date[-2:]
 
+    data_path = get_path_of_external_data_dir()
+    if not os.access(data_path, os.F_OK):
+        print("Making New Directory")
+        os.mkdir(data_path)
+
     # poshist files are not stored in a sub folder of the date
     if type =='poshist':
-        file_path = os.path.join(get_path_of_external_data_dir(), type)
+        file_path = os.path.join(data_path, type)
         file_type = 'fit'
     else:
-        file_path = os.path.join(get_path_of_external_data_dir(), type, date)
+        file_path = os.path.join(data_path, type, date)
         file_type = 'pha'
 
     if not os.access(file_path, os.F_OK):
