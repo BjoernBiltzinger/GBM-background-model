@@ -139,6 +139,12 @@ class ResidualPlot(object):
                   color=color)
 
     def add_vertical_line(self, grb_triggers, time_ref):
+        """
+
+        :param grb_triggers:
+        :param time_ref:
+        :return:
+        """
 
         for key, value in grb_triggers.iteritems():
             self._data_axis.axvline(x=value - time_ref, label=key)
