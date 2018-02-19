@@ -571,9 +571,9 @@ class BackgroundLike(object):
 
         self._occ_region[occ_name] = {'met': (met_start, met_stop), 'color': color}
 
-    def _read_fits_file(self, date, detector, echan):
+    def _read_fits_file(self, date, detector, echan, file_number=0):
 
-        file_name = 'Fit_' + str(date) + '_' + str(detector) + '_' + str(echan) + '.json'
+        file_name = 'Fit_' + str(date) + '_' + str(detector) + '_' + str(echan) + '_' + str(file_number) + '.json'
         file_path = os.path.join(get_path_of_external_data_dir(), 'fits', file_name)
 
         # Reading data back
