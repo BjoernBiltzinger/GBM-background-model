@@ -405,14 +405,18 @@ class ContinuousData(object):
 
         slice_idx = np.array(slice_disjoint(idx))
 
-        #Only the slices which are longer than 8 time bins are used as saa
+        # Only the slices which are longer than 8 time bins are used as saa
         slice_idx = slice_idx[np.where(slice_idx[:, 1] - slice_idx[:, 0] > min_saa_bin_width)]
 
 
-        #Add bins_to_add to bin_mask to exclude the bins with corrupt data:
+        # Add bins_to_add to bin_mask to exclude the bins with corrupt data:
+        # Check first that the start and stop stop of the mask is not the beginning or end of the day
 
-        slice_idx[:, 0][np.where(slice_idx[:, 0] >= 8)] = slice_idx[:, 0] - bins_to_add
-        slice_idx[:, 1][np.where(slice_idx[:, 1] <= self._n_time_bins - 1 - bins_to_add)] = slice_idx[:, 1] + bins_to_add
+        slice_idx[:, 0][np.where(slice_idx[:, 0] >= 8)] =\
+            slice_idx[:, 0][np.where(slice_idx[:, 0] >= 8)] - bins_to_add
+
+        slice_idx[:, 1][np.where(slice_idx[:, 1] <= self._n_time_bins - 1 - bins_to_add)] =\
+            slice_idx[:, 1][np.where(slice_idx[:, 1] <= self._n_time_bins - 1 - bins_to_add)] + bins_to_add
 
 
 
