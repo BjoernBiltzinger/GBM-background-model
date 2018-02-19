@@ -179,6 +179,7 @@ class ResidualPlot(object):
     def add_list_of_sources(self, x, source_list):
         """
          Add a list of model sources and interpolate them across the time span for the plotting.
+         :param source_list:
          :param x: the evaluation energies
          :param y: the model values
          :param label: the label of the model

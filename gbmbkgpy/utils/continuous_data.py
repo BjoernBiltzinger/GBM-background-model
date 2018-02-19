@@ -20,7 +20,7 @@ from gbmbkgpy.io.package_data import get_path_of_data_dir, get_path_of_data_file
 from gbmbkgpy.utils.progress_bar import progress_bar
 from gbmbkgpy.io.plotting.step_plots import step_plot, slice_disjoint, disjoint_patch_plot
 from gbmgeometry import GBMTime
-import astropy.time as astro_time
+
 
 class ContinuousData(object):
 
@@ -42,11 +42,9 @@ class ContinuousData(object):
         poshistfile_path = os.path.join(get_path_of_external_data_dir(), 'poshist', poshistfile_name)
 
         if not file_existing_and_readable(datafile_path):
-
             download_data_file(self._day, self._data_type, self._det)
 
         if not file_existing_and_readable(poshistfile_path):
-
             download_data_file(self._day, 'poshist')
         ###
 
@@ -63,19 +61,14 @@ class ContinuousData(object):
             #self._bin_start = f['SPECTRUM'].data['TIME']
 
         self._counts_combined = np.sum(self._counts, axis=1)
-
         self._counts_combined_rate = self._counts_combined / self.time_bin_length
-
         self._n_time_bins, self._n_channels = self._counts.shape
 
+        # Start precomputation of arrays:
         self._setup_geometery()
-
         self._compute_saa_regions()
-
         self._calculate_ang_eff()
-
         self._calculate_earth_occ()
-
         self._calculate_earth_occ_eff()
 
         # Calculate the MET time for the day
@@ -282,7 +275,7 @@ class ContinuousData(object):
         # go through a subset of times and calculate the sun angle with GBM geometry
 
         ###SINGLECORE CALC###
-        with progress_bar(n_bins_to_calculate, title='Calculating sun position') as p:
+        with progress_bar(n_bins_to_calculate, title='Calculating sun and earth position') as p:
 
             for mean_time in self.mean_time[::n_skip]:
                 det = gbm_detector_list[self._det](quaternion=self._position_interpolator.quaternion(mean_time),
