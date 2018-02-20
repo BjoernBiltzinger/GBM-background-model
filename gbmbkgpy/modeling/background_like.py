@@ -1,7 +1,19 @@
 import numpy as np
 from gbmbkgpy.utils.continuous_data import ContinuousData
 from gbmbkgpy.modeling.model import Model
+from gbmbkgpy.utils.statistics.stats_tools import Significance
+from gbmbkgpy.io.plotting.data_residual_plot import ResidualPlot
+from gbmbkgpy.utils.binner import Rebinner
+from gbmgeometry import GBMTime
+import astropy.time as astro_time
 import copy
+import re
+import os
+import json
+from gbmbkgpy.io.package_data import get_path_of_external_data_dir
+
+
+NO_REBIN = 1E-99
 
 class BackgroundLike(object):
 
@@ -11,44 +23,78 @@ class BackgroundLike(object):
         :param data: 
         :param model: 
         """
-        self._data = data #type: ContinuousData
+        self._name = "Count rate detector %s" % self._data._det
+        # The MET start time of the day
+        self._day_met = self._data._day_met
 
+        self._data = data #type: ContinuousData
         self._model = model #type: Model
 
         self._free_parameters = self._model.free_parameters
-
         self._parameters = self._model.parameters
-
         self._echan = echan
 
-        #TODO: the data object should return all the time bins that are valid... i.e. non-zero
-        self._total_time_bins = self._data.time_bins[2:-2]
+        # Get the SAA and GRB mask:
         self._saa_mask = self._data.saa_mask[2:-2]
-        self._time_bins = self._data.time_bins[self._data.saa_mask][2:-2]
+        self._grb_mask = np.full(len(self._total_time_bins), True)
+        # An entry in the total mask is False when one of the two masks is False
+        self._total_mask = ~ np.logical_xor(self._saa_mask, self._grb_mask)
 
-        #TODO: extract the counts from the data object. should be same size as time bins
-        self._counts = self._data.counts[:, echan][self._data.saa_mask][2:-2]
+        # The data object should return all the time bins that are valid... i.e. non-zero
+        self._total_time_bins = self._data.time_bins[2:-2]
+        self._total_time_bin_widths = np.diff(self._total_time_bins, axis=1)[:, 0]
+        self._time_bins = self._total_time_bins[self._total_mask]
+
+        # Extract the counts from the data object. should be same size as time bins
+        self._counts = self._data.counts[:, echan][2:-2][self._total_mask]
+        self._total_counts = self._data.counts[:, echan][2:-2]
+
+        self._total_scale_factor = 1.
+        self._rebinner = None
+        self._fit_rebinned = False
+        self._fit_rebinner = None
+        self._grb_mask_calculated = False
+        self._grb_triggers = {}
+        self._occ_region = {}
+
+
+    def _rebin_counts(self, min_bin_width):
+        """
+        This method rebins the observed counts bevore the fitting process.
+        The fitting will be done on the rebinned counts afterwards!
+        :param min_bin_width:
+        :return:
+        """
+        self._fit_rebinned = True
+
+        self._fit_rebinner = Rebinner(self._total_time_bins, min_bin_width, self._saa_mask)
+
+        # Rebinn the observec counts on time
+        self._rebinned_observed_counts_fitting, = self._fit_rebinner.rebin(self._total_counts)
+
+    @property
+    def _rebinned_model_counts_fiting(self):
+        # the rebinned expected counts from the model
+        return self._fit_rebinner.rebin(self.model_counts)[0]
 
 
     def _evaluate_model(self):
         """
         
-        loops over time bins and extracts the model flux and returns this array
+        loops over time bins and extracts the model counts and returns this array
         
         
         :return: 
         """
 
-        model_flux = self._model.get_flux(self._time_bins, self._saa_mask)
+        model_counts = self._model.get_counts(self._time_bins, bin_mask=self._total_mask)
 
-        """ OLD:
-        model_flux = []
-        
-        for bin in self._time_bins:
-            model_flux.append(self._model.get_flux(bin[0], bin[1]))
-        """
+        if self._fit_rebinned == True:
 
-        return model_flux
+            return self._rebinned_model_counts_fiting
+
+        else:
+            return model_counts
 
     def _set_free_parameters(self, new_parameters):
         """
@@ -60,6 +106,16 @@ class BackgroundLike(object):
         for i, parameter in enumerate(self._free_parameters.itervalues()):
 
             parameter.value = new_parameters[i]
+
+    @property
+    def model_counts(self):
+        """
+        Returns the predicted counts from the model for all time bins,
+        the saa_mask sets the SAA sections to zero.
+        :return:
+        """
+
+        return self._model.get_counts(self._total_time_bins, saa_mask=self._saa_mask)
 
     @property
     def get_normalization_parameter_list(self):
@@ -186,7 +242,7 @@ class BackgroundLike(object):
             parameter.value = synth_parameters[i]
 
 
-        synth_data.counts[:, self._echan][2:-2] = np.random.poisson(synth_model.get_flux(synth_data.time_bins[2:-2]))
+        synth_data.counts[:, self._echan][2:-2] = np.random.poisson(synth_model.get_counts(synth_data.time_bins[2:-2]))
 
         self._synth_model = synth_model
 
@@ -222,8 +278,13 @@ class BackgroundLike(object):
         # to zero, then overwrite the elements corresponding to D_i > 0
 
 
+        #Use rebinned counts if fir_rebinned is set to true:
+        if self._fit_rebinned == True:
+            d_times_logM = self._rebinned_observed_counts_fitting * logM
 
-        d_times_logM = self._counts * logM
+        else:
+            d_times_logM = self._counts * logM
+
 
         log_likelihood = np.sum(M_fixed - d_times_logM)
 
@@ -268,3 +329,265 @@ class BackgroundLike(object):
             logM = np.log(M)
 
         return logM
+
+
+    def set_grb_mask(self, *intervals):
+        """
+        Sets the grb_mask for the provided intervals to False
+        These are intervals specified as "-10 -- 5", "0-10", and so on
+        :param intervals:
+        :return:
+        """
+
+        list_of_intervals = []
+
+        for interval in intervals:
+            imin, imax = self._parse_interval(interval)
+
+            list_of_intervals.append([imin, imax])
+
+            bin_exclude = np.logical_and(self._time_bins[:, 0] > imin, self._time_bins[:, 1] < imax)
+
+            self._grb_mask[np.where(bin_exclude)] = False
+
+
+    def _parse_interval(self, time_interval):
+        """
+        The following regular expression matches any two numbers, positive or negative,
+        like "-10 --5","-10 - -5", "-10-5", "5-10" and so on
+
+        :param time_interval:
+        :return:
+        """
+        tokens = re.match('(\-?\+?[0-9]+\.?[0-9]*)\s*-\s*(\-?\+?[0-9]+\.?[0-9]*)', time_interval).groups()
+
+        return map(float, tokens)
+
+
+    def reset_grb_mask(self):
+        """
+
+        :return:
+        """
+        self._grb_mask = np.full(len(self._time_bins), True)
+
+    def display_model(self, data_color='k', model_color='r', step=True, show_data=True, show_residuals=True,
+                      show_legend=True, min_bin_width=1E-99, plot_sources=False, show_grb_trigger=False,
+                      show_model=True, change_time=False, show_occ_region=False, **kwargs):
+
+        """
+        Plot the current model with or without the data and the residuals. Multiple models can be plotted by supplying
+        a previous axis to 'model_subplot'.
+        Example usage:
+        fig = data.display_model()
+        fig2 = data2.display_model(model_subplot=fig.axes)
+        :param show_occ_region:
+        :param show_grb_trigger:
+        :param plot_sources:
+        :param min_bin_width:
+        :param change_time:
+        :param show_model:
+        :param data_color: the color of the data
+        :param model_color: the color of the model
+        :param step: (bool) create a step count histogram or interpolate the model
+        :param show_data: (bool) show_the data with the model
+        :param show_residuals: (bool) shoe the residuals
+        :param show_legend: (bool) show legend
+        :return:
+        """
+
+        # Change time reference to seconds since beginning of the day
+        if change_time:
+            time_ref = self._day_met
+            time_frame = 'Seconds since midnight'
+        else:
+            time_ref = 0.
+            time_frame = 'MET'
+
+        model_label = "Background fit"
+
+        residual_plot = ResidualPlot(show_residuals=show_residuals, **kwargs)
+
+
+        # Create a rebinner if either a min_rate has been given, or if the current data set has no rebinned on its own
+
+        if (min_bin_width is not NO_REBIN) or (self._rebinner is None):
+
+
+            this_rebinner = Rebinner(self._total_time_bins - time_ref, min_bin_width, self._saa_mask)
+
+        else:
+
+            # Use the rebinner already in the data
+            this_rebinner = self._rebinner
+
+
+        # Residuals
+
+        # we need to get the rebinned counts
+        self._rebinned_observed_counts, = this_rebinner.rebin(self._total_counts)
+
+        # the rebinned counts expected from the model
+        self._rebinned_model_counts, = this_rebinner.rebin(self.model_counts)
+
+        self._rebinned_background_counts = np.zeros_like(self._rebinned_observed_counts)
+
+        self._rebinned_time_bins = this_rebinner.time_rebinned
+
+        self._rebinned_time_bin_widths = np.diff(self._rebinned_time_bins, axis=1)[:, 0]
+
+        significance_calc = Significance(self._rebinned_observed_counts,
+                                         self._rebinned_background_counts + self._rebinned_model_counts / self._total_scale_factor,
+                                         self._total_scale_factor)
+
+
+        residual_errors = None
+        self._residuals = significance_calc.known_background()
+
+
+        residual_plot.add_data(np.mean( self._rebinned_time_bins, axis=1),
+                                        self._rebinned_observed_counts / self._rebinned_time_bin_widths,
+                                        self._residuals,
+                                        residual_yerr=residual_errors,
+                                        yerr=None,
+                                        xerr=None,
+                                        label=self._name,
+                                        color=data_color,
+                                        show_data=show_data)
+
+        # if step:
+        #
+        #     residual_plot.add_model_step(new_energy_min,
+        #                                  new_energy_max,
+        #                                  new_chan_width,
+        #                                  new_model_rate,
+        #                                  label=model_label,
+        #                                  color=model_color)
+        # else:
+
+        # We always plot the model un-rebinned here
+
+        # Mask the array so we don't plot the model where data have been excluded
+        # y = expected_model_rate / chan_width
+        y = self.model_counts / self._total_time_bin_widths
+
+        x = np.mean(self._total_time_bins - time_ref, axis=1)
+
+        if show_model:
+            residual_plot.add_model(x,
+                                    y,
+                                    label=model_label,
+                                    color=model_color)
+
+        if plot_sources:
+
+            source_list = self._get_list_of_sources(self._total_time_bins - time_ref, self._total_time_bin_widths)
+
+            residual_plot.add_list_of_sources(x, source_list)
+
+        # Add vertical lines for grb triggers
+
+        if show_grb_trigger:
+            residual_plot.add_vertical_line(self._grb_triggers, time_ref)
+
+        if show_occ_region:
+            residual_plot.add_occ_region(self._occ_region, time_ref)
+
+
+        return residual_plot.finalize(xlabel="Time\n(%s)" %time_frame,
+                                      ylabel="Count Rate\n(counts s$^{-1}$)",
+                                      xscale='linear',
+                                      yscale='linear',
+                                      show_legend=show_legend)
+
+    def _get_list_of_sources(self,time_bins, time_bin_width=1.):
+        """
+        Builds a list of the different model sources.
+        Each source is a dict containing the label of the source, the data, and the plotting color
+        :return:
+        """
+
+        source_list = []
+        color_list = ['b', 'g', 'c', 'm', 'y', 'k', 'w']
+
+        for i, source_name in enumerate(self._model.continuum_sources):
+            data = self._model.get_continuum_counts(i, time_bins, self._saa_mask)
+            source_list.append({"label": source_name, "data": data / time_bin_width, "color": color_list[i]})
+
+        saa_data = self._model.get_saa_counts(self._total_time_bins, self._saa_mask)
+
+        source_list.append({"label": "SAA_decays", "data": saa_data / time_bin_width, "color": color_list[i+1]})
+
+        return source_list
+
+
+    def add_grb_trigger(self, grb_name, trigger_time, time_format='UTC', time_offset= 0, color='b'):
+        """
+        Add a GRB Trigger to plot a vertical line
+        The grb is added to a dictionary with the name as key and the time (met) and the color as values in a subdict
+        A time offset can be used to add line in reference to a trigger
+        :param grb_name: string
+        :param trigger_time: string in UTC '00:23:11.997'
+        :return:
+        """
+        if time_format == 'UTC':
+            day = self._data.day
+            year = '20%s'%day[:2]
+            month = day[2:-2]
+            dd = day[-2:]
+
+            day_at = astro_time.Time("%s-%s-%sT%s(UTC)" % (year, month, dd, trigger_time))
+
+            met = GBMTime(day_at).met + time_offset
+
+        if time_format == 'MET':
+            met = trigger_time
+
+        self._grb_triggers[grb_name] = {'met': met, 'color': color}
+
+    def add_occ_region(self, occ_name, time_start, time_stop, time_format='UTC', color='grey'):
+        """
+
+        :param occ_name:
+        :param start_time:
+        :param stop_time:
+        :param color:
+        :return:
+        """
+        if time_format == 'UTC':
+            day = self._data.day
+            year = '20%s' % day[:2]
+            month = day[2:-2]
+            dd = day[-2:]
+            t_start = astro_time.Time("%s-%s-%sT%s(UTC)" % (year, month, dd, time_start))
+            t_stop = astro_time.Time("%s-%s-%sT%s(UTC)" % (year, month, dd, time_stop))
+
+            met_start = GBMTime(t_start).met
+            met_stop = GBMTime(t_stop).met
+
+        if time_format == 'MET':
+            met_start = time_start
+            met_stop = time_stop
+
+        self._occ_region[occ_name] = {'met': (met_start, met_stop), 'color': color}
+
+    def _read_fits_file(self, date, detector, echan, file_number=0):
+
+        file_name = 'Fit_' + str(date) + '_' + str(detector) + '_' + str(echan) + '_' + str(file_number) + '.json'
+        file_path = os.path.join(get_path_of_external_data_dir(), 'fits', file_name)
+
+        # Reading data back
+        with open(file_path, 'r') as f:
+            data = json.load(f)
+
+        return data
+
+    def load_fits_file(self, date, detector, echan):
+
+        data = self._read_fits_file(date, detector, echan)
+
+        fit_result = np.array(data['fit-result']['param-values'])
+
+        self._set_free_parameters(fit_result)
+
+        print("Fits file was successfully loaded and the free parameters set")
