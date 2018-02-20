@@ -23,12 +23,14 @@ class BackgroundLike(object):
         :param data: 
         :param model: 
         """
+
+        self._data = data       # type: ContinuousData
+        self._model = model     # type: Model
+
         self._name = "Count rate detector %s" % self._data._det
         # The MET start time of the day
         self._day_met = self._data._day_met
 
-        self._data = data #type: ContinuousData
-        self._model = model #type: Model
 
         self._free_parameters = self._model.free_parameters
         self._parameters = self._model.parameters
