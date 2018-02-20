@@ -14,13 +14,13 @@ class Source(object):
 
         return self._shape()
 
-    def get_flux_old(self, a, b):
+    def get_counts_old(self, a, b):
         return (b-a)/6*(self._shape(a)+4*self._shape((a+b)/2)+self._shape(b))
 
-    def get_flux_quad(self, a, b):
+    def get_counts_quad(self, a, b):
         return integrate.quad(self._shape, a, b)
 
-    def get_flux(self, time_bins, bin_mask=None):
+    def get_counts(self, time_bins, bin_mask=None):
 
         if bin_mask is None:
             bin_mask = np.full(len(time_bins), True)
