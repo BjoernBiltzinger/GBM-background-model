@@ -53,6 +53,10 @@ class SAA_Decay(Function):
         idx_start = self._time_bins[:, 0] < t0
         idx_stop = self._time_bins[:, 1] < t0
 
+        #out[:, 0][~idx_start] = A * np.exp(saa_decay_constant * (self._time_bins[:, 0][~idx_start] - t0))
+        #out[:, 1][~idx_stop] = A * np.exp(saa_decay_constant * (self._time_bins[:, 1][~idx_stop] - t0))
+
+        # decouple the amplitude and the decay constant by deviding with the integral from t0 to inf: *-saa_constant
         out[:, 0][~idx_start] = A * (-saa_decay_constant) * np.exp(saa_decay_constant * (self._time_bins[:, 0][~idx_start] - t0))
         out[:, 1][~idx_stop] = A * (-saa_decay_constant) * np.exp(saa_decay_constant * (self._time_bins[:, 1][~idx_stop] - t0))
         return out
@@ -97,21 +101,21 @@ class GRB(Function):
 
 class Cosmic_Gamma_Ray_Background(ContinuumFunction):
     def __init__(self):
-        super(Cosmic_Gamma_Ray_Background, self).__init__('a')
+        super(Cosmic_Gamma_Ray_Background, self).__init__('norm_cgb')
 
 class Magnetic_Continuum(ContinuumFunction):
     def __init__(self):
-        super(Magnetic_Continuum, self).__init__('b')
+        super(Magnetic_Continuum, self).__init__('norm_magnetic')
 
 class Solar_Continuum(ContinuumFunction):
     def __init__(self):
-        super(Solar_Continuum, self).__init__('c')
+        super(Solar_Continuum, self).__init__('norm_solar')
 
 class Earth_Albedo_Continuum(PointSourceFunction):
     def __init__(self):
-        super(Earth_Albedo_Continuum, self).__init__('d')
+        super(Earth_Albedo_Continuum, self).__init__('norm_earth_albedo')
 
 class Point_Source_Continuum(PointSourceFunction):
-    def __init__(self):
-        super(Point_Source_Continuum, self).__init__('e')
+    def __init__(self, point_source_nr):
+        super(Point_Source_Continuum, self).__init__('norm_point_source-' + point_source_nr)
 

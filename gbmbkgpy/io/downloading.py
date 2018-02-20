@@ -1,8 +1,9 @@
 import os
-import urllib2
+import shutil
 
-from gbmbkgpy.io.package_data import get_path_of_data_dir
 
+from gbmbkgpy.io.package_data import get_path_of_data_dir, get_path_of_external_data_dir
+from astropy.utils.data import download_file
 
 def download_flares(year):
     """This function downloads a yearly solar flar data file and stores it in the appropriate folder\n
@@ -15,7 +16,7 @@ def download_flares(year):
         print("Making New Directory")
         os.mkdir(file_path)
 
-    os.chdir(file_path)
+    
     if year == 2017:
         url = (
         'ftp://ftp.ngdc.noaa.gov/STP/space-weather/solar-data/solar-features/solar-flares/x-rays/goes/xrs/goes-xrs-report_' + str(
@@ -26,26 +27,9 @@ def download_flares(year):
             year) + '.txt')
     file_name = '%s.dat' % str(year)
 
-    u = urllib2.urlopen(url)
+    path_to_file = download_file(url)
 
-
-    with open(file_name, 'wb') as f:
-        meta = u.info()
-        file_size = int(meta.getheaders("Content-Length")[0])
-        print "Downloading: %s Bytes: %s" % (file_name, file_size)
-
-        file_size_dl = 0
-        block_sz = 8192
-        while True:
-            buffer = u.read(block_sz)
-            if not buffer:
-                break
-
-            file_size_dl += len(buffer)
-            f.write(buffer)
-            status = r"%10d  [%3.2f%%]" % (file_size_dl, file_size_dl * 100. / file_size)
-            status = status + chr(8) * (len(status) + 1)
-   #         print status,
+    shutil.move(path_to_file, file_path + file_name)
 
 
 
@@ -60,27 +44,53 @@ def download_lat_spacecraft(week):
         print("Making New Directory")
         os.mkdir(file_path)
 
-    #os.chdir(file_path)
+
 
     url = 'http://heasarc.gsfc.nasa.gov/FTP/fermi/data/lat/weekly/spacecraft/lat_spacecraft_weekly_w%d_p202_v001.fits' % week
-    file_name = os.path.join(file_path,url.split('/')[-1])
-    u = urllib2.urlopen(url)
-    f = open(file_name, 'wb')
-    meta = u.info()
-    file_size = int(meta.getheaders("Content-Length")[0])
-    print "Downloading: %s Bytes: %s" % (file_name, file_size)
 
-    file_size_dl = 0
-    block_sz = 8192
-    while True:
-        buffer = u.read(block_sz)
-        if not buffer:
-            break
+    path_to_file = download_file(url)
 
-        file_size_dl += len(buffer)
-        f.write(buffer)
-        #status = r"%10d  [%3.2f%%]" % (file_size_dl, file_size_dl * 100. / file_size)
-        #status = status + chr(8) * (len(status) + 1)
-        #print status,
+    file_name = 'lat_spacecraft_weekly_w%d_p202_v001.fits' % week
 
-    f.close()
+    shutil.move(path_to_file, file_path + file_name)
+
+def download_data_file(date, type, detector='all'):
+    """
+    Download CTIME / CSPEC or POSHIST files
+
+    :param date: string like '180407'
+    :param type: string like 'ctime', 'cspec', 'poshist'
+    :param detector: string like 'n1', 'n2' or 'all' for poshist
+    :return:
+    """
+
+    year = '20%s' % date[:2]
+    month = date[2:-2]
+    day = date[-2:]
+
+    data_path = get_path_of_external_data_dir()
+    if not os.access(data_path, os.F_OK):
+        print("Making New Directory")
+        os.mkdir(data_path)
+
+    # poshist files are not stored in a sub folder of the date
+    if type =='poshist':
+        file_path = os.path.join(data_path, type)
+        file_type = 'fit'
+    else:
+        file_path = os.path.join(data_path, type, date)
+        file_type = 'pha'
+
+    if not os.access(file_path, os.F_OK):
+        print("Making New Directory")
+        os.mkdir(file_path)
+
+
+    url = 'https://heasarc.gsfc.nasa.gov/FTP/fermi/data/gbm/daily/{0}/{1}/{2}/current/glg_{3}_{4}_{5}_v00.{6}'.format(
+            year, month, day, type, detector, date, file_type)
+
+    path_to_file = download_file(url)
+
+    file_name = 'glg_{0}_{1}_{2}_v00.{3}'.format(type, detector, date, file_type)
+
+    shutil.move(path_to_file, file_path + '/' + file_name)
