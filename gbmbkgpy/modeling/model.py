@@ -136,8 +136,20 @@ class Model(object):
         """
         for i, saa_source in enumerate(self._saa_sources.itervalues()):
 
-                saa_source.parameters['A-%s' % (i + 1)].value = norm_array[i]
+                saa_source.parameters['A-%s' % i].value = norm_array[i]
 
+
+    def set_initial_continuum_amplitudes(self, norm_array):
+        """
+        Sets the initial normalization of the continuum sources
+        :param norm_array:
+        :return:
+        """
+        for i, continuum_source in enumerate(self._continuum_sources.itervalues()):
+
+            for j, parameter in enumerate(continuum_source.parameters.itervalues()):
+
+                parameter.value = norm_array[i]
 
     @property
     def point_sources(self):
@@ -179,17 +191,23 @@ class Model(object):
 
         return len(self._saa_sources)
 
-    def get_continuum_flux(self, id, time_bins):
+    def get_continuum_counts(self, id, time_bins, saa_mask):
         """
         
         :param id: 
         :param time_bins:
         :return: 
         """
+        source_counts = self._continuum_sources.values()[id].get_counts(time_bins)[:, 0]
 
-        return self._continuum_sources.values()[id].get_flux(time_bins)
+        # The SAA sections will be set to zero if a saa_mask is provided
+        if saa_mask is not None:
+            assert len(time_bins) == len(saa_mask), "The time_bins and saa_mask should be of equal length"
+            source_counts[np.where(~saa_mask)] = 0.
 
-    def get_flare_flux(self, id, time_bins):
+        return source_counts
+
+    def get_flare_counts(self, id, time_bins, saa_mask):
         """
         
         :param time_bins:
@@ -197,10 +215,16 @@ class Model(object):
         :param t: 
         :return: 
         """
+        source_counts = self._flare_sources.values()[id].get_counts(time_bins)[:, 0]
 
-        return self._flare_sources.values()[id].get_flux(time_bins)
+        # The SAA sections will be set to zero if a saa_mask is provided
+        if saa_mask is not None:
+            assert len(time_bins) == len(saa_mask), "The time_bins and saa_mask should be of equal length"
+            source_counts[np.where(~saa_mask)] = 0.
 
-    def get_point_source_flux(self, id, time_bins):
+        return source_counts
+
+    def get_point_source_counts(self, time_bins, saa_mask):
         """
         
         :param time_bins:
@@ -208,10 +232,19 @@ class Model(object):
         :param t: 
         :return: 
         """
+        source_counts = np.zeros(len(time_bins))
 
-        return self._point_sources.values()[id].get_flux(time_bins)
+        for i, point_source in enumerate(self._point_sources):
+            source_counts += self._point_sources.values()[i].get_counts(time_bins)[:, 0]
 
-    def get_saa_flux(self, id, time_bins):
+        # The SAA sections will be set to zero if a saa_mask is provided
+        if saa_mask is not None:
+            assert len(time_bins) == len(saa_mask), "The time_bins and saa_mask should be of equal length"
+            source_counts[np.where(~saa_mask)] = 0.
+
+        return source_counts
+
+    def get_saa_counts(self, time_bins, saa_mask):
         """
 
         :param time_bins:
@@ -219,7 +252,17 @@ class Model(object):
         :param t:
         :return:
         """
-        return self._saa_sources.values()[id].get_flux(time_bins)
+        source_counts = np.zeros(len(time_bins))
+
+        for i, saa in enumerate(self._saa_sources):
+            source_counts += self._saa_sources.values()[i].get_counts(time_bins)[:, 0]
+
+        # The SAA sections will be set to zero if a saa_mask is provided
+        if saa_mask is not None:
+            assert len(time_bins) == len(saa_mask), "The time_bins and saa_mask should be of equal length"
+            source_counts[np.where(~saa_mask)] = 0.
+
+        return source_counts
 
     def add_SAA_regions(self, *regions):
         """
@@ -229,29 +272,41 @@ class Model(object):
         :return: 
         """
 
-    def get_flux(self, time_bins, bin_mask=None):
+    def get_counts(self, time_bins, bin_mask=None, saa_mask=None):
         """
-        Calculates the flux for all sources in the model and returns the summed up array.
+        Calculates the counts for all sources in the model and returns the summed up array.
+        Only one of the following usecases can be used!
+        1) The bin_mask serves for masking the saa sections for faster fitting
+        2) The saa_mask sets the SAA sections to zero when the counts for all time bins are returned
+
         :param time_bins:
         :param bin_mask:
         :return:
         """
+        if bin_mask is not None:
+            assert saa_mask is None, "There should only be a bin mask or a saa_mask provided"
 
         if bin_mask is None:
             bin_mask = np.full(len(time_bins), True)
 
-        total_flux = np.zeros(len(time_bins))
+        total_counts = np.zeros(len(time_bins))
 
         for continuum_source in self._continuum_sources.values():
-            total_flux += np.ndarray.flatten(continuum_source.get_flux(time_bins, bin_mask))
+            total_counts += continuum_source.get_counts(time_bins, bin_mask)[:, 0]
 
         for flare_source in self._flare_sources.values():
-            total_flux += np.ndarray.flatten(flare_source.get_flux(time_bins, bin_mask))
+            total_counts += flare_source.get_counts(time_bins, bin_mask)[:, 0]
 
         for point_source in self._point_sources.values():
-            total_flux += np.ndarray.flatten(point_source.get_flux(time_bins, bin_mask))
+            total_counts += point_source.get_counts(time_bins, bin_mask)[:, 0]
 
         for saa_source in self._saa_sources.values():
-            total_flux += np.ndarray.flatten(saa_source.get_flux(time_bins, bin_mask))
+            total_counts += saa_source.get_counts(time_bins, bin_mask)[:, 0]
 
-        return total_flux
+        # The SAA sections will be set to zero if a saa_mask is provided
+        if saa_mask is not None:
+            assert len(time_bins) == len(saa_mask), "The time_bins and saa_mask should be of equal length"
+            total_counts[np.where(~saa_mask)] = 0.
+
+        return total_counts
+
