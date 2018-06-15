@@ -4,8 +4,8 @@ import os
 from gbmbkgpy.io.package_data import get_path_of_external_data_dir
 import json
 
-class MultiNestFit(object):
 
+class MultiNestFit(object):
     def __init__(self, likelihood):
 
         self._likelihood = likelihood
@@ -16,21 +16,27 @@ class MultiNestFit(object):
 
         self._nparams = len(self._likelihood._free_parameters)
 
-    def likelihood_wrapper(self, cube, ndim, nparams):
-        return self._likelihood(cube)
+        def func_wrapper(values, ndim, nparams):
+            return self._likelihood(values)
 
-    def prior(self, cube, ndim, nparams):
+        def prior(cube, ndim, nparams):
+            for n in range(ndim):
+                cube[n] = cube[n] * 10 ** 4  # delcare linear prior up to 1e+10
 
-        for n in range(ndim):
-            cube[n] = 10 ** (cube[n] * 16 - 8)  # log-uniform prior between 10^-8 and 10^8
+        # declare local likelihood_wrapper object:
+        self._loglike_function, self._param_priors = func_wrapper, prior
 
     def fit(self):
-
         output_dir = os.path.join(get_path_of_external_data_dir(), 'fits', 'multinest_out/')
 
         # Run PyMultiNest
-        pymultinest.run(self.likelihood_wrapper, self.prior, self._nparams, outputfiles_basename=output_dir, resume=False, verbose=True)
-
+        sampler = pymultinest.run(self._loglike_function,
+                                  self._param_priors,
+                                  self._nparams,
+                                  self._nparams,
+                                  outputfiles_basename=output_dir,
+                                  multimodal=True,
+                                  resume=False)
         # Save parameter names
         param_index = []
         for i, parameter in enumerate(self._likelihood._parameters.values()):
@@ -42,5 +48,6 @@ class MultiNestFit(object):
         # read in results
         analyzer = pymultinest.Analyzer(self._nparams, outputfiles_basename=output_dir)
         best_fit_params = analyzer.get_best_fit()['parameters']
+        self._sampler = sampler
 
         return best_fit_params
