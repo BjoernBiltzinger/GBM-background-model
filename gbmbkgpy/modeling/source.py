@@ -23,7 +23,7 @@ class Source(object):
     def get_counts(self, time_bins, bin_mask=None):
 
         if bin_mask is None:
-            bin_mask = np.full(len(time_bins), True)
+            bin_mask = np.ones(len(time_bins), dtype=bool)  # np.full(len(time_bins), True)
 
         return integrate.cumtrapz(self._shape()[bin_mask], time_bins)
 
