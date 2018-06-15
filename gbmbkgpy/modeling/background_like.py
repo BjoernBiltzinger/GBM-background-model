@@ -36,15 +36,18 @@ class BackgroundLike(object):
         self._parameters = self._model.parameters
         self._echan = echan
 
+        # The data object should return all the time bins that are valid... i.e. non-zero
+        self._total_time_bins = self._data.time_bins[2:-2]
+
+        self._total_time_bin_widths = np.diff(self._total_time_bins, axis=1)[:, 0]
+
         # Get the SAA and GRB mask:
         self._saa_mask = self._data.saa_mask[2:-2]
-        self._grb_mask = np.full(len(self._total_time_bins), True)
+        self._grb_mask = np.ones(len(self._total_time_bins), dtype=bool)  # np.full(len(self._total_time_bins), True)
         # An entry in the total mask is False when one of the two masks is False
         self._total_mask = ~ np.logical_xor(self._saa_mask, self._grb_mask)
 
-        # The data object should return all the time bins that are valid... i.e. non-zero
-        self._total_time_bins = self._data.time_bins[2:-2]
-        self._total_time_bin_widths = np.diff(self._total_time_bins, axis=1)[:, 0]
+        # Get the valid time bins by including the total_mask
         self._time_bins = self._total_time_bins[self._total_mask]
 
         # Extract the counts from the data object. should be same size as time bins
@@ -110,7 +113,7 @@ class BackgroundLike(object):
             parameter.value = new_parameters[i]
 
     @property
-    def model_counts(self):
+    def model_counts(self): 
         """
         Returns the predicted counts from the model for all time bins,
         the saa_mask sets the SAA sections to zero.
@@ -292,7 +295,6 @@ class BackgroundLike(object):
 
         return log_likelihood
 
-
     def _fix_precision(self, v):
       """
       Round extremely small number inside v to the smallest usable
@@ -371,7 +373,7 @@ class BackgroundLike(object):
 
         :return:
         """
-        self._grb_mask = np.full(len(self._time_bins), True)
+        self._grb_mask = np.ones(len(self._time_bins), dtype=bool)  # np.full(len(self._time_bins), True)
 
     def display_model(self, data_color='k', model_color='r', step=True, show_data=True, show_residuals=True,
                       show_legend=True, min_bin_width=1E-99, plot_sources=False, show_grb_trigger=False,

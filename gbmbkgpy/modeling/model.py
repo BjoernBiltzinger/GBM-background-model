@@ -287,7 +287,7 @@ class Model(object):
             assert saa_mask is None, "There should only be a bin mask or a saa_mask provided"
 
         if bin_mask is None:
-            bin_mask = np.full(len(time_bins), True)
+            bin_mask = np.ones(len(time_bins), dtype=bool)  # np.full(len(time_bins), True)
 
         total_counts = np.zeros(len(time_bins))
 
@@ -309,4 +309,3 @@ class Model(object):
             total_counts[np.where(~saa_mask)] = 0.
 
         return total_counts
-
