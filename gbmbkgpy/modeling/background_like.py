@@ -377,7 +377,7 @@ class BackgroundLike(object):
 
     def display_model(self, data_color='k', model_color='r', step=True, show_data=True, show_residuals=True,
                       show_legend=True, min_bin_width=1E-99, plot_sources=False, show_grb_trigger=False,
-                      show_model=True, change_time=False, show_occ_region=False, **kwargs):
+                      show_model=True, change_time=False, show_occ_region=False, posteriour=None, **kwargs):
 
         """
         Plot the current model with or without the data and the residuals. Multiple models can be plotted by supplying
@@ -483,6 +483,19 @@ class BackgroundLike(object):
                                     label=model_label,
                                     color=model_color)
 
+        if posteriour != None:
+            plot_model = copy.deepcopy(self._model)
+            plot_backlike = BackgroundLike(self._data, plot_model, self._echan)
+
+            posterior_sample = posteriour[:]
+            for j in range(len(posterior_sample)):
+                plot_backlike.set_free_parameters(posterior_sample[j][2:6])
+                y_post = (plot_backlike.model_counts / plot_backlike._total_time_bin_widths)[::100]
+                x_post = np.mean(plot_backlike._total_time_bins, axis=1)[::100]
+
+                residual_plot.add_posteriour(x_post,
+                                             y_post)
+
         if plot_sources:
 
             source_list = self._get_list_of_sources(self._total_time_bins - time_ref, self._total_time_bin_widths)
@@ -503,6 +516,8 @@ class BackgroundLike(object):
                                       xscale='linear',
                                       yscale='linear',
                                       show_legend=show_legend)
+
+
 
     def _get_list_of_sources(self,time_bins, time_bin_width=1.):
         """
