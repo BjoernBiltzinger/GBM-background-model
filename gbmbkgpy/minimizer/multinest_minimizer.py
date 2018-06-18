@@ -155,6 +155,11 @@ class MultiNestFit(object):
 
         minimum = func_values[idx] * (-1)
 
+        self.multinest_data = multinest_analyzer.get_data()
+
+        # set parameters to best fit values
+        self._likelihood.set_free_parameters(best_fit_values)
+
         return best_fit_values, minimum
 
 
