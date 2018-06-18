@@ -101,7 +101,7 @@ class BackgroundLike(object):
         else:
             return model_counts
 
-    def _set_free_parameters(self, new_parameters):
+    def set_free_parameters(self, new_parameters):
         """
         Set the free parameters to the new values
         :param new_parameters: 
@@ -260,7 +260,7 @@ class BackgroundLike(object):
         :return: the poisson log likelihood
         """
 
-        self._set_free_parameters(parameters)
+        self.set_free_parameters(parameters)
 
 
         M = self._evaluate_model()
@@ -607,6 +607,6 @@ class BackgroundLike(object):
 
         fit_result = np.array(data['fit-result']['param-values'])
 
-        self._set_free_parameters(fit_result)
+        self.set_free_parameters(fit_result)
 
         print("Fits file was successfully loaded and the free parameters set")
