@@ -69,7 +69,7 @@ def setup_sources(cd, ep, echan, include_point_sources=False):
     cgb.set_saa_zero(cd.saa_mask[2:-2])
     Source_CGB_Continuum = ContinuumSource('CGB', cgb)
 
-    source_list = [Source_CGB_Continuum, Source_Magnetic_Continuum, Source_Solar_Continuum,
+    source_list = [Source_CGB_Continuum, Source_Magnetic_Continuum,# Source_Solar_Continuum,
                    Source_Earth_Albedo_Continuum] + SAA_Decay_list + PS_Sources_list
 
     return source_list
