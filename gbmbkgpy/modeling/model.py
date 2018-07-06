@@ -52,6 +52,15 @@ class Model(object):
 
             parameter.value = new_parameters[i]
 
+    def set_parameter_bounds(self, new_bounds):
+        """
+        Set the parameter bounds
+        :param new_bounds:
+        :return:
+        """
+        for i, parameter in enumerate(self._parameters.itervalues()):
+            parameter.bounds = new_bounds[i]
+
     @property
     def normalization_parameters(self):
         """
