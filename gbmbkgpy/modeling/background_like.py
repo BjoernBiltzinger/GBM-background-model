@@ -484,19 +484,22 @@ class BackgroundLike(object):
         if posteriour != None:
             # Make a copy of the model for plotting
             plot_model = copy.deepcopy(self._model)
-            # Instantiate backlike object to use set_free_parameters()
-            ## Can be removed by adding this function to the Model Class
-            plot_backlike = BackgroundLike(self._data, plot_model, self._echan)
 
             # Use every tenth result to save memory
             posterior_sample = posteriour[::10]
             for j in range(len(posterior_sample)):
-                plot_backlike.set_free_parameters(posterior_sample[j][2:6])
-                y_post = (plot_backlike.model_counts / plot_backlike._total_time_bin_widths)[::100] # Plot every 100th bin
-                x_post = np.mean(plot_backlike._total_time_bins, axis=1)[::100]
+                plot_model.set_free_parameters(posterior_sample[j][2:])     # The first 2 values are not the parameters
+
+                post_model_counts = plot_model.get_counts(self._total_time_bins, saa_mask=self._saa_mask)
+
+                rebinned_post_model_counts, = this_rebinner.rebin(post_model_counts)
+
+                x_post = np.mean(self._rebinned_time_bins, axis=1)
+                y_post = (rebinned_post_model_counts / self._rebinned_time_bin_widths)
 
                 residual_plot.add_posteriour(x_post,
-                                             y_post)
+                                             y_post,
+                                             alpha=0.02)
 
         if plot_sources:
 
