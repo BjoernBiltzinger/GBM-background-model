@@ -108,9 +108,7 @@ class BackgroundLike(object):
         :return: 
         """
 
-        for i, parameter in enumerate(self._free_parameters.itervalues()):
-
-            parameter.value = new_parameters[i]
+        self._model.set_free_parameters(new_parameters)
 
     @property
     def model_counts(self): 
