@@ -42,6 +42,16 @@ class Model(object):
 
         return free_parameters_dictionary
 
+    def set_free_parameters(self, new_parameters):
+        """
+        Set the free parameters to the new values
+        :param new_parameters:
+        :return:
+        """
+        for i, parameter in enumerate(self.free_parameters.itervalues()):
+
+            parameter.value = new_parameters[i]
+
     @property
     def normalization_parameters(self):
         """
