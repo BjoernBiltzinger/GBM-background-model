@@ -27,6 +27,12 @@ class MultiNestFit(object):
                                        '_' + str(self._det) + '_' + str(self._echan) + '/')
 
         if not os.access(self.output_dir, os.F_OK):
+            # Create multinest_out directory if not existend
+            multinest_out_dir = os.path.join(get_path_of_external_data_dir(), 'fits', 'multinest_out/')
+            if not os.access(multinest_out_dir, os.F_OK):
+                print("Making New Directory")
+                os.mkdir(multinest_out_dir)
+
             print("Making New Directory")
             os.mkdir(self.output_dir)
 
