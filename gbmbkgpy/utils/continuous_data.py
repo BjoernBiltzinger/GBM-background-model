@@ -267,8 +267,7 @@ class ContinuousData(object):
         del y_all, x, y0, y1, y2, y3, y4, y5, y6, y7
 
     def _setup_geometery(self):
-
-        n_bins_to_calculate = 800.
+        n_bins_to_calculate = 80.
 
         self._position_interpolator = PositionInterpolator(poshist=self._pos_hist)
 
@@ -462,7 +461,7 @@ class ContinuousData(object):
         0 = angle of the detector-cone\n
         1 = area fraction of the earth-occulted area to the entire area of the detector-cone"""
 
-        angles = np.arange(0, 180.5, .5)
+        angles = np.arange(0, 180.5, 20)
 
         angle_d = []
         area_frac = []
