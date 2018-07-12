@@ -60,13 +60,13 @@ def setup_sources(cd, ep, echan, include_point_sources=False, sources=[]):
             saa_dec.set_time_bins(cd.time_bins[2:-2])
             SAA_Decay_list.append(SAASource('saa_' + str(saa_n), saa_dec))
             saa_n += 1
-
-    # Solar Continuum Source
-    sol_con = Solar_Continuum()
-    sol_con.set_function_array(cd.effective_angle(cd.sun_angle(cd.time_bins[2:-2]), echan))
-    sol_con.set_saa_zero(cd.saa_mask[2:-2])
-    sol_con.remove_vertical_movement()
-    Source_Solar_Continuum = ContinuumSource('Sun effective angle', sol_con)
+    if echan==0:
+        # Solar Continuum Source
+        sol_con = Solar_Continuum()
+        sol_con.set_function_array(cd.effective_angle(cd.sun_angle(cd.time_bins[2:-2]), echan))
+        sol_con.set_saa_zero(cd.saa_mask[2:-2])
+        sol_con.remove_vertical_movement()
+        Source_Solar_Continuum = ContinuumSource('Sun effective angle', sol_con)
 
     # Magnetic Continuum Source
     mag_con = Magnetic_Continuum()
@@ -88,7 +88,11 @@ def setup_sources(cd, ep, echan, include_point_sources=False, sources=[]):
     cgb.set_saa_zero(cd.saa_mask[2:-2])
     Source_CGB_Continuum = ContinuumSource('CGB', cgb)
 
-    source_list = [Source_CGB_Continuum, Source_Magnetic_Continuum, Source_Solar_Continuum,
-                   Source_Earth_Albedo_Continuum] + SAA_Decay_list + PS_Sources_list
+    if echan==0:
+        source_list = [Source_CGB_Continuum, Source_Magnetic_Continuum, Source_Solar_Continuum,
+                       Source_Earth_Albedo_Continuum] + SAA_Decay_list + PS_Sources_list
+    else:
+        source_list = [Source_CGB_Continuum, Source_Magnetic_Continuum,
+         Source_Earth_Albedo_Continuum] + SAA_Decay_list + PS_Sources_list
 
     return source_list
