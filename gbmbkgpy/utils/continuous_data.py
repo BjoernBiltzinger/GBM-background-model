@@ -59,7 +59,17 @@ class ContinuousData(object):
 
             self._exposure = f['SPECTRUM'].data['EXPOSURE']
             #self._bin_start = f['SPECTRUM'].data['TIME']
-
+        # Delete entries if in nasa file there are time bins with same start and end time
+        i = 0
+        while i < len(self._bin_start):
+            if self._bin_start[i] == self._bin_stop[i]:
+                self._bin_start = np.delete(self._bin_start, [i])
+                self._bin_stop = np.delete(self._bin_stop, [i])
+                self._counts = np.delete(self._counts, [i], axis=0)
+                print('Deleted empty time bin', i)
+            else:
+                i = i + 1
+        #
         self._counts_combined = np.sum(self._counts, axis=1)
         self._counts_combined_rate = self._counts_combined / self.time_bin_length
         self._n_time_bins, self._n_channels = self._counts.shape
