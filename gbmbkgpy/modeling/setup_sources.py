@@ -7,7 +7,7 @@ Magnetic_Continuum, Cosmic_Gamma_Ray_Background, Point_Source_Continuum, Earth_A
 import numpy as np
 
 
-def setup_sources(cd, ep, echan, include_point_sources=False):
+def setup_sources(cd, ep, echan, include_point_sources=False, sources=[]):
     """
     Instantiate all Source Object included in the model and return them as an array
     :param echan:
@@ -15,6 +15,9 @@ def setup_sources(cd, ep, echan, include_point_sources=False):
     :param ep: ExternalProps object
     :return:
     """
+    assert len(sources)==0 or include_point_sources==False, 'Either include all point sources ' \
+                                                                          'or give a list with the wanted sources.' \
+                                                                          'Not both!'
     PS_Sources_list = []
 
     # Point-Source Sources
@@ -31,7 +34,18 @@ def setup_sources(cd, ep, echan, include_point_sources=False):
 
 
             PS_Sources_list.append(PointSource(ps.name, PS_Continuum_dic[ps.name]))
+    if len(sources)>0:
+        ep.build_some_source(cd, sources)
+        PS_Continuum_dic = {}
+        PS_Sources_list = []
 
+        for i, ps in enumerate(ep.point_sources.itervalues()):
+            PS_Continuum_dic[ps.name] = Point_Source_Continuum(str(i))
+            PS_Continuum_dic[ps.name].set_function_array(cd.effective_angle(ps.calc_occ_array(cd.time_bins[2:-2]),
+                                                                            echan))
+            PS_Continuum_dic[ps.name].set_earth_zero(ps.earth_occ_of_ps(cd.mean_time[2:-2]))
+
+            PS_Sources_list.append(PointSource(ps.name, PS_Continuum_dic[ps.name]))
     # SAA Decay Source
     SAA_Decay_list = []
     if cd.use_SAA():
