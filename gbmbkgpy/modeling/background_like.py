@@ -519,10 +519,13 @@ class BackgroundLike(object):
             data = self._model.get_continuum_counts(i, time_bins, self._saa_mask)
             source_list.append({"label": source_name, "data": data / time_bin_width, "color": color_list[i]})
 
-        saa_data = self._model.get_saa_counts(self._total_time_bins, self._saa_mask)
+        if self._use_SAA:
+            saa_data = self._model.get_saa_counts(self._total_time_bins, self._saa_mask)
 
-        source_list.append({"label": "SAA_decays", "data": saa_data / time_bin_width, "color": color_list[i+1]})
+            source_list.append({"label": "SAA_decays", "data": saa_data / time_bin_width, "color": color_list[i+1]})
 
+        point_source_data = self._model.get_point_source_counts(self._total_time_bins, self._saa_mask)
+        source_list.append({"label": "Point_sources", "data": point_source_data / time_bin_width, "color": color_list[i + 1]})
         return source_list
 
 

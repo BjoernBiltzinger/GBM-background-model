@@ -35,6 +35,7 @@ def setup_sources(cd, ep, echan, include_point_sources=False, sources=[]):
 
             PS_Sources_list.append(PointSource(ps.name, PS_Continuum_dic[ps.name]))
     if len(sources)>0:
+        print('a')
         ep.build_some_source(cd, sources)
         PS_Continuum_dic = {}
         PS_Sources_list = []
