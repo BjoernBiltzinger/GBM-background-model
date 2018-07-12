@@ -34,16 +34,17 @@ def setup_sources(cd, ep, echan, include_point_sources=False):
 
     # SAA Decay Source
     SAA_Decay_list = []
-    saa_n = 0
-    day_start = np.array(cd._day_met)
-    start_times = np.append(day_start, cd.saa_mean_times)
+    if cd.use_SAA():
+        saa_n = 0
+        day_start = np.array(cd._day_met)
+        start_times = np.append(day_start, cd.saa_mean_times)
 
-    for time in start_times:
-        saa_dec = SAA_Decay(str(saa_n))
-        saa_dec.set_saa_exit_time(np.array([time]))
-        saa_dec.set_time_bins(cd.time_bins[2:-2])
-        SAA_Decay_list.append(SAASource('saa_' + str(saa_n), saa_dec))
-        saa_n += 1
+        for time in start_times:
+            saa_dec = SAA_Decay(str(saa_n))
+            saa_dec.set_saa_exit_time(np.array([time]))
+            saa_dec.set_time_bins(cd.time_bins[2:-2])
+            SAA_Decay_list.append(SAASource('saa_' + str(saa_n), saa_dec))
+            saa_n += 1
 
     # Solar Continuum Source
     sol_con = Solar_Continuum()
