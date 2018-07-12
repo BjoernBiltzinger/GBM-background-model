@@ -480,7 +480,7 @@ class ContinuousData(object):
 
             # define the opening angles of the overlapping cones (earth and detector).
             theta = math.asin(r / sat_dist)  # earth-cone
-            opening_ang = np.arange(math.pi / 36000., math.pi / 2. + math.pi / 36000., math.pi / 36000.)
+            opening_ang = np.arange(math.pi / 36000., math.pi + math.pi / 36000., math.pi / 36000.)
 
             # get the angle between the detector direction and the earth direction
             earth_ang = angle * 2. * math.pi / 360.
@@ -494,46 +494,77 @@ class ContinuousData(object):
             f_e = (np.cos(opening_ang) - np.cos(theta) * np.sin(phi)) / (np.cos(phi))
             beta_e = np.arctan2(f_e, (np.cos(theta)))
 
-            # calculate one part of the overlapping area of the spherical caps. This area belongs to the detector-cone
-            A_d_an2 = 2 * (np.arctan2(
-                (np.sqrt(-(np.tan(beta)) ** 2 / ((np.sin(opening_ang)) ** 2) + (np.tan(beta)) ** 2 + 1) * np.sin(
-                    opening_ang)),
-                np.tan(beta)) - np.cos(opening_ang) * np.arccos(np.tan(beta) / np.tan(opening_ang)) - (np.arctan2(
-                (np.sqrt(-(np.tan(beta)) ** 2 / ((np.sin(beta)) ** 2) + (np.tan(beta)) ** 2 + 1) * np.sin(beta)),
-                np.tan(beta)) - np.cos(beta) * np.arccos(np.tan(beta) / np.tan(beta))))
+            # new approach without nan (caused by negative squares)
 
-            # calculate the other part of the overlapping area. This area belongs to the earth-cone
-            A_e_an2 = 2 * (
-                np.arctan2((np.sqrt(
-                    -(np.tan(beta_e)) ** 2 / ((np.sin(theta)) ** 2) + (np.tan(beta_e)) ** 2 + 1) * np.sin(theta)),
-                           np.tan(beta_e)) - np.cos(theta) * np.arccos(np.tan(beta_e) / np.tan(theta)) - (
-                    np.arctan2((np.sqrt(
-                        -(np.tan(beta_e)) ** 2 / ((np.sin(beta_e)) ** 2) + (np.tan(beta_e)) ** 2 + 1) * np.sin(beta_e)),
-                               np.tan(beta_e)) - np.cos(beta_e) * np.arccos(np.tan(beta_e) / np.tan(beta_e))))
-
-            # take the limitations of trignometric functions into account. -> Get rid of 2*pi jumps
-            A_e_an2[np.where(earth_ang < beta)] = A_e_an2[np.where(earth_ang < beta)] - 2 * math.pi
-            A_d_an2[np.where(f < 0)] = A_d_an2[np.where(f < 0)] - 2 * math.pi
-
-            # combine the two area segments to get the total area
-            A_an2 = A_d_an2 + A_e_an2
-
-            # calculate the unocculted area of the detector cone
             free_area = 2 * math.pi * (1 - np.cos(opening_ang))
 
-            # add values to the overlapping area, where either the detector-cone is completely embedded within the earth-cone or the other way around. Within this function both could be the case, because we are changing the angle of the detector-cone!
-            A_an2[np.where(opening_ang <= theta - earth_ang)] = free_area[np.where(opening_ang <= theta - earth_ang)]
-            A_an2[np.where(opening_ang >= theta + earth_ang)] = 2 * math.pi * (1 - np.cos(theta))
-            A_an2[np.where(opening_ang <= earth_ang - theta)] = 0.
+            index = 0
 
-            # if the earth will never be within the detector-cone, the overlapping area will always be 0
-            # if earth_ang > opening_ang[-1] + theta:
-            #    A_an2 = np.zeros(len(opening_ang))
+            A_an2 = []
 
-            # Apparently the numeric calculation of the analytic solution doesn't always return a value (probably because of runtime error). As a result there are several 'nan' entries in the A_an2 array. To get rid of those we interpolate over all the calculated solutions. We have chosen enough steps for the opening_ang to eliminate any errors due to this interpolation, because we get enough good results from the calculation.
-            tck = interpolate.splrep(opening_ang[np.logical_not(np.isnan(A_an2))],
-                                     A_an2[np.logical_not(np.isnan(A_an2))], s=0)
-            A_an2 = interpolate.splev(opening_ang, tck, der=0)
+            while opening_ang[index] < math.pi/2:
+
+                if opening_ang[index] <= theta - earth_ang:
+                    A_an2.append(2 * math.pi * (1 - np.cos(opening_ang[index])))
+                elif opening_ang[index] >= theta + earth_ang:
+                    A_an2.append(2 * math.pi * (1 - np.cos(theta)))
+                elif opening_ang[index] <= earth_ang - theta:
+                    A_an2.append(0)
+                else:
+                    A_d_an2 = 2 * (np.arctan2(
+                        (np.sqrt(-(np.tan(beta[index])) ** 2 / ((np.sin(opening_ang[index])) ** 2) + (
+                            np.tan(beta[index])) ** 2 + 1) * np.sin(
+                            opening_ang[index])),
+                        np.tan(beta[index])) - np.cos(opening_ang[index]) * np.arccos(
+                        np.tan(beta[index]) / np.tan(opening_ang[index])))
+
+                    A_e_an2 = 2 * (
+                            np.arctan2((np.sqrt(
+                                -(np.tan(beta_e[index])) ** 2 / ((np.sin(theta)) ** 2) + (
+                                    np.tan(beta_e[index])) ** 2 + 1) * np.sin(theta)),
+                                       np.tan(beta_e[index])) - np.cos(theta) * np.arccos(
+                        np.tan(beta_e[index]) / np.tan(theta)))
+
+                    A_an2.append(A_d_an2 + A_e_an2)
+                index = index + 1
+
+
+            #redefine angles for the calculation for opening_angle>Pi/2
+            opening_ang_2 = math.pi - opening_ang
+            earth_ang_2 = math.pi - earth_ang
+            # geometric considerations for the two overlapping spherical cap problem
+            phi_2 = math.pi / 2 - earth_ang_2
+            f_2 = (np.cos(theta) - np.cos(opening_ang_2) * np.sin(phi_2)) / (np.cos(phi_2))
+            beta_2 = np.arctan2(f_2, (np.cos(opening_ang_2)))
+
+            # same considerations for the earth-component
+            f_e_2 = (np.cos(opening_ang_2) - np.cos(theta) * np.sin(phi_2)) / (np.cos(phi_2))
+            beta_e_2 = np.arctan2(f_e_2, (np.cos(theta)))
+
+            while index<len(opening_ang):
+                if opening_ang_2[index] <= theta - earth_ang_2:
+                    A_an2.append((2*math.pi*(1-np.cos(theta)))-2 * math.pi * (1 - np.cos(opening_ang_2[index])))
+                elif opening_ang_2[index] >= theta + earth_ang_2:
+                    A_an2.append((2*math.pi*(1-np.cos(theta)))-2 * math.pi * (1 - np.cos(theta)))
+                elif opening_ang_2[index] <= earth_ang_2 - theta:
+                    A_an2.append(2*math.pi*(1-np.cos(theta)))
+                else:
+                    A_d_an2 = 2 * (np.arctan2(
+                        (np.sqrt(-(np.tan(beta_2[index])) ** 2 / ((np.sin(opening_ang_2[index])) ** 2) + (
+                            np.tan(beta_2[index])) ** 2 + 1) * np.sin(
+                            opening_ang_2[index])),
+                        np.tan(beta_2[index])) - np.cos(opening_ang_2[index]) * np.arccos(
+                        np.tan(beta_2[index]) / np.tan(opening_ang_2[index])))
+
+                    A_e_an2 = 2 * (
+                            np.arctan2((np.sqrt(
+                                -(np.tan(beta_e_2[index])) ** 2 / ((np.sin(theta)) ** 2) + (
+                                    np.tan(beta_e_2[index])) ** 2 + 1) * np.sin(theta)),
+                                       np.tan(beta_e_2[index])) - np.cos(theta) * np.arccos(
+                        np.tan(beta_e_2[index]) / np.tan(theta)))
+
+                    A_an2.append((2*math.pi*(1-np.cos(theta)))-(A_d_an2 + A_e_an2))
+                index = index + 1
 
             # calculate the fraction of the occulated area
             earth_occ = A_an2 / free_area
@@ -546,7 +577,7 @@ class ContinuousData(object):
         self._earth_angs = angles
         self._angle_d = angle_d
         self._area_frac = area_frac
-        self._free_area = free_area
+        self._free_area = free_ar
         self._occ_area = occ_area
 
         del angles, angle_d, area_frac, free_area, occ_area
