@@ -602,10 +602,10 @@ class ContinuousData(object):
 
             ang_fac = interpolate.splev(self._angle_d[0], self._tck[echan], der=0)
 
-            free_circ_eff = [self._free_area[0] * ang_fac[0]]
+            free_circ_eff = [self._free_area[0][0] * ang_fac[0]]
 
-            for i in range(1, len(self._free_area)):
-                circ_area = self._free_area[i] - self._free_area[i - 1]
+            for i in range(1, len(self._free_area[0])):
+                circ_area = self._free_area[0][i] - self._free_area[0][i - 1]
                 circ_area_eff = circ_area * ang_fac[i]
                 free_circ_eff.append(circ_area_eff)
 
