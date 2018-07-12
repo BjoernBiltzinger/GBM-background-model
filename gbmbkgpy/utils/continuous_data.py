@@ -24,11 +24,12 @@ from gbmgeometry import GBMTime
 
 class ContinuousData(object):
 
-    def __init__(self, date, detector, data_type):
+    def __init__(self, date, detector, data_type, use_SAA=True):
 
         self._data_type = data_type
         self._det = detector
         self._day = date
+        self._use_SAA = use_SAA
 
         assert 'ctime' in self._data_type, 'currently only working for CTIME data'
         assert 'n' in self._det, 'currently only working NAI detectors'
@@ -451,6 +452,41 @@ class ContinuousData(object):
             self._saa_mask[slice_idx[i, 0]:slice_idx[i, 1] + 1] = False
             self._zero_idx[slice_idx[i, 0]:slice_idx[i, 1] + 1] = True
 
+
+        # deleting 5000s after every saa exit => ignore saa's
+        if not self._use_SAA:
+            if self._bin_stop[slice_idx[0, 0]] - 5000 > self._bin_start[0]:
+                self._saa_mask[0:slice_idx[0, 0] + 1] = False
+                self._zero_idx[0:slice_idx[0, 0] + 1] = True
+            else:
+                j = 0
+                while 5000 > self._bin_start[j] - self._bin_start[0]:
+                    j += 1
+                self._saa_mask[0:j] = False
+                self._zero_idx[0:j] = True
+
+            for i in range(len(slice_idx) - 1):
+                if self._bin_stop[slice_idx[i + 1, 0]] - self._bin_start[slice_idx[i, 1]] < 5000:
+                    self._saa_mask[slice_idx[i, 1]:slice_idx[i + 1, 0]] = False
+                    self._zero_idx[slice_idx[i, 1]:slice_idx[i + 1, 0]] = True
+                else:
+                    j = 0
+                    while self._bin_start[slice_idx[i, 1]] + 5000 > self._bin_start[slice_idx[i, 1] + j]:
+                        j += 1
+                    self._saa_mask[slice_idx[i, 1]:slice_idx[i, 1] + j] = False
+                    self._zero_idx[slice_idx[i, 1]:slice_idx[i, 1] + j] = True
+
+            if self._bin_stop[slice_idx[-1, 1]] + 5000 > self._bin_stop[-1]:
+                self._saa_mask[slice_idx[-1, 1]:len(self._counts_combined) + 1] = False
+                self._zero_idx[slice_idx[-1, 1]:len(self._counts_combined) + 1] = True
+            else:
+                j = 0
+                while self._bin_start[slice_idx[-1, 1]] + 5000 > self._bin_start[slice_idx[-1, 1] + j]:
+                    j += 1
+                self._saa_mask[slice_idx[i, 1]:slice_idx[i, 1] + j] = False
+                self._zero_idx[slice_idx[i, 1]:slice_idx[i, 1] + j] = True
+
+
         self._saa_slices = slice_idx
 
     def _calculate_earth_occ(self):
@@ -730,3 +766,6 @@ class ContinuousData(object):
         ax.set_xlabel('angle (deg)')
         ax.set_ylabel('effective area')
 
+    def use_SAA(self):
+
+        return self._use_SAA

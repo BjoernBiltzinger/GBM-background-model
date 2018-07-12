@@ -43,10 +43,11 @@ class Minimizer(object):
         self._likelihood.fix_parameters(self._likelihood.get_not_normalization_parameter_list)
         self._fit_with_bounds(method_1, type="linear", iter_nr=1)
 
-        # Fix the normalizations and fit for the other parameters
-        self._likelihood.fix_parameters(self._likelihood.get_normalization_parameter_list[0:4])
-        self._likelihood.unfix_parameters(self._likelihood.get_not_normalization_parameter_list)
-        self._fit_with_bounds(method_1, type="SAA", iter_nr=2)
+        if self._likelihood.use_SAA():
+            # Fix the normalizations and fit for the other parameters
+            self._likelihood.fix_parameters(self._likelihood.get_normalization_parameter_list[0:4])
+            self._likelihood.unfix_parameters(self._likelihood.get_not_normalization_parameter_list)
+            self._fit_with_bounds(method_1, type="SAA", iter_nr=2)
 
         # Unfix all parameters and fit all with bounds
         self._likelihood.unfix_parameters(self._likelihood.get_normalization_parameter_list)

@@ -27,6 +27,8 @@ class BackgroundLike(object):
         self._data = data       # type: ContinuousData
         self._model = model     # type: Model
 
+        self._use_SAA = data.use_SAA()
+
         self._name = "Count rate detector %s" % self._data._det
         # The MET start time of the day
         self._day_met = self._data._day_met
@@ -594,3 +596,7 @@ class BackgroundLike(object):
         self._set_free_parameters(fit_result)
 
         print("Fits file was successfully loaded and the free parameters set")
+
+    def use_SAA(self):
+
+        return self._use_SAA
