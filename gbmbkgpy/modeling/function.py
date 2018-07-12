@@ -141,6 +141,10 @@ class PointSourceFunction(Function):
 
         self._function_array = function_array
 
+    def set_earth_zero(self, earth_mask):
+
+        self._function_array[np.where(earth_mask < 0.5)] = 0.
+
     def set_saa_zero(self, saa_mask):
         """
         Set the SAA sections in the function array to zero

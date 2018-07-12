@@ -36,14 +36,15 @@ class BackgroundLike(object):
         self._parameters = self._model.parameters
         self._echan = echan
 
+        # The data object should return all the time bins that are valid... i.e. non-zero
+        self._total_time_bins = self._data.time_bins[2:-2]
+
         # Get the SAA and GRB mask:
         self._saa_mask = self._data.saa_mask[2:-2]
         self._grb_mask = np.full(len(self._total_time_bins), True)
         # An entry in the total mask is False when one of the two masks is False
         self._total_mask = ~ np.logical_xor(self._saa_mask, self._grb_mask)
 
-        # The data object should return all the time bins that are valid... i.e. non-zero
-        self._total_time_bins = self._data.time_bins[2:-2]
         self._total_time_bin_widths = np.diff(self._total_time_bins, axis=1)[:, 0]
         self._time_bins = self._total_time_bins[self._total_mask]
 
