@@ -638,6 +638,31 @@ class ContinuousData(object):
 
         return np.array(start_value_array)
 
+
+    def saa_initial_decay_constants(self, echan):
+
+        amplitudes_t0 = self.saa_initial_values(echan)
+
+        amplitudes_t1 = []
+
+        # Add mean of first 10 time bins for leftover decay from day before
+        amplitudes_t1.append(np.mean(self._counts[100:121, echan] / self.time_bin_length[100:121]))
+
+        for i, exit_idx in enumerate(self._saa_exit_idx):
+            amplitudes_t1.append(
+                np.mean(self._counts[exit_idx + 100: exit_idx + 120, echan] /
+                        self.time_bin_length[exit_idx + 100: exit_idx + 120]))
+
+        initial_decay_constants = (np.log(amplitudes_t1) - np.log(amplitudes_t0)) /\
+                                  (self.mean_time[exit_idx + 100] - self.mean_time[exit_idx])
+
+        # Replace positive values
+        initial_decay_constants[np.where(initial_decay_constants > 0)] = \
+            initial_decay_constants[np.where(initial_decay_constants > 0)] * -1.
+
+        return np.array(initial_decay_constants)
+
+
     def plot_light_curve(self,channel=0, ax=None):
 
         if ax is None:
