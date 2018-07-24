@@ -25,7 +25,6 @@ from gbmgeometry import GBMTime
 class ContinuousData(object):
 
     def __init__(self, date, detector, data_type, use_SAA=True):
-
         self._data_type = data_type
         self._det = detector
         self._day = date
@@ -60,7 +59,7 @@ class ContinuousData(object):
 
             self._exposure = f['SPECTRUM'].data['EXPOSURE']
             #self._bin_start = f['SPECTRUM'].data['TIME']
-        # Delete entries if in nasa file there are time bins with same start and end time
+        # Delete entries if in data file there are time bins with same start and end time
         i = 0
         while i < len(self._bin_start):
             if self._bin_start[i] == self._bin_stop[i]:
@@ -69,7 +68,7 @@ class ContinuousData(object):
                 self._counts = np.delete(self._counts, [i], axis=0)
                 print('Deleted empty time bin', i)
             else:
-                i = i + 1
+                i+=1
         #
         self._counts_combined = np.sum(self._counts, axis=1)
         self._counts_combined_rate = self._counts_combined / self.time_bin_length
@@ -268,7 +267,7 @@ class ContinuousData(object):
         del y_all, x, y0, y1, y2, y3, y4, y5, y6, y7
 
     def _setup_geometery(self):
-        n_bins_to_calculate = 80.
+        n_bins_to_calculate = 800.
 
         self._position_interpolator = PositionInterpolator(poshist=self._pos_hist)
 
@@ -766,6 +765,7 @@ class ContinuousData(object):
         ax.set_xlabel('angle (deg)')
         ax.set_ylabel('effective area')
 
+    @property
     def use_SAA(self):
 
         return self._use_SAA

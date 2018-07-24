@@ -27,7 +27,7 @@ class BackgroundLike(object):
         self._data = data       # type: ContinuousData
         self._model = model     # type: Model
 
-        self._use_SAA = data.use_SAA()
+        self._use_SAA = data.use_SAA
 
         self._name = "Count rate detector %s" % self._data._det
         # The MET start time of the day
@@ -600,6 +600,37 @@ class BackgroundLike(object):
 
         print("Fits file was successfully loaded and the free parameters set")
 
+    @property
     def use_SAA(self):
 
         return self._use_SAA
+
+    # define a function that return the residuals of the fit:
+    def residuals(self):
+        significance_calc_return = Significance(self.data_counts,
+                                                self.model_counts / self._total_scale_factor,
+                                                self._total_scale_factor)
+        self._residuals_return = significance_calc_return.known_background()
+        return np.vstack((self._data.mean_time[2:-2], self._residuals_return)).T
+
+    def residuals_rebinned(self, min_bin_width=NO_REBIN):
+        time_ref = 0.
+        if (min_bin_width is not NO_REBIN) or (self._rebinner is None):
+            this_rebinner = Rebinner(self._total_time_bins - time_ref, min_bin_width, self._total_mask)  # _saa_mask
+
+        # we need to get the rebinned counts
+        rebinned_observed_counts, = this_rebinner.rebin(self._total_counts)
+
+        # the rebinned counts expected from the model
+        rebinned_model_counts, = this_rebinner.rebin(self.model_counts)
+
+        rebinned_background_counts = np.zeros_like(rebinned_observed_counts)
+
+        rebinned_mean_time = np.mean(this_rebinner.time_rebinned, axis=1)
+
+        significance_calc_res_rebinned = Significance(rebinned_observed_counts,
+                                                      rebinned_background_counts + rebinned_model_counts / self._total_scale_factor,
+                                                      self._total_scale_factor)
+        self._residuals_return_rebinned = significance_calc_res_rebinned.known_background()
+
+        return np.vstack((rebinned_mean_time[2:-2], self._residuals_return_rebinned[2:-2])).T
