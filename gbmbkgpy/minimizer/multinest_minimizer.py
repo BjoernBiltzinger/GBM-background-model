@@ -151,13 +151,6 @@ class MultiNestFit(object):
         self._param_names = param_index
         json.dump(self._param_names, open(self.output_dir + 'params.json', 'w'))
 
-        # rename file if it has wrong name
-        if not os.access(self.output_dir + 'post_equal_weights.dat', os.F_OK):
-            if os.access(self.output_dir + 'post_equal_weight', os.F_OK):
-                shutil.move(self.output_dir + 'post_equal_weight', self.output_dir + 'post_equal_weights.dat')
-                print('Renaming post_equal_weight to post_equal_weights.dat')
-
-
         ## Use PyMULTINEST analyzer to gather parameter info
         multinest_analyzer = pymultinest.analyse.Analyzer(n_params=self._n_dim,
                                                           outputfiles_basename=self.output_dir)
