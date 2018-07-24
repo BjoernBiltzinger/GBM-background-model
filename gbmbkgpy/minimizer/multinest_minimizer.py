@@ -24,14 +24,20 @@ class MultiNestFit(object):
         self._n_dim = len(self._likelihood._free_parameters)
 
         current_time = datetime.now()
-
-        multinest_out_dir = os.path.join(get_path_of_external_data_dir(), 'fits', 'multinest_out/')
+        
+        fits_path = os.path.join(get_path_of_external_data_dir(), 'fits/')
+        multinest_out_dir = os.path.join(get_path_of_external_data_dir(), 'fits', 'mn_out/')
         date_det_echan_dir = str(self._day) + '_' + str(self._det) + '_' + str(self._echan) + '/'
-        time_dir = 'fit_' + "{}-{}-{}".format(current_time.date(), current_time.hour, current_time.minute) + '/'
+        time_dir = 'fit_' + current_time.strftime("%Y-%m-%d_%H-%M") + '/'
 
         self.output_dir = os.path.join(multinest_out_dir, date_det_echan_dir, time_dir)
 
         if not os.access(self.output_dir, os.F_OK):
+
+            # create directory if it doesn't exist
+            if not os.access(fits_path, os.F_OK):
+                print("Making New Directory")
+                os.mkdir(fits_path)
 
             # Create multinest_out if not existend
             if not os.access(multinest_out_dir, os.F_OK):
