@@ -107,7 +107,11 @@ class PointSrc(object):
         return self._src_ang_bin
 
     def earth_occ_of_ps(self,mean_time): #mask for ps behind earth
-
+        """
+        Calculates a mask that is 0 for all time_bins in which the PS is behind the earth and 1 if not
+        :param mean_time:
+        :return:
+        """
         # define the size of the earth
         earth_radius = 6371000.8  # geometrically one doesn't need the earth radius at the satellite's position. Instead one needs the radius at the visible horizon. Because this is too much effort to calculate, if one considers the earth as an ellipsoid, it was decided to use the mean earth radius.
         atmosphere = 12000.  # the troposphere is considered as part of the atmosphere that still does considerable absorption of gamma-rays

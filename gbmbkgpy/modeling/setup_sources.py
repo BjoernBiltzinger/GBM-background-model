@@ -7,7 +7,7 @@ Magnetic_Continuum, Cosmic_Gamma_Ray_Background, Point_Source_Continuum, Earth_A
 import numpy as np
 
 
-def setup_sources(cd, ep, echan, include_point_sources=False, sources=[]):
+def setup_sources(cd, ep, echan, include_point_sources=False, point_source_list=[]):
     """
     Instantiate all Source Object included in the model and return them as an array
     :param echan:
@@ -15,7 +15,7 @@ def setup_sources(cd, ep, echan, include_point_sources=False, sources=[]):
     :param ep: ExternalProps object
     :return:
     """
-    assert len(sources)==0 or include_point_sources==False, 'Either include all point sources ' \
+    assert len(point_source_list)==0 or include_point_sources==False, 'Either include all point sources ' \
                                                                           'or give a list with the wanted sources.' \
                                                                           'Not both!'
     PS_Sources_list = []
@@ -34,9 +34,8 @@ def setup_sources(cd, ep, echan, include_point_sources=False, sources=[]):
 
 
             PS_Sources_list.append(PointSource(ps.name, PS_Continuum_dic[ps.name]))
-    if len(sources)>0:
-        print('a')
-        ep.build_some_source(cd, sources)
+    if len(point_source_list)>0:
+        ep.build_some_source(cd, point_source_list)
         PS_Continuum_dic = {}
         PS_Sources_list = []
 
@@ -49,7 +48,7 @@ def setup_sources(cd, ep, echan, include_point_sources=False, sources=[]):
             PS_Sources_list.append(PointSource(ps.name, PS_Continuum_dic[ps.name]))
     # SAA Decay Source
     SAA_Decay_list = []
-    if cd.use_SAA():
+    if cd.use_SAA:
         saa_n = 0
         day_start = np.array(cd._day_met)
         start_times = np.append(day_start, cd.saa_mean_times)
@@ -88,11 +87,11 @@ def setup_sources(cd, ep, echan, include_point_sources=False, sources=[]):
     cgb.set_saa_zero(cd.saa_mask[2:-2])
     Source_CGB_Continuum = ContinuumSource('CGB', cgb)
 
+
+    source_list = [Source_CGB_Continuum, Source_Magnetic_Continuum,
+                   Source_Earth_Albedo_Continuum] + SAA_Decay_list + PS_Sources_list
+
     if echan==0:
-        source_list = [Source_CGB_Continuum, Source_Magnetic_Continuum, Source_Solar_Continuum,
-                       Source_Earth_Albedo_Continuum] + SAA_Decay_list + PS_Sources_list
-    else:
-        source_list = [Source_CGB_Continuum, Source_Magnetic_Continuum,
-         Source_Earth_Albedo_Continuum] + SAA_Decay_list + PS_Sources_list
+        source_list.append(Source_Solar_Continuum)
 
     return source_list
