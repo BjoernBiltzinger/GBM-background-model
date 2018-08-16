@@ -64,6 +64,7 @@ class MultiNestFit(object):
         for parameter_name in self.parameters:
 
             min_value, max_value = self.parameters[parameter_name].bounds
+            prior_type = self.parameters[parameter_name].prior
 
             assert min_value is not None, "Minimum value of parameter %s is None. In order to use the Multinest " \
                                           "minimizer you need to define proper bounds for each " \
@@ -75,24 +76,33 @@ class MultiNestFit(object):
 
             # Compute the difference in order of magnitudes between minimum and maximum
 
-            if min_value > 0:
+            if prior_type is not None:
+                if prior_type == 'uniform':
+                    self._param_priors[parameter_name] = Uniform_prior(lower_bound=min_value, upper_bound=max_value)
 
-                orders_of_magnitude_span = math.log10(max_value) - math.log10(min_value)
-
-                if orders_of_magnitude_span > 2:
-
-                    # Use a Log-uniform prior
+                elif prior_type == 'log_uniform':
                     self._param_priors[parameter_name] = Log_uniform_prior(lower_bound=min_value, upper_bound=max_value)
+                else:
+                    raise TypeError('Unknown prior! Please choose uniform or log_uniform prior')
+            else:
+                if min_value > 0:
+
+                    orders_of_magnitude_span = math.log10(max_value) - math.log10(min_value)
+
+                    if orders_of_magnitude_span > 2:
+
+                        # Use a Log-uniform prior
+                        self._param_priors[parameter_name] = Log_uniform_prior(lower_bound=min_value, upper_bound=max_value)
+
+                    else:
+
+                        # Use a uniform prior
+                        self._param_priors[parameter_name] = Uniform_prior(lower_bound=min_value, upper_bound=max_value)
 
                 else:
 
-                    # Use a uniform prior
+                    # Can only use a uniform prior
                     self._param_priors[parameter_name] = Uniform_prior(lower_bound=min_value, upper_bound=max_value)
-
-            else:
-
-                # Can only use a uniform prior
-                self._param_priors[parameter_name] = Uniform_prior(lower_bound=min_value, upper_bound=max_value)
 
         def prior(params, ndim, nparams):
 
