@@ -188,7 +188,7 @@ class MultiNestFit(object):
         return best_fit_values, minimum
 
 
-    def plot_marginals(self):
+    def plot_marginals(self, true_params=None):
         """
         Script that does default visualizations (marginal plots, 1-d and 2-d).
 
@@ -250,6 +250,10 @@ class MultiNestFit(object):
                 newax = plt.gcf().add_axes(oldax.get_position(), sharex=oldax, frameon=False)
                 p.plot_marginal(i, ls='-', color='blue', linewidth=3)
                 newax.set_ylim(0, 1)
+
+                # Plot vertical lines at the true_params values.
+                if true_params is not None:
+                    plt.axvline(x=true_params[i])
 
                 ylim = newax.get_ylim()
                 y = ylim[0] + 0.05 * (ylim[1] - ylim[0])
