@@ -481,7 +481,7 @@ class BackgroundLike(object):
                                     label=model_label,
                                     color=model_color)
 
-        if posteriour != None:
+        if posteriour is not None:
             # Make a copy of the model for plotting
             plot_model = copy.deepcopy(self._model)
 
