@@ -1,11 +1,12 @@
 
 class Parameter(object):
-    def __init__(self, name, initial_value, min_value, max_value, delta, **kwargs):
+    def __init__(self, name, initial_value, min_value, max_value, delta, prior=None, **kwargs):
         self._name = str(name)
         self._value = initial_value
         self._min_value = min_value
         self._max_value = max_value
         self._delta = delta
+        self._prior = prior
 
         self._free = True
 
@@ -122,5 +123,8 @@ class Parameter(object):
 
     @property
     def name(self):
-
         return self._name
+
+    @property
+    def prior(self):
+        return self._prior
