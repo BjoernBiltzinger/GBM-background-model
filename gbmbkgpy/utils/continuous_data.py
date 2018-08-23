@@ -55,10 +55,7 @@ class ContinuousData(object):
             self._bin_start = f['SPECTRUM'].data['TIME']
             self._bin_stop = f['SPECTRUM'].data['ENDTIME']
 
-            self._n_entries = len(self._bin_start)
-
             self._exposure = f['SPECTRUM'].data['EXPOSURE']
-            #self._bin_start = f['SPECTRUM'].data['TIME']
         # Delete entries if in data file there are time bins with same start and end time
         i = 0
         while i < len(self._bin_start):
@@ -66,10 +63,32 @@ class ContinuousData(object):
                 self._bin_start = np.delete(self._bin_start, [i])
                 self._bin_stop = np.delete(self._bin_stop, [i])
                 self._counts = np.delete(self._counts, [i], axis=0)
+                self._exposure=np.delete(self._exposure, [i])
                 print('Deleted empty time bin', i)
             else:
                 i+=1
-        #
+        # Delete time bins that are outside the interval covered by the poshist file
+        # Get boundary for time interval covered by the poshist file
+        with fits.open(poshistfile_path) as f:
+            pos_times = f['GLAST POS HIST'].data['SCLK_UTC']
+        min_time_pos = pos_times[0]
+        max_time_pos = pos_times[-1]
+        # check all time bins if they are outside of this interval
+        i=0
+        counter=0
+        while i<len(self._bin_start):
+            if self._bin_start[i]<min_time_pos or self._bin_stop[i]>max_time_pos:
+                self._bin_start = np.delete(self._bin_start, i)
+                self._bin_stop = np.delete(self._bin_stop, i)
+                self._counts = np.delete(self._counts, i, 0)
+                self._exposure = np.delete(self._exposure, i)
+                counter+=1
+            else:
+                i+=1
+        if counter>0:
+            print(str(counter) + ' time bins had to been deleted because they were outside of the time interval covered'
+                                 'by the poshist file...')
+        self._n_entries = len(self._bin_start)
         self._counts_combined = np.sum(self._counts, axis=1)
         self._counts_combined_rate = self._counts_combined / self.time_bin_length
         self._n_time_bins, self._n_channels = self._counts.shape
