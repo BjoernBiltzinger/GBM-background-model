@@ -127,6 +127,10 @@ class MultiNestFit(object):
         self._loglike = func_wrapper
         self._prior = prior
 
+    @property
+    def output_directory(self):
+        return self.output_dir
+
     def minimize(self, loglike=None, prior=None, n_dim=None):
 
         if loglike is None:
