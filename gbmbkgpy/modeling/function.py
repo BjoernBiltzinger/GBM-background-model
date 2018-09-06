@@ -61,6 +61,7 @@ class ContinuumFunction(Function):
             K = Parameter(coefficient_name, initial_value=1., min_value=None, max_value=None, delta=0.1,
                           normalization=True)
             super(ContinuumFunction, self).__init__(K)
+
         else:
             K = Parameter(coefficient_name, initial_value=1., min_value=0, max_value=None, delta=0.1,
                           normalization=True)

@@ -515,7 +515,7 @@ class ContinuousData(object):
         0 = angle of the detector-cone\n
         1 = area fraction of the earth-occulted area to the entire area of the detector-cone"""
 
-        angles = np.arange(0, 180.5, 20)
+        angles = np.arange(0, 180.5, 0.5)
 
         angle_d = []
         area_frac = []
