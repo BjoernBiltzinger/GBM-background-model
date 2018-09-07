@@ -2,7 +2,7 @@
 from gbmbkgpy.modeling.source import Source, ContinuumSource, FlareSource, PointSource, SAASource
 from gbmbkgpy.modeling.function import Function, ContinuumFunction
 from gbmbkgpy.modeling.functions import (Solar_Flare, Solar_Continuum, SAA_Decay,
-Magnetic_Continuum, Cosmic_Gamma_Ray_Background, Point_Source_Continuum, Earth_Albedo_Continuum)
+Magnetic_Continuum, Cosmic_Gamma_Ray_Background, Point_Source_Continuum, Earth_Albedo_Continuum, offset)
 
 import numpy as np
 
@@ -76,20 +76,23 @@ def setup_sources(cd, ep, echan, include_point_sources=False, point_source_list=
 
     # Earth Albedo Continuum Source
     earth_albedo = Earth_Albedo_Continuum()
-    earth_albedo.set_function_array(cd.effective_area(cd.earth_angle(cd.time_bins[2:-2]), echan))
+    earth_albedo.set_function_array(cd.earth_rate_array(echan, cd.time_bins[2:-2]))
     earth_albedo.set_saa_zero(cd.saa_mask[2:-2])
-    earth_albedo.remove_vertical_movement()
     Source_Earth_Albedo_Continuum = ContinuumSource('Earth occultation', earth_albedo)
 
     # Cosmic gamma-ray background
     cgb = Cosmic_Gamma_Ray_Background()
-    cgb.set_function_array(cd.cgb_background(cd.time_bins[2:-2]))
+    cgb.set_function_array(cd.cgb_rate_array(echan, cd.time_bins[2:-2]))
     cgb.set_saa_zero(cd.saa_mask[2:-2])
     Source_CGB_Continuum = ContinuumSource('CGB', cgb)
-
+    #constant term
+    Constant = offset()
+    Constant.set_function_array(cd.cgb_background(cd.time_bins[2:-2]))
+    Constant.set_saa_zero(cd.saa_mask[2:-2])
+    Constant_Continuum = ContinuumSource('Constant', Constant)
 
     source_list = [Source_CGB_Continuum, Source_Magnetic_Continuum,
-                   Source_Earth_Albedo_Continuum] + SAA_Decay_list + PS_Sources_list
+                   Source_Earth_Albedo_Continuum, Constant_Continuum] + SAA_Decay_list + PS_Sources_list
 
     if echan==0:
         source_list.append(Source_Solar_Continuum)

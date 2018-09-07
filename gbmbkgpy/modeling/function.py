@@ -56,16 +56,8 @@ class ContinuumFunction(Function):
 
         assert isinstance(coefficient_name, str)
 
-        # build the constant, norm_earth_albedo can be negative if the earth is fainter than the CGB
-        if coefficient_name == 'norm_earth_albedo':
-            K = Parameter(coefficient_name, initial_value=1., min_value=None, max_value=None, delta=0.1,
-                          normalization=True)
-            super(ContinuumFunction, self).__init__(K)
-
-        else:
-            K = Parameter(coefficient_name, initial_value=1., min_value=0, max_value=None, delta=0.1,
-                          normalization=True)
-            super(ContinuumFunction, self).__init__(K)
+        K = Parameter(coefficient_name, initial_value=1., min_value=0, max_value=None, delta=0.1,
+                      normalization=True)
 
         super(ContinuumFunction, self).__init__(K)
 
