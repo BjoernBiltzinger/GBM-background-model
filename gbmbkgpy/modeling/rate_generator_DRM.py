@@ -19,11 +19,11 @@ class Rate_Generator_DRM(object):
         """
         #if no values for Ngrid, Ebin_incoming and/or Ebin_detector are given we use the standard values
         if Ngrid==None:
-            Ngrid=5000
+            Ngrid=40000
         else:
             assert type(Ngrid) == int, 'Ngrid has to be an integer!'
         if Ebin_edge_incoming==None:
-            Ebin_edge_incoming=np.array(np.logspace(0.5, 3.4, num=101), dtype=np.float32)
+            Ebin_edge_incoming=np.array(np.logspace(0.5, 3.4, 301), dtype=np.float32)
         #for 8 Ebin data
         if Ebin_edge_detector==None:
             Ebin_edge_detector=np.array([4.,12.,27.,50.,102.,295.,540.,985.,2000.], dtype=np.float32)
@@ -49,13 +49,13 @@ class Rate_Generator_DRM(object):
         #Set the initial values for the spectra of earth and CGB. Can be changed with the corresponding methods
 
         #cgb spectrum
-        self._C_cgb = (10.15) * 10 ** (-2)
+        #self._C_cgb = (10.15) * 10 ** (-2)
         self._index1_cgb = 1.32
         self._index2_cgb = 2.88
         self._break_energy_cgb = 29.99
 
         #earth spectrum
-        self._C_earth = (1.48) * 10 ** (-2)
+        #self._C_earth = (1.48) * 10 ** (-2)
         self._index1_earth = -5
         self._index2_earth = 1.72
         self._break_energy_earth = 33.7
@@ -90,14 +90,14 @@ class Rate_Generator_DRM(object):
     def Ebin_out_edge(self):
         return self._Ebin_out_edge
 
-    def set_earth_spectra(self, C, index1, index2, break_energy):
-        self._C_earth = C
+    def set_earth_spectra(self, index1, index2, break_energy):
+        #self._C_earth = C
         self._index1_earth = index1
         self._index2_earth = index2
         self._break_energy_earth = break_energy
 
-    def set_cgb_spectra(self, C, index1, index2, break_energy):
-        self._C_cgb = C
+    def set_cgb_spectra(self, index1, index2, break_energy):
+        #self._C_cgb = C
         self._index1_cgb = index1
         self._index2_cgb = index2
         self._break_energy_cgb = break_energy
@@ -143,7 +143,8 @@ class Rate_Generator_DRM(object):
         :param e: Energy of incoming photon
         :return: differential flux
         """
-        return self._spectrum(e, self._C_earth, self._index1_earth, self._index2_earth, self._break_energy_earth)
+        C = 1  # set the constant=1 will be fitted later to fit the data best
+        return self._spectrum(e, C, self._index1_earth, self._index2_earth, self._break_energy_earth)
 
     def _integral_earth(self, e1, e2):
         """
@@ -162,7 +163,8 @@ class Rate_Generator_DRM(object):
         :param e: Energy
         :return: differential flux
         """
-        return self._spectrum(e, self._C_cgb, self._index1_cgb, self._index2_cgb, self._break_energy_cgb)
+        C = 1  # set the constant=1 will be fitted later to fit the data best
+        return self._spectrum(e, C, self._index1_cgb, self._index2_cgb, self._break_energy_cgb)
 
     def _integral_cgb(self, e1, e2):
         """
@@ -194,7 +196,6 @@ class Rate_Generator_DRM(object):
                      mat_type=0, ebin_edge_out=self._Ebin_out_edge)
         #calculate the sr that one point occults, depends on how many points are used
         sr_points = 4 * np.pi / self._Ngrid
-
         #loop the points array and calculate the expected rate in every Ebin.
         #This is done by convolving the true flux we get from the spectrum we assume for earth and cgb
         # with the response matrix for every point

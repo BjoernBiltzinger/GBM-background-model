@@ -24,12 +24,12 @@ from gbmgeometry import GBMTime
 
 class ContinuousData(object):
 
-    def __init__(self, date, detector, data_type, use_SAA=True):
+    def __init__(self, date, detector, data_type, rate_generator_DRM, use_SAA=True):
         self._data_type = data_type
         self._det = detector
         self._day = date
         self._use_SAA = use_SAA
-
+        self._rate_generator_DRM = rate_generator_DRM
         assert 'ctime' in self._data_type, 'currently only working for CTIME data'
         assert 'n' in self._det, 'currently only working NAI detectors'
 
@@ -96,9 +96,7 @@ class ContinuousData(object):
         # Start precomputation of arrays:
         self._setup_geometery()
         self._compute_saa_regions()
-        self._calculate_ang_eff()
-        self._calculate_earth_occ()
-        self._calculate_earth_occ_eff()
+        self._earth_and_cgb_rate_array()
 
         # Calculate the MET time for the day
         day = self._day
@@ -296,9 +294,8 @@ class ContinuousData(object):
 
         sun_angle = []
         sun_time = []
-        earth_angle = []
-        earth_position = []
-        pointing = []
+        earth_az=[] #azimuth angle of earth in sat. frame
+        earth_zen=[] #zenith angle of earth in sat. frame
 
         # go through a subset of times and calculate the sun angle with GBM geometry
 
@@ -312,9 +309,9 @@ class ContinuousData(object):
 
                 sun_angle.append(det.sun_angle.value)
                 sun_time.append(mean_time)
-                earth_angle.append(det.earth_angle.value)
-                earth_position.append(det.earth_position)
-                pointing.append(det.center.icrs)
+                az, zen = det.earth_az_zen_sat
+                earth_az.append(az)
+                earth_zen.append(zen)
 
                 p.increase()
 
@@ -398,27 +395,23 @@ class ContinuousData(object):
 
         sun_angle.append(det.sun_angle.value)
         sun_time.append(mean_time)
-        earth_angle.append(det.earth_angle.value)
-        earth_position.append(det.earth_position)
-        pointing.append(det.center.icrs)
-
-
-        self._pointing = np.array(pointing)#coord.concatenate(pointing)
+        az, zen = det.earth_az_zen_sat
+        earth_az.append(az)
+        earth_zen.append(zen)
 
 
 
         self._sun_angle = sun_angle
         self._sun_time = sun_time
-        self._earth_angle = earth_angle
-        self._earth_position = earth_position
+        self._earth_az = earth_az
+        self._earth_zen = earth_zen
 
 
         # interpolate it
 
         self._sun_angle_interpolator = interpolate.interp1d(self._sun_time, self._sun_angle)
-        self._earth_angle_interpolator = interpolate.interp1d(self._sun_time, self._earth_angle)
 
-        del sun_angle, sun_time, earth_angle, earth_position, pointing
+        del sun_angle, sun_time, earth_az, earth_zen
 
     def _compute_saa_regions(self):
 
@@ -788,3 +781,79 @@ class ContinuousData(object):
     def use_SAA(self):
 
         return self._use_SAA
+
+    def _earth_and_cgb_rate_array(self):
+
+        #get points of the grid and corresponding rates by earth and cgb spectrum
+        points, earth_rates, cgb_rates = self._rate_generator_DRM.calculate_rates()
+
+        #get the earth direction at the interpolation times; zen angle from -90 to 90
+        earth_pos_inter_times = []
+        for i in range(0, len(self._earth_zen)):
+            earth_pos_inter_times.append(np.array([np.cos(self._earth_zen[i]*(np.pi/180))*np.cos(self._earth_az[i]*(np.pi/180)),
+                                          np.cos(self._earth_zen[i]*(np.pi/180))*np.sin(self._earth_az[i]*(np.pi/180)),
+                                          np.sin(self._earth_zen[i] * (np.pi / 180))]))
+        self._earth_pos_inter_times = np.array(earth_pos_inter_times)
+        #define the opening angle of the earth in degree
+        opening_angle_earth = 67
+
+        array_earth_rate = []
+        array_cgb_rate = []
+        for pos in self._earth_pos_inter_times:
+            earth_rate = np.zeros_like(earth_rates[0])
+            cgb_rate = np.zeros_like(cgb_rates[0])
+            for i, pos_point in enumerate(points):
+                angle_earth = np.arccos(np.dot(pos, pos_point))*(180/np.pi)
+                if angle_earth < opening_angle_earth:
+                    earth_rate += earth_rates[i]
+                else:
+                    cgb_rate += cgb_rates[i]
+            array_earth_rate.append(earth_rate)
+            array_cgb_rate.append(cgb_rate)
+
+        #save them as array and transpose, so from here on self._array_cgb_rate[0] are the expected rates from
+        #the cgb for Ebin 0 for all interpolation times
+        self._array_cgb_rate = np.array(array_cgb_rate).T
+        self._array_earth_rate = np.array(array_earth_rate).T
+        self._cgb_rate_interpolator = interpolate.interp1d(self._sun_time, self._array_cgb_rate)
+        self._earth_rate_interpolator = interpolate.interp1d(self._sun_time, self._array_earth_rate)
+
+    def cgb_rate_array(self, Ebin, met):
+        """
+        Interpolation function for the CGB continuum rate in a certain Ebin
+        :param Ebin: which Ebin
+        :param met: times at which to interpolate
+        :return: array with the CGB rates expected over whole day in a certain Ebin
+        """
+
+        return self._cgb_rate_interpolator(met)[Ebin]
+
+    def earth_rate_array(self, Ebin, met):
+        """
+        Interpolation function for the Earth continuum rate in a certain Ebin
+        :param Ebin: which Ebin
+        :param met: times at which to interpolate
+        :return: array with the Earth rates expected over whole day in a certain Ebin
+        """
+
+        return self._earth_rate_interpolator(met)[Ebin]
+
+    @property
+    def cgb_rate_interpolation_time(self):
+        return self._array_cgb_rate
+
+    @property
+    def earth_rate_interpolation_time(self):
+        return self._array_earth_rate
+
+    @property
+    def earth_az_interpolation_time(self):
+        return self._earth_az
+
+    @property
+    def earth_zen_interpolation_time(self):
+        return self._earth_zen
+
+    @property
+    def earth_pos_interpolation_time(self):
+        return self._earth_pos_inter_times
