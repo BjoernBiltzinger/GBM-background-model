@@ -17,7 +17,7 @@ NO_REBIN = 1E-99
 
 class BackgroundLike(object):
 
-    def __init__(self, data, model, echan):
+    def __init__(self, data, model, echan_list):
         """
         
         :param data: 
@@ -26,7 +26,7 @@ class BackgroundLike(object):
 
         self._data = data       # type: ContinuousData
         self._model = model     # type: Model
-
+        self._echan_list = echan_list #list of all echans which should be fitted
         self._use_SAA = data.use_SAA
 
         self._name = "Count rate detector %s" % self._data._det
@@ -36,7 +36,7 @@ class BackgroundLike(object):
 
         self._free_parameters = self._model.free_parameters
         self._parameters = self._model.parameters
-        self._echan = echan
+
 
         # The data object should return all the time bins that are valid... i.e. non-zero
         self._total_time_bins = self._data.time_bins[2:-2]
@@ -50,9 +50,9 @@ class BackgroundLike(object):
         self._total_time_bin_widths = np.diff(self._total_time_bins, axis=1)[:, 0]
         self._time_bins = self._total_time_bins[self._total_mask]
 
-        # Extract the counts from the data object. should be same size as time bins
-        self._counts = self._data.counts[:, echan][2:-2][self._total_mask]
-        self._total_counts = self._data.counts[:, echan][2:-2]
+        # Extract the counts from the data object. should be same size as time bins. For all echans together
+        self._counts_all_echan = self._data.counts[2:-2][self._total_mask]
+        self._total_counts_all_echan = self._data.counts[2:-2]
 
         self._total_scale_factor = 1.
         self._rebinner = None
@@ -83,7 +83,7 @@ class BackgroundLike(object):
         return self._fit_rebinner.rebin(self.model_counts)[0]
 
 
-    def _evaluate_model(self):
+    def _evaluate_model(self, echan):
         """
         
         loops over time bins and extracts the model counts and returns this array
@@ -92,7 +92,7 @@ class BackgroundLike(object):
         :return: 
         """
 
-        model_counts = self._model.get_counts(self._time_bins, bin_mask=self._total_mask)
+        model_counts = self._model.get_counts(self._time_bins, echan, bin_mask=self._total_mask)
 
         if self._fit_rebinned == True:
 
@@ -112,15 +112,14 @@ class BackgroundLike(object):
 
             parameter.value = new_parameters[i]
 
-    @property
-    def model_counts(self):
+    def model_counts(self, echan):
         """
         Returns the predicted counts from the model for all time bins,
         the saa_mask sets the SAA sections to zero.
         :return:
         """
 
-        return self._model.get_counts(self._total_time_bins, saa_mask=self._saa_mask)
+        return self._model.get_counts(self._total_time_bins, echan, saa_mask=self._saa_mask)
 
     @property
     def get_normalization_parameter_list(self):
@@ -259,11 +258,17 @@ class BackgroundLike(object):
         
         :return: the poisson log likelihood
         """
-
         self._set_free_parameters(parameters)
 
+        log_likelihood_list=[]
+        for echan in self._echan_list:
+            log_likelihood_list.append(self._get_log_likelihood_echan(echan))
+        log_likelihood_list=np.array(log_likelihood_list)
+        return np.sum(log_likelihood_list)
 
-        M = self._evaluate_model()
+    def _get_log_likelihood_echan(self, echan):
+
+        M = self._evaluate_model(echan)
         M_fixed, tiny = self._fix_precision(M)
 
         # Replace negative values for the model (impossible in the Poisson context)
@@ -282,14 +287,12 @@ class BackgroundLike(object):
         # whatever value has log(M_i). Thus, initialize the whole vector v = {v_i}
         # to zero, then overwrite the elements corresponding to D_i > 0
 
-
-        #Use rebinned counts if fir_rebinned is set to true:
+        # Use rebinned counts if fir_rebinned is set to true:
         if self._fit_rebinned == True:
             d_times_logM = self._rebinned_observed_counts_fitting * logM
 
         else:
-            d_times_logM = self._counts * logM
-
+            d_times_logM = self._counts_all_echan[:,echan] * logM
 
         log_likelihood = np.sum(M_fixed - d_times_logM)
 
@@ -376,7 +379,7 @@ class BackgroundLike(object):
         """
         self._grb_mask = np.full(len(self._time_bins), True)
 
-    def display_model(self, data_color='k', model_color='r', step=True, show_data=True, show_residuals=True,
+    def display_model(self, echan, data_color='k', model_color='r', step=True, show_data=True, show_residuals=True,
                       show_legend=True, min_bin_width=1E-99, plot_sources=False, show_grb_trigger=False,
                       show_model=True, change_time=False, show_occ_region=False, **kwargs):
 
@@ -430,10 +433,10 @@ class BackgroundLike(object):
         # Residuals
 
         # we need to get the rebinned counts
-        self._rebinned_observed_counts, = this_rebinner.rebin(self._total_counts)
+        self._rebinned_observed_counts, = this_rebinner.rebin(self._total_counts_all_echan[:,echan])
 
         # the rebinned counts expected from the model
-        self._rebinned_model_counts, = this_rebinner.rebin(self.model_counts)
+        self._rebinned_model_counts, = this_rebinner.rebin(self.model_counts(echan))
 
         self._rebinned_background_counts = np.zeros_like(self._rebinned_observed_counts)
 
@@ -474,7 +477,7 @@ class BackgroundLike(object):
 
         # Mask the array so we don't plot the model where data have been excluded
         # y = expected_model_rate / chan_width
-        y = self.model_counts / self._total_time_bin_widths
+        y = self.model_counts(echan) / self._total_time_bin_widths
 
         x = np.mean(self._total_time_bins - time_ref, axis=1)
 
@@ -486,7 +489,7 @@ class BackgroundLike(object):
 
         if plot_sources:
 
-            source_list = self._get_list_of_sources(self._total_time_bins - time_ref, self._total_time_bin_widths)
+            source_list = self._get_list_of_sources(self._total_time_bins - time_ref, echan, self._total_time_bin_widths)
 
             residual_plot.add_list_of_sources(x, source_list)
 
@@ -505,27 +508,33 @@ class BackgroundLike(object):
                                       yscale='linear',
                                       show_legend=show_legend)
 
-    def _get_list_of_sources(self,time_bins, time_bin_width=1.):
+    def _get_list_of_sources(self,time_bins, echan, time_bin_width=1.):
         """
         Builds a list of the different model sources.
         Each source is a dict containing the label of the source, the data, and the plotting color
         :return:
         """
-
         source_list = []
         color_list = ['b', 'g', 'c', 'm', 'y', 'k', 'w']
-
+        i_index=0
         for i, source_name in enumerate(self._model.continuum_sources):
-            data = self._model.get_continuum_counts(i, time_bins, self._saa_mask)
-            source_list.append({"label": source_name, "data": data / time_bin_width, "color": color_list[i]})
-
+            data = self._model.get_continuum_counts(i, time_bins, self._saa_mask, echan)
+            if np.sum(data) != 0:
+                source_list.append({"label": source_name, "data": data / time_bin_width, "color": color_list[i_index]})
+                i_index+=1
+        for i, source_name in enumerate(self._model._global_sources):
+            data = self._model.get_global_counts(i, time_bins, self._saa_mask, echan)
+            source_list.append({"label": source_name, "data": data / time_bin_width, "color": color_list[i_index]})
+            i_index += 1
         if self._use_SAA:
-            saa_data = self._model.get_saa_counts(self._total_time_bins, self._saa_mask)
-
-            source_list.append({"label": "SAA_decays", "data": saa_data / time_bin_width, "color": color_list[i+1]})
-
-        point_source_data = self._model.get_point_source_counts(self._total_time_bins, self._saa_mask)
-        source_list.append({"label": "Point_sources", "data": point_source_data / time_bin_width, "color": color_list[i + 1]})
+            saa_data = self._model.get_saa_counts(self._total_time_bins, self._saa_mask, echan)
+            if np.sum(saa_data) != 0:
+                source_list.append({"label": "SAA_decays", "data": saa_data / time_bin_width, "color": color_list[i_index]})
+                i_index += 1
+        point_source_data = self._model.get_point_source_counts(self._total_time_bins, self._saa_mask, echan)
+        if np.sum(point_source_data) != 0:
+            source_list.append({"label": "Point_sources", "data": point_source_data / time_bin_width, "color": color_list[i_index]})
+            i_index += 1
         return source_list
 
 
@@ -606,23 +615,23 @@ class BackgroundLike(object):
         return self._use_SAA
 
     # define a function that return the residuals of the fit:
-    def residuals(self):
+    def residuals(self, echan):
         significance_calc_return = Significance(self.data_counts,
-                                                self.model_counts / self._total_scale_factor,
+                                                self.model_counts(echan) / self._total_scale_factor,
                                                 self._total_scale_factor)
         self._residuals_return = significance_calc_return.known_background()
         return np.vstack((self._data.mean_time[2:-2], self._residuals_return)).T
 
-    def residuals_rebinned(self, min_bin_width=NO_REBIN):
+    def residuals_rebinned(self, echan, min_bin_width=NO_REBIN):
         time_ref = 0.
         if (min_bin_width is not NO_REBIN) or (self._rebinner is None):
             this_rebinner = Rebinner(self._total_time_bins - time_ref, min_bin_width, self._total_mask)  # _saa_mask
 
         # we need to get the rebinned counts
-        rebinned_observed_counts, = this_rebinner.rebin(self._total_counts)
+        rebinned_observed_counts, = this_rebinner.rebin(self._total_counts_all_echan[:,echan])
 
         # the rebinned counts expected from the model
-        rebinned_model_counts, = this_rebinner.rebin(self.model_counts)
+        rebinned_model_counts, = this_rebinner.rebin(self.model_counts(echan))
 
         rebinned_background_counts = np.zeros_like(rebinned_observed_counts)
 

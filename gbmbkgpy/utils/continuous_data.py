@@ -818,7 +818,7 @@ class ContinuousData(object):
         self._cgb_rate_interpolator = interpolate.interp1d(self._sun_time, self._array_cgb_rate)
         self._earth_rate_interpolator = interpolate.interp1d(self._sun_time, self._array_earth_rate)
 
-    def cgb_rate_array(self, Ebin, met):
+    def cgb_rate_array(self, met):
         """
         Interpolation function for the CGB continuum rate in a certain Ebin
         :param Ebin: which Ebin
@@ -826,9 +826,9 @@ class ContinuousData(object):
         :return: array with the CGB rates expected over whole day in a certain Ebin
         """
 
-        return self._cgb_rate_interpolator(met)[Ebin]
+        return self._cgb_rate_interpolator(met)
 
-    def earth_rate_array(self, Ebin, met):
+    def earth_rate_array(self, met):
         """
         Interpolation function for the Earth continuum rate in a certain Ebin
         :param Ebin: which Ebin
@@ -836,7 +836,7 @@ class ContinuousData(object):
         :return: array with the Earth rates expected over whole day in a certain Ebin
         """
 
-        return self._earth_rate_interpolator(met)[Ebin]
+        return self._earth_rate_interpolator(met)
 
     @property
     def cgb_rate_interpolation_time(self):
