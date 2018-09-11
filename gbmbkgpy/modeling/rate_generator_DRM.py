@@ -4,6 +4,23 @@ import os
 from gbmbkgpy.io.package_data import get_path_of_data_dir, get_path_of_data_file, get_path_of_external_data_dir
 import astropy.io.fits as fits
 
+try:
+
+    # see if we have mpi and/or are upalsing parallel
+
+    from mpi4py import MPI
+    if MPI.COMM_WORLD.Get_size() > 1: # need parallel capabilities
+        using_mpi = True
+
+        comm = MPI.COMM_WORLD
+        rank = comm.Get_rank()
+
+    else:
+
+        using_mpi = False
+except:
+
+    using_mpi = False
 
 
 class Rate_Generator_DRM(object):
@@ -95,9 +112,15 @@ class Rate_Generator_DRM(object):
     @property
     def points(self):
         return self._points
+
+    @property
+    def Ngrid(self):
+        return self._Ngrid
+
     @property
     def Ebin_in_edge(self):
         return self._Ebin_in_edge
+
     @property
     def Ebin_out_edge(self):
         return self._Ebin_out_edge
@@ -191,7 +214,7 @@ class Rate_Generator_DRM(object):
 
 
 
-    def calculate_rates(self):
+    def calculate_rates(self, points_index_start, points_index_stop):
         """
         Function to calculate the expected rates from all the points on the unit sphere for the assumed
         spectra for earth and cgb
@@ -211,19 +234,17 @@ class Rate_Generator_DRM(object):
         #loop the points array and calculate the expected rate in every Ebin.
         #This is done by convolving the true flux we get from the spectrum we assume for earth and cgb
         # with the response matrix for every point
-        i = 0
         folded_rates_earth = []
         folded_rates_cgb = []
-        while i < len(self._points):
-            rsp = self._response(self._points[i, 0], self._points[i, 1], self._points[i, 2], DRM)
+        for points in self._points[points_index_start:points_index_stop]:
+            rsp = self._response(points[0], points[1], points[2], DRM)
             true_flux_cgb = self._integral_cgb(rsp.monte_carlo_energies[:-1], rsp.monte_carlo_energies[1:])
             true_flux_earth = self._integral_earth(rsp.monte_carlo_energies[:-1], rsp.monte_carlo_energies[1:])
             folded_rate_cgb = np.dot(true_flux_cgb, rsp.matrix.T) * sr_points
             folded_rate_earth = np.dot(true_flux_earth, rsp.matrix.T) * sr_points
             folded_rates_cgb.append(folded_rate_cgb)
             folded_rates_earth.append(folded_rate_earth)
-            i += 1
         folded_rates_cgb=np.array(folded_rates_cgb)
         folded_rates_earth=np.array(folded_rates_earth)
 
-        return [self._points, folded_rates_earth, folded_rates_cgb]
+        return [self._points[points_index_start:points_index_stop], folded_rates_earth, folded_rates_cgb]
