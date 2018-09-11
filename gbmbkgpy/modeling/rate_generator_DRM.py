@@ -1,5 +1,9 @@
 import numpy as np
 from gbm_drm_gen.drmgen import DRMGen
+import os
+from gbmbkgpy.io.package_data import get_path_of_data_dir, get_path_of_data_file, get_path_of_external_data_dir
+import astropy.io.fits as fits
+
 
 
 class Rate_Generator_DRM(object):
@@ -9,7 +13,7 @@ class Rate_Generator_DRM(object):
     in the satellite and partial energy loss of the photons.
     The rates are calculated on a spherical grid around the detector.
     """
-    def __init__(self,  det, Ngrid=None, Ebin_edge_incoming=None, Ebin_edge_detector=None):
+    def __init__(self, det, day, Ngrid=None, Ebin_edge_incoming=None, data_type='ctime'):
         """
         initialize the grid around the detector and set the values for the Ebins of incoming and detected photons
         :param det: which detector is used
@@ -17,20 +21,28 @@ class Rate_Generator_DRM(object):
         :param Ebin_edge_incoming: Ebins edges of incomming photons
         :param Ebin_edge_detector: Ebins edges of detector
         """
+        self._data_type = data_type
+
         #if no values for Ngrid, Ebin_incoming and/or Ebin_detector are given we use the standard values
         if Ngrid==None:
             Ngrid=40000
         else:
             assert type(Ngrid) == int, 'Ngrid has to be an integer!'
         if Ebin_edge_incoming==None:
-            Ebin_edge_incoming=np.array(np.logspace(0.5, 3.4, 301), dtype=np.float32)
-        #for 8 Ebin data
-        if Ebin_edge_detector==None:
-            Ebin_edge_detector=np.array([4.,12.,27.,50.,102.,295.,540.,985.,2000.], dtype=np.float32)
+            # incoming spectrum between ~3 and ~5000 keV
+            Ebin_edge_incoming=np.array(np.logspace(0.5, 3.7, 301), dtype=np.float32)
+        if data_type=='ctime' or data_type=='cspec':
+            datafile_name = 'glg_{0}_{1}_{2}_v00.pha'.format(data_type, det, day)
+            datafile_path = os.path.join(get_path_of_external_data_dir(), data_type, day, datafile_name)
+            with fits.open(datafile_path) as f:
+                edge_start = f['EBOUNDS'].data['E_MIN']
+                edge_stop = f['EBOUNDS'].data['E_MAX']
+            self._Ebin_out_edge = np.append(edge_start, edge_stop[-1])
+        else:
+            print('Use a valid data_typ. Either ctime or cspec')
         self._points = np.array(self._fibonacci_sphere(samples=Ngrid))
         self._Ngrid = Ngrid
         self._Ebin_in_edge = Ebin_edge_incoming
-        self._Ebin_out_edge = Ebin_edge_detector
         if det[0]=='n':
             if det[1]=='a':
                 self._det=10

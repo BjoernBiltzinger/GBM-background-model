@@ -62,8 +62,7 @@ class BackgroundLike(object):
         self._grb_triggers = {}
         self._occ_region = {}
 
-
-    def _rebin_counts(self, min_bin_width):
+    def _create_rebinner_before_fit(self, min_bin_width):
         """
         This method rebins the observed counts bevore the fitting process.
         The fitting will be done on the rebinned counts afterwards!
@@ -74,14 +73,20 @@ class BackgroundLike(object):
 
         self._fit_rebinner = Rebinner(self._total_time_bins, min_bin_width, self._saa_mask)
 
+
+    def _rebinned_observed_counts_fitting(self):
         # Rebinn the observec counts on time
-        self._rebinned_observed_counts_fitting, = self._fit_rebinner.rebin(self._total_counts)
+        self._rebinned_observed_counts_fitting_all_echan=[]
+        for echan in self._echan_list:
+            self._rebinned_observed_counts_fitting_all_echan.append(self._fit_rebinner.rebin(self._total_counts_all_echan[:, echan]))
+        self._rebinned_observed_counts_fitting_all_echan=np.array(self._rebinned_observed_counts_fitting_all_echan)
 
-    @property
-    def _rebinned_model_counts_fiting(self):
+    def _rebinned_model_counts_fitting(self):
         # the rebinned expected counts from the model
-        return self._fit_rebinner.rebin(self.model_counts)[0]
-
+        self._rebinned_model_counts_fitting_all_echan = []
+        for echan in self._echan_list:
+            self._rebinned_model_counts_fitting_all_echan.append(self._fit_rebinner.rebin(self.model_counts(echan))[0])
+        self._rebinned_model_counts_fitting_all_echan=np.array(self._rebinned_model_counts_fitting_all_echan)
 
     def _evaluate_model(self, echan):
         """
@@ -95,8 +100,8 @@ class BackgroundLike(object):
         model_counts = self._model.get_counts(self._time_bins, echan, bin_mask=self._total_mask)
 
         if self._fit_rebinned == True:
-
-            return self._rebinned_model_counts_fiting
+            index = int(np.argwhere(self._echan_list == echan))
+            return self._rebinned_model_counts_fitting_all_echan[index]
 
         else:
             return model_counts
@@ -259,7 +264,9 @@ class BackgroundLike(object):
         :return: the poisson log likelihood
         """
         self._set_free_parameters(parameters)
-
+        if self._fit_rebinned==True:
+            self._rebinned_observed_counts_fitting()
+            self._rebinned_model_counts_fitting()
         log_likelihood_list=[]
         for echan in self._echan_list:
             log_likelihood_list.append(self._get_log_likelihood_echan(echan))
@@ -289,7 +296,8 @@ class BackgroundLike(object):
 
         # Use rebinned counts if fir_rebinned is set to true:
         if self._fit_rebinned == True:
-            d_times_logM = self._rebinned_observed_counts_fitting * logM
+            index = int(np.argwhere(self._echan_list==echan))
+            d_times_logM = self._rebinned_observed_counts_fitting_all_echan[index] * logM
 
         else:
             d_times_logM = self._counts_all_echan[:,echan] * logM
