@@ -30,22 +30,17 @@ class ContinuousData(object):
         self._day = date
         self._use_SAA = use_SAA
         self._rate_generator_DRM = rate_generator_DRM
-        assert 'ctime' in self._data_type, 'currently only working for CTIME data'
+        #assert 'ctime' in self._data_type, 'currently only working for CTIME data'
         assert 'n' in self._det, 'currently only working NAI detectors'
 
 
-        ### Download data-file and poshist file if not existing:
+        ### Define the filepaths of the data-file and poshist file:
         datafile_name = 'glg_{0}_{1}_{2}_v00.pha'.format(self._data_type, self._det, self._day)
         datafile_path = os.path.join(get_path_of_external_data_dir(), self._data_type, self._day, datafile_name)
 
         poshistfile_name = 'glg_{0}_all_{1}_v00.fit'.format('poshist', self._day)
         poshistfile_path = os.path.join(get_path_of_external_data_dir(), 'poshist', poshistfile_name)
 
-        if not file_existing_and_readable(datafile_path):
-            download_data_file(self._day, self._data_type, self._det)
-
-        if not file_existing_and_readable(poshistfile_path):
-            download_data_file(self._day, 'poshist')
         ###
 
         self._pos_hist = poshistfile_path
@@ -92,7 +87,6 @@ class ContinuousData(object):
         self._counts_combined = np.sum(self._counts, axis=1)
         self._counts_combined_rate = self._counts_combined / self.time_bin_length
         self._n_time_bins, self._n_channels = self._counts.shape
-
         # Start precomputation of arrays:
         self._setup_geometery()
         self._compute_saa_regions()
@@ -421,18 +415,18 @@ class ContinuousData(object):
         bins_to_add = 8
 
         self._zero_idx = self._counts_combined == 0.
-
         idx = (self._zero_idx).nonzero()[0]
-
         slice_idx = np.array(slice_disjoint(idx))
 
-        # Only the slices which are longer than 8 time bins are used as saa
-        slice_idx = slice_idx[np.where(slice_idx[:, 1] - slice_idx[:, 0] > min_saa_bin_width)]
+        # Only the slices which are longer than 8 time bins are used as saa (only for ctime data)
+        if self._data_type=='cspec':
+            slice_idx = slice_idx[np.where(slice_idx[:, 1] - slice_idx[:, 0] > 0)]
+        else:
+            slice_idx = slice_idx[np.where(slice_idx[:, 1] - slice_idx[:, 0] > min_saa_bin_width)]
 
 
         # Add bins_to_add to bin_mask to exclude the bins with corrupt data:
         # Check first that the start and stop stop of the mask is not the beginning or end of the day
-
         slice_idx[:, 0][np.where(slice_idx[:, 0] >= 8)] =\
             slice_idx[:, 0][np.where(slice_idx[:, 0] >= 8)] - bins_to_add
 
@@ -857,3 +851,8 @@ class ContinuousData(object):
     @property
     def earth_pos_interpolation_time(self):
         return self._earth_pos_inter_times
+
+    @property
+    def saa_slices(self):
+        return self._saa_slices
+

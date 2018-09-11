@@ -1,6 +1,6 @@
 import os
 import shutil
-
+from gbmbkgpy.io.file_utils import file_existing_and_readable
 
 from gbmbkgpy.io.package_data import get_path_of_data_dir, get_path_of_external_data_dir
 from astropy.utils.data import download_file
@@ -94,3 +94,17 @@ def download_data_file(date, type, detector='all'):
     file_name = 'glg_{0}_{1}_{2}_v00.{3}'.format(type, detector, date, file_type)
 
     shutil.move(path_to_file, file_path + '/' + file_name)
+
+def download_files(data_type, det, day):
+    ### Download data-file and poshist file if not existing:
+    datafile_name = 'glg_{0}_{1}_{2}_v00.pha'.format(data_type, det, day)
+    datafile_path = os.path.join(get_path_of_external_data_dir(), data_type, day, datafile_name)
+
+    poshistfile_name = 'glg_{0}_all_{1}_v00.fit'.format('poshist', day)
+    poshistfile_path = os.path.join(get_path_of_external_data_dir(), 'poshist', poshistfile_name)
+
+    if not file_existing_and_readable(datafile_path):
+        download_data_file(day, data_type, det)
+
+    if not file_existing_and_readable(poshistfile_path):
+        download_data_file(day, 'poshist')
