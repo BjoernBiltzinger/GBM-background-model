@@ -27,25 +27,23 @@ def setup_sources(cd, ep, echan, include_point_sources=False, point_source_list=
         PS_Sources_list = []
 
         for i, ps in enumerate(ep.point_sources.itervalues()):
-            PS_Continuum_dic[ps.name] = Point_Source_Continuum(str(i), str(echan))
-            PS_Continuum_dic[ps.name].set_function_array(cd.effective_angle(ps.calc_occ_array(cd.time_bins[2:-2]),
-                                                                            echan))
-            PS_Continuum_dic[ps.name].set_earth_zero(ps.earth_occ_of_ps(cd.mean_time[2:-2]))
+            PS_Continuum_dic[ps.name + str(echan)] = Point_Source_Continuum(str(i), str(echan))
+            PS_Continuum_dic[ps.name + str(echan)].set_function_array(ps.ps_rate_array(cd.time_bins[2:-2], echan))
 
-
-            PS_Sources_list.append(PointSource(ps.name, PS_Continuum_dic[ps.name], echan))
+            PS_Sources_list.append(PointSource(ps.name + str(echan), PS_Continuum_dic[ps.name + str(echan)], echan))
     if len(point_source_list)>0:
         ep.build_some_source(cd, point_source_list)
         PS_Continuum_dic = {}
         PS_Sources_list = []
 
         for i, ps in enumerate(ep.point_sources.itervalues()):
-            PS_Continuum_dic[ps.name] = Point_Source_Continuum(str(i),str(echan))
-            PS_Continuum_dic[ps.name].set_function_array(cd.effective_angle(ps.calc_occ_array(cd.time_bins[2:-2]),
-                                                                            echan))
-            PS_Continuum_dic[ps.name].set_earth_zero(ps.earth_occ_of_ps(cd.mean_time[2:-2]))
+            PS_Continuum_dic[ps.name + str(echan)] = Point_Source_Continuum(str(i),str(echan))
+            #PS_Continuum_dic[ps.name].set_function_array(cd.effective_angle(ps.calc_occ_array(cd.time_bins[2:-2]),
+            #                                                                echan))
+            PS_Continuum_dic[ps.name + str(echan)].set_function_array(ps.ps_rate_array(cd.time_bins[2:-2], echan))
+            #PS_Continuum_dic[ps.name].set_earth_zero(ps.earth_occ_of_ps(cd.mean_time[2:-2]))
 
-            PS_Sources_list.append(PointSource(ps.name, PS_Continuum_dic[ps.name], echan))
+            PS_Sources_list.append(PointSource(ps.name + str(echan), PS_Continuum_dic[ps.name + str(echan)], echan))
     # SAA Decay Source
     SAA_Decay_list = []
     if cd.use_SAA:
