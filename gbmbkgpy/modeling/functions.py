@@ -111,11 +111,16 @@ class Solar_Continuum(ContinuumFunction):
     def __init__(self):
         super(Solar_Continuum, self).__init__('norm_solar')
 
-class Earth_Albedo_Continuum(PointSourceFunction):
+class Earth_Albedo_Continuum(ContinuumFunction):
     def __init__(self):
         super(Earth_Albedo_Continuum, self).__init__('norm_earth_albedo')
 
 class Point_Source_Continuum(PointSourceFunction):
     def __init__(self, point_source_nr):
         super(Point_Source_Continuum, self).__init__('norm_point_source-' + point_source_nr)
+
+class offset(ContinuumFunction):
+    def __init__(self):
+        super(offset, self).__init__('constant')
+
 
