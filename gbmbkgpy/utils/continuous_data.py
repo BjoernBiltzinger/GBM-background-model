@@ -109,7 +109,8 @@ class ContinuousData(object):
         # Start precomputation of arrays:
         self._setup_geometery()
         self._compute_saa_regions()
-        self._earth_and_cgb_rate_array()
+        self._earth_rate_array()
+        self._cgb_rate_array()
 
         # Calculate the MET time for the day
         day = self._day
@@ -778,66 +779,110 @@ class ContinuousData(object):
 
         return self._use_SAA
 
-    def _earth_and_cgb_rate_array(self):
+    def _earth_rate_array(self):
+        """
+        Calculate the earth_rate_array for all interpolation times for which the geometry was calculated. This supports
+        MPI to reduce the calculation time.
+        To calculate the earth_rate_array the responses created on a grid in rate_gernerator_DRM are used. All points
+        that are occulted by the earth are added, assuming a spectrum specified in rate_generator_DRM for the earth
+        albedo.
+        :return:
+        """
         Ngrid = self._rate_generator_DRM.Ngrid
+        points = self._rate_generator_DRM.points
         if using_mpi:
-            points_per_rank = float(Ngrid)/float(size)
-            points_lower_index = int(np.floor(points_per_rank*rank))
-            points_upper_index = int(np.floor(points_per_rank*(rank+1)))
-            points, earth_rates, cgb_rates = self._rate_generator_DRM.calculate_rates(points_lower_index, points_upper_index)
-            #gather in rank=0
-            points_gather = comm.gather(points, root=0)
+            #seperate the Points to all ranks
+            points_per_rank = float(Ngrid) / float(size)
+            points_lower_index = int(np.floor(points_per_rank * rank))
+            points_upper_index = int(np.floor(points_per_rank * (rank + 1)))
+            #get the earth rates for all points that are covered by this rank
+            earth_rates = self._rate_generator_DRM.calculate_earth_rates(points_lower_index,points_upper_index)
+            # gather in rank=0
             earth_rates_gather = comm.gather(earth_rates, root=0)
-            cgb_rates_gather = comm.gather(cgb_rates, root=0)
-            #put them in one list
-            if rank==0:
-                points_gather=np.concatenate(points_gather)
+            # put them in one list
+            if rank == 0:
                 earth_rates_gather = np.concatenate(earth_rates_gather)
-                cgb_rates_gather = np.concatenate(cgb_rates_gather)
-            #broadcast the resulting list to all ranks
-            points = comm.bcast(points_gather, root=0)
-            earth_rates = comm.bcast(points_gather, root=0)
-            cgb_rates = comm.bcast(points_gather, root=0)
+            # broadcast the resulting list to all ranks
+            earth_rates = comm.bcast(earth_rates_gather, root=0)
 
         else:
-            #get points of the grid and corresponding rates by earth and cgb spectrum
-            points, earth_rates, cgb_rates = self._rate_generator_DRM.calculate_rates(0, Ngrid)
-
-        #get the earth direction at the interpolation times; zen angle from -90 to 90
+            # get points of the grid and corresponding rates by earth spectrum
+            earth_rates= self._rate_generator_DRM.calculate_earth_rates(0, Ngrid)
+        # get the earth direction at the interpolation times; zen angle from -90 to 90
         earth_pos_inter_times = []
         for i in range(0, len(self._earth_zen)):
-            earth_pos_inter_times.append(np.array([np.cos(self._earth_zen[i]*(np.pi/180))*np.cos(self._earth_az[i]*(np.pi/180)),
-                                          np.cos(self._earth_zen[i]*(np.pi/180))*np.sin(self._earth_az[i]*(np.pi/180)),
-                                          np.sin(self._earth_zen[i] * (np.pi / 180))]))
+            earth_pos_inter_times.append(
+                np.array([np.cos(self._earth_zen[i] * (np.pi / 180)) * np.cos(self._earth_az[i] * (np.pi / 180)),
+                          np.cos(self._earth_zen[i] * (np.pi / 180)) * np.sin(self._earth_az[i] * (np.pi / 180)),
+                          np.sin(self._earth_zen[i] * (np.pi / 180))]))
         self._earth_pos_inter_times = np.array(earth_pos_inter_times)
-        #define the opening angle of the earth in degree
+        # define the opening angle of the earth in degree
         opening_angle_earth = 67
-
         array_earth_rate = []
-        array_cgb_rate = []
         for pos in self._earth_pos_inter_times:
             earth_rate = np.zeros_like(earth_rates[0])
-            cgb_rate = np.zeros_like(cgb_rates[0])
             for i, pos_point in enumerate(points):
-                angle_earth = np.arccos(np.dot(pos, pos_point))*(180/np.pi)
+                angle_earth = np.arccos(np.dot(pos, pos_point)) * (180 / np.pi)
                 if angle_earth < opening_angle_earth:
                     earth_rate += earth_rates[i]
-                else:
-                    cgb_rate += cgb_rates[i]
             array_earth_rate.append(earth_rate)
-            array_cgb_rate.append(cgb_rate)
-
-        #save them as array and transpose, so from here on self._array_cgb_rate[0] are the expected rates from
-        #the cgb for Ebin 0 for all interpolation times
-        self._array_cgb_rate = np.array(array_cgb_rate).T
         self._array_earth_rate = np.array(array_earth_rate).T
-        self._cgb_rate_interpolator = interpolate.interp1d(self._sun_time, self._array_cgb_rate)
         self._earth_rate_interpolator = interpolate.interp1d(self._sun_time, self._array_earth_rate)
+
+    def _cgb_rate_array(self):
+        """
+        Calculate the cgb_rate_array for all interpolation times for which the geometry was calculated. This supports
+        MPI to reduce the calculation time.
+        To calculate the cgb_rate_array the responses created on a grid in rate_gernerator_DRM are used. All points
+        that are not occulted by the earth are added, assuming a spectrum specified in rate_generator_DRM for the cgb
+        spectrum.
+        :return:
+        """
+        Ngrid = self._rate_generator_DRM.Ngrid
+        points = self._rate_generator_DRM.points
+        if using_mpi:
+            #seperate the Points to all ranks
+            points_per_rank = float(Ngrid) / float(size)
+            points_lower_index = int(np.floor(points_per_rank * rank))
+            points_upper_index = int(np.floor(points_per_rank * (rank + 1)))
+            #get the cgb rates for all points that are covered by this rank
+            cgb_rates = self._rate_generator_DRM.calculate_cgb_rates(points_lower_index,points_upper_index)
+            # gather in rank=0
+            cgb_rates_gather = comm.gather(cgb_rates, root=0)
+            # put them in one list
+            if rank == 0:
+                cgb_rates_gather = np.concatenate(cgb_rates_gather)
+            # broadcast the resulting list to all ranks
+            cgb_rates = comm.bcast(cgb_rates_gather, root=0)
+
+        else:
+            # get points of the grid and corresponding rates by cgb spectrum
+            cgb_rates = self._rate_generator_DRM.calculate_cgb_rates(0, Ngrid)
+        # get the earth direction at the interpolation times; zen angle from -90 to 90
+        earth_pos_inter_times = []
+        for i in range(0, len(self._earth_zen)):
+            earth_pos_inter_times.append(
+                np.array([np.cos(self._earth_zen[i] * (np.pi / 180)) * np.cos(self._earth_az[i] * (np.pi / 180)),
+                          np.cos(self._earth_zen[i] * (np.pi / 180)) * np.sin(self._earth_az[i] * (np.pi / 180)),
+                          np.sin(self._earth_zen[i] * (np.pi / 180))]))
+        self._earth_pos_inter_times = np.array(earth_pos_inter_times)
+        # define the opening angle of the earth in degree
+        opening_angle_earth = 67
+        array_cgb_rate = []
+        for pos in self._earth_pos_inter_times:
+            cgb_rate = np.zeros_like(cgb_rates[0])
+            for i, pos_point in enumerate(points):
+                angle_earth = np.arccos(np.dot(pos, pos_point)) * (180 / np.pi)
+                if angle_earth > opening_angle_earth:
+                    cgb_rate += cgb_rates[i]
+            array_cgb_rate.append(cgb_rate)
+        self._array_cgb_rate = np.array(array_cgb_rate).T
+        self._cgb_rate_interpolator = interpolate.interp1d(self._sun_time, self._array_cgb_rate)
+
 
     def cgb_rate_array(self, met):
         """
         Interpolation function for the CGB continuum rate in a certain Ebin
-        :param Ebin: which Ebin
         :param met: times at which to interpolate
         :return: array with the CGB rates expected over whole day in a certain Ebin
         """
@@ -847,7 +892,6 @@ class ContinuousData(object):
     def earth_rate_array(self, met):
         """
         Interpolation function for the Earth continuum rate in a certain Ebin
-        :param Ebin: which Ebin
         :param met: times at which to interpolate
         :return: array with the Earth rates expected over whole day in a certain Ebin
         """

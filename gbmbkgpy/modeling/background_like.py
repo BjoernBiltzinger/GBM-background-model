@@ -460,7 +460,6 @@ class BackgroundLike(object):
         residual_errors = None
         self._residuals = significance_calc.known_background()
 
-
         residual_plot.add_data(np.mean( self._rebinned_time_bins, axis=1),
                                         self._rebinned_observed_counts / self._rebinned_time_bin_widths,
                                         self._residuals,
