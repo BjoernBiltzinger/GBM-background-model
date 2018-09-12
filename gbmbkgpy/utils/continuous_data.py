@@ -193,9 +193,9 @@ class ContinuousData(object):
     def effective_angle(self, angle, channel):
         """
         Interpolation function for the Solar Continuum
-        :param channel: 
-        :param angle: 
-        :return: 
+        :param channel:
+        :param angle:
+        :return:
         """
 
         assert isinstance(channel,int), 'channel must be an integer'
@@ -310,6 +310,11 @@ class ContinuousData(object):
         sun_time = []
         earth_az = []  # azimuth angle of earth in sat. frame
         earth_zen = []  # zenith angle of earth in sat. frame
+        earth_position = [] #earth pos in icrs frame (skycoord)
+
+        #additionally save the quaternion and the sc_pos of every time step. Needed for PS later.
+        quaternion = []
+        sc_pos =[]
 
         if using_mpi:
             #if using mpi split the times at which the geometry is calculated to all ranks
@@ -318,8 +323,10 @@ class ContinuousData(object):
             times_lower_bound_index = int(np.floor(rank*times_per_rank))
             times_upper_bound_index = int(np.floor((rank+1)*times_per_rank))
             for mean_time in list_times_to_calculate[times_lower_bound_index:times_upper_bound_index]:
-                det = gbm_detector_list[self._det](quaternion=self._position_interpolator.quaternion(mean_time),
-                                                   sc_pos=self._position_interpolator.sc_pos(mean_time),
+                quaternion_step = self._position_interpolator.quaternion(mean_time)
+                sc_pos_step = self._position_interpolator.sc_pos(mean_time)
+                det = gbm_detector_list[self._det](quaternion=quaternion_step,
+                                                   sc_pos=sc_pos_step,
                                                    time=astro_time.Time(self._position_interpolator.utc(mean_time)))
 
                 sun_angle.append(det.sun_angle.value)
@@ -327,12 +334,18 @@ class ContinuousData(object):
                 az, zen = det.earth_az_zen_sat
                 earth_az.append(az)
                 earth_zen.append(zen)
+                earth_position.append(det.earth_position)
+
+                quaternion.append(quaternion_step)
+                sc_pos.append(sc_pos_step)
             #get the last data point with rank 0
             if rank==0:
                 mean_time = self.mean_time[-2]
+                quaternion_step = self._position_interpolator.quaternion(mean_time)
+                sc_pos_step = self._position_interpolator.sc_pos(mean_time)
 
-                det = gbm_detector_list[self._det](quaternion=self._position_interpolator.quaternion(mean_time),
-                                                   sc_pos=self._position_interpolator.sc_pos(mean_time),
+                det = gbm_detector_list[self._det](quaternion=quaternion_step,
+                                                   sc_pos=sc_pos_step,
                                                    time=astro_time.Time(self._position_interpolator.utc(mean_time)))
 
                 sun_angle.append(det.sun_angle.value)
@@ -340,28 +353,48 @@ class ContinuousData(object):
                 az, zen = det.earth_az_zen_sat
                 earth_az.append(az)
                 earth_zen.append(zen)
+                earth_position.append(det.earth_position)
+
+                quaternion.append(quaternion_step)
+                sc_pos.append(sc_pos_step)
             #make the list numpy arrays
             sun_angle = np.array(sun_angle)
             sun_time = np.array(sun_time)
             earth_az = np.array(earth_az)
             earth_zen = np.array(earth_zen)
+            earth_position = np.array(earth_position)
+
+            quaternion = np.array(quaternion)
+            sc_pos = np.array(sc_pos)
             #gather all results in rank=0
             sun_angle_gather = comm.gather(sun_angle, root=0)
             sun_time_gather = comm.gather(sun_time, root=0)
             earth_az_gather = comm.gather(earth_az, root=0)
             earth_zen_gather = comm.gather(earth_zen, root=0)
+            earth_position_gather = comm.gather(earth_position, root=0)
+
+
+            quaternion_gather = comm.gather(quaternion, root=0)
+            sc_pos_gather = comm.gather(sc_pos, root=0)
             #make one list out of this
             if rank == 0:
                 sun_angle_gather = np.concatenate(sun_angle_gather)
                 sun_time_gather = np.concatenate(sun_time_gather)
                 earth_az_gather = np.concatenate(earth_az_gather)
                 earth_zen_gather = np.concatenate(earth_zen_gather)
+                earth_position_gather = np.concatenate(earth_position_gather)
+
+                quaternion_gather=np.concatenate(quaternion_gather)
+                sc_pos_gather = np.concatenate(sc_pos_gather)
             #broadcast the final arrays again to all ranks
             sun_angle = comm.bcast(sun_angle_gather, root=0)
             sun_time = comm.bcast(sun_time_gather, root=0)
             earth_az = comm.bcast(earth_az_gather, root=0)
             earth_zen = comm.bcast(earth_zen_gather, root=0)
+            earth_position = comm.bcast(earth_position_gather, root=0)
 
+            quaternion = comm.bcast(quaternion_gather, root=0)
+            sc_pos = comm.bcast(sc_pos_gather, root=0)
 
         else:
             # go through a subset of times and calculate the sun angle with GBM geometry
@@ -370,8 +403,10 @@ class ContinuousData(object):
             with progress_bar(n_bins_to_calculate, title='Calculating sun and earth position') as p:
 
                 for mean_time in self.mean_time[::n_skip]:
-                    det = gbm_detector_list[self._det](quaternion=self._position_interpolator.quaternion(mean_time),
-                                                       sc_pos=self._position_interpolator.sc_pos(mean_time),
+                    quaternion_step = self._position_interpolator.quaternion(mean_time)
+                    sc_pos_step = self._position_interpolator.sc_pos(mean_time)
+                    det = gbm_detector_list[self._det](quaternion=quaternion_step,
+                                                       sc_pos=sc_pos_step,
                                                        time=astro_time.Time(self._position_interpolator.utc(mean_time)))
 
                     sun_angle.append(det.sun_angle.value)
@@ -379,6 +414,10 @@ class ContinuousData(object):
                     az, zen = det.earth_az_zen_sat
                     earth_az.append(az)
                     earth_zen.append(zen)
+                    earth_position.append(det.earth_position)
+
+                    quaternion.append(quaternion_step)
+                    sc_pos.append(sc_pos_step)
 
                     p.increase()
 
@@ -386,8 +425,10 @@ class ContinuousData(object):
 
             mean_time = self.mean_time[-2]
 
-            det = gbm_detector_list[self._det](quaternion=self._position_interpolator.quaternion(mean_time),
-                                               sc_pos=self._position_interpolator.sc_pos(mean_time),
+            quaternion_step = self._position_interpolator.quaternion(mean_time)
+            sc_pos_step = self._position_interpolator.sc_pos(mean_time)
+            det = gbm_detector_list[self._det](quaternion=quaternion_step,
+                                               sc_pos=sc_pos_step,
                                                time=astro_time.Time(self._position_interpolator.utc(mean_time)))
 
             sun_angle.append(det.sun_angle.value)
@@ -395,14 +436,20 @@ class ContinuousData(object):
             az, zen = det.earth_az_zen_sat
             earth_az.append(az)
             earth_zen.append(zen)
+            earth_position.append(det.earth_position)
 
+            quaternion.append(quaternion_step)
+            sc_pos.append(sc_pos_step)
 
 
         self._sun_angle = sun_angle
         self._sun_time = sun_time
         self._earth_az = earth_az
         self._earth_zen = earth_zen
+        self._earth_position = earth_position
 
+        self._quaternion = quaternion
+        self._sc_pos = sc_pos
 
         # interpolate it
 
@@ -674,6 +721,16 @@ class ContinuousData(object):
         del eff_area_frac_0, occ_circ_eff, occ_circ_eff_0, free_circ_eff, ang_fac
 
     @property
+    def quaternion(self):
+
+        return self._quaternion
+
+    @property
+    def sc_pos(self):
+
+        return self._sc_pos
+
+    @property
     def pointing(self):
 
         return self._pointing
@@ -921,4 +978,8 @@ class ContinuousData(object):
     @property
     def saa_slices(self):
         return self._saa_slices
+
+    @property
+    def rate_generator_DRM(self):
+        return self._rate_generator_DRM
 

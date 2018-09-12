@@ -106,6 +106,8 @@ class Rate_Generator_DRM(object):
         self._index2_earth = 1.72
         self._break_energy_earth = 33.7
 
+        #Points sources spectrum
+        self._index_ps = 2
     def _fibonacci_sphere(self, samples=1):
         rnd = 1.
 
@@ -317,3 +319,56 @@ class Rate_Generator_DRM(object):
             folded_rates_cgb.append(folded_rate_cgb)
 
         return np.array(folded_rates_cgb)
+
+    ###################################################### FOR POINTSOURCES
+
+    def _spectrum_ps(self, energy, C, index):
+        """
+        define the function of a power law. Needed for PS spectrum
+        :param energy:
+        :param C:
+        :param index:
+        :return:
+        """
+        return C / energy**index
+
+    def _differential_flux_ps(self, e):
+        """
+        calculate the diff. flux with the constants defined for the earth
+        :param e: Energy of incoming photon
+        :return: differential flux
+        """
+        C = 1  # set the constant=1 will be fitted later to fit the data best
+        return self._spectrum_ps(e, C, self._index_ps)
+
+    def _integral_ps(self, e1, e2):
+        """
+        method to integrate the diff. flux over the Ebins of the incoming photons
+        :param e1: lower bound of Ebin_in
+        :param e2: upper bound of Ebin_in
+        :return: flux in the Ebin_in
+        """
+        return (e2 - e1) / 6.0 * (
+                self._differential_flux_ps(e1) + 4 * self._differential_flux_ps((e1 + e2) / 2.0) +
+                self._differential_flux_ps(e2))
+
+    def calculate_ps_rates(self, points_index_start, points_index_stop):
+        """
+        Function to calculate the expected rates from all the points on the unit sphere for the assumed
+        spectra for a ps. Parameter important for MPI calculation.
+        :param points_index_start:
+        :param points_index_stop:
+        :return:
+        """
+        # loop the points array and calculate the expected rate in every Ebin.
+        # This is done by convolving the true flux we get from the spectrum we assume for ps
+        # with the response matrix for every point
+        folded_rates_ps = []
+        for i in range(points_index_start, points_index_stop):
+            # get the response of the i'th point of the grid (precalculated above)
+            rsp = self._Response_array[i]
+            true_flux_ps = self._integral_ps(rsp.monte_carlo_energies[:-1], rsp.monte_carlo_energies[1:])
+            folded_rate_ps = np.dot(true_flux_ps, rsp.matrix.T)
+            folded_rates_ps.append(folded_rate_ps)
+
+        return np.array(folded_rates_ps)
