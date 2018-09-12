@@ -56,9 +56,8 @@ class ContinuumFunction(Function):
 
         assert isinstance(coefficient_name, str)
 
-        # build the constant
-
-        K = Parameter(coefficient_name, initial_value=1., min_value=0, max_value=None, delta=0.1, normalization=True)
+        K = Parameter(coefficient_name, initial_value=1., min_value=0, max_value=None, delta=0.1,
+                      normalization=True)
 
         super(ContinuumFunction, self).__init__(K)
 
@@ -134,6 +133,15 @@ class PointSourceFunction(Function):
         """
 
         self._function_array = function_array
+
+    def set_earth_zero(self, earth_mask):
+        """
+        Uses the mask for PS behind earth to set the function array to zero for the timebins for which the mask is 0
+        :param earth_mask:
+        :return:
+        """
+
+        self._function_array[np.where(earth_mask < 0.5)] = 0.
 
     def set_saa_zero(self, saa_mask):
         """
