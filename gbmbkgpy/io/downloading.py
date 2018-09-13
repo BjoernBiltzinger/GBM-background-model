@@ -78,11 +78,6 @@ def download_data_file(date, type, detector='all'):
         file_path = os.path.join(data_path, type)
         file_type = 'fit'
     else:
-        folder_path = os.path.join(data_path, type)
-        if not os.access(folder_path, os.F_OK):
-            print("Making New Directory")
-            os.mkdir(folder_path)
-
         file_path = os.path.join(data_path, type, date)
         file_type = 'pha'
 
