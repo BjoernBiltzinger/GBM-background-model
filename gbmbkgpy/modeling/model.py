@@ -124,7 +124,6 @@ class Model(object):
             for source in sources.itervalues():
 
                 for parameter_name, parameter in source.parameters.iteritems():
-
                     parameters[parameter_name] = parameter
 
         self._parameters = parameters

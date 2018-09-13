@@ -52,6 +52,10 @@ class ExternalProps(object):
         self._data = data
         self._build_point_sources()
 
+    def build_some_source(self,data, source_list):
+        self._data=data
+        self._build_some_source(source_list)
+
     def mc_l(self, met):
         """
         Get MC L for a given MET
@@ -349,3 +353,21 @@ class ExternalProps(object):
 
         del results
         """
+
+    #function to build only some pointsources, which are specified in the source_list
+
+    def _build_some_source(self, source_list):
+        file_path = get_path_of_data_file('background_point_sources/', 'point_sources.dat')
+
+        self._ps_df = pd.read_table(file_path, names=['name', 'ra', 'dec'])
+
+        # instantiate dic of point source objects
+        self._point_sources_dic = {}
+
+        ###Single core calc###
+        for row in self._ps_df.itertuples():
+            for element in source_list:
+                if row[1]==element:
+                    print(element)
+                    print(row[2], row[3])
+                    self._point_sources_dic[row[1]] = PointSrc(row[1], row[2], row[3], self._data)
