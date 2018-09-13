@@ -18,7 +18,6 @@ class Minimizer(object):
 
         self._day = self._likelihood._data._day
         self._det = self._likelihood._data._det
-        self._echan = self._likelihood._echan
 
 
     def fit(self, n_interations = 6, method_1 = 'L-BFGS-B',  method_2 = 'Powell'):
@@ -125,14 +124,12 @@ class Minimizer(object):
             os.mkdir(folder_path)
 
         file_number = 0
-        file_name = 'Fit_' + str(self._day) + '_' + str(self._det) + '_' + str(self._echan) + '_' + str(
-            file_number) + '.json'
+        file_name = 'Fit_{}_{}_{:d}.json'.format(self._day, self._det, file_number)
 
         # If file already exists increase file number
         while os.path.isfile(os.path.join(folder_path, file_name)):
             file_number += 1
-            file_name = 'Fit_' + str(self._day) + '_' + str(self._det) + '_' + str(self._echan) + '_' + str(
-                file_number) + '.json'
+            file_name = 'Fit_{}_{}_{:d}.json'.format(self._day, self._det, file_number)
 
         # Writing JSON data
         with open(os.path.join(folder_path, file_name), 'w') as f:

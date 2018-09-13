@@ -1,4 +1,4 @@
-from gbmbkgpy.modeling.function import Function, ContinuumFunction, PointSourceFunction
+from gbmbkgpy.modeling.function import Function, ContinuumFunction, PointSourceFunction, GlobalFunction
 from gbmbkgpy.modeling.parameter import Parameter
 import numpy as np
 
@@ -99,28 +99,28 @@ class GRB(Function):
 
 # The continuums 
 
-class Cosmic_Gamma_Ray_Background(ContinuumFunction):
+class Cosmic_Gamma_Ray_Background(GlobalFunction):
     def __init__(self):
         super(Cosmic_Gamma_Ray_Background, self).__init__('norm_cgb')
 
 class Magnetic_Continuum(ContinuumFunction):
-    def __init__(self):
-        super(Magnetic_Continuum, self).__init__('norm_magnetic')
+    def __init__(self, echan):
+        super(Magnetic_Continuum, self).__init__('norm_magnetic_echan-' + echan)
 
 class Solar_Continuum(ContinuumFunction):
-    def __init__(self):
-        super(Solar_Continuum, self).__init__('norm_solar')
+    def __init__(self,echan):
+        super(Solar_Continuum, self).__init__('norm_solar_echan-' + echan)
 
-class Earth_Albedo_Continuum(ContinuumFunction):
+class Earth_Albedo_Continuum(GlobalFunction):
     def __init__(self):
         super(Earth_Albedo_Continuum, self).__init__('norm_earth_albedo')
 
 class Point_Source_Continuum(PointSourceFunction):
-    def __init__(self, point_source_nr):
-        super(Point_Source_Continuum, self).__init__('norm_point_source-' + point_source_nr)
+    def __init__(self, point_source_nr, echan):
+        super(Point_Source_Continuum, self).__init__('norm_point_source-' + point_source_nr + '_echan-' + echan)
 
 class offset(ContinuumFunction):
-    def __init__(self):
-        super(offset, self).__init__('constant')
+    def __init__(self, echan):
+        super(offset, self).__init__('constant_echan-' + echan)
 
 

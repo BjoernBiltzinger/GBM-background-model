@@ -72,7 +72,6 @@ class ResidualPlot(object):
             # turn on or off residuals
 
             if self._show_residuals:
-
                 self._fig, (self._data_axis, self._residual_axis) = plt.subplots(2, 1,
                                                                                  sharex=True,
                                                                                  gridspec_kw={'height_ratios': [2, 1]},
@@ -204,7 +203,6 @@ class ResidualPlot(object):
         :param color: color of the
         :return:
         """
-
 
         # if we want to show the data
 

@@ -21,6 +21,25 @@ from gbmbkgpy.utils.progress_bar import progress_bar
 from gbmbkgpy.io.plotting.step_plots import step_plot, slice_disjoint, disjoint_patch_plot
 from gbmgeometry import GBMTime
 
+try:
+
+    # see if we have mpi and/or are upalsing parallel
+
+    from mpi4py import MPI
+    if MPI.COMM_WORLD.Get_size() > 1: # need parallel capabilities
+        using_mpi = True
+
+        comm = MPI.COMM_WORLD
+        rank = comm.Get_rank()
+        size = comm.Get_size()
+
+    else:
+
+        using_mpi = False
+except:
+
+    using_mpi = False
+
 
 class ContinuousData(object):
 
@@ -30,9 +49,8 @@ class ContinuousData(object):
         self._day = date
         self._use_SAA = use_SAA
         self._rate_generator_DRM = rate_generator_DRM
-        assert 'ctime' in self._data_type, 'currently only working for CTIME data'
+        #assert 'ctime' in self._data_type, 'currently only working for CTIME data'
         assert 'n' in self._det, 'currently only working NAI detectors'
-
 
         ### Download data-file and poshist file if not existing:
         datafile_name = 'glg_{0}_{1}_{2}_v00.pha'.format(self._data_type, self._det, self._day)
@@ -46,6 +64,7 @@ class ContinuousData(object):
 
         if not file_existing_and_readable(poshistfile_path):
             download_data_file(self._day, 'poshist')
+
         ###
 
         self._pos_hist = poshistfile_path
@@ -92,11 +111,11 @@ class ContinuousData(object):
         self._counts_combined = np.sum(self._counts, axis=1)
         self._counts_combined_rate = self._counts_combined / self.time_bin_length
         self._n_time_bins, self._n_channels = self._counts.shape
-
         # Start precomputation of arrays:
         self._setup_geometery()
         self._compute_saa_regions()
-        self._earth_and_cgb_rate_array()
+        self._earth_rate_array()
+        self._cgb_rate_array()
 
         # Calculate the MET time for the day
         day = self._day
@@ -179,9 +198,9 @@ class ContinuousData(object):
     def effective_angle(self, angle, channel):
         """
         Interpolation function for the Solar Continuum
-        :param channel: 
-        :param angle: 
-        :return: 
+        :param channel:
+        :param angle:
+        :return:
         """
 
         assert isinstance(channel,int), 'channel must be an integer'
@@ -290,21 +309,33 @@ class ContinuousData(object):
 
         # ok we need to get the sun angle
 
-        n_skip = int(np.ceil(self._n_time_bins/n_bins_to_calculate))
+        n_skip = int(np.ceil(self._n_time_bins / n_bins_to_calculate))
 
         sun_angle = []
         sun_time = []
-        earth_az=[] #azimuth angle of earth in sat. frame
-        earth_zen=[] #zenith angle of earth in sat. frame
+        earth_az = []  # azimuth angle of earth in sat. frame
+        earth_zen = []  # zenith angle of earth in sat. frame
+        earth_position = [] #earth pos in icrs frame (skycoord)
 
-        # go through a subset of times and calculate the sun angle with GBM geometry
+        #additionally save the quaternion and the sc_pos of every time step. Needed for PS later.
+        quaternion = []
+        sc_pos =[]
 
-        ###SINGLECORE CALC###
-        with progress_bar(n_bins_to_calculate, title='Calculating sun and earth position') as p:
+        #ps testing
+        det_ra = [] #det ra in icrs frame
+        det_dec = [] #det dec in icrs frame
 
-            for mean_time in self.mean_time[::n_skip]:
-                det = gbm_detector_list[self._det](quaternion=self._position_interpolator.quaternion(mean_time),
-                                                   sc_pos=self._position_interpolator.sc_pos(mean_time),
+        if using_mpi:
+            #if using mpi split the times at which the geometry is calculated to all ranks
+            list_times_to_calculate = self.mean_time[::n_skip]
+            times_per_rank = float(len(list_times_to_calculate))/float(size)
+            times_lower_bound_index = int(np.floor(rank*times_per_rank))
+            times_upper_bound_index = int(np.floor((rank+1)*times_per_rank))
+            for mean_time in list_times_to_calculate[times_lower_bound_index:times_upper_bound_index]:
+                quaternion_step = self._position_interpolator.quaternion(mean_time)
+                sc_pos_step = self._position_interpolator.sc_pos(mean_time)
+                det = gbm_detector_list[self._det](quaternion=quaternion_step,
+                                                   sc_pos=sc_pos_step,
                                                    time=astro_time.Time(self._position_interpolator.utc(mean_time)))
 
                 sun_angle.append(det.sun_angle.value)
@@ -312,101 +343,135 @@ class ContinuousData(object):
                 az, zen = det.earth_az_zen_sat
                 earth_az.append(az)
                 earth_zen.append(zen)
+                earth_position.append(det.earth_position)
 
-                p.increase()
+                quaternion.append(quaternion_step)
+                sc_pos.append(sc_pos_step)
+            #get the last data point with rank 0
+            if rank==0:
+                mean_time = self.mean_time[-2]
+                quaternion_step = self._position_interpolator.quaternion(mean_time)
+                sc_pos_step = self._position_interpolator.sc_pos(mean_time)
 
-        """
-        ###MULTICORE CALC###
-        time_array = self.mean_time[::n_skip]
-        sun_angle_mul = []
-        sun_time_mul = []
-        earth_angle_mul = []
-        earth_position_mul = []
-        pointing_mul = []
-
-        def calc_geo(i):
-
-            time_array_slice = time_array[i * 100:i * 100 + 100]
-
-            #with progress_bar(len(time_array_slice), title='Calculating sun position') as p:   #porgress bar seems to make break in multiprocess calculation
-            for mean_time in time_array_slice:
-                det = gbm_detector_list[self._det](quaternion=self._position_interpolator.quaternion(mean_time),
-                                                   sc_pos=self._position_interpolator.sc_pos(mean_time),
+                det = gbm_detector_list[self._det](quaternion=quaternion_step,
+                                                   sc_pos=sc_pos_step,
                                                    time=astro_time.Time(self._position_interpolator.utc(mean_time)))
 
-                sun_angle_mul.append(det.sun_angle.value)
-                sun_time_mul.append(mean_time)
-                earth_angle_mul.append(det.earth_angle.value)
-                earth_position_mul.append(det.earth_position)
-                pointing_mul.append(det.center.icrs)
+                sun_angle.append(det.sun_angle.value)
+                sun_time.append(mean_time)
+                az, zen = det.earth_az_zen_sat
+                earth_az.append(az)
+                earth_zen.append(zen)
+                earth_position.append(det.earth_position)
 
-            #   p.increase()
-            geo_dic = {}
-            geo_dic['sun_angle'] = {}
-            geo_dic['sun_time'] = {}
-            geo_dic['earth_angle'] = {}
-            geo_dic['earth_position'] = {}
-            geo_dic['pointing'] = {}
+                quaternion.append(quaternion_step)
+                sc_pos.append(sc_pos_step)
+            #make the list numpy arrays
+            sun_angle = np.array(sun_angle)
+            sun_time = np.array(sun_time)
+            earth_az = np.array(earth_az)
+            earth_zen = np.array(earth_zen)
+            earth_position = np.array(earth_position)
 
-            geo_dic['sun_angle'][i] = sun_angle_mul
-            geo_dic['sun_time'][i] = sun_time_mul
-            geo_dic['earth_angle'][i] = earth_angle_mul
-            geo_dic['earth_position'][i] = earth_position_mul
-            geo_dic['pointing'][i] = pointing_mul
-            return geo_dic
-
-        from pathos.multiprocessing import ProcessPool
-
-        # Initialize Process pool with 8 threads
-        pool = ProcessPool(8)
-
-        results = pool.map(calc_geo, range(8))
-
-        sun_angle_dic = {}
-        sun_time_dic = {}
-        earth_angle_dic = {}
-        earth_position_dic = {}
-        pointing_dic = {}
-
-        for result in results:
-            sun_angle_dic.update(result['sun_angle'])
-            sun_time_dic.update(result['sun_time'])
-            earth_angle_dic.update(result['earth_angle'])
-            earth_position_dic.update(result['earth_position'])
-            pointing_dic.update(result['pointing'])
-
-        for i in range(8):
-            sun_angle.extend(sun_angle_dic[i])
-            sun_time.extend(sun_time_dic[i])
-            earth_angle.extend(earth_angle_dic[i])
-            earth_position.extend(earth_position_dic[i])
-            pointing.extend(pointing_dic[i])
-
-        del sun_angle_dic, sun_time_dic, earth_angle_dic, earth_position_dic, pointing_dic
-        ##############
-        """
-        # get the last data point
-
-        mean_time = self.mean_time[-2]
-
-        det = gbm_detector_list[self._det](quaternion=self._position_interpolator.quaternion(mean_time),
-                                           sc_pos=self._position_interpolator.sc_pos(mean_time),
-                                           time=astro_time.Time(self._position_interpolator.utc(mean_time)))
-
-        sun_angle.append(det.sun_angle.value)
-        sun_time.append(mean_time)
-        az, zen = det.earth_az_zen_sat
-        earth_az.append(az)
-        earth_zen.append(zen)
+            quaternion = np.array(quaternion)
+            sc_pos = np.array(sc_pos)
+            #gather all results in rank=0
+            sun_angle_gather = comm.gather(sun_angle, root=0)
+            sun_time_gather = comm.gather(sun_time, root=0)
+            earth_az_gather = comm.gather(earth_az, root=0)
+            earth_zen_gather = comm.gather(earth_zen, root=0)
+            earth_position_gather = comm.gather(earth_position, root=0)
 
 
+            quaternion_gather = comm.gather(quaternion, root=0)
+            sc_pos_gather = comm.gather(sc_pos, root=0)
+            #make one list out of this
+            if rank == 0:
+                sun_angle_gather = np.concatenate(sun_angle_gather)
+                sun_time_gather = np.concatenate(sun_time_gather)
+                earth_az_gather = np.concatenate(earth_az_gather)
+                earth_zen_gather = np.concatenate(earth_zen_gather)
+                earth_position_gather = np.concatenate(earth_position_gather)
+
+                quaternion_gather=np.concatenate(quaternion_gather)
+                sc_pos_gather = np.concatenate(sc_pos_gather)
+            #broadcast the final arrays again to all ranks
+            sun_angle = comm.bcast(sun_angle_gather, root=0)
+            sun_time = comm.bcast(sun_time_gather, root=0)
+            earth_az = comm.bcast(earth_az_gather, root=0)
+            earth_zen = comm.bcast(earth_zen_gather, root=0)
+            earth_position = comm.bcast(earth_position_gather, root=0)
+
+            quaternion = comm.bcast(quaternion_gather, root=0)
+            sc_pos = comm.bcast(sc_pos_gather, root=0)
+
+        else:
+            # go through a subset of times and calculate the sun angle with GBM geometry
+
+            ###SINGLECORE CALC###
+            with progress_bar(n_bins_to_calculate, title='Calculating sun and earth position') as p:
+
+                for mean_time in self.mean_time[::n_skip]:
+                    quaternion_step = self._position_interpolator.quaternion(mean_time)
+                    sc_pos_step = self._position_interpolator.sc_pos(mean_time)
+                    det = gbm_detector_list[self._det](quaternion=quaternion_step,
+                                                       sc_pos=sc_pos_step,
+                                                       time=astro_time.Time(self._position_interpolator.utc(mean_time)))
+
+                    sun_angle.append(det.sun_angle.value)
+                    sun_time.append(mean_time)
+                    az, zen = det.earth_az_zen_sat
+                    earth_az.append(az)
+                    earth_zen.append(zen)
+                    earth_position.append(det.earth_position)
+
+                    quaternion.append(quaternion_step)
+                    sc_pos.append(sc_pos_step)
+
+                    #test
+                    ra, dec = det.det_ra_dec_icrs
+                    det_ra.append(ra)
+                    det_dec.append(dec)
+
+                    p.increase()
+
+            # get the last data point
+
+            mean_time = self.mean_time[-2]
+
+            quaternion_step = self._position_interpolator.quaternion(mean_time)
+            sc_pos_step = self._position_interpolator.sc_pos(mean_time)
+            det = gbm_detector_list[self._det](quaternion=quaternion_step,
+                                               sc_pos=sc_pos_step,
+                                               time=astro_time.Time(self._position_interpolator.utc(mean_time)))
+
+            sun_angle.append(det.sun_angle.value)
+            sun_time.append(mean_time)
+            az, zen = det.earth_az_zen_sat
+            earth_az.append(az)
+            earth_zen.append(zen)
+            earth_position.append(det.earth_position)
+
+            quaternion.append(quaternion_step)
+            sc_pos.append(sc_pos_step)
+
+            # test
+            ra, dec = det.det_ra_dec_icrs
+            det_ra.append(ra)
+            det_dec.append(dec)
 
         self._sun_angle = sun_angle
         self._sun_time = sun_time
         self._earth_az = earth_az
         self._earth_zen = earth_zen
+        self._earth_position = earth_position
 
+        self._quaternion = quaternion
+        self._sc_pos = sc_pos
 
+        #test
+        self._det_ra = np.array(det_ra)
+        self._det_dec = np.array(det_dec)
         # interpolate it
 
         self._sun_angle_interpolator = interpolate.interp1d(self._sun_time, self._sun_angle)
@@ -421,18 +486,18 @@ class ContinuousData(object):
         bins_to_add = 8
 
         self._zero_idx = self._counts_combined == 0.
-
         idx = (self._zero_idx).nonzero()[0]
-
         slice_idx = np.array(slice_disjoint(idx))
 
-        # Only the slices which are longer than 8 time bins are used as saa
-        slice_idx = slice_idx[np.where(slice_idx[:, 1] - slice_idx[:, 0] > min_saa_bin_width)]
+        # Only the slices which are longer than 8 time bins are used as saa (only for ctime data)
+        if self._data_type=='cspec':
+            slice_idx = slice_idx[np.where(slice_idx[:, 1] - slice_idx[:, 0] > 0)]
+        else:
+            slice_idx = slice_idx[np.where(slice_idx[:, 1] - slice_idx[:, 0] > min_saa_bin_width)]
 
 
         # Add bins_to_add to bin_mask to exclude the bins with corrupt data:
         # Check first that the start and stop stop of the mask is not the beginning or end of the day
-
         slice_idx[:, 0][np.where(slice_idx[:, 0] >= 8)] =\
             slice_idx[:, 0][np.where(slice_idx[:, 0] >= 8)] - bins_to_add
 
@@ -677,6 +742,16 @@ class ContinuousData(object):
         del eff_area_frac_0, occ_circ_eff, occ_circ_eff_0, free_circ_eff, ang_fac
 
     @property
+    def quaternion(self):
+
+        return self._quaternion
+
+    @property
+    def sc_pos(self):
+
+        return self._sc_pos
+
+    @property
     def pointing(self):
 
         return self._pointing
@@ -782,61 +857,89 @@ class ContinuousData(object):
 
         return self._use_SAA
 
-    def _earth_and_cgb_rate_array(self):
-
-        #get points of the grid and corresponding rates by earth and cgb spectrum
-        points, earth_rates, cgb_rates = self._rate_generator_DRM.calculate_rates()
-
-        #get the earth direction at the interpolation times; zen angle from -90 to 90
+    def _earth_rate_array(self):
+        """
+        Calculate the earth_rate_array for all interpolation times for which the geometry was calculated. This supports
+        MPI to reduce the calculation time.
+        To calculate the earth_rate_array the responses created on a grid in rate_gernerator_DRM are used. All points
+        that are occulted by the earth are added, assuming a spectrum specified in rate_generator_DRM for the earth
+        albedo.
+        :return:
+        """
+        points = self._rate_generator_DRM.points
+        earth_rates = self._rate_generator_DRM.earth_rate
+        # get the earth direction at the interpolation times; zen angle from -90 to 90
         earth_pos_inter_times = []
         for i in range(0, len(self._earth_zen)):
-            earth_pos_inter_times.append(np.array([np.cos(self._earth_zen[i]*(np.pi/180))*np.cos(self._earth_az[i]*(np.pi/180)),
-                                          np.cos(self._earth_zen[i]*(np.pi/180))*np.sin(self._earth_az[i]*(np.pi/180)),
-                                          np.sin(self._earth_zen[i] * (np.pi / 180))]))
+            earth_pos_inter_times.append(
+                np.array([np.cos(self._earth_zen[i] * (np.pi / 180)) * np.cos(self._earth_az[i] * (np.pi / 180)),
+                          np.cos(self._earth_zen[i] * (np.pi / 180)) * np.sin(self._earth_az[i] * (np.pi / 180)),
+                          np.sin(self._earth_zen[i] * (np.pi / 180))]))
         self._earth_pos_inter_times = np.array(earth_pos_inter_times)
-        #define the opening angle of the earth in degree
+        # define the opening angle of the earth in degree
         opening_angle_earth = 67
-
         array_earth_rate = []
-        array_cgb_rate = []
         for pos in self._earth_pos_inter_times:
             earth_rate = np.zeros_like(earth_rates[0])
-            cgb_rate = np.zeros_like(cgb_rates[0])
             for i, pos_point in enumerate(points):
-                angle_earth = np.arccos(np.dot(pos, pos_point))*(180/np.pi)
+                angle_earth = np.arccos(np.dot(pos, pos_point)) * (180 / np.pi)
                 if angle_earth < opening_angle_earth:
                     earth_rate += earth_rates[i]
-                else:
-                    cgb_rate += cgb_rates[i]
             array_earth_rate.append(earth_rate)
-            array_cgb_rate.append(cgb_rate)
-
-        #save them as array and transpose, so from here on self._array_cgb_rate[0] are the expected rates from
-        #the cgb for Ebin 0 for all interpolation times
-        self._array_cgb_rate = np.array(array_cgb_rate).T
         self._array_earth_rate = np.array(array_earth_rate).T
-        self._cgb_rate_interpolator = interpolate.interp1d(self._sun_time, self._array_cgb_rate)
         self._earth_rate_interpolator = interpolate.interp1d(self._sun_time, self._array_earth_rate)
 
-    def cgb_rate_array(self, Ebin, met):
+    def _cgb_rate_array(self):
+        """
+        Calculate the cgb_rate_array for all interpolation times for which the geometry was calculated. This supports
+        MPI to reduce the calculation time.
+        To calculate the cgb_rate_array the responses created on a grid in rate_gernerator_DRM are used. All points
+        that are not occulted by the earth are added, assuming a spectrum specified in rate_generator_DRM for the cgb
+        spectrum.
+        :return:
+        """
+        Ngrid = self._rate_generator_DRM.Ngrid
+        points = self._rate_generator_DRM.points
+        cgb_rates = self._rate_generator_DRM.cgb_rate
+        # get the earth direction at the interpolation times; zen angle from -90 to 90
+        earth_pos_inter_times = []
+        for i in range(0, len(self._earth_zen)):
+            earth_pos_inter_times.append(
+                np.array([np.cos(self._earth_zen[i] * (np.pi / 180)) * np.cos(self._earth_az[i] * (np.pi / 180)),
+                          np.cos(self._earth_zen[i] * (np.pi / 180)) * np.sin(self._earth_az[i] * (np.pi / 180)),
+                          np.sin(self._earth_zen[i] * (np.pi / 180))]))
+        self._earth_pos_inter_times = np.array(earth_pos_inter_times)
+        # define the opening angle of the earth in degree
+        opening_angle_earth = 67
+        array_cgb_rate = []
+        for pos in self._earth_pos_inter_times:
+            cgb_rate = np.zeros_like(cgb_rates[0])
+            for i, pos_point in enumerate(points):
+                angle_earth = np.arccos(np.dot(pos, pos_point)) * (180 / np.pi)
+                if angle_earth > opening_angle_earth:
+                    cgb_rate += cgb_rates[i]
+            array_cgb_rate.append(cgb_rate)
+        self._array_cgb_rate = np.array(array_cgb_rate).T
+        self._cgb_rate_interpolator = interpolate.interp1d(self._sun_time, self._array_cgb_rate)
+
+
+    def cgb_rate_array(self, met):
         """
         Interpolation function for the CGB continuum rate in a certain Ebin
-        :param Ebin: which Ebin
         :param met: times at which to interpolate
         :return: array with the CGB rates expected over whole day in a certain Ebin
         """
 
-        return self._cgb_rate_interpolator(met)[Ebin]
+        return self._cgb_rate_interpolator(met)
 
-    def earth_rate_array(self, Ebin, met):
+    def earth_rate_array(self, met):
         """
         Interpolation function for the Earth continuum rate in a certain Ebin
-        :param Ebin: which Ebin
         :param met: times at which to interpolate
         :return: array with the Earth rates expected over whole day in a certain Ebin
         """
 
-        return self._earth_rate_interpolator(met)[Ebin]
+        return self._earth_rate_interpolator(met)
 
     @property
     def cgb_rate_interpolation_time(self):
@@ -857,3 +960,20 @@ class ContinuousData(object):
     @property
     def earth_pos_interpolation_time(self):
         return self._earth_pos_inter_times
+
+    @property
+    def saa_slices(self):
+        return self._saa_slices
+
+    @property
+    def rate_generator_DRM(self):
+        return self._rate_generator_DRM
+
+    #test
+    @property
+    def det_ra_icrs(self):
+        return self._det_ra
+
+    @property
+    def det_dec_icrs(self):
+        return self._det_dec
