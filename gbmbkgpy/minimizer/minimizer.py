@@ -124,14 +124,12 @@ class Minimizer(object):
             os.mkdir(folder_path)
 
         file_number = 0
-        file_name = 'Fit_' + str(self._day) + '_' + str(self._det) + '_' + str(
-            file_number) + '.json'
+        file_name = 'Fit_{}_{}_{:d}.json'.format(self._day, self._det, file_number)
 
         # If file already exists increase file number
         while os.path.isfile(os.path.join(folder_path, file_name)):
             file_number += 1
-            file_name = 'Fit_' + str(self._day) + '_' + str(self._det)  + '_' + str(
-                file_number) + '.json'
+            file_name = 'Fit_{}_{}_{:d}.json'.format(self._day, self._det, file_number)
 
         # Writing JSON data
         with open(os.path.join(folder_path, file_name), 'w') as f:

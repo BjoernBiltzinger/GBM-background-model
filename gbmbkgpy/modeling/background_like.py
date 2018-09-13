@@ -264,7 +264,7 @@ class BackgroundLike(object):
         :return: the poisson log likelihood
         """
         self._set_free_parameters(parameters)
-        if self._fit_rebinned==True:
+        if self._fit_rebinned:
             self._rebinned_observed_counts_fitting()
             self._rebinned_model_counts_fitting()
         log_likelihood_list=[]
@@ -295,7 +295,7 @@ class BackgroundLike(object):
         # to zero, then overwrite the elements corresponding to D_i > 0
 
         # Use rebinned counts if fir_rebinned is set to true:
-        if self._fit_rebinned == True:
+        if self._fit_rebinned:
             index = int(np.argwhere(self._echan_list==echan))
             d_times_logM = self._rebinned_observed_counts_fitting_all_echan[index] * logM
 

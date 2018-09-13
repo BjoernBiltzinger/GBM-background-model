@@ -52,13 +52,18 @@ class ContinuousData(object):
         #assert 'ctime' in self._data_type, 'currently only working for CTIME data'
         assert 'n' in self._det, 'currently only working NAI detectors'
 
-
-        ### Define the filepaths of the data-file and poshist file:
+        ### Download data-file and poshist file if not existing:
         datafile_name = 'glg_{0}_{1}_{2}_v00.pha'.format(self._data_type, self._det, self._day)
         datafile_path = os.path.join(get_path_of_external_data_dir(), self._data_type, self._day, datafile_name)
 
         poshistfile_name = 'glg_{0}_all_{1}_v00.fit'.format('poshist', self._day)
         poshistfile_path = os.path.join(get_path_of_external_data_dir(), 'poshist', poshistfile_name)
+
+        if not file_existing_and_readable(datafile_path):
+            download_data_file(self._day, self._data_type, self._det)
+
+        if not file_existing_and_readable(poshistfile_path):
+            download_data_file(self._day, 'poshist')
 
         ###
 
@@ -861,7 +866,6 @@ class ContinuousData(object):
         albedo.
         :return:
         """
-        Ngrid = self._rate_generator_DRM.Ngrid
         points = self._rate_generator_DRM.points
         earth_rates = self._rate_generator_DRM.earth_rate
         # get the earth direction at the interpolation times; zen angle from -90 to 90
