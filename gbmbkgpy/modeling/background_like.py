@@ -650,3 +650,11 @@ class BackgroundLike(object):
         self._residuals_return_rebinned = significance_calc_res_rebinned.known_background()
 
         return np.vstack((rebinned_mean_time[2:-2], self._residuals_return_rebinned[2:-2])).T
+
+    #test
+    @property
+    def time_rebinned(self):
+        return self._rebinned_time_bins
+    @property
+    def res(self):
+        return self._residuals

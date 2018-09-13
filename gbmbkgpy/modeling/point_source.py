@@ -56,11 +56,7 @@ class PointSrc(object):
         :return:
         """
         if using_mpi:
-            # import interpolation times, quaternions, sc_pos and the earth position at these times from cont. data
-            self._interpolation_time = self._data.interpolation_time  # type: ContinuousData.interpolation_time
-            self._quaternion = self._data.quaternion
-            self._sc_pos = self._data.sc_pos
-            self._earth_positions = self._data.earth_position
+            print('No MPI support for precalculation of PS yet.')
         #import interpolation times, quaternions, sc_pos and the earth position at these times from cont. data
         self._interpolation_time = self._data.interpolation_time  # type: ContinuousData.interpolation_time
         self._quaternion = self._data.quaternion
@@ -91,7 +87,7 @@ class PointSrc(object):
         self._rate_generator_DRM = self._data.rate_generator_DRM
         self._Ngrid = self._rate_generator_DRM.Ngrid
         self._points_grid = self._rate_generator_DRM.points
-        self._rates_points = self._rate_generator_DRM.calculate_ps_rates(0, self._Ngrid) # for all echans
+        self._rates_points = self._rate_generator_DRM.ps_rate # for all echans
 
         # get the point of the grid closet to the ps pointing (save the corresponding index)
         best_grid_point_index = []
@@ -238,3 +234,8 @@ class PointSrc(object):
     def name(self):
 
         return self._name
+
+    @property
+    def separation(self):
+
+        return self._separation

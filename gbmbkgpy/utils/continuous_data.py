@@ -316,6 +316,10 @@ class ContinuousData(object):
         quaternion = []
         sc_pos =[]
 
+        #ps testing
+        det_ra = [] #det ra in icrs frame
+        det_dec = [] #det dec in icrs frame
+
         if using_mpi:
             #if using mpi split the times at which the geometry is calculated to all ranks
             list_times_to_calculate = self.mean_time[::n_skip]
@@ -419,6 +423,11 @@ class ContinuousData(object):
                     quaternion.append(quaternion_step)
                     sc_pos.append(sc_pos_step)
 
+                    #test
+                    ra, dec = det.det_ra_dec_icrs
+                    det_ra.append(ra)
+                    det_dec.append(dec)
+
                     p.increase()
 
             # get the last data point
@@ -441,6 +450,10 @@ class ContinuousData(object):
             quaternion.append(quaternion_step)
             sc_pos.append(sc_pos_step)
 
+            # test
+            ra, dec = det.det_ra_dec_icrs
+            det_ra.append(ra)
+            det_dec.append(dec)
 
         self._sun_angle = sun_angle
         self._sun_time = sun_time
@@ -451,6 +464,9 @@ class ContinuousData(object):
         self._quaternion = quaternion
         self._sc_pos = sc_pos
 
+        #test
+        self._det_ra = np.array(det_ra)
+        self._det_dec = np.array(det_dec)
         # interpolate it
 
         self._sun_angle_interpolator = interpolate.interp1d(self._sun_time, self._sun_angle)
@@ -847,24 +863,7 @@ class ContinuousData(object):
         """
         Ngrid = self._rate_generator_DRM.Ngrid
         points = self._rate_generator_DRM.points
-        if using_mpi:
-            #seperate the Points to all ranks
-            points_per_rank = float(Ngrid) / float(size)
-            points_lower_index = int(np.floor(points_per_rank * rank))
-            points_upper_index = int(np.floor(points_per_rank * (rank + 1)))
-            #get the earth rates for all points that are covered by this rank
-            earth_rates = self._rate_generator_DRM.calculate_earth_rates(points_lower_index,points_upper_index)
-            # gather in rank=0
-            earth_rates_gather = comm.gather(earth_rates, root=0)
-            # put them in one list
-            if rank == 0:
-                earth_rates_gather = np.concatenate(earth_rates_gather)
-            # broadcast the resulting list to all ranks
-            earth_rates = comm.bcast(earth_rates_gather, root=0)
-
-        else:
-            # get points of the grid and corresponding rates by earth spectrum
-            earth_rates= self._rate_generator_DRM.calculate_earth_rates(0, Ngrid)
+        earth_rates = self._rate_generator_DRM.earth_rate
         # get the earth direction at the interpolation times; zen angle from -90 to 90
         earth_pos_inter_times = []
         for i in range(0, len(self._earth_zen)):
@@ -897,24 +896,7 @@ class ContinuousData(object):
         """
         Ngrid = self._rate_generator_DRM.Ngrid
         points = self._rate_generator_DRM.points
-        if using_mpi:
-            #seperate the Points to all ranks
-            points_per_rank = float(Ngrid) / float(size)
-            points_lower_index = int(np.floor(points_per_rank * rank))
-            points_upper_index = int(np.floor(points_per_rank * (rank + 1)))
-            #get the cgb rates for all points that are covered by this rank
-            cgb_rates = self._rate_generator_DRM.calculate_cgb_rates(points_lower_index,points_upper_index)
-            # gather in rank=0
-            cgb_rates_gather = comm.gather(cgb_rates, root=0)
-            # put them in one list
-            if rank == 0:
-                cgb_rates_gather = np.concatenate(cgb_rates_gather)
-            # broadcast the resulting list to all ranks
-            cgb_rates = comm.bcast(cgb_rates_gather, root=0)
-
-        else:
-            # get points of the grid and corresponding rates by cgb spectrum
-            cgb_rates = self._rate_generator_DRM.calculate_cgb_rates(0, Ngrid)
+        cgb_rates = self._rate_generator_DRM.cgb_rate
         # get the earth direction at the interpolation times; zen angle from -90 to 90
         earth_pos_inter_times = []
         for i in range(0, len(self._earth_zen)):
@@ -983,3 +965,11 @@ class ContinuousData(object):
     def rate_generator_DRM(self):
         return self._rate_generator_DRM
 
+    #test
+    @property
+    def det_ra_icrs(self):
+        return self._det_ra
+
+    @property
+    def det_dec_icrs(self):
+        return self._det_dec
