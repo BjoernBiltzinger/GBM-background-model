@@ -40,14 +40,15 @@ class BackgroundLike(object):
 
         # The data object should return all the time bins that are valid... i.e. non-zero
         self._total_time_bins = self._data.time_bins[2:-2]
+        self._total_time_bin_widths = np.diff(self._total_time_bins, axis=1)[:, 0]
 
         # Get the SAA and GRB mask:
         self._saa_mask = self._data.saa_mask[2:-2]
-        self._grb_mask = np.full(len(self._total_time_bins), True)
+        self._grb_mask = np.ones(len(self._total_time_bins), dtype=bool)  # np.full(len(self._total_time_bins), True)
         # An entry in the total mask is False when one of the two masks is False
         self._total_mask = ~ np.logical_xor(self._saa_mask, self._grb_mask)
 
-        self._total_time_bin_widths = np.diff(self._total_time_bins, axis=1)[:, 0]
+        # Get the valid time bins by including the total_mask
         self._time_bins = self._total_time_bins[self._total_mask]
 
         # Extract the counts from the data object. should be same size as time bins
@@ -101,19 +102,17 @@ class BackgroundLike(object):
         else:
             return model_counts
 
-    def _set_free_parameters(self, new_parameters):
+    def set_free_parameters(self, new_parameters):
         """
         Set the free parameters to the new values
         :param new_parameters: 
         :return: 
         """
 
-        for i, parameter in enumerate(self._free_parameters.itervalues()):
-
-            parameter.value = new_parameters[i]
+        self._model.set_free_parameters(new_parameters)
 
     @property
-    def model_counts(self):
+    def model_counts(self): 
         """
         Returns the predicted counts from the model for all time bins,
         the saa_mask sets the SAA sections to zero.
@@ -260,7 +259,7 @@ class BackgroundLike(object):
         :return: the poisson log likelihood
         """
 
-        self._set_free_parameters(parameters)
+        self.set_free_parameters(parameters)
 
 
         M = self._evaluate_model()
@@ -294,7 +293,6 @@ class BackgroundLike(object):
         log_likelihood = np.sum(M_fixed - d_times_logM)
 
         return log_likelihood
-
 
     def _fix_precision(self, v):
       """
@@ -374,11 +372,11 @@ class BackgroundLike(object):
 
         :return:
         """
-        self._grb_mask = np.full(len(self._time_bins), True)
+        self._grb_mask = np.ones(len(self._time_bins), dtype=bool)  # np.full(len(self._time_bins), True)
 
     def display_model(self, data_color='k', model_color='r', step=True, show_data=True, show_residuals=True,
                       show_legend=True, min_bin_width=1E-99, plot_sources=False, show_grb_trigger=False,
-                      show_model=True, change_time=False, show_occ_region=False, **kwargs):
+                      show_model=True, change_time=False, show_occ_region=False, posteriour=None, **kwargs):
 
         """
         Plot the current model with or without the data and the residuals. Multiple models can be plotted by supplying
@@ -484,6 +482,26 @@ class BackgroundLike(object):
                                     label=model_label,
                                     color=model_color)
 
+        if posteriour is not None:
+            # Make a copy of the model for plotting
+            plot_model = copy.deepcopy(self._model)
+
+            # Use every tenth result to save memory
+            posterior_sample = posteriour[::10]
+            for j in range(len(posterior_sample)):
+                plot_model.set_free_parameters(posterior_sample[j][2:])     # The first 2 values are not the parameters
+
+                post_model_counts = plot_model.get_counts(self._total_time_bins, saa_mask=self._saa_mask)
+
+                rebinned_post_model_counts, = this_rebinner.rebin(post_model_counts)
+
+                x_post = np.mean(self._rebinned_time_bins, axis=1)
+                y_post = (rebinned_post_model_counts / self._rebinned_time_bin_widths)
+
+                residual_plot.add_posteriour(x_post,
+                                             y_post,
+                                             alpha=0.02)
+
         if plot_sources:
 
             source_list = self._get_list_of_sources(self._total_time_bins - time_ref, self._total_time_bin_widths)
@@ -504,6 +522,8 @@ class BackgroundLike(object):
                                       xscale='linear',
                                       yscale='linear',
                                       show_legend=show_legend)
+
+
 
     def _get_list_of_sources(self,time_bins, time_bin_width=1.):
         """
@@ -596,7 +616,7 @@ class BackgroundLike(object):
 
         fit_result = np.array(data['fit-result']['param-values'])
 
-        self._set_free_parameters(fit_result)
+        self.set_free_parameters(fit_result)
 
         print("Fits file was successfully loaded and the free parameters set")
 
