@@ -27,6 +27,8 @@ class BackgroundLike(object):
         self._data = data       # type: ContinuousData
         self._model = model     # type: Model
 
+        self._use_SAA = data.use_SAA
+
         self._name = "Count rate detector %s" % self._data._det
         # The MET start time of the day
         self._day_met = self._data._day_met
@@ -38,7 +40,6 @@ class BackgroundLike(object):
 
         # The data object should return all the time bins that are valid... i.e. non-zero
         self._total_time_bins = self._data.time_bins[2:-2]
-
         self._total_time_bin_widths = np.diff(self._total_time_bins, axis=1)[:, 0]
 
         # Get the SAA and GRB mask:
@@ -538,10 +539,13 @@ class BackgroundLike(object):
             data = self._model.get_continuum_counts(i, time_bins, self._saa_mask)
             source_list.append({"label": source_name, "data": data / time_bin_width, "color": color_list[i]})
 
-        saa_data = self._model.get_saa_counts(self._total_time_bins, self._saa_mask)
+        if self._use_SAA:
+            saa_data = self._model.get_saa_counts(self._total_time_bins, self._saa_mask)
 
-        source_list.append({"label": "SAA_decays", "data": saa_data / time_bin_width, "color": color_list[i+1]})
+            source_list.append({"label": "SAA_decays", "data": saa_data / time_bin_width, "color": color_list[i+1]})
 
+        point_source_data = self._model.get_point_source_counts(self._total_time_bins, self._saa_mask)
+        source_list.append({"label": "Point_sources", "data": point_source_data / time_bin_width, "color": color_list[i + 1]})
         return source_list
 
 
@@ -615,3 +619,38 @@ class BackgroundLike(object):
         self.set_free_parameters(fit_result)
 
         print("Fits file was successfully loaded and the free parameters set")
+
+    @property
+    def use_SAA(self):
+
+        return self._use_SAA
+
+    # define a function that return the residuals of the fit:
+    def residuals(self):
+        significance_calc_return = Significance(self.data_counts,
+                                                self.model_counts / self._total_scale_factor,
+                                                self._total_scale_factor)
+        self._residuals_return = significance_calc_return.known_background()
+        return np.vstack((self._data.mean_time[2:-2], self._residuals_return)).T
+
+    def residuals_rebinned(self, min_bin_width=NO_REBIN):
+        time_ref = 0.
+        if (min_bin_width is not NO_REBIN) or (self._rebinner is None):
+            this_rebinner = Rebinner(self._total_time_bins - time_ref, min_bin_width, self._total_mask)  # _saa_mask
+
+        # we need to get the rebinned counts
+        rebinned_observed_counts, = this_rebinner.rebin(self._total_counts)
+
+        # the rebinned counts expected from the model
+        rebinned_model_counts, = this_rebinner.rebin(self.model_counts)
+
+        rebinned_background_counts = np.zeros_like(rebinned_observed_counts)
+
+        rebinned_mean_time = np.mean(this_rebinner.time_rebinned, axis=1)
+
+        significance_calc_res_rebinned = Significance(rebinned_observed_counts,
+                                                      rebinned_background_counts + rebinned_model_counts / self._total_scale_factor,
+                                                      self._total_scale_factor)
+        self._residuals_return_rebinned = significance_calc_res_rebinned.known_background()
+
+        return np.vstack((rebinned_mean_time[2:-2], self._residuals_return_rebinned[2:-2])).T
