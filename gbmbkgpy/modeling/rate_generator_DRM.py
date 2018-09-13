@@ -75,23 +75,6 @@ class Rate_Generator_DRM(object):
         else:
             print('Please use a valid detector name!')
 
-        # Run a function that precalculates the responses for all points - supports MPI to speed this up
-        if using_mpi:
-            points_per_rank = float(Ngrid) / float(size)
-            points_lower_index = int(np.floor(points_per_rank * rank))
-            points_upper_index = int(np.floor(points_per_rank * (rank + 1)))
-            Response_array_rank = self._build_response(points_lower_index, points_upper_index)
-            # gather in rank 0
-            Response_array_all = comm.gather(Response_array_rank, root=0)
-            # put them in one list
-            if rank == 0:
-                Response_array_all = np.concatenate(Response_array_all)
-            # broadcast the resulting list to all ranks
-            Response_array = comm.bcast(Response_array_all, root=0)
-            self._Response_array = Response_array
-        else:
-            self._Response_array = self._build_response(0, self._Ngrid)
-
         #Set the initial values for the spectra of earth and CGB. Can be changed with the corresponding methods
 
         #cgb spectrum
@@ -108,6 +91,15 @@ class Rate_Generator_DRM(object):
 
         #Points sources spectrum
         self._index_ps = 2
+
+        #CRAB spectrum
+        self._index_1_crab = 1.78
+        self._index_2_crab = 0.134
+        self._index_3_crab = 20
+
+        #calculate the rates for all points with the assumed spectra
+        self._calculate_rates()
+
     def _fibonacci_sphere(self, samples=1):
         rnd = 1.
 
@@ -128,25 +120,6 @@ class Rate_Generator_DRM(object):
 
         return points
 
-    def _build_response(self, points_lower_index, points_upper_index):
-        """
-        Function to precalculate the responses for all points on the grid. Parameters important for MPI.
-        :param points_lower_index: gives the start index of the points array with which this rank should start
-        :param points_upper_index: gives the stop index (-1) of the points array with which this rank should stop
-        :return: Response for all points between points_lower_index and points_upper_index
-        """
-        Response_list=[]
-        for point in self._points[points_lower_index:points_upper_index]:
-            # Create a DRMGen object to get the Instrumentresponse later. The values for the quaterions and sc_pos are dummy
-            # values. Not needed, because we will calculate everything in the sat. frame and do not consider athmospheric
-            # scattering
-            DRM = DRMGen(np.array([0.0745, -0.105, 0.0939, 0.987]),
-                         np.array([-5.88 * 10 ** 6, -2.08 * 10 ** 6, 2.97 * 10 ** 6]), self._det, self.Ebin_in_edge,
-                         mat_type=0, ebin_edge_out=self._Ebin_out_edge)
-            rsp = self._response(point[0], point[1], point[2], DRM)
-            #add to list
-            Response_list.append(rsp)
-        return np.array(Response_list)
     @property
     def points(self):
         return self._points
@@ -273,53 +246,6 @@ class Rate_Generator_DRM(object):
         return (e2 - e1) / 6.0 * (
                 self._differential_flux_cgb(e1) + 4 * self._differential_flux_cgb((e1 + e2) / 2.0) +
                 self._differential_flux_cgb(e2))
-
-    def calculate_earth_rates(self, points_index_start, points_index_stop):
-        """
-        Function to calculate the expected rates from all the points on the unit sphere for the assumed
-        spectra for earth. Parameter important for MPI calculation.
-        :param points_index_start:
-        :param points_index_stop:
-        :return:
-        """
-        # calculate the sr that one point occults, depends on how many points are used
-        sr_points = 4 * np.pi / self._Ngrid
-        # loop the points array and calculate the expected rate in every Ebin.
-        # This is done by convolving the true flux we get from the spectrum we assume for earth
-        # with the response matrix for every point
-        folded_rates_earth = []
-        for i in range(points_index_start, points_index_stop):
-            # get the response of the i'th point of the grid (precalculated above)
-            rsp = self._Response_array[i]
-            true_flux_earth = self._integral_earth(rsp.monte_carlo_energies[:-1], rsp.monte_carlo_energies[1:])
-            folded_rate_earth = np.dot(true_flux_earth, rsp.matrix.T) * sr_points
-            folded_rates_earth.append(folded_rate_earth)
-
-        return np.array(folded_rates_earth)
-
-    def calculate_cgb_rates(self, points_index_start, points_index_stop):
-        """
-        Function to calculate the expected rates from all the points on the unit sphere for the assumed
-        spectra for cgb. Parameter important for MPI calculation.
-        :param points_index_start:
-        :param points_index_stop:
-        :return:
-        """
-        # calculate the sr that one point occults, depends on how many points are used
-        sr_points = 4 * np.pi / self._Ngrid
-        # loop the points array and calculate the expected rate in every Ebin.
-        # This is done by convolving the true flux we get from the spectrum we assume for cgb
-        # with the response matrix for every point
-        folded_rates_cgb = []
-        for i in range(points_index_start, points_index_stop):
-            # get the response of the i'th point of the grid (precalculated above)
-            rsp = self._Response_array[i]
-            true_flux_cgb = self._integral_cgb(rsp.monte_carlo_energies[:-1], rsp.monte_carlo_energies[1:])
-            folded_rate_cgb = np.dot(true_flux_cgb, rsp.matrix.T) * sr_points
-            folded_rates_cgb.append(folded_rate_cgb)
-
-        return np.array(folded_rates_cgb)
-
     ###################################################### FOR POINTSOURCES
 
     def _spectrum_ps(self, energy, C, index):
@@ -349,26 +275,128 @@ class Rate_Generator_DRM(object):
         :return: flux in the Ebin_in
         """
         return (e2 - e1) / 6.0 * (
-                self._differential_flux_ps(e1) + 4 * self._differential_flux_ps((e1 + e2) / 2.0) +
-                self._differential_flux_ps(e2))
+                self._differential_flux_crab(e1) + 4 * self._differential_flux_crab((e1 + e2) / 2.0) +
+                self._differential_flux_crab(e2))
+    ##################################################### For CRAB
+    def _spectrum_crab(self, energy, C, index_1_crab, index_2_crab, index_3_crab):
+        """
+        define the function of a power law. Needed for PS spectrum
+        :param energy:
+        :param C:
+        :param index:
+        :return:
+        """
+        return C * energy**(-(index_1_crab+index_2_crab*np.log(energy/index_3_crab)))
 
-    def calculate_ps_rates(self, points_index_start, points_index_stop):
+    def _differential_flux_crab(self, e):
+        """
+        calculate the diff. flux with the constants defined for the earth
+        :param e: Energy of incoming photon
+        :return: differential flux
+        """
+        C = 1  # set the constant=1 will be fitted later to fit the data best
+        return self._spectrum_crab(e, C, self._index_1_crab, self._index_2_crab, self._index_3_crab)
+
+    def _integral_crab(self, e1, e2):
+        """
+        method to integrate the diff. flux over the Ebins of the incoming photons
+        :param e1: lower bound of Ebin_in
+        :param e2: upper bound of Ebin_in
+        :return: flux in the Ebin_in
+        """
+        return (e2 - e1) / 6.0 * (
+                self._differential_flux_crab(e1) + 4 * self._differential_flux_crab((e1 + e2) / 2.0) +
+                self._differential_flux_crab(e2))
+
+
+
+    def _calculate_rates(self):
         """
         Function to calculate the expected rates from all the points on the unit sphere for the assumed
-        spectra for a ps. Parameter important for MPI calculation.
+        spectra for earth. Parameter important for MPI calculation.
         :param points_index_start:
         :param points_index_stop:
         :return:
         """
+        # calculate the sr that one point occults, depends on how many points are used
+        sr_points = 4 * np.pi / self._Ngrid
         # loop the points array and calculate the expected rate in every Ebin.
-        # This is done by convolving the true flux we get from the spectrum we assume for ps
+        # This is done by convolving the true flux we get from the spectrum we assume for earth
         # with the response matrix for every point
+        folded_rates_earth = []
+        folded_rates_cgb = []
         folded_rates_ps = []
-        for i in range(points_index_start, points_index_stop):
-            # get the response of the i'th point of the grid (precalculated above)
-            rsp = self._Response_array[i]
-            true_flux_ps = self._integral_ps(rsp.monte_carlo_energies[:-1], rsp.monte_carlo_energies[1:])
-            folded_rate_ps = np.dot(true_flux_ps, rsp.matrix.T)
-            folded_rates_ps.append(folded_rate_ps)
+        # create the DRM object (quaternions and sc_pos are dummy values, not important as we calculate everything in
+        # the sat frame
+        DRM = DRMGen(np.array([0.0745, -0.105, 0.0939, 0.987]),
+                     np.array([-5.88 * 10 ** 6, -2.08 * 10 ** 6, 2.97 * 10 ** 6]), self._det, self.Ebin_in_edge,
+                     mat_type=0, ebin_edge_out=self._Ebin_out_edge)
+        if using_mpi:
+            points_per_rank = float(Ngrid) / float(size)
+            points_lower_index = int(np.floor(points_per_rank * rank))
+            points_upper_index = int(np.floor(points_per_rank * (rank + 1)))
+            for point in self._points[points_lower_index:points_upper_index]:
+                # get the response of every point
+                rsp = self._response(point[0], point[1], point[2], DRM)
+                true_flux_earth = self._integral_earth(rsp.monte_carlo_energies[:-1], rsp.monte_carlo_energies[1:])
+                true_flux_cgb = self._integral_cgb(rsp.monte_carlo_energies[:-1], rsp.monte_carlo_energies[1:])
+                true_flux_ps = self._integral_ps(rsp.monte_carlo_energies[:-1], rsp.monte_carlo_energies[1:])
+                folded_rate_earth = np.dot(true_flux_earth, rsp.matrix.T) * sr_points
+                folded_rate_cgb = np.dot(true_flux_cgb, rsp.matrix.T) * sr_points
+                folded_rate_ps = np.dot(true_flux_ps, rsp.matrix.T)
+                folded_rates_earth.append(folded_rate_earth)
+                folded_rates_cgb.append(folded_rate_cgb)
+                folded_rates_ps.append(folded_rate_ps)
 
-        return np.array(folded_rates_ps)
+            folded_rates_earth = np.array(folded_rates_earth)
+            folded_rates_cgb = np.array(folded_rates_cgb)
+            folded_rates_ps = np.array(folded_rates_ps)
+
+            folded_rates_earth_g = comm.gather(folded_rates_earth, root=0)
+            folded_rates_cgb_g = comm.gather(folded_rates_cgb, root=0)
+            folded_rates_ps_g = comm.gather(folded_rates_ps, root=0)
+
+            if rank == 0:
+                folded_rates_earth_g = np.concatenate(folded_rates_earth_g)
+                folded_rates_cgb_g = np.concatenate(folded_rates_cgb_g)
+                folded_rates_ps = np.concatenate(folded_rates_ps)
+
+            # broadcast the resulting list to all ranks
+            folded_rates_earth = comm.bcast(folded_rates_earth_g, root=0)
+            folded_rates_cgb = comm.bcast(folded_rates_cgb_g, root=0)
+            folded_rates_ps = comm.bcast(folded_rates_ps_g, root=0)
+
+        else:
+            for point in self._points:
+                # get the response of every point
+                rsp = self._response(point[0], point[1], point[2], DRM)
+                true_flux_earth = self._integral_earth(rsp.monte_carlo_energies[:-1], rsp.monte_carlo_energies[1:])
+                true_flux_cgb = self._integral_cgb(rsp.monte_carlo_energies[:-1], rsp.monte_carlo_energies[1:])
+                true_flux_ps = self._integral_ps(rsp.monte_carlo_energies[:-1], rsp.monte_carlo_energies[1:])
+                folded_rate_earth = np.dot(true_flux_earth, rsp.matrix.T) * sr_points
+                folded_rate_cgb = np.dot(true_flux_cgb, rsp.matrix.T) * sr_points
+                folded_rate_ps = np.dot(true_flux_ps, rsp.matrix.T)
+                folded_rates_earth.append(folded_rate_earth)
+                folded_rates_cgb.append(folded_rate_cgb)
+                folded_rates_ps.append(folded_rate_ps)
+
+        self._folded_rates_earth = np.array(folded_rates_earth)
+        self._folded_rates_cgb = np.array(folded_rates_cgb)
+        self._folded_rates_ps = np.array(folded_rates_ps)
+
+    @property
+    def cgb_rate(self):
+
+        return self._folded_rates_cgb
+
+    @property
+    def earth_rate(self):
+
+        return self._folded_rates_earth
+
+    @property
+    def ps_rate(self):
+
+        return self._folded_rates_ps
+
+
