@@ -27,23 +27,23 @@ def setup_sources(cd, ep, echan, include_point_sources=False, point_source_list=
         PS_Sources_list = []
 
         for i, ps in enumerate(ep.point_sources.itervalues()):
-            PS_Continuum_dic[ps.name + str(echan)] = Point_Source_Continuum(str(i), str(echan))
-            PS_Continuum_dic[ps.name + str(echan)].set_function_array(ps.ps_rate_array(cd.time_bins[2:-2], echan))
+            PS_Continuum_dic['{}{:d}'.format(ps.name, echan)] = Point_Source_Continuum(str(i), str(echan))
+            PS_Continuum_dic['{}{:d}'.format(ps.name, echan)].set_function_array(ps.ps_rate_array(cd.time_bins[2:-2], echan))
 
-            PS_Sources_list.append(PointSource(ps.name + str(echan), PS_Continuum_dic[ps.name + str(echan)], echan))
+            PS_Sources_list.append(PointSource('{}{:d}'.format(ps.name, echan), PS_Continuum_dic['{}{:d}'.format(ps.name, echan)], echan))
     if len(point_source_list)>0:
         ep.build_some_source(cd, point_source_list)
         PS_Continuum_dic = {}
         PS_Sources_list = []
 
         for i, ps in enumerate(ep.point_sources.itervalues()):
-            PS_Continuum_dic[ps.name + str(echan)] = Point_Source_Continuum(str(i),str(echan))
+            PS_Continuum_dic['{}{:d}'.format(ps.name, echan)] = Point_Source_Continuum(str(i),str(echan))
             #PS_Continuum_dic[ps.name].set_function_array(cd.effective_angle(ps.calc_occ_array(cd.time_bins[2:-2]),
             #                                                                echan))
-            PS_Continuum_dic[ps.name + str(echan)].set_function_array(ps.ps_rate_array(cd.time_bins[2:-2], echan))
+            PS_Continuum_dic['{}{:d}'.format(ps.name, echan)].set_function_array(ps.ps_rate_array(cd.time_bins[2:-2], echan))
             #PS_Continuum_dic[ps.name].set_earth_zero(ps.earth_occ_of_ps(cd.mean_time[2:-2]))
 
-            PS_Sources_list.append(PointSource(ps.name + str(echan), PS_Continuum_dic[ps.name + str(echan)], echan))
+            PS_Sources_list.append(PointSource('{}{:d}'.format(ps.name, echan), PS_Continuum_dic['{}{:d}'.format(ps.name, echan)], echan))
     # SAA Decay Source
     SAA_Decay_list = []
     if cd.use_SAA:
@@ -55,7 +55,7 @@ def setup_sources(cd, ep, echan, include_point_sources=False, point_source_list=
             saa_dec = SAA_Decay(str(saa_n))
             saa_dec.set_saa_exit_time(np.array([time]))
             saa_dec.set_time_bins(cd.time_bins[2:-2])
-            SAA_Decay_list.append(SAASource('saa_' + str(saa_n), saa_dec, echan))
+            SAA_Decay_list.append(SAASource('saa_{:d}'.format(saa_n), saa_dec, echan))
             saa_n += 1
     if echan==0:
         # Solar Continuum Source
@@ -63,20 +63,20 @@ def setup_sources(cd, ep, echan, include_point_sources=False, point_source_list=
         sol_con.set_function_array(cd.effective_angle(cd.sun_angle(cd.time_bins[2:-2]), echan))
         sol_con.set_saa_zero(cd.saa_mask[2:-2])
         sol_con.remove_vertical_movement()
-        Source_Solar_Continuum = ContinuumSource('Sun effective angle_echan_' + str(echan), sol_con, echan)
+        Source_Solar_Continuum = ContinuumSource('Sun effective angle_echan_{:d}'.format(echan), sol_con, echan)
 
     # Magnetic Continuum Source
     mag_con = Magnetic_Continuum(str(echan))
     mag_con.set_function_array(ep.mc_l((cd.time_bins[2:-2])))
     mag_con.set_saa_zero(cd.saa_mask[2:-2])
     mag_con.remove_vertical_movement()
-    Source_Magnetic_Continuum = ContinuumSource('McIlwain L-parameter_echan_' + str(echan), mag_con, echan)
+    Source_Magnetic_Continuum = ContinuumSource('McIlwain L-parameter_echan_{:d}'.format(echan), mag_con, echan)
 
     #constant term
     Constant = offset(str(echan))
     Constant.set_function_array(cd.cgb_background(cd.time_bins[2:-2]))
     Constant.set_saa_zero(cd.saa_mask[2:-2])
-    Constant_Continuum = ContinuumSource('Constant_echan_' + str(echan), Constant, echan)
+    Constant_Continuum = ContinuumSource('Constant_echan_{:d}'.format(echan), Constant, echan)
 
     source_list = [Source_Magnetic_Continuum, Constant_Continuum] + SAA_Decay_list + PS_Sources_list
 
