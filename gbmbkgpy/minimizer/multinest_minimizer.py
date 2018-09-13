@@ -27,8 +27,8 @@ class MultiNestFit(object):
         
         fits_path = os.path.join(get_path_of_external_data_dir(), 'fits/')
         multinest_out_dir = os.path.join(get_path_of_external_data_dir(), 'fits', 'mn_out/')
-        date_det_echan_dir = str(self._day) + '_' + str(self._det) + '_' + str(self._echan) + '/'
-        time_dir = 'fit_' + current_time.strftime("%Y-%m-%d_%H-%M") + '/'
+        date_det_echan_dir = '{0}_{1}_{2}/'.format(str(self._day), str(self._det), str(self._echan))
+        time_dir = 'fit_{}/'.format(current_time.strftime("%Y-%m-%d_%H-%M"))
 
         self.output_dir = os.path.join(multinest_out_dir, date_det_echan_dir, time_dir)
 
