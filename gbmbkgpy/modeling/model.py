@@ -98,6 +98,24 @@ class Model(object):
 
         return self._parameters
 
+    def set_free_parameters(self, new_parameters):
+        """
+        Set the free parameters to the new values
+        :param new_parameters:
+        :return:
+        """
+        for i, parameter in enumerate(self.free_parameters.itervalues()):
+            parameter.value = new_parameters[i]
+
+    def set_parameter_bounds(self, new_bounds):
+        """
+        Set the parameter bounds
+        :param new_bounds:
+        :return:
+        """
+        for i, parameter in enumerate(self._parameters.itervalues()):
+            parameter.bounds = new_bounds[i]
+
     def _update_parameters(self):
 
         parameters = collections.OrderedDict()

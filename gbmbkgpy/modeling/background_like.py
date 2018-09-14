@@ -117,6 +117,15 @@ class BackgroundLike(object):
 
             parameter.value = new_parameters[i]
 
+    def set_free_parameters(self, new_parameters):
+        """
+        Set the free parameters to the new values
+        :param new_parameters: 
+        :return: 
+        """
+
+        self._model.set_free_parameters(new_parameters)
+
     def model_counts(self, echan):
         """
         Returns the predicted counts from the model for all time bins,
