@@ -32,7 +32,7 @@ class Function(object):
 
     def __call__(self, echan):
 
-        return self._evaluate(self.parameter_value, echan)
+        return self._evaluate(*self.parameter_value, echan = echan)
 
 
 
@@ -97,14 +97,14 @@ class ContinuumFunction(Function):
 
         self._function_array[self._function_array != 0] = self._function_array[self._function_array != 0] - np.mean(self._function_array[self._function_array != 0], dtype=np.float64)
 
-    def _evaluate(self, K, echan):
+    def _evaluate(self, K, echan=None):
 
         return K * self._function_array
 
 
     def __call__(self, echan):
 
-        return self._evaluate(self.parameter_value, echan)
+        return self._evaluate(*self.parameter_value, echan=echan)
 
 
 class PointSourceFunction(Function):
@@ -168,11 +168,11 @@ class PointSourceFunction(Function):
         self._function_array[self._function_array != 0] = self._function_array[self._function_array != 0] - np.mean(
             self._function_array[self._function_array != 0], dtype=np.float64)
 
-    def _evaluate(self, K, echan):
+    def _evaluate(self, K, echan=None):
         return K * self._function_array
 
     def __call__(self, echan):
-        return self._evaluate(self.parameter_value, echan)
+        return self._evaluate(*self.parameter_value, echan = echan)
 
 
 class GlobalFunction(Function):
@@ -222,11 +222,11 @@ class GlobalFunction(Function):
 
         self._function_array[self._function_array != 0] = self._function_array[self._function_array != 0] - np.mean(self._function_array[self._function_array != 0], dtype=np.float64)
 
-    def _evaluate(self, K, echan):
+    def _evaluate(self, K, echan=None):
         #build something with echan
         return K * self._function_array[echan]
 
 
     def __call__(self, echan):
 
-        return self._evaluate(self.parameter_value, echan)
+        return self._evaluate(*self.parameter_value, echan=echan)
