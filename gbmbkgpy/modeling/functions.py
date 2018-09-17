@@ -14,7 +14,7 @@ class Solar_Flare(Function):
         super(Solar_Flare, self).__init__(K, decay_constant)
 
 
-    def _evaluate(self, x, K, decay_constant):
+    def _evaluate(self, x, K, decay_constant, echan=None):
 
 
         return K * np.exp(-x / decay_constant)
@@ -24,8 +24,8 @@ class SAA_Decay(Function):
 
     def __init__(self, saa_number):
 
-        A = Parameter('A-' + saa_number, initial_value=1., min_value=0, max_value=None, delta=0.1, normalization=True)
-        saa_decay_constant = Parameter('saa_decay_constant-' + saa_number, initial_value=-0.01, min_value=-1., max_value=0, delta=0.1)
+        A = Parameter('A-' + saa_number, initial_value=1., min_value=0, max_value=None, delta=0.1, normalization=True, prior='log_uniform')
+        saa_decay_constant = Parameter('saa_decay_constant-' + saa_number, initial_value=-0.01, min_value=-1., max_value=0, delta=0.1, prior='log_uniform')
 
         super(SAA_Decay, self).__init__(A, saa_decay_constant)
 
@@ -39,7 +39,7 @@ class SAA_Decay(Function):
 
         self._time_bins = time_bins
 
-    def _evaluate(self, A, saa_decay_constant):
+    def _evaluate(self, A, saa_decay_constant, echan=None):
         """
         Calculates the exponential decay for the SAA exit
         The the values are calculated for the start and stop times of the bins for vectorized integration
@@ -79,7 +79,7 @@ class GRB(Function):
         self._t_decay = t_decay
 
 
-    def _evaluate(self):
+    def _evaluate(self, echan=None):
         """
         Calculates a "typical" GRB pulse with a preset rise and decay time.
         The the values are calculated for the start and stop times of the bins for vectorized integration
