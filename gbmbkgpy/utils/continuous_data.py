@@ -194,116 +194,12 @@ class ContinuousData(object):
 
         return self._position_interpolator.quaternion(met)
 
-
-    def effective_angle(self, angle, channel):
-        """
-        Interpolation function for the Solar Continuum
-        :param channel:
-        :param angle:
-        :return:
-        """
-
-        assert isinstance(channel,int), 'channel must be an integer'
-        assert channel in range(self._n_channels), 'Invalid channel'
-
-        return np.array(interpolate.splev(angle, self._tck[channel], der=0))
-
-
-    def effective_area(self, angle, channel):
-        """
-        Interpolation function for the earth albedo continuum
-        :param channel:
-        :param angle:
-        :return:
-        """
-
-        assert isinstance(channel, int), 'channel must be an integer'
-        assert channel in range(self._n_channels), 'Invalid channel'
-
-        return np.array(interpolate.splev(angle, self._tck_occ[channel], der=0))
-
     def cgb_background(self, time_bins):
 
         return np.ones_like(time_bins)
 
-
-    def _calculate_ang_eff(self):
-        """This function converts the angle of one detectortype to a certain source into an effective angle considering the angular dependence of the effective area and stores the data in an array of the form: ang_eff\n
-        Input:\n
-        calculate.ang_eff ( ang (in degrees), echan (integer in the range of 0-7 or 0-127), datatype='ctime' (or 'cspec'), detectortype='NaI' (or 'BGO') )\n
-        Output:\n
-        0 = effective angle\n
-        1 = normalized photopeak effective area curve"""
-
-        fitsname = 'peak_eff_area_angle_calib_GBM_all_DRM.fits'
-
-        fitsfilepath = get_path_of_data_file('calibration', fitsname)
-
-        with fits.open(fitsfilepath) as fits_file:
-            data = fits_file[1].data
-
-            x = data.field(0)
-            y0 = data.field(1)  # for NaI (4-12 keV) gewichteter Mittelwert = 10.76 keV
-            y1 = data.field(2)  # for NaI (12-27 keV) gewichteter Mittelwert = 20.42 keV
-            y2 = data.field(3)  # for NaI (27-50 keV) gewichteter Mittelwert = 38.80 keV
-            y3 = data.field(4)  # for NaI (50-102 keV) gewichteter Mittelwert = 76.37 keV
-            y4 = data.field(5)  # for NaI (102-295 keV) gewichteter Mittelwert = 190.19 keV
-            y5 = data.field(6)  # for NaI (295-540 keV) gewichteter Mittelwert = 410.91 keV
-            y6 = data.field(7)  # for NaI (540-985 keV) gewichteter Mittelwert = 751.94 keV
-            y7 = data.field(8)  # for NaI (985-2000 keV) gewichteter Mittelwert = 1466.43 keV
-            # y4 = data.field(4)#for BGO (898 keV)
-            # y5 = data.field(5)#for BGO (1836 keV)
-
-            y_all = np.array([y0, y1, y2, y3, y4, y5, y6, y7])
-            ang_eff = []
-
-
-        self._tck = collections.OrderedDict()
-
-        if self._det[0] == 'n':
-
-            #if self._data_type == 'ctime':
-                # ctime linear-interpolation factors
-                # y1_fac = np.array([1.2, 1.08, 238./246., 196./246., 127./246., 0., 0., 0.])
-                # y2_fac = np.array([0., 0., 5./246., 40./246., 109./246., 230./383., 0., 0.])
-                # y3_fac = np.array([0., 0., 0., 0., 0., 133./383., .7, .5])
-
-                # y1_fac = np.array([1.2, 1.08, 238./246., 196./246., 77./246., 0., 0., 0.])
-                # y2_fac = np.array([0., 0., 5./246., 40./246., 159./246., 230./383., 0., 0.])
-                # y3_fac = np.array([0., 0., 0., 0., 0., 133./383., .7, .5])
-
-                # resulting effective area curve
-
-
-            for echan in range(self._n_channels):
-
-                y = y_all[echan]
-
-                # normalize
-                # y = y/y1[90]
-
-                # calculate the angle factors
-                self._tck[echan] = interpolate.splrep(x, y)
-                #ang_eff = interpolate.splev(ang, tck, der=0)
-
-                # convert the angle according to their factors
-                # ang_eff = np.array(ang_fac*ang)
-        else:
-
-            raise NotImplementedError('BGO not implemented yet')
-
-        #
-        # else:
-        #     print 'detector_type BGO not yet implemented'
-        #
-        # '''ang_rad = ang*(2.*math.pi)/360.
-        # ang_eff = 110*np.cos(ang_rad)
-        # ang_eff[np.where(ang > 90.)] = 0.'''
-        # return ang_eff, y
-        del y_all, x, y0, y1, y2, y3, y4, y5, y6, y7
-
     def _setup_geometery(self):
-        n_bins_to_calculate = 800.
+        n_bins_to_calculate = 80.
 
         self._position_interpolator = PositionInterpolator(poshist=self._pos_hist)
 
@@ -328,27 +224,31 @@ class ContinuousData(object):
         if using_mpi:
             #if using mpi split the times at which the geometry is calculated to all ranks
             list_times_to_calculate = self.mean_time[::n_skip]
-            times_per_rank = float(len(list_times_to_calculate))/float(size)
-            times_lower_bound_index = int(np.floor(rank*times_per_rank))
-            times_upper_bound_index = int(np.floor((rank+1)*times_per_rank))
-            for mean_time in list_times_to_calculate[times_lower_bound_index:times_upper_bound_index]:
-                quaternion_step = self._position_interpolator.quaternion(mean_time)
-                sc_pos_step = self._position_interpolator.sc_pos(mean_time)
-                det = gbm_detector_list[self._det](quaternion=quaternion_step,
-                                                   sc_pos=sc_pos_step,
-                                                   time=astro_time.Time(self._position_interpolator.utc(mean_time)))
+            self._times_per_rank = float(len(list_times_to_calculate))/float(size)
+            self._times_lower_bound_index = int(np.floor(rank*self._times_per_rank))
+            self._times_upper_bound_index = int(np.floor((rank+1)*self._times_per_rank))
+            with progress_bar(len(list_times_to_calculate[self._times_lower_bound_index:self._times_upper_bound_index]),
+                              title='Calculating sun and earth position') as p:
+                for mean_time in list_times_to_calculate[self._times_lower_bound_index:self._times_upper_bound_index]:
+                    quaternion_step = self._position_interpolator.quaternion(mean_time)
+                    sc_pos_step = self._position_interpolator.sc_pos(mean_time)
+                    det = gbm_detector_list[self._det](quaternion=quaternion_step,
+                                                       sc_pos=sc_pos_step,
+                                                       time=astro_time.Time(self._position_interpolator.utc(mean_time)))
 
-                sun_angle.append(det.sun_angle.value)
-                sun_time.append(mean_time)
-                az, zen = det.earth_az_zen_sat
-                earth_az.append(az)
-                earth_zen.append(zen)
-                earth_position.append(det.earth_position)
+                    sun_angle.append(det.sun_angle.value)
+                    sun_time.append(mean_time)
+                    az, zen = det.earth_az_zen_sat
+                    earth_az.append(az)
+                    earth_zen.append(zen)
+                    earth_position.append(det.earth_position)
 
-                quaternion.append(quaternion_step)
-                sc_pos.append(sc_pos_step)
-            #get the last data point with rank 0
-            if rank==0:
+                    quaternion.append(quaternion_step)
+                    sc_pos.append(sc_pos_step)
+
+                    p.increase()
+                #get the last data point with the last rank
+            if rank == size - 1:
                 mean_time = self.mean_time[-2]
                 quaternion_step = self._position_interpolator.quaternion(mean_time)
                 sc_pos_step = self._position_interpolator.sc_pos(mean_time)
@@ -565,181 +465,6 @@ class ContinuousData(object):
 
         self._saa_slices = slice_idx
 
-    def _calculate_earth_occ(self):
-        """This function calculates the overlapping area fraction for a certain earth-angle and stores the data in arrays of the form: opening_ang, earth_occ\n
-        Input:\n
-        calc_earth_occ ( angle )\n
-        Output:\n
-        0 = angle of the detector-cone\n
-        1 = area fraction of the earth-occulted area to the entire area of the detector-cone"""
-
-        angles = np.arange(0, 180.5, 0.5)
-
-        angle_d = []
-        area_frac = []
-        free_ar = []
-        occ_area = []
-
-        for i, angle in enumerate(angles):
-
-            # get the distance from the satellite to the center of the earth
-            sat_dist = 6912000.
-            # get the earth_radius at the satellite's position
-            earth_radius = 6371000.8
-            atmosphere = 12000.
-            r = earth_radius + atmosphere  # the full radius of the occulting earth-sphere
-
-            # define the opening angles of the overlapping cones (earth and detector).
-            theta = math.asin(r / sat_dist)  # earth-cone
-            opening_ang = np.arange(math.pi / 36000., math.pi + math.pi / 36000., math.pi / 36000.)
-
-            # get the angle between the detector direction and the earth direction
-            earth_ang = angle * 2. * math.pi / 360.
-
-            # geometric considerations for the two overlapping spherical cap problem
-            phi = math.pi / 2 - earth_ang
-            f = (np.cos(theta) - np.cos(opening_ang) * np.sin(phi)) / (np.cos(phi))
-            beta = np.arctan2(f, (np.cos(opening_ang)))
-
-            # same considerations for the earth-component
-            f_e = (np.cos(opening_ang) - np.cos(theta) * np.sin(phi)) / (np.cos(phi))
-            beta_e = np.arctan2(f_e, (np.cos(theta)))
-
-            # new approach without nan (caused by negative squares)
-
-            free_area = 2 * math.pi * (1 - np.cos(opening_ang))
-
-            index = 0
-
-            A_an2 = []
-
-            while opening_ang[index] < math.pi/2:
-
-                if opening_ang[index] <= theta - earth_ang:
-                    A_an2.append(2 * math.pi * (1 - np.cos(opening_ang[index])))
-                elif opening_ang[index] >= theta + earth_ang:
-                    A_an2.append(2 * math.pi * (1 - np.cos(theta)))
-                elif opening_ang[index] <= earth_ang - theta:
-                    A_an2.append(0)
-                else:
-                    A_d_an2 = 2 * (np.arctan2(
-                        (np.sqrt(-(np.tan(beta[index])) ** 2 / ((np.sin(opening_ang[index])) ** 2) + (
-                            np.tan(beta[index])) ** 2 + 1) * np.sin(
-                            opening_ang[index])),
-                        np.tan(beta[index])) - np.cos(opening_ang[index]) * np.arccos(
-                        np.tan(beta[index]) / np.tan(opening_ang[index])))
-
-                    A_e_an2 = 2 * (
-                            np.arctan2((np.sqrt(
-                                -(np.tan(beta_e[index])) ** 2 / ((np.sin(theta)) ** 2) + (
-                                    np.tan(beta_e[index])) ** 2 + 1) * np.sin(theta)),
-                                       np.tan(beta_e[index])) - np.cos(theta) * np.arccos(
-                        np.tan(beta_e[index]) / np.tan(theta)))
-
-                    A_an2.append(A_d_an2 + A_e_an2)
-                index = index + 1
-
-
-            #redefine angles for the calculation for opening_angle>Pi/2
-            opening_ang_2 = math.pi - opening_ang
-            earth_ang_2 = math.pi - earth_ang
-            # geometric considerations for the two overlapping spherical cap problem
-            phi_2 = math.pi / 2 - earth_ang_2
-            f_2 = (np.cos(theta) - np.cos(opening_ang_2) * np.sin(phi_2)) / (np.cos(phi_2))
-            beta_2 = np.arctan2(f_2, (np.cos(opening_ang_2)))
-
-            # same considerations for the earth-component
-            f_e_2 = (np.cos(opening_ang_2) - np.cos(theta) * np.sin(phi_2)) / (np.cos(phi_2))
-            beta_e_2 = np.arctan2(f_e_2, (np.cos(theta)))
-
-            while index<len(opening_ang):
-                if opening_ang_2[index] <= theta - earth_ang_2:
-                    A_an2.append((2*math.pi*(1-np.cos(theta)))-2 * math.pi * (1 - np.cos(opening_ang_2[index])))
-                elif opening_ang_2[index] >= theta + earth_ang_2:
-                    A_an2.append((2*math.pi*(1-np.cos(theta)))-2 * math.pi * (1 - np.cos(theta)))
-                elif opening_ang_2[index] <= earth_ang_2 - theta:
-                    A_an2.append(2*math.pi*(1-np.cos(theta)))
-                else:
-                    A_d_an2 = 2 * (np.arctan2(
-                        (np.sqrt(-(np.tan(beta_2[index])) ** 2 / ((np.sin(opening_ang_2[index])) ** 2) + (
-                            np.tan(beta_2[index])) ** 2 + 1) * np.sin(
-                            opening_ang_2[index])),
-                        np.tan(beta_2[index])) - np.cos(opening_ang_2[index]) * np.arccos(
-                        np.tan(beta_2[index]) / np.tan(opening_ang_2[index])))
-
-                    A_e_an2 = 2 * (
-                            np.arctan2((np.sqrt(
-                                -(np.tan(beta_e_2[index])) ** 2 / ((np.sin(theta)) ** 2) + (
-                                    np.tan(beta_e_2[index])) ** 2 + 1) * np.sin(theta)),
-                                       np.tan(beta_e_2[index])) - np.cos(theta) * np.arccos(
-                        np.tan(beta_e_2[index]) / np.tan(theta)))
-
-                    A_an2.append((2*math.pi*(1-np.cos(theta)))-(A_d_an2 + A_e_an2))
-                index = index + 1
-
-            # calculate the fraction of the occulated area
-            earth_occ = A_an2 / free_area
-
-            angle_d.append(opening_ang * 180. / math.pi)
-            area_frac.append(earth_occ)
-            free_ar.append(free_area)
-            occ_area.append(A_an2)
-
-        self._earth_angs = angles
-        self._angle_d = angle_d
-        self._area_frac = area_frac
-        self._free_area = free_ar
-        self._occ_area = occ_area
-
-        del angles, angle_d, area_frac, free_area, occ_area
-
-
-    def _calculate_earth_occ_eff(self):
-        """This function converts the earth angle into an effective earth occultation considering the angular dependence of the effective area and stores the data in an array of the form: earth_occ_eff\n
-        Input:\n
-        calculate.earth_occ_eff ( earth_ang (in degrees), echan (integer in the range of 0-7 or 0-127), datatype='ctime' (or 'cspec'), detectortype='NaI' (or 'BGO') )\n
-        Output:\n
-        0 = effective unocculted detector area"""
-
-        #earth_ang_0 = self._earth_angs  #np.arange(0, 180.5, .5)
-        #angle_d = self._angle_d[0]
-        #area_frac = self._area_frac
-        #free_area = self._free_area#[0]
-        #occ_area = self._occ_area
-
-        self._tck_occ = collections.OrderedDict()
-
-        for echan in range(self._n_channels):
-
-            ang_fac = interpolate.splev(self._angle_d[0], self._tck[echan], der=0)
-
-            free_circ_eff = [self._free_area[0][0] * ang_fac[0]]
-
-            for i in range(1, len(self._free_area[0])):
-                circ_area = self._free_area[0][i] - self._free_area[0][i - 1]
-                circ_area_eff = circ_area * ang_fac[i]
-                free_circ_eff.append(circ_area_eff)
-
-            free_circ_eff = np.array(free_circ_eff)
-
-            occ_circ_eff = []
-
-            for j in range(0, len(self._earth_angs)):
-                occ_circ_eff_0 = [self._occ_area[j][0] * ang_fac[0]]
-                for i in range(1, len(self._occ_area[j])):
-                    circ_area = self._occ_area[j][i] - self._occ_area[j][i - 1]
-                    circ_area_eff = circ_area * ang_fac[i]
-                    occ_circ_eff_0.append(circ_area_eff)
-
-                occ_circ_eff.append(occ_circ_eff_0)
-
-            occ_circ_eff = np.array(occ_circ_eff)
-            # eff_area_frac = np.sum(occ_circ_eff)/np.sum(free_circ_eff)
-            eff_area_frac_0 = np.sum(occ_circ_eff, axis=1) / np.sum(free_circ_eff)
-
-            self._tck_occ[echan] = interpolate.splrep(self._earth_angs, eff_area_frac_0, s=0)
-
-        del eff_area_frac_0, occ_circ_eff, occ_circ_eff_0, free_circ_eff, ang_fac
 
     @property
     def quaternion(self):
@@ -870,22 +595,54 @@ class ContinuousData(object):
         earth_rates = self._rate_generator_DRM.earth_rate
         # get the earth direction at the interpolation times; zen angle from -90 to 90
         earth_pos_inter_times = []
-        for i in range(0, len(self._earth_zen)):
-            earth_pos_inter_times.append(
-                np.array([np.cos(self._earth_zen[i] * (np.pi / 180)) * np.cos(self._earth_az[i] * (np.pi / 180)),
-                          np.cos(self._earth_zen[i] * (np.pi / 180)) * np.sin(self._earth_az[i] * (np.pi / 180)),
-                          np.sin(self._earth_zen[i] * (np.pi / 180))]))
-        self._earth_pos_inter_times = np.array(earth_pos_inter_times)
-        # define the opening angle of the earth in degree
-        opening_angle_earth = 67
-        array_earth_rate = []
-        for pos in self._earth_pos_inter_times:
-            earth_rate = np.zeros_like(earth_rates[0])
-            for i, pos_point in enumerate(points):
-                angle_earth = np.arccos(np.dot(pos, pos_point)) * (180 / np.pi)
-                if angle_earth < opening_angle_earth:
-                    earth_rate += earth_rates[i]
-            array_earth_rate.append(earth_rate)
+        if using_mpi:
+            # last rank has to cover one more index. Caused by the calculation of the Geometry for the last time
+            # bin of the day
+            if rank == size - 1:
+                upper_index = self._times_upper_bound_index + 1
+            else:
+                upper_index = self._times_upper_bound_index + 1
+
+            for i in range(self._times_lower_bound_index, upper_index):
+                earth_pos_inter_times.append(
+                    np.array([np.cos(self._earth_zen[i] * (np.pi / 180)) * np.cos(self._earth_az[i] * (np.pi / 180)),
+                              np.cos(self._earth_zen[i] * (np.pi / 180)) * np.sin(self._earth_az[i] * (np.pi / 180)),
+                              np.sin(self._earth_zen[i] * (np.pi / 180))]))
+            self._earth_pos_inter_times = np.array(earth_pos_inter_times)
+            # define the opening angle of the earth in degree
+            opening_angle_earth = 67
+            array_earth_rate = []
+            for pos in self._earth_pos_inter_times:
+                earth_rate = np.zeros_like(earth_rates[0])
+                for i, pos_point in enumerate(points):
+                    angle_earth = np.arccos(np.dot(pos, pos_point)) * (180 / np.pi)
+                    if angle_earth < opening_angle_earth:
+                        earth_rate += earth_rates[i]
+                array_earth_rate.append(earth_rate)
+
+            array_earth_rate = np.array(array_earth_rate)
+
+            array_earth_rate_g = comm.gather(array_earth_rate, root=0)
+            if rank == 0:
+                array_earth_rate_g = np.concatenate(array_earth_rate_g)
+            array_earth_rate = comm.bcast(array_earth_rate_g, root=0)
+        else:
+            for i in range(0, len(self._earth_zen)):
+                earth_pos_inter_times.append(
+                    np.array([np.cos(self._earth_zen[i] * (np.pi / 180)) * np.cos(self._earth_az[i] * (np.pi / 180)),
+                              np.cos(self._earth_zen[i] * (np.pi / 180)) * np.sin(self._earth_az[i] * (np.pi / 180)),
+                              np.sin(self._earth_zen[i] * (np.pi / 180))]))
+            self._earth_pos_inter_times = np.array(earth_pos_inter_times)
+            # define the opening angle of the earth in degree
+            opening_angle_earth = 67
+            array_earth_rate = []
+            for pos in self._earth_pos_inter_times:
+                earth_rate = np.zeros_like(earth_rates[0])
+                for i, pos_point in enumerate(points):
+                    angle_earth = np.arccos(np.dot(pos, pos_point)) * (180 / np.pi)
+                    if angle_earth < opening_angle_earth:
+                        earth_rate += earth_rates[i]
+                array_earth_rate.append(earth_rate)
         self._array_earth_rate = np.array(array_earth_rate).T
         self._earth_rate_interpolator = interpolate.interp1d(self._sun_time, self._array_earth_rate)
 
@@ -898,27 +655,57 @@ class ContinuousData(object):
         spectrum.
         :return:
         """
-        Ngrid = self._rate_generator_DRM.Ngrid
         points = self._rate_generator_DRM.points
         cgb_rates = self._rate_generator_DRM.cgb_rate
         # get the earth direction at the interpolation times; zen angle from -90 to 90
         earth_pos_inter_times = []
-        for i in range(0, len(self._earth_zen)):
-            earth_pos_inter_times.append(
-                np.array([np.cos(self._earth_zen[i] * (np.pi / 180)) * np.cos(self._earth_az[i] * (np.pi / 180)),
-                          np.cos(self._earth_zen[i] * (np.pi / 180)) * np.sin(self._earth_az[i] * (np.pi / 180)),
-                          np.sin(self._earth_zen[i] * (np.pi / 180))]))
-        self._earth_pos_inter_times = np.array(earth_pos_inter_times)
-        # define the opening angle of the earth in degree
-        opening_angle_earth = 67
-        array_cgb_rate = []
-        for pos in self._earth_pos_inter_times:
-            cgb_rate = np.zeros_like(cgb_rates[0])
-            for i, pos_point in enumerate(points):
-                angle_earth = np.arccos(np.dot(pos, pos_point)) * (180 / np.pi)
-                if angle_earth > opening_angle_earth:
-                    cgb_rate += cgb_rates[i]
-            array_cgb_rate.append(cgb_rate)
+        if using_mpi:
+            # last rank has to cover one more index. Caused by the calculation of the Geometry for the last time
+            # bin of the day
+            if rank == size - 1:
+                upper_index = self._times_upper_bound_index + 1
+            else:
+                upper_index = self._times_upper_bound_index + 1
+
+            for i in range(self._times_lower_bound_index, upper_index):
+                earth_pos_inter_times.append(
+                    np.array([np.cos(self._earth_zen[i] * (np.pi / 180)) * np.cos(self._earth_az[i] * (np.pi / 180)),
+                              np.cos(self._earth_zen[i] * (np.pi / 180)) * np.sin(self._earth_az[i] * (np.pi / 180)),
+                              np.sin(self._earth_zen[i] * (np.pi / 180))]))
+            self._earth_pos_inter_times = np.array(earth_pos_inter_times)
+            # define the opening angle of the earth in degree
+            opening_angle_earth = 67
+            array_cgb_rate = []
+            for pos in self._earth_pos_inter_times:
+                cgb_rate = np.zeros_like(cgb_rates[0])
+                for i, pos_point in enumerate(points):
+                    angle_earth = np.arccos(np.dot(pos, pos_point)) * (180 / np.pi)
+                    if angle_earth > opening_angle_earth:
+                        cgb_rate += cgb_rates[i]
+                array_cgb_rate.append(cgb_rate)
+            array_cgb_rate = np.array(array_cgb_rate)
+
+            array_cgb_rate_g = comm.gather(array_cgb_rate, root=0)
+            if rank == 0:
+                array_cgb_rate_g = np.concatenate(array_cgb_rate_g)
+            array_cgb_rate = comm.bcast(array_cgb_rate_g, root=0)
+        else:
+            for i in range(0, len(self._earth_zen)):
+                earth_pos_inter_times.append(
+                    np.array([np.cos(self._earth_zen[i] * (np.pi / 180)) * np.cos(self._earth_az[i] * (np.pi / 180)),
+                              np.cos(self._earth_zen[i] * (np.pi / 180)) * np.sin(self._earth_az[i] * (np.pi / 180)),
+                              np.sin(self._earth_zen[i] * (np.pi / 180))]))
+            self._earth_pos_inter_times = np.array(earth_pos_inter_times)
+            # define the opening angle of the earth in degree
+            opening_angle_earth = 67
+            array_cgb_rate = []
+            for pos in self._earth_pos_inter_times:
+                cgb_rate = np.zeros_like(cgb_rates[0])
+                for i, pos_point in enumerate(points):
+                    angle_earth = np.arccos(np.dot(pos, pos_point)) * (180 / np.pi)
+                    if angle_earth > opening_angle_earth:
+                        cgb_rate += cgb_rates[i]
+                array_cgb_rate.append(cgb_rate)
         self._array_cgb_rate = np.array(array_cgb_rate).T
         self._cgb_rate_interpolator = interpolate.interp1d(self._sun_time, self._array_cgb_rate)
 
@@ -977,3 +764,17 @@ class ContinuousData(object):
     @property
     def det_dec_icrs(self):
         return self._det_dec
+
+    @property
+    def times_lower_bound_index(self):
+        """
+        :return: the lower bound index of the part of the interpolation list covered by this rank
+        """
+        return self._times_lower_bound_index
+
+    @property
+    def times_upper_bound_index(self):
+        """
+        :return: the upper bound index of the part of the interpolation list covered by this rank
+        """
+        return self._times_upper_bound_index
