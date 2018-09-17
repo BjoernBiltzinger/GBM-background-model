@@ -14,6 +14,7 @@ try:
 
         comm = MPI.COMM_WORLD
         rank = comm.Get_rank()
+        size = comm.Get_size()
 
     else:
 
@@ -332,7 +333,7 @@ class Rate_Generator_DRM(object):
                      np.array([-5.88 * 10 ** 6, -2.08 * 10 ** 6, 2.97 * 10 ** 6]), self._det, self.Ebin_in_edge,
                      mat_type=0, ebin_edge_out=self._Ebin_out_edge)
         if using_mpi:
-            points_per_rank = float(Ngrid) / float(size)
+            points_per_rank = float(self._Ngrid) / float(size)
             points_lower_index = int(np.floor(points_per_rank * rank))
             points_upper_index = int(np.floor(points_per_rank * (rank + 1)))
             for point in self._points[points_lower_index:points_upper_index]:
@@ -359,7 +360,7 @@ class Rate_Generator_DRM(object):
             if rank == 0:
                 folded_rates_earth_g = np.concatenate(folded_rates_earth_g)
                 folded_rates_cgb_g = np.concatenate(folded_rates_cgb_g)
-                folded_rates_ps = np.concatenate(folded_rates_ps)
+                folded_rates_ps_g = np.concatenate(folded_rates_ps_g)
 
             # broadcast the resulting list to all ranks
             folded_rates_earth = comm.bcast(folded_rates_earth_g, root=0)
