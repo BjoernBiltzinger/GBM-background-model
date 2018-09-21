@@ -175,6 +175,17 @@ class ResidualPlot(object):
         """
         self._data_axis.plot(x, y, label=label, color=color, alpha=.6, zorder=20)
 
+    def add_posteriour(self, x, y, color='grey', alpha = 0.002):
+        """
+
+        :param x:
+        :param y:
+        :param lable:
+        :param color:
+        :return:
+        """
+        self._data_axis.plot(x, y, color=color, alpha=alpha, zorder=19)
+
     def add_list_of_sources(self, x, source_list):
         """
          Add a list of model sources and interpolate them across the time span for the plotting.

@@ -6,6 +6,7 @@ class Parameter(object):
         self._min_value = min_value
         self._max_value = max_value
         self._delta = delta
+        self._prior = prior
 
         self._prior = prior
 
@@ -124,11 +125,8 @@ class Parameter(object):
 
     @property
     def name(self):
-
         return self._name
 
     @property
-
     def prior(self):
-
         return self._prior
