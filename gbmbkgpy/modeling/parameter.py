@@ -8,6 +8,8 @@ class Parameter(object):
         self._delta = delta
         self._prior = prior
 
+        self._prior = prior
+
         self._free = True
 
         self._normalization = False

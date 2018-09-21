@@ -1,5 +1,5 @@
 import collections
-from source import CONTINUUM_SOURCE, POINT_SOURCE, FLARE_SOURCE, SAA_SOURCE
+from source import CONTINUUM_SOURCE, POINT_SOURCE, FLARE_SOURCE, SAA_SOURCE, GLOBAL_SOURCE
 import numpy as np
 
 class Model(object):
@@ -12,6 +12,8 @@ class Model(object):
         self._point_sources = collections.OrderedDict()
 
         self._saa_sources = collections.OrderedDict()
+
+        self._global_sources = collections.OrderedDict()
 
         for source in sources:
             self._add_source(source)
@@ -115,11 +117,29 @@ class Model(object):
 
         return self._parameters
 
+    def set_free_parameters(self, new_parameters):
+        """
+        Set the free parameters to the new values
+        :param new_parameters:
+        :return:
+        """
+        for i, parameter in enumerate(self.free_parameters.itervalues()):
+            parameter.value = new_parameters[i]
+
+    def set_parameter_bounds(self, new_bounds):
+        """
+        Set the parameter bounds
+        :param new_bounds:
+        :return:
+        """
+        for i, parameter in enumerate(self._parameters.itervalues()):
+            parameter.bounds = new_bounds[i]
+
     def _update_parameters(self):
 
         parameters = collections.OrderedDict()
 
-        for sources in [self._continuum_sources, self._flare_sources, self._point_sources, self._saa_sources]:
+        for sources in [self._continuum_sources, self._flare_sources, self._point_sources, self._saa_sources, self._global_sources]:
 
             for source in sources.itervalues():
 
@@ -146,6 +166,10 @@ class Model(object):
 
             self._saa_sources[source.name] = source
 
+        if source.source_type == GLOBAL_SOURCE:
+
+            self._global_sources[source.name] = source
+
     def set_initial_SAA_amplitudes(self, norm_array):
         """
         Sets the initial normalization of the saa_sources
@@ -169,6 +193,18 @@ class Model(object):
 
                 parameter.value = norm_array[i]
 
+    def set_initial_global_amplitudes(self, norm_array):
+        """
+        Sets the initial normalization of the global sources
+        :param norm_array:
+        :return:
+        """
+        for i, global_source in enumerate(self._global_sources.itervalues()):
+
+            for j, parameter in enumerate(global_source.parameters.itervalues()):
+
+                parameter.value = norm_array[i]
+
     @property
     def point_sources(self):
 
@@ -183,6 +219,11 @@ class Model(object):
     def continuum_sources(self):
 
         return self._continuum_sources
+
+    @property
+    def global_sources(self):
+
+        return self._global_sources
 
     @property
     def saa_sources(self):
@@ -209,14 +250,16 @@ class Model(object):
 
         return len(self._saa_sources)
 
-    def get_continuum_counts(self, id, time_bins, saa_mask):
+    def get_continuum_counts(self, id, time_bins, saa_mask, echan):
         """
         
         :param id: 
         :param time_bins:
         :return: 
         """
-        source_counts = self._continuum_sources.values()[id].get_counts(time_bins)[:, 0]
+        source_counts = np.zeros(len(time_bins))
+        if self._continuum_sources.values()[id].echan == echan:
+            source_counts = self._continuum_sources.values()[id].get_counts(time_bins, echan)[:, 0]
 
         # The SAA sections will be set to zero if a saa_mask is provided
         if saa_mask is not None:
@@ -225,15 +268,15 @@ class Model(object):
 
         return source_counts
 
-    def get_flare_counts(self, id, time_bins, saa_mask):
+
+    def get_global_counts(self, id, time_bins, saa_mask, echan):
         """
-        
-        :param time_bins:
+
         :param id:
-        :param t: 
-        :return: 
+        :param time_bins:
+        :return:
         """
-        source_counts = self._flare_sources.values()[id].get_counts(time_bins)[:, 0]
+        source_counts = self._global_sources.values()[id].get_counts(time_bins, echan)[:, 0]
 
         # The SAA sections will be set to zero if a saa_mask is provided
         if saa_mask is not None:
@@ -242,7 +285,7 @@ class Model(object):
 
         return source_counts
 
-    def get_point_source_counts(self, time_bins, saa_mask):
+    def get_flare_counts(self, id, time_bins, saa_mask, echan):
         """
         
         :param time_bins:
@@ -251,9 +294,8 @@ class Model(object):
         :return: 
         """
         source_counts = np.zeros(len(time_bins))
-
-        for i, point_source in enumerate(self._point_sources):
-            source_counts += self._point_sources.values()[i].get_counts(time_bins)[:, 0]
+        if self._flare_sources.values()[id].echan == echan:
+            source_counts = self._flare_sources.values()[id].get_counts(time_bins)[:, 0]
 
         # The SAA sections will be set to zero if a saa_mask is provided
         if saa_mask is not None:
@@ -262,7 +304,29 @@ class Model(object):
 
         return source_counts
 
-    def get_saa_counts(self, time_bins, saa_mask):
+
+    def get_point_source_counts(self, time_bins, saa_mask, echan):
+        """
+        
+        :param time_bins:
+        :param id:
+        :param t: 
+        :return: 
+        """
+        source_counts = np.zeros(len(time_bins))
+        for i, point_source in enumerate(self._point_sources):
+            if self._point_sources.values()[i].echan == echan:
+                source_counts += self._point_sources.values()[i].get_counts(time_bins, echan)[:, 0]
+
+        # The SAA sections will be set to zero if a saa_mask is provided
+        if saa_mask is not None:
+            assert len(time_bins) == len(saa_mask), "The time_bins and saa_mask should be of equal length"
+            source_counts[np.where(~saa_mask)] = 0.
+        return source_counts
+
+
+
+    def get_saa_counts(self, time_bins, saa_mask, echan):
         """
 
         :param time_bins:
@@ -273,14 +337,18 @@ class Model(object):
         source_counts = np.zeros(len(time_bins))
 
         for i, saa in enumerate(self._saa_sources):
-            source_counts += self._saa_sources.values()[i].get_counts(time_bins)[:, 0]
+            if self._saa_sources.values()[i].echan == echan:
+                source_counts += self._saa_sources.values()[i].get_counts(time_bins, echan)[:, 0]
 
         # The SAA sections will be set to zero if a saa_mask is provided
         if saa_mask is not None:
             assert len(time_bins) == len(saa_mask), "The time_bins and saa_mask should be of equal length"
             source_counts[np.where(~saa_mask)] = 0.
 
-        return source_counts
+        if source_counts != np.zeros(len(time_bins)):
+            return source_counts
+        else:
+            return None
 
     def add_SAA_regions(self, *regions):
         """
@@ -290,7 +358,7 @@ class Model(object):
         :return: 
         """
 
-    def get_counts(self, time_bins, bin_mask=None, saa_mask=None):
+    def get_counts(self, time_bins, echan, bin_mask=None, saa_mask=None):
         """
         Calculates the counts for all sources in the model and returns the summed up array.
         Only one of the following usecases can be used!
@@ -310,16 +378,23 @@ class Model(object):
         total_counts = np.zeros(len(time_bins))
 
         for continuum_source in self._continuum_sources.values():
-            total_counts += continuum_source.get_counts(time_bins, bin_mask)[:, 0]
+            if continuum_source.echan==echan:
+                total_counts += continuum_source.get_counts(time_bins, echan, bin_mask)[:, 0]
 
         for flare_source in self._flare_sources.values():
-            total_counts += flare_source.get_counts(time_bins, bin_mask)[:, 0]
+            if flare_source.echan == echan:
+                total_counts += flare_source.get_counts(time_bins, echan, bin_mask)[:, 0]
 
         for point_source in self._point_sources.values():
-            total_counts += point_source.get_counts(time_bins, bin_mask)[:, 0]
+            if point_source.echan == echan:
+                total_counts += point_source.get_counts(time_bins, echan, bin_mask)[:, 0]
 
         for saa_source in self._saa_sources.values():
-            total_counts += saa_source.get_counts(time_bins, bin_mask)[:, 0]
+            if saa_source.echan == echan:
+                total_counts += saa_source.get_counts(time_bins, echan, bin_mask)[:, 0]
+
+        for global_source in self._global_sources.values():
+            total_counts += global_source.get_counts(time_bins, echan, bin_mask)[:, 0]
 
         # The SAA sections will be set to zero if a saa_mask is provided
         if saa_mask is not None:

@@ -1,5 +1,27 @@
 import numpy as np
 from gbm_drm_gen.drmgen import DRMGen
+import os
+from gbmbkgpy.io.package_data import get_path_of_data_dir, get_path_of_data_file, get_path_of_external_data_dir
+import astropy.io.fits as fits
+
+try:
+
+    # see if we have mpi and/or are upalsing parallel
+
+    from mpi4py import MPI
+    if MPI.COMM_WORLD.Get_size() > 1: # need parallel capabilities
+        using_mpi = True
+
+        comm = MPI.COMM_WORLD
+        rank = comm.Get_rank()
+        size = comm.Get_size()
+
+    else:
+
+        using_mpi = False
+except:
+
+    using_mpi = False
 
 
 class Rate_Generator_DRM(object):
@@ -9,7 +31,7 @@ class Rate_Generator_DRM(object):
     in the satellite and partial energy loss of the photons.
     The rates are calculated on a spherical grid around the detector.
     """
-    def __init__(self,  det, Ngrid=None, Ebin_edge_incoming=None, Ebin_edge_detector=None):
+    def __init__(self, det, day, Ngrid=None, Ebin_edge_incoming=None, data_type='ctime'):
         """
         initialize the grid around the detector and set the values for the Ebins of incoming and detected photons
         :param det: which detector is used
@@ -17,20 +39,28 @@ class Rate_Generator_DRM(object):
         :param Ebin_edge_incoming: Ebins edges of incomming photons
         :param Ebin_edge_detector: Ebins edges of detector
         """
+        self._data_type = data_type
+
         #if no values for Ngrid, Ebin_incoming and/or Ebin_detector are given we use the standard values
         if Ngrid==None:
             Ngrid=40000
         else:
             assert type(Ngrid) == int, 'Ngrid has to be an integer!'
         if Ebin_edge_incoming==None:
-            Ebin_edge_incoming=np.array(np.logspace(0.5, 3.4, 301), dtype=np.float32)
-        #for 8 Ebin data
-        if Ebin_edge_detector==None:
-            Ebin_edge_detector=np.array([4.,12.,27.,50.,102.,295.,540.,985.,2000.], dtype=np.float32)
+            # incoming spectrum between ~3 and ~5000 keV
+            Ebin_edge_incoming=np.array(np.logspace(0.5, 3.7, 301), dtype=np.float32)
+        if data_type=='ctime' or data_type=='cspec':
+            datafile_name = 'glg_{0}_{1}_{2}_v00.pha'.format(data_type, det, day)
+            datafile_path = os.path.join(get_path_of_external_data_dir(), data_type, day, datafile_name)
+            with fits.open(datafile_path) as f:
+                edge_start = f['EBOUNDS'].data['E_MIN']
+                edge_stop = f['EBOUNDS'].data['E_MAX']
+            self._Ebin_out_edge = np.append(edge_start, edge_stop[-1])
+        else:
+            print('Use a valid data_typ. Either ctime or cspec')
         self._points = np.array(self._fibonacci_sphere(samples=Ngrid))
         self._Ngrid = Ngrid
         self._Ebin_in_edge = Ebin_edge_incoming
-        self._Ebin_out_edge = Ebin_edge_detector
         if det[0]=='n':
             if det[1]=='a':
                 self._det=10
@@ -60,6 +90,17 @@ class Rate_Generator_DRM(object):
         self._index2_earth = 1.72
         self._break_energy_earth = 33.7
 
+        #Points sources spectrum
+        self._index_ps = 2
+
+        #CRAB spectrum
+        self._index_1_crab = 1.78
+        self._index_2_crab = 0.134
+        self._index_3_crab = 20
+
+        #calculate the rates for all points with the assumed spectra
+        self._calculate_rates()
+
     def _fibonacci_sphere(self, samples=1):
         rnd = 1.
 
@@ -83,29 +124,59 @@ class Rate_Generator_DRM(object):
     @property
     def points(self):
         return self._points
+
+    @property
+    def Ngrid(self):
+        return self._Ngrid
+
     @property
     def Ebin_in_edge(self):
         return self._Ebin_in_edge
+
     @property
     def Ebin_out_edge(self):
         return self._Ebin_out_edge
 
     def set_earth_spectra(self, index1, index2, break_energy):
+        """
+        Set the constants of the earth spectrum
+        :param index1:
+        :param index2:
+        :param break_energy:
+        :return:
+        """
         #self._C_earth = C
         self._index1_earth = index1
         self._index2_earth = index2
         self._break_energy_earth = break_energy
 
     def set_cgb_spectra(self, index1, index2, break_energy):
+        """
+        Set the constants of the cgb spectrum
+        :param index1:
+        :param index2:
+        :param break_energy:
+        :return:
+        """
         #self._C_cgb = C
         self._index1_cgb = index1
         self._index2_cgb = index2
         self._break_energy_cgb = break_energy
 
     def set_Ebin_edge_incoming(self, Ebin_edge_incoming):
+        """
+        Set new Ebins for the incoming photons
+        :param Ebin_edge_incoming:
+        :return:
+        """
         self._Ebin_in_edge=Ebin_edge_incoming
 
     def set_Ebin_edge_outcoming(self, Ebin_edge_outcoming):
+        """
+        set new Ebins for the detector
+        :param Ebin_edge_outcoming:
+        :return:
+        """
         self._Ebin_out_edge=Ebin_edge_outcoming
 
     def _response(self, x, y, z, DRM):
@@ -176,42 +247,157 @@ class Rate_Generator_DRM(object):
         return (e2 - e1) / 6.0 * (
                 self._differential_flux_cgb(e1) + 4 * self._differential_flux_cgb((e1 + e2) / 2.0) +
                 self._differential_flux_cgb(e2))
+    ###################################################### FOR POINTSOURCES
+
+    def _spectrum_ps(self, energy, C, index):
+        """
+        define the function of a power law. Needed for PS spectrum
+        :param energy:
+        :param C:
+        :param index:
+        :return:
+        """
+        return C / energy**index
+
+    def _differential_flux_ps(self, e):
+        """
+        calculate the diff. flux with the constants defined for the earth
+        :param e: Energy of incoming photon
+        :return: differential flux
+        """
+        C = 1  # set the constant=1 will be fitted later to fit the data best
+        return self._spectrum_ps(e, C, self._index_ps)
+
+    def _integral_ps(self, e1, e2):
+        """
+        method to integrate the diff. flux over the Ebins of the incoming photons
+        :param e1: lower bound of Ebin_in
+        :param e2: upper bound of Ebin_in
+        :return: flux in the Ebin_in
+        """
+        return (e2 - e1) / 6.0 * (
+                self._differential_flux_crab(e1) + 4 * self._differential_flux_crab((e1 + e2) / 2.0) +
+                self._differential_flux_crab(e2))
+    ##################################################### For CRAB
+    def _spectrum_crab(self, energy, C, index_1_crab, index_2_crab, index_3_crab):
+        """
+        define the function of a power law. Needed for PS spectrum
+        :param energy:
+        :param C:
+        :param index:
+        :return:
+        """
+        return C * energy**(-(index_1_crab+index_2_crab*np.log(energy/index_3_crab)))
+
+    def _differential_flux_crab(self, e):
+        """
+        calculate the diff. flux with the constants defined for the earth
+        :param e: Energy of incoming photon
+        :return: differential flux
+        """
+        C = 1  # set the constant=1 will be fitted later to fit the data best
+        return self._spectrum_crab(e, C, self._index_1_crab, self._index_2_crab, self._index_3_crab)
+
+    def _integral_crab(self, e1, e2):
+        """
+        method to integrate the diff. flux over the Ebins of the incoming photons
+        :param e1: lower bound of Ebin_in
+        :param e2: upper bound of Ebin_in
+        :return: flux in the Ebin_in
+        """
+        return (e2 - e1) / 6.0 * (
+                self._differential_flux_crab(e1) + 4 * self._differential_flux_crab((e1 + e2) / 2.0) +
+                self._differential_flux_crab(e2))
 
 
 
-    def calculate_rates(self):
+    def _calculate_rates(self):
         """
         Function to calculate the expected rates from all the points on the unit sphere for the assumed
-        spectra for earth and cgb
-        :return: List with three entries. First entry contains the points of the grid. Second entry contains the
-        corresponding rates by the earth spectra at all theses points for all Ebins_out. Third entry contains the
-        corresponding rates by the cgb spectra at all theses points for all Ebins_out.
+        spectra for earth. Parameter important for MPI calculation.
+        :param points_index_start:
+        :param points_index_stop:
+        :return:
         """
-
-        #Create a DRMGen object to get the Instrumentresponse later. The values for the quaterions and sc_pos are dummy
-        #values. Not needed, because we will calculate everything in the sat. frame and do not consider athmospheric
-        #scattering
+        # calculate the sr that one point occults, depends on how many points are used
+        sr_points = 4 * np.pi / self._Ngrid
+        # loop the points array and calculate the expected rate in every Ebin.
+        # This is done by convolving the true flux we get from the spectrum we assume for earth
+        # with the response matrix for every point
+        folded_rates_earth = []
+        folded_rates_cgb = []
+        folded_rates_ps = []
+        # create the DRM object (quaternions and sc_pos are dummy values, not important as we calculate everything in
+        # the sat frame
         DRM = DRMGen(np.array([0.0745, -0.105, 0.0939, 0.987]),
                      np.array([-5.88 * 10 ** 6, -2.08 * 10 ** 6, 2.97 * 10 ** 6]), self._det, self.Ebin_in_edge,
                      mat_type=0, ebin_edge_out=self._Ebin_out_edge)
-        #calculate the sr that one point occults, depends on how many points are used
-        sr_points = 4 * np.pi / self._Ngrid
-        #loop the points array and calculate the expected rate in every Ebin.
-        #This is done by convolving the true flux we get from the spectrum we assume for earth and cgb
-        # with the response matrix for every point
-        i = 0
-        folded_rates_earth = []
-        folded_rates_cgb = []
-        while i < len(self._points):
-            rsp = self._response(self._points[i, 0], self._points[i, 1], self._points[i, 2], DRM)
-            true_flux_cgb = self._integral_cgb(rsp.monte_carlo_energies[:-1], rsp.monte_carlo_energies[1:])
-            true_flux_earth = self._integral_earth(rsp.monte_carlo_energies[:-1], rsp.monte_carlo_energies[1:])
-            folded_rate_cgb = np.dot(true_flux_cgb, rsp.matrix.T) * sr_points
-            folded_rate_earth = np.dot(true_flux_earth, rsp.matrix.T) * sr_points
-            folded_rates_cgb.append(folded_rate_cgb)
-            folded_rates_earth.append(folded_rate_earth)
-            i += 1
-        folded_rates_cgb=np.array(folded_rates_cgb)
-        folded_rates_earth=np.array(folded_rates_earth)
+        if using_mpi:
+            points_per_rank = float(self._Ngrid) / float(size)
+            points_lower_index = int(np.floor(points_per_rank * rank))
+            points_upper_index = int(np.floor(points_per_rank * (rank + 1)))
+            for point in self._points[points_lower_index:points_upper_index]:
+                # get the response of every point
+                rsp = self._response(point[0], point[1], point[2], DRM)
+                true_flux_earth = self._integral_earth(rsp.monte_carlo_energies[:-1], rsp.monte_carlo_energies[1:])
+                true_flux_cgb = self._integral_cgb(rsp.monte_carlo_energies[:-1], rsp.monte_carlo_energies[1:])
+                true_flux_ps = self._integral_ps(rsp.monte_carlo_energies[:-1], rsp.monte_carlo_energies[1:])
+                folded_rate_earth = np.dot(true_flux_earth, rsp.matrix.T) * sr_points
+                folded_rate_cgb = np.dot(true_flux_cgb, rsp.matrix.T) * sr_points
+                folded_rate_ps = np.dot(true_flux_ps, rsp.matrix.T)
+                folded_rates_earth.append(folded_rate_earth)
+                folded_rates_cgb.append(folded_rate_cgb)
+                folded_rates_ps.append(folded_rate_ps)
 
-        return [self._points, folded_rates_earth, folded_rates_cgb]
+            folded_rates_earth = np.array(folded_rates_earth)
+            folded_rates_cgb = np.array(folded_rates_cgb)
+            folded_rates_ps = np.array(folded_rates_ps)
+
+            folded_rates_earth_g = comm.gather(folded_rates_earth, root=0)
+            folded_rates_cgb_g = comm.gather(folded_rates_cgb, root=0)
+            folded_rates_ps_g = comm.gather(folded_rates_ps, root=0)
+
+            if rank == 0:
+                folded_rates_earth_g = np.concatenate(folded_rates_earth_g)
+                folded_rates_cgb_g = np.concatenate(folded_rates_cgb_g)
+                folded_rates_ps_g = np.concatenate(folded_rates_ps_g)
+
+            # broadcast the resulting list to all ranks
+            folded_rates_earth = comm.bcast(folded_rates_earth_g, root=0)
+            folded_rates_cgb = comm.bcast(folded_rates_cgb_g, root=0)
+            folded_rates_ps = comm.bcast(folded_rates_ps_g, root=0)
+
+        else:
+            for point in self._points:
+                # get the response of every point
+                rsp = self._response(point[0], point[1], point[2], DRM)
+                true_flux_earth = self._integral_earth(rsp.monte_carlo_energies[:-1], rsp.monte_carlo_energies[1:])
+                true_flux_cgb = self._integral_cgb(rsp.monte_carlo_energies[:-1], rsp.monte_carlo_energies[1:])
+                true_flux_ps = self._integral_ps(rsp.monte_carlo_energies[:-1], rsp.monte_carlo_energies[1:])
+                folded_rate_earth = np.dot(true_flux_earth, rsp.matrix.T) * sr_points
+                folded_rate_cgb = np.dot(true_flux_cgb, rsp.matrix.T) * sr_points
+                folded_rate_ps = np.dot(true_flux_ps, rsp.matrix.T)
+                folded_rates_earth.append(folded_rate_earth)
+                folded_rates_cgb.append(folded_rate_cgb)
+                folded_rates_ps.append(folded_rate_ps)
+
+        self._folded_rates_earth = np.array(folded_rates_earth)
+        self._folded_rates_cgb = np.array(folded_rates_cgb)
+        self._folded_rates_ps = np.array(folded_rates_ps)
+
+    @property
+    def cgb_rate(self):
+
+        return self._folded_rates_cgb
+
+    @property
+    def earth_rate(self):
+
+        return self._folded_rates_earth
+
+    @property
+    def ps_rate(self):
+
+        return self._folded_rates_ps
+
+

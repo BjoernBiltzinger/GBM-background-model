@@ -1,4 +1,4 @@
-from gbmbkgpy.modeling.function import Function, ContinuumFunction, PointSourceFunction
+from gbmbkgpy.modeling.function import Function, ContinuumFunction, PointSourceFunction, GlobalFunction
 from gbmbkgpy.modeling.parameter import Parameter
 import numpy as np
 
@@ -14,7 +14,7 @@ class Solar_Flare(Function):
         super(Solar_Flare, self).__init__(K, decay_constant)
 
 
-    def _evaluate(self, x, K, decay_constant):
+    def _evaluate(self, x, K, decay_constant, echan=None):
 
 
         return K * np.exp(-x / decay_constant)
@@ -25,7 +25,7 @@ class SAA_Decay(Function):
     def __init__(self, saa_number):
 
         A = Parameter('A-' + saa_number, initial_value=1., min_value=0, max_value=None, delta=0.1, normalization=True, prior='log_uniform')
-        saa_decay_constant = Parameter('saa_decay_constant-' + saa_number, initial_value=0.01, min_value=0, max_value=1, delta=0.1, prior='log_uniform')
+        saa_decay_constant = Parameter('saa_decay_constant-' + saa_number, initial_value=0.01, min_value=0., max_value=1., delta=0.1, prior='log_uniform')
 
         super(SAA_Decay, self).__init__(A, saa_decay_constant)
 
@@ -39,7 +39,7 @@ class SAA_Decay(Function):
 
         self._time_bins = time_bins
 
-    def _evaluate(self, A, saa_decay_constant):
+    def _evaluate(self, A, saa_decay_constant, echan=None):
         """
         Calculates the exponential decay for the SAA exit
         The the values are calculated for the start and stop times of the bins for vectorized integration
@@ -79,7 +79,7 @@ class GRB(Function):
         self._t_decay = t_decay
 
 
-    def _evaluate(self):
+    def _evaluate(self, echan=None):
         """
         Calculates a "typical" GRB pulse with a preset rise and decay time.
         The the values are calculated for the start and stop times of the bins for vectorized integration
@@ -99,28 +99,28 @@ class GRB(Function):
 
 # The continuums 
 
-class Cosmic_Gamma_Ray_Background(ContinuumFunction):
+class Cosmic_Gamma_Ray_Background(GlobalFunction):
     def __init__(self):
         super(Cosmic_Gamma_Ray_Background, self).__init__('norm_cgb')
 
 class Magnetic_Continuum(ContinuumFunction):
-    def __init__(self):
-        super(Magnetic_Continuum, self).__init__('norm_magnetic')
+    def __init__(self, echan):
+        super(Magnetic_Continuum, self).__init__('norm_magnetic_echan-' + echan)
 
 class Solar_Continuum(ContinuumFunction):
-    def __init__(self):
-        super(Solar_Continuum, self).__init__('norm_solar')
+    def __init__(self,echan):
+        super(Solar_Continuum, self).__init__('norm_solar_echan-' + echan)
 
-class Earth_Albedo_Continuum(ContinuumFunction):
+class Earth_Albedo_Continuum(GlobalFunction):
     def __init__(self):
         super(Earth_Albedo_Continuum, self).__init__('norm_earth_albedo')
 
 class Point_Source_Continuum(PointSourceFunction):
-    def __init__(self, point_source_nr):
-        super(Point_Source_Continuum, self).__init__('norm_point_source-' + point_source_nr)
+    def __init__(self, point_source_nr, echan):
+        super(Point_Source_Continuum, self).__init__('norm_point_source-' + point_source_nr + '_echan-' + echan)
 
 class offset(ContinuumFunction):
-    def __init__(self):
-        super(offset, self).__init__('constant')
+    def __init__(self, echan):
+        super(offset, self).__init__('constant_echan-' + echan)
 
 
