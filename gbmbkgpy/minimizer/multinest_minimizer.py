@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import shutil
 from datetime import datetime
 
+
 try:
 
     # see if we have mpi and/or are upalsing parallel
@@ -30,6 +31,7 @@ except:
 
     using_mpi = False
 
+
 class MultiNestFit(object):
     def __init__(self, likelihood, parameters):
 
@@ -37,10 +39,12 @@ class MultiNestFit(object):
 
         self._day = self._likelihood._data._day
         self._det = self._likelihood._data._det
+        
         self._echan_list = self._likelihood._echan_list
         self.parameters = parameters
 
         self._n_dim = len(self._likelihood._free_parameters)
+        
         if using_mpi:
             if rank==0:
                 current_time = datetime.now()

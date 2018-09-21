@@ -44,6 +44,25 @@ class Model(object):
 
         return free_parameters_dictionary
 
+    def set_free_parameters(self, new_parameters):
+        """
+        Set the free parameters to the new values
+        :param new_parameters:
+        :return:
+        """
+        for i, parameter in enumerate(self.free_parameters.itervalues()):
+
+            parameter.value = new_parameters[i]
+
+    def set_parameter_bounds(self, new_bounds):
+        """
+        Set the parameter bounds
+        :param new_bounds:
+        :return:
+        """
+        for i, parameter in enumerate(self._parameters.itervalues()):
+            parameter.bounds = new_bounds[i]
+
     @property
     def normalization_parameters(self):
         """
@@ -354,7 +373,7 @@ class Model(object):
             assert saa_mask is None, "There should only be a bin mask or a saa_mask provided"
 
         if bin_mask is None:
-            bin_mask = np.full(len(time_bins), True)
+            bin_mask = np.ones(len(time_bins), dtype=bool)  # np.full(len(time_bins), True)
 
         total_counts = np.zeros(len(time_bins))
 
@@ -383,4 +402,3 @@ class Model(object):
             total_counts[np.where(~saa_mask)] = 0.
 
         return total_counts
-
