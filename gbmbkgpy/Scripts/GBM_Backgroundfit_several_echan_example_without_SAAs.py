@@ -11,6 +11,7 @@ from gbmbkgpy.io.downloading import download_files
 from gbmbkgpy.minimizer.multinest_minimizer import MultiNestFit
 
 import numpy as np
+from datetime import datetime
 
 
 from mpi4py import MPI
@@ -18,6 +19,8 @@ from mpi4py import MPI
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 size = comm.Get_size()
+
+start = datetime.now()
 
 #setup paramters
 date='160310'
@@ -77,8 +80,15 @@ for echan in echan_list:
 model.set_initial_continuum_amplitudes(initial_continuum_amplitudes)
 
 #set the prior bounds
-parameter_bounds = [(10**-3,100),(10**-3,100),(10**-3,100),(10**-5,1),(10**-5,1)]
-
+parameter_bounds = []
+# for all seperate sources
+for echan in echan_list:
+    parameter_bounds.append((10**-3, 1000))
+    parameter_bounds.append((10**-3, 1000))
+    parameter_bounds.append((10**-3, 1000))
+# for the global sources
+parameter_bounds.append((10**-5,1))
+parameter_bounds.append((10**-5,1))
 # Add bounds to the parameters for multinest
 model.set_parameter_bounds(parameter_bounds)
 
@@ -102,3 +112,4 @@ if rank==0:
                                                       plot_sources=True, show_grb_trigger=True)
 
         residual_plot.savefig(output_dir + 'residual_plot_{}_det_{}_echan_{}_bin_width_{}.pdf'.format(date, detector, echan, bin_width), dpi=300)
+    print('Whole calculation took: {}'.format(datetime.now()-start))
