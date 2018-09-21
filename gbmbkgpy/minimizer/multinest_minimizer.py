@@ -213,7 +213,8 @@ class MultiNestFit(object):
                                   n_live_points=n_live_points,
                                   outputfiles_basename=self.output_dir,
                                   multimodal=True,
-                                  resume=False)
+                                  resume=False,
+                                  verbose=True)
         # Store the sample for further use (if needed)
         self._sampler = sampler
 
