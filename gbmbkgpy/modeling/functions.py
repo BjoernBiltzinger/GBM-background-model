@@ -25,7 +25,7 @@ class SAA_Decay(Function):
     def __init__(self, saa_number):
 
         A = Parameter('A-' + saa_number, initial_value=1., min_value=0, max_value=None, delta=0.1, normalization=True, prior='log_uniform')
-        saa_decay_constant = Parameter('saa_decay_constant-' + saa_number, initial_value=-0.01, min_value=-1., max_value=0, delta=0.1, prior='log_uniform')
+        saa_decay_constant = Parameter('saa_decay_constant-' + saa_number, initial_value=0.01, min_value=0., max_value=1., delta=0.1, prior='log_uniform')
 
         super(SAA_Decay, self).__init__(A, saa_decay_constant)
 
@@ -57,8 +57,8 @@ class SAA_Decay(Function):
         #out[:, 1][~idx_stop] = A * np.exp(saa_decay_constant * (self._time_bins[:, 1][~idx_stop] - t0))
 
         # decouple the amplitude and the decay constant by deviding with the integral from t0 to inf: *-saa_constant
-        out[:, 0][~idx_start] = A * (-saa_decay_constant) * np.exp(saa_decay_constant * (self._time_bins[:, 0][~idx_start] - t0))
-        out[:, 1][~idx_stop] = A * (-saa_decay_constant) * np.exp(saa_decay_constant * (self._time_bins[:, 1][~idx_stop] - t0))
+        out[:, 0][~idx_start] = A * (saa_decay_constant) * np.exp(-saa_decay_constant * (self._time_bins[:, 0][~idx_start] - t0))
+        out[:, 1][~idx_stop] = A * (saa_decay_constant) * np.exp(-saa_decay_constant * (self._time_bins[:, 1][~idx_stop] - t0))
         return out
 
 class GRB(Function):
