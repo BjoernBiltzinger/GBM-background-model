@@ -368,6 +368,4 @@ class ExternalProps(object):
         for row in self._ps_df.itertuples():
             for element in source_list:
                 if row[1]==element:
-                    print(element)
-                    print(row[2], row[3])
                     self._point_sources_dic[row[1]] = PointSrc(row[1], row[2], row[3], self._data)
