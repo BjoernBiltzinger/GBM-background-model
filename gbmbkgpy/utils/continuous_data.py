@@ -199,7 +199,7 @@ class ContinuousData(object):
         return np.ones_like(time_bins)
 
     def _setup_geometery(self):
-        n_bins_to_calculate = 800.
+        n_bins_to_calculate = 80.
 
         self._position_interpolator = PositionInterpolator(poshist=self._pos_hist)
 

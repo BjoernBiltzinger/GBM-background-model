@@ -1,6 +1,7 @@
 import collections
 from gbmbkgpy.modeling.parameter import Parameter
 import numpy as np
+from scipy import integrate
 
 class Function(object):
 
@@ -97,9 +98,13 @@ class ContinuumFunction(Function):
 
         self._function_array[self._function_array != 0] = self._function_array[self._function_array != 0] - np.mean(self._function_array[self._function_array != 0], dtype=np.float64)
 
+    def integrate_array(self, time_bins):
+
+        self._integrated_function_array = integrate.cumtrapz(self._function_array, time_bins)
+
     def _evaluate(self, K, echan=None):
 
-        return K * self._function_array
+        return K * self._integrated_function_array[:,0]
 
 
     def __call__(self, echan):
@@ -168,8 +173,13 @@ class PointSourceFunction(Function):
         self._function_array[self._function_array != 0] = self._function_array[self._function_array != 0] - np.mean(
             self._function_array[self._function_array != 0], dtype=np.float64)
 
+    def integrate_array(self, time_bins):
+
+        self._integrated_function_array = integrate.cumtrapz(self._function_array, time_bins)
+
     def _evaluate(self, K, echan=None):
-        return K * self._function_array
+
+        return K * self._integrated_function_array[:,0]
 
     def __call__(self, echan):
         return self._evaluate(*self.parameter_value, echan = echan)
@@ -196,7 +206,9 @@ class GlobalFunction(Function):
         """
 
         self._function_array = function_array
-
+        print(self._function_array[1])
+        print(len(self._function_array[1]))
+        print(len(self._function_array))
 
     def set_saa_zero(self, saa_mask):
         """
@@ -222,9 +234,18 @@ class GlobalFunction(Function):
 
         self._function_array[self._function_array != 0] = self._function_array[self._function_array != 0] - np.mean(self._function_array[self._function_array != 0], dtype=np.float64)
 
+    def integrate_array(self, time_bins):
+
+        self._integrated_function_array = []
+
+        for i in range(len(self._function_array)):
+            self._integrated_function_array.append(integrate.cumtrapz(self._function_array[i], time_bins))
+
     def _evaluate(self, K, echan=None):
         #build something with echan
-        return K * self._function_array[echan]
+        print(len(self._integrated_function_array))
+        print(len(self._integrated_function_array[echan]))
+        return K * self._integrated_function_array[echan][:,0]
 
 
     def __call__(self, echan):

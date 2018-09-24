@@ -48,17 +48,13 @@ class SAA_Decay(Function):
         :return:
         """
 
-        out = np.zeros_like(self._time_bins)
+        out = np.zeros_like(self._time_bins[:,0])
         t0 = self._saa_exit_time
         idx_start = self._time_bins[:, 0] < t0
-        idx_stop = self._time_bins[:, 1] < t0
 
-        #out[:, 0][~idx_start] = A * np.exp(saa_decay_constant * (self._time_bins[:, 0][~idx_start] - t0))
-        #out[:, 1][~idx_stop] = A * np.exp(saa_decay_constant * (self._time_bins[:, 1][~idx_stop] - t0))
-
-        # decouple the amplitude and the decay constant by deviding with the integral from t0 to inf: *-saa_constant
-        out[:, 0][~idx_start] = A * (saa_decay_constant) * np.exp(-saa_decay_constant * (self._time_bins[:, 0][~idx_start] - t0))
-        out[:, 1][~idx_stop] = A * (saa_decay_constant) * np.exp(-saa_decay_constant * (self._time_bins[:, 1][~idx_stop] - t0))
+        out[~idx_start] = -A/saa_decay_constant * \
+                          (np.exp(-saa_decay_constant * (self._time_bins[:, 1][~idx_start] - t0)) -
+                           np.exp(-saa_decay_constant * (self._time_bins[:, 0][~idx_start] - t0)))
         return out
 
 class GRB(Function):
