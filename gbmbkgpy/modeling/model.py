@@ -259,7 +259,7 @@ class Model(object):
         """
         source_counts = np.zeros(len(time_bins))
         if self._continuum_sources.values()[id].echan == echan:
-            source_counts = self._continuum_sources.values()[id].get_counts(time_bins, echan)[:, 0]
+            source_counts = self._continuum_sources.values()[id].get_counts(time_bins, echan)
 
         # The SAA sections will be set to zero if a saa_mask is provided
         if saa_mask is not None:
@@ -276,7 +276,7 @@ class Model(object):
         :param time_bins:
         :return:
         """
-        source_counts = self._global_sources.values()[id].get_counts(time_bins, echan)[:, 0]
+        source_counts = self._global_sources.values()[id].get_counts(time_bins, echan)
 
         # The SAA sections will be set to zero if a saa_mask is provided
         if saa_mask is not None:
@@ -295,7 +295,7 @@ class Model(object):
         """
         source_counts = np.zeros(len(time_bins))
         if self._flare_sources.values()[id].echan == echan:
-            source_counts = self._flare_sources.values()[id].get_counts(time_bins)[:, 0]
+            source_counts = self._flare_sources.values()[id].get_counts(time_bins)
 
         # The SAA sections will be set to zero if a saa_mask is provided
         if saa_mask is not None:
@@ -316,7 +316,7 @@ class Model(object):
         source_counts = np.zeros(len(time_bins))
         for i, point_source in enumerate(self._point_sources):
             if self._point_sources.values()[i].echan == echan:
-                source_counts += self._point_sources.values()[i].get_counts(time_bins, echan)[:, 0]
+                source_counts += self._point_sources.values()[i].get_counts(time_bins, echan)
 
         # The SAA sections will be set to zero if a saa_mask is provided
         if saa_mask is not None:
@@ -338,7 +338,7 @@ class Model(object):
 
         for i, saa in enumerate(self._saa_sources):
             if self._saa_sources.values()[i].echan == echan:
-                source_counts += self._saa_sources.values()[i].get_counts(time_bins, echan)[:, 0]
+                source_counts += self._saa_sources.values()[i].get_counts(time_bins, echan)
 
         # The SAA sections will be set to zero if a saa_mask is provided
         if saa_mask is not None:
@@ -379,22 +379,22 @@ class Model(object):
 
         for continuum_source in self._continuum_sources.values():
             if continuum_source.echan==echan:
-                total_counts += continuum_source.get_counts(time_bins, echan, bin_mask)[:, 0]
+                total_counts += continuum_source.get_counts(time_bins, echan, bin_mask)
 
         for flare_source in self._flare_sources.values():
             if flare_source.echan == echan:
-                total_counts += flare_source.get_counts(time_bins, echan, bin_mask)[:, 0]
+                total_counts += flare_source.get_counts(time_bins, echan, bin_mask)
 
         for point_source in self._point_sources.values():
             if point_source.echan == echan:
-                total_counts += point_source.get_counts(time_bins, echan, bin_mask)[:, 0]
+                total_counts += point_source.get_counts(time_bins, echan, bin_mask)
 
         for saa_source in self._saa_sources.values():
             if saa_source.echan == echan:
-                total_counts += saa_source.get_counts(time_bins, echan, bin_mask)[:, 0]
+                total_counts += saa_source.get_counts(time_bins, echan, bin_mask)
 
         for global_source in self._global_sources.values():
-            total_counts += global_source.get_counts(time_bins, echan, bin_mask)[:, 0]
+            total_counts += global_source.get_counts(time_bins, echan, bin_mask)
 
         # The SAA sections will be set to zero if a saa_mask is provided
         if saa_mask is not None:
