@@ -345,7 +345,7 @@ class Model(object):
             assert len(time_bins) == len(saa_mask), "The time_bins and saa_mask should be of equal length"
             source_counts[np.where(~saa_mask)] = 0.
 
-        if source_counts != np.zeros(len(time_bins)):
+        if np.sum(source_counts) != 0:
             return source_counts
         else:
             return None
