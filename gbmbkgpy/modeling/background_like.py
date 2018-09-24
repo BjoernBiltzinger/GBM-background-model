@@ -11,6 +11,8 @@ import re
 import os
 import json
 from gbmbkgpy.io.package_data import get_path_of_external_data_dir
+import numexpr as ne
+
 
 
 NO_REBIN = 1E-99
@@ -287,14 +289,6 @@ class BackgroundLike(object):
     def _get_log_likelihood_echan(self, echan):
 
         M = self._evaluate_model(echan)
-        M_fixed, tiny = self._fix_precision(M)
-
-        # Replace negative values for the model (impossible in the Poisson context)
-        # with zero
-
-        negative_mask = (M < 0)
-        if (len(negative_mask.nonzero()[0]) > 0):
-            M[negative_mask] = 0.0
 
         # Poisson loglikelihood statistic (Cash) is:
         # L = Sum ( M_i - D_i * log(M_i))
@@ -311,10 +305,13 @@ class BackgroundLike(object):
             d_times_logM = self._rebinned_observed_counts_fitting_all_echan[index] * logM
 
         else:
-            d_times_logM = self._counts_all_echan[:,echan] * logM
 
-        log_likelihood = np.sum(M_fixed - d_times_logM)
+            #d_times_logM = self._counts_all_echan[:,echan] * logM
+            counts = self._counts_all_echan[:,echan]
+            d_times_logM = ne.evaluate("counts*logM")
 
+        #log_likelihood = np.sum(M - d_times_logM)
+        log_likelihood = ne.evaluate("sum(M - d_times_logM)")
         return log_likelihood
 
     def _fix_precision(self, v):
@@ -352,7 +349,8 @@ class BackgroundLike(object):
 
         else:
 
-            logM = np.log(M)
+            #logM = np.log(M)
+            logM = ne.evaluate("log(M)")
 
         return logM
 
