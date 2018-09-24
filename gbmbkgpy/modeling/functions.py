@@ -41,6 +41,13 @@ class SAA_Decay(Function):
 
         self._time_bins = time_bins
 
+    def precalulate_time_bins_integral(self):
+
+        t0 = self._saa_exit_time
+        self._idx_start = self._time_bins[:, 0] < t0
+        self._exp_tstart = np.exp(self._saa_exit_time-self._time_bins[:,0][~self._idx_start])
+        self._exp_tstop = np.exp(self._saa_exit_time - self._time_bins[:, 1][~self._idx_start])
+
     def _evaluate(self, A, saa_decay_constant, echan=None):
         """
         Calculates the exponential decay for the SAA exit
@@ -51,14 +58,17 @@ class SAA_Decay(Function):
         """
 
         out = np.zeros_like(self._time_bins[:,0])
-        t0 = self._saa_exit_time
-        idx_start = self._time_bins[:, 0] < t0
-        start_times = self._time_bins[:, 0][~idx_start]
-        end_times = self._time_bins[:, 1][~idx_start]
+        #t0 = self._saa_exit_time
+        #idx_start = self._time_bins[:, 0] < t0
+        #start_times = self._time_bins[:, 0][~idx_start]
+        #end_times = self._time_bins[:, 1][~idx_start]
         #out[~idx_start] = -A/saa_decay_constant * \
         #                  (np.exp(-saa_decay_constant * (self._time_bins[:, 1][~idx_start] - t0)) -
         #                   np.exp(-saa_decay_constant * (self._time_bins[:, 0][~idx_start] - t0)))
-        out[~idx_start] = ne.evaluate("-A / saa_decay_constant*(exp(-saa_decay_constant * (end_times - t0)) - exp(-saa_decay_constant * (start_times- t0)))")
+        #out[~idx_start] = ne.evaluate("-A / saa_decay_constant*(exp(-saa_decay_constant * (end_times - t0)) - exp(-saa_decay_constant * (start_times- t0)))")
+        exp_tstart = self._exp_tstart
+        exp_tstop = self._exp_tstop
+        out[~self._idx_start] = ne.evaluate("-A / saa_decay_constant*(exp_tstop**saa_decay_constant - exp_tstart**saa_decay_constant)")
         return out
 
 class GRB(Function):

@@ -57,6 +57,7 @@ def setup_sources(cd, ep, echan, include_point_sources=False, point_source_list=
             saa_dec = SAA_Decay(str(saa_n))
             saa_dec.set_saa_exit_time(np.array([time]))
             saa_dec.set_time_bins(cd.time_bins[2:-2])
+            saa_dec.precalulate_time_bins_integral()
             SAA_Decay_list.append(SAASource('saa_{:d}'.format(saa_n), saa_dec, echan))
             saa_n += 1
     if echan==0:

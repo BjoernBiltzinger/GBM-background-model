@@ -208,9 +208,7 @@ class GlobalFunction(Function):
         """
 
         self._function_array = function_array
-        print(self._function_array[1])
-        print(len(self._function_array[1]))
-        print(len(self._function_array))
+
 
     def set_saa_zero(self, saa_mask):
         """
