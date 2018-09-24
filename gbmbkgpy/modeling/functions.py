@@ -1,6 +1,8 @@
 from gbmbkgpy.modeling.function import Function, ContinuumFunction, PointSourceFunction, GlobalFunction
 from gbmbkgpy.modeling.parameter import Parameter
 import numpy as np
+import numexpr as ne
+
 
 
 class Solar_Flare(Function):
@@ -51,10 +53,12 @@ class SAA_Decay(Function):
         out = np.zeros_like(self._time_bins[:,0])
         t0 = self._saa_exit_time
         idx_start = self._time_bins[:, 0] < t0
-
-        out[~idx_start] = -A/saa_decay_constant * \
-                          (np.exp(-saa_decay_constant * (self._time_bins[:, 1][~idx_start] - t0)) -
-                           np.exp(-saa_decay_constant * (self._time_bins[:, 0][~idx_start] - t0)))
+        start_times = self._time_bins[:, 0][~idx_start]
+        end_times = self._time_bins[:, 1][~idx_start]
+        #out[~idx_start] = -A/saa_decay_constant * \
+        #                  (np.exp(-saa_decay_constant * (self._time_bins[:, 1][~idx_start] - t0)) -
+        #                   np.exp(-saa_decay_constant * (self._time_bins[:, 0][~idx_start] - t0)))
+        out[~idx_start] = ne.evaluate("-A / saa_decay_constant*(exp(-saa_decay_constant * (end_times - t0)) - exp(-saa_decay_constant * (start_times- t0)))")
         return out
 
 class GRB(Function):
