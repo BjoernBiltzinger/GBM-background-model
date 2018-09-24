@@ -2,6 +2,7 @@ import collections
 from gbmbkgpy.modeling.parameter import Parameter
 import numpy as np
 from scipy import integrate
+import numexpr as ne
 
 class Function(object):
 
@@ -103,8 +104,8 @@ class ContinuumFunction(Function):
         self._integrated_function_array = integrate.cumtrapz(self._function_array, time_bins)
 
     def _evaluate(self, K, echan=None):
-
-        return K * self._integrated_function_array[:,0]
+        int_function_array = self._integrated_function_array[:,0]
+        return ne.evaluate("K*int_function_array")
 
 
     def __call__(self, echan):
@@ -178,8 +179,9 @@ class PointSourceFunction(Function):
         self._integrated_function_array = integrate.cumtrapz(self._function_array, time_bins)
 
     def _evaluate(self, K, echan=None):
-
-        return K * self._integrated_function_array[:,0]
+        int_function_array = self._integrated_function_array[:, 0]
+        return ne.evaluate("K*int_function_array")
+        #return K * self._integrated_function_array[:,0]
 
     def __call__(self, echan):
         return self._evaluate(*self.parameter_value, echan = echan)
@@ -242,10 +244,9 @@ class GlobalFunction(Function):
             self._integrated_function_array.append(integrate.cumtrapz(self._function_array[i], time_bins))
 
     def _evaluate(self, K, echan=None):
-        #build something with echan
-        print(len(self._integrated_function_array))
-        print(len(self._integrated_function_array[echan]))
-        return K * self._integrated_function_array[echan][:,0]
+        int_function_array_echan = self._integrated_function_array[echan][:, 0]
+        return ne.evaluate("K*int_function_array_echan")
+        #return K * self._integrated_function_array[echan][:,0]
 
 
     def __call__(self, echan):
