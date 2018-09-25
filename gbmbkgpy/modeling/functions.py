@@ -42,6 +42,12 @@ class SAA_Decay(Function):
         self._time_bins = time_bins
 
     def precalulate_time_bins_integral(self):
+        """
+        This function is needed to do all the precalculations one can do for the later evaluation. One can precalulate
+        the exp(-(tstart_bin-t0) and the exp(-(tend_bin-to) for the evaluation as they do not change. The list only
+        cover the time bins which start time is after the SAA exit time.
+        :return:
+        """
 
         t0 = self._saa_exit_time
         self._idx_start = self._time_bins[:, 0] < t0
@@ -51,23 +57,20 @@ class SAA_Decay(Function):
     def _evaluate(self, A, saa_decay_constant, echan=None):
         """
         Calculates the exponential decay for the SAA exit
-        The the values are calculated for the start and stop times of the bins for vectorized integration
+        The the values are calculated for the start and stop times of the bins with the analytic solution of the integral
+        for a function A*exp(-saa_decay_constant*(t-t0)) which is -A/saa_decay_constant *
+        (exp(-saa_decay_constant*(tend_bin-to) - exp(-saa_decay_constant*(tstart_bin-to)) which can be written as
+         -A/saa_decay_constant *
+        (exp(-(tend_bin-to))**saa_decay_constant - exp(-(tstart_bin-to))**saa_decay_constant)
         :param A:
         :param saa_decay_constant:
         :return:
         """
 
         out = np.zeros_like(self._time_bins[:,0])
-        #t0 = self._saa_exit_time
-        #idx_start = self._time_bins[:, 0] < t0
-        #start_times = self._time_bins[:, 0][~idx_start]
-        #end_times = self._time_bins[:, 1][~idx_start]
-        #out[~idx_start] = -A/saa_decay_constant * \
-        #                  (np.exp(-saa_decay_constant * (self._time_bins[:, 1][~idx_start] - t0)) -
-        #                   np.exp(-saa_decay_constant * (self._time_bins[:, 0][~idx_start] - t0)))
-        #out[~idx_start] = ne.evaluate("-A / saa_decay_constant*(exp(-saa_decay_constant * (end_times - t0)) - exp(-saa_decay_constant * (start_times- t0)))")
         exp_tstart = self._exp_tstart
         exp_tstop = self._exp_tstop
+        #use numexpr to speed up the evaluation with the large time_bin lists
         out[~self._idx_start] = ne.evaluate("-A / saa_decay_constant*(exp_tstop**saa_decay_constant - exp_tstart**saa_decay_constant)")
         return out
 

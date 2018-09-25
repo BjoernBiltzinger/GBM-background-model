@@ -28,6 +28,14 @@ class Source(object):
         return integrate.cumtrapz(self._shape(echan)[bin_mask], time_bins)
 
     def get_counts(self, time_bins, echan, bin_mask=None):
+        """
+        Calls the evaluation of the source to get the counts per bin. Uses a bin_mask to exclude some bins if needed.
+        No need of integration here anymore! This is done in the function class of the sources!
+        :param time_bins:
+        :param echan:
+        :param bin_mask:
+        :return:
+        """
         if bin_mask is None:
             bin_mask = np.ones(len(time_bins), dtype=bool)  # np.full(len(time_bins), True)
         return self._shape(echan)[bin_mask]
