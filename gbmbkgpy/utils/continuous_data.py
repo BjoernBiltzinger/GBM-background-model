@@ -626,7 +626,7 @@ class ContinuousData(object):
             if rank == size - 1:
                 upper_index = self._times_upper_bound_index + 1
             else:
-                upper_index = self._times_upper_bound_index + 1
+                upper_index = self._times_upper_bound_index
 
             for i in range(self._times_lower_bound_index, upper_index):
                 earth_pos_inter_times.append(
@@ -690,7 +690,7 @@ class ContinuousData(object):
             if rank == size - 1:
                 upper_index = self._times_upper_bound_index + 1
             else:
-                upper_index = self._times_upper_bound_index + 1
+                upper_index = self._times_upper_bound_index
 
             for i in range(self._times_lower_bound_index, upper_index):
                 earth_pos_inter_times.append(
