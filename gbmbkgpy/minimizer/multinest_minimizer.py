@@ -218,7 +218,7 @@ class MultiNestFit(object):
                                   outputfiles_basename=self.output_dir,
                                   multimodal=True,
                                   resume=False,
-                                  verbose=True)
+                                  importance_nested_sampling=False)
         # Store the sample for further use (if needed)
         self._sampler = sampler
 
