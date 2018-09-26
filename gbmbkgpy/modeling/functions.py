@@ -1,7 +1,26 @@
 from gbmbkgpy.modeling.function import Function, ContinuumFunction, PointSourceFunction, GlobalFunction
 from gbmbkgpy.modeling.parameter import Parameter
 import numpy as np
+import numexpr as ne
 
+try:
+
+    # see if we have mpi and/or are upalsing parallel
+
+    from mpi4py import MPI
+    if MPI.COMM_WORLD.Get_size() > 1: # need parallel capabilities
+        using_mpi = True
+
+        comm = MPI.COMM_WORLD
+        rank = comm.Get_rank()
+        size = comm.Get_size()
+
+    else:
+
+        using_mpi = False
+except:
+
+    using_mpi = False
 
 class Solar_Flare(Function):
 
@@ -39,26 +58,37 @@ class SAA_Decay(Function):
 
         self._time_bins = time_bins
 
+    def precalulate_time_bins_integral(self):
+        """
+        This function is needed to do all the precalculations one can do for the later evaluation. One can precalulate
+        the which time bins are after the SAA exit.
+        :return:
+        """
+
+        self._t0 = self._saa_exit_time
+        self._idx_start = self._time_bins[:, 0] < self._t0
+
+        self._tstart = self._time_bins[:, 0][~self._idx_start]
+        self._tstop = self._time_bins[:, 1][~self._idx_start]
+
     def _evaluate(self, A, saa_decay_constant, echan=None):
         """
         Calculates the exponential decay for the SAA exit
-        The the values are calculated for the start and stop times of the bins for vectorized integration
+        The the values are calculated for the start and stop times of the bins with the analytic solution of the integral
+        for a function A*exp(-saa_decay_constant*(t-t0)) which is -A/saa_decay_constant *
+        (exp(-saa_decay_constant*(tend_bin-to) - exp(-saa_decay_constant*(tstart_bin-to))
         :param A:
         :param saa_decay_constant:
         :return:
         """
 
-        out = np.zeros_like(self._time_bins)
-        t0 = self._saa_exit_time
-        idx_start = self._time_bins[:, 0] < t0
-        idx_stop = self._time_bins[:, 1] < t0
+        out = np.zeros_like(self._time_bins[:,0])
+        t0 = self._t0
+        tstart=self._tstart
+        tstop=self._tstop
 
-        #out[:, 0][~idx_start] = A * np.exp(saa_decay_constant * (self._time_bins[:, 0][~idx_start] - t0))
-        #out[:, 1][~idx_stop] = A * np.exp(saa_decay_constant * (self._time_bins[:, 1][~idx_stop] - t0))
+        out[~self._idx_start] = ne.evaluate("-A / saa_decay_constant*(exp((t0-tstop)*saa_decay_constant) - exp((t0 - tstart)*saa_decay_constant))")
 
-        # decouple the amplitude and the decay constant by deviding with the integral from t0 to inf: *-saa_constant
-        out[:, 0][~idx_start] = A * (saa_decay_constant) * np.exp(-saa_decay_constant * (self._time_bins[:, 0][~idx_start] - t0))
-        out[:, 1][~idx_stop] = A * (saa_decay_constant) * np.exp(-saa_decay_constant * (self._time_bins[:, 1][~idx_stop] - t0))
         return out
 
 class GRB(Function):

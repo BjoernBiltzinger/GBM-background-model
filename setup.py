@@ -31,7 +31,8 @@ setup(
         'numpy',
         'matplotlib',
         'astropy',
-        'scipy'
+        'scipy',
+        'gbm_drm_gen'
     ]
 
 )

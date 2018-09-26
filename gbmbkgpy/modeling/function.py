@@ -1,6 +1,8 @@
 import collections
 from gbmbkgpy.modeling.parameter import Parameter
 import numpy as np
+import scipy.integrate as integrate
+import numexpr as ne
 
 class Function(object):
 
@@ -97,9 +99,26 @@ class ContinuumFunction(Function):
 
         self._function_array[self._function_array != 0] = self._function_array[self._function_array != 0] - np.mean(self._function_array[self._function_array != 0], dtype=np.float64)
 
-    def _evaluate(self, K, echan=None):
+    def integrate_array(self, time_bins):
+        """
+        We can precompute the integral over the time bins as the parameter that is fit later only acts as a multiplication
+        of a constant in the integral. This saves a lot computing time!
+        :param time_bins: The time bins of the data
+        :return:
+        """
 
-        return K * self._function_array
+        self._integrated_function_array = integrate.cumtrapz(self._function_array, time_bins)
+
+    def _evaluate(self, K, echan=None):
+        """
+        Evaulate this source. Use the precalculated integrated over the time bins function array and use numexpr to
+        speed up.
+        :param K: the fitted parameter
+        :param echan: echan
+        :return:
+        """
+        int_function_array = self._integrated_function_array[:,0]
+        return ne.evaluate("K*int_function_array")
 
 
     def __call__(self, echan):
@@ -168,8 +187,26 @@ class PointSourceFunction(Function):
         self._function_array[self._function_array != 0] = self._function_array[self._function_array != 0] - np.mean(
             self._function_array[self._function_array != 0], dtype=np.float64)
 
+    def integrate_array(self, time_bins):
+        """
+        We can precompute the integral over the time bins as the parameter that is fit later only acts as a multiplication
+        of a constant in the integral. This saves a lot computing time!
+        :param time_bins: The time bins of the data
+        :return:
+        """
+
+        self._integrated_function_array = integrate.cumtrapz(self._function_array, time_bins)
+
     def _evaluate(self, K, echan=None):
-        return K * self._function_array
+        """
+        Evaulate this source. Use the precalculated integrated over the time bins function array and use numexpr to
+        speed up.
+        :param K: the fitted parameter
+        :param echan: echan
+        :return:
+        """
+        int_function_array = self._integrated_function_array[:, 0]
+        return ne.evaluate("K*int_function_array")
 
     def __call__(self, echan):
         return self._evaluate(*self.parameter_value, echan = echan)
@@ -222,9 +259,29 @@ class GlobalFunction(Function):
 
         self._function_array[self._function_array != 0] = self._function_array[self._function_array != 0] - np.mean(self._function_array[self._function_array != 0], dtype=np.float64)
 
+    def integrate_array(self, time_bins):
+        """
+        We can precompute the integral over the time bins as the parameter that is fit later only acts as a multiplication
+        of a constant in the integral. This saves a lot computing time!
+        :param time_bins: The time bins of the data
+        :return:
+        """
+
+        self._integrated_function_array = []
+
+        for i in range(len(self._function_array)):
+            self._integrated_function_array.append(integrate.cumtrapz(self._function_array[i], time_bins))
+
     def _evaluate(self, K, echan=None):
-        #build something with echan
-        return K * self._function_array[echan]
+        """
+        Evaulate this source. Use the precalculated integrated over the time bins function array and use numexpr to
+        speed up.
+        :param K: the fitted parameter
+        :param echan: echan
+        :return:
+        """
+        int_function_array_echan = self._integrated_function_array[echan][:, 0]
+        return ne.evaluate("K*int_function_array_echan")
 
 
     def __call__(self, echan):
