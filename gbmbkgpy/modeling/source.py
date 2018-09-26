@@ -15,17 +15,30 @@ class Source(object):
 
         return self._shape()
 
-    def get_counts_old(self, a, b):
-        return (b-a)/6*(self._shape(a)+4*self._shape((a+b)/2)+self._shape(b))
+    def get_counts_b(self, time_bins, echan, bin_mask=None):
+        rates = self._shape(echan)[bin_mask]
+        return (time_bins[:,1]-time_bins[:,0])/6*(rates[:,0]+4*rates[:,0]+rates[:,1])
 
     def get_counts_quad(self, a, b):
         return integrate.quad(self._shape, a, b)
 
-    def get_counts(self, time_bins, echan, bin_mask=None):
+    def get_counts_old(self, time_bins, echan, bin_mask=None):
         if bin_mask is None:
             bin_mask = np.ones(len(time_bins), dtype=bool)  # np.full(len(time_bins), True)
-
         return integrate.cumtrapz(self._shape(echan)[bin_mask], time_bins)
+
+    def get_counts(self, time_bins, echan, bin_mask=None):
+        """
+        Calls the evaluation of the source to get the counts per bin. Uses a bin_mask to exclude some bins if needed.
+        No need of integration here anymore! This is done in the function class of the sources!
+        :param time_bins:
+        :param echan:
+        :param bin_mask:
+        :return:
+        """
+        if bin_mask is None:
+            bin_mask = np.ones(len(time_bins), dtype=bool)  # np.full(len(time_bins), True)
+        return self._shape(echan)[bin_mask]
 
     @property
     def name(self):
