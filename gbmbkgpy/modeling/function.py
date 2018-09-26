@@ -1,7 +1,7 @@
 import collections
 from gbmbkgpy.modeling.parameter import Parameter
 import numpy as np
-from scipy import integrate
+import scipy.integrate as integrate
 import numexpr as ne
 
 class Function(object):

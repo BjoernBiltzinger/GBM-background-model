@@ -3,7 +3,24 @@ from gbmbkgpy.modeling.parameter import Parameter
 import numpy as np
 import numexpr as ne
 
+try:
 
+    # see if we have mpi and/or are upalsing parallel
+
+    from mpi4py import MPI
+    if MPI.COMM_WORLD.Get_size() > 1: # need parallel capabilities
+        using_mpi = True
+
+        comm = MPI.COMM_WORLD
+        rank = comm.Get_rank()
+        size = comm.Get_size()
+
+    else:
+
+        using_mpi = False
+except:
+
+    using_mpi = False
 
 class Solar_Flare(Function):
 
@@ -44,8 +61,7 @@ class SAA_Decay(Function):
     def precalulate_time_bins_integral(self):
         """
         This function is needed to do all the precalculations one can do for the later evaluation. One can precalulate
-        the exp(-(tstart_bin-t0) and the exp(-(tend_bin-to) for the evaluation as they do not change. The list only
-        cover the time bins which start time is after the SAA exit time.
+        the which time bins are after the SAA exit.
         :return:
         """
 
@@ -60,17 +76,14 @@ class SAA_Decay(Function):
         Calculates the exponential decay for the SAA exit
         The the values are calculated for the start and stop times of the bins with the analytic solution of the integral
         for a function A*exp(-saa_decay_constant*(t-t0)) which is -A/saa_decay_constant *
-        (exp(-saa_decay_constant*(tend_bin-to) - exp(-saa_decay_constant*(tstart_bin-to)) which can be written as
-         -A/saa_decay_constant *
-        (exp(-(tend_bin-to))**saa_decay_constant - exp(-(tstart_bin-to))**saa_decay_constant)
+        (exp(-saa_decay_constant*(tend_bin-to) - exp(-saa_decay_constant*(tstart_bin-to))
         :param A:
         :param saa_decay_constant:
         :return:
         """
 
         out = np.zeros_like(self._time_bins[:,0])
-
-        t0=self._t0
+        t0 = self._t0
         tstart=self._tstart
         tstop=self._tstop
 
