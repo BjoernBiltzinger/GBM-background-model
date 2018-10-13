@@ -32,6 +32,7 @@ setup(
         'matplotlib',
         'astropy',
         'scipy',
+        'gbmgeometry',
         'gbm_drm_gen'
     ]
 
