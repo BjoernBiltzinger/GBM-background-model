@@ -43,11 +43,12 @@ except:
 
 class ContinuousData(object):
 
-    def __init__(self, date, detector, data_type, rate_generator_DRM, use_SAA=True):
+    def __init__(self, date, detector, data_type, rate_generator_DRM, use_SAA=True, clean_SAA=False):
         self._data_type = data_type
         self._det = detector
         self._day = date
         self._use_SAA = use_SAA
+        self._clean_SAA = clean_SAA
         self._rate_generator_DRM = rate_generator_DRM
         #assert 'ctime' in self._data_type, 'currently only working for CTIME data'
         assert 'n' in self._det, 'currently only working NAI detectors'
@@ -109,6 +110,7 @@ class ContinuousData(object):
                                  'by the poshist file...')
         self._n_entries = len(self._bin_start)
         self._counts_combined = np.sum(self._counts, axis=1)
+        self._counts_combined_mean = np.mean(self._counts_combined)
         self._counts_combined_rate = self._counts_combined / self.time_bin_length
         self._n_time_bins, self._n_channels = self._counts.shape
         # Start precomputation of arrays:
@@ -428,7 +430,6 @@ class ContinuousData(object):
             self._saa_mask[slice_idx[i, 0]:slice_idx[i, 1] + 1] = False
             self._zero_idx[slice_idx[i, 0]:slice_idx[i, 1] + 1] = True
 
-
         # deleting 5000s after every saa exit => ignore saa's
         if not self._use_SAA:
             if self._bin_stop[slice_idx[0, 0]] - 5000 > self._bin_start[0]:
@@ -462,6 +463,46 @@ class ContinuousData(object):
                 self._saa_mask[slice_idx[i, 1]:slice_idx[i, 1] + j] = False
                 self._zero_idx[slice_idx[i, 1]:slice_idx[i, 1] + j] = True
 
+
+
+        # deleting 500s after very sharp SAA's
+        if self._clean_SAA:
+            # if self._bin_stop[slice_idx[0, 0]] - 300 > self._bin_start[0]:
+            #     self._saa_mask[0:slice_idx[0, 0] + 1] = False
+            #     self._zero_idx[0:slice_idx[0, 0] + 1] = True
+            # else:
+            #     j = 0
+            #     while 300 > self._bin_start[j] - self._bin_start[0]:
+            #         j += 1
+            #     self._saa_mask[0:j] = False
+            #     self._zero_idx[0:j] = True
+
+            for i in range(len(slice_idx) - 1):
+
+                saa_amplitude = np.mean(self._counts_combined[slice_idx[i, 1]:slice_idx[i, 1] + 10] /
+                                        self.time_bin_length[slice_idx[i, 1]:slice_idx[i, 1] + 10])
+
+                if saa_amplitude > 2 * self._counts_combined_mean:
+
+                    if self._bin_stop[slice_idx[i + 1, 0]] - self._bin_start[slice_idx[i, 1]] < 500:
+                        self._saa_mask[slice_idx[i, 1]:slice_idx[i + 1, 0]] = False
+                        self._zero_idx[slice_idx[i, 1]:slice_idx[i + 1, 0]] = True
+                    else:
+                        j = 0
+                        while self._bin_start[slice_idx[i, 1]] + 500 > self._bin_start[slice_idx[i, 1] + j]:
+                            j += 1
+                        self._saa_mask[slice_idx[i, 1]:slice_idx[i, 1] + j] = False
+                        self._zero_idx[slice_idx[i, 1]:slice_idx[i, 1] + j] = True
+
+            # if self._bin_stop[slice_idx[-1, 1]] + 300 > self._bin_stop[-1]:
+            #     self._saa_mask[slice_idx[-1, 1]:len(self._counts_combined) + 1] = False
+            #     self._zero_idx[slice_idx[-1, 1]:len(self._counts_combined) + 1] = True
+            # else:
+            #     j = 0
+            #     while self._bin_start[slice_idx[-1, 1]] + 300 > self._bin_start[slice_idx[-1, 1] + j]:
+            #         j += 1
+            #     self._saa_mask[slice_idx[i, 1]:slice_idx[i, 1] + j] = False
+            #     self._zero_idx[slice_idx[i, 1]:slice_idx[i, 1] + j] = True
 
         self._saa_slices = slice_idx
 
