@@ -64,6 +64,8 @@ for echan in echan_list:
 source_list_global = setup_sources_golbal(cd, ep, point_source_list=['CRAB'])
 
 #add them together
+#source_list_total = source_list[0:2] + source_list_global #NO SAAs at the moment!
+#source_list_total = source_list[0:2] + source_list[5:7] + source_list_global   
 source_list_total = source_list + source_list_global
 if rank==0:
     print(source_list_total)
@@ -72,10 +74,15 @@ print('Done with Source Precalculation - Model is ready')
 #Set the model with this
 model = Model(*source_list_total)
 
+print model.parameters
+
 background_like = BackgroundLike(cd,model,echan_list)
 
 #set the prior bounds
-parameter_bounds = [(10**(-6),1000),(10**(-6),1000)] #Magnetic shielding 
+#parameter_bounds = [(10**(-6),1000)]
+parameter_bounds = [(10**(-6),1000),(10**(-6),1000)]
+#parameter_bounds.append((10**(-6),1000))
+#parameter_bounds.append((10**(-6),1000))
 #for the SAA's
 num_SAAs = (len(model.parameters)-5)/2
 for i in range(num_SAAs):
@@ -85,10 +92,11 @@ for i in range(num_SAAs):
 parameter_bounds.append((10**-4,0.1)) #earth
 parameter_bounds.append((10**-4,0.2)) #cgb
 parameter_bounds.append((10**-4,100)) #crab
-
+#parameter_bounds.append((10**-4,100)) #MAXI 
 # Add bounds to the parameters for multinest
+print(parameter_bounds)
 model.set_parameter_bounds(parameter_bounds)
-
+print model.parameters
 #Instantiate Multinest Fit
 mn_fit = MultiNestFit(background_like, model.parameters)
 
@@ -103,13 +111,13 @@ output_dir = mn_fit.output_dir
 
 # Plot Residuals and fit with rank=0 
 bin_width = 60
+#background_like.add_grb_trigger(grb_name, trigger_time)
+#background_like.add_grb_trigger(grb_name_2, trigger_time_2)
 if rank==0:
-    
     for echan in echan_list:
         
         residual_plot = background_like.display_model(echan, min_bin_width=bin_width, show_residuals=True, show_data=True,change_time=False,
-                                                      plot_sources=True, show_grb_trigger=True, ppc=True, result_dir=output_dir)
+                                                      plot_sources=True, show_grb_trigger=True)
 
         residual_plot.savefig(output_dir + 'residual_plot_{}_det_{}_echan_{}_bin_width_{}.jpeg'.format(date, detector, echan, bin_width), dpi=300)
-
     print('Whole calculation took: {}'.format(datetime.now() - start))

@@ -145,9 +145,9 @@ class Earth_Albedo_Continuum(GlobalFunction):
     def __init__(self):
         super(Earth_Albedo_Continuum, self).__init__('norm_earth_albedo')
 
-class Point_Source_Continuum(PointSourceFunction):
-    def __init__(self, point_source_nr, echan):
-        super(Point_Source_Continuum, self).__init__('norm_point_source-' + point_source_nr + '_echan-' + echan)
+class Point_Source_Continuum(GlobalFunction):
+    def __init__(self, point_source_nr):
+        super(Point_Source_Continuum, self).__init__('norm_point_source-' + point_source_nr)
 
 class offset(ContinuumFunction):
     def __init__(self, echan):

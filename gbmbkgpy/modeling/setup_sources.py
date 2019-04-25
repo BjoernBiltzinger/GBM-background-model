@@ -7,7 +7,7 @@ Magnetic_Continuum, Cosmic_Gamma_Ray_Background, Point_Source_Continuum, Earth_A
 import numpy as np
 
 
-def setup_sources(cd, ep, echan, include_point_sources=False, point_source_list=[]):
+def setup_sources(cd, ep, echan):
     """
     Instantiate all Source Object included in the model and return them as an array
     :param echan:
@@ -15,38 +15,7 @@ def setup_sources(cd, ep, echan, include_point_sources=False, point_source_list=
     :param ep: ExternalProps object
     :return:
     """
-    assert len(point_source_list)==0 or include_point_sources==False, 'Either include all point sources ' \
-                                                                          'or give a list with the wanted sources.' \
-                                                                          'Not both!'
-    PS_Sources_list = []
 
-    # Point-Source Sources
-    if include_point_sources:
-        ep.build_point_sources(cd)
-        PS_Continuum_dic = {}
-        PS_Sources_list = []
-
-        for i, ps in enumerate(ep.point_sources.itervalues()):
-            PS_Continuum_dic['{}{:d}'.format(ps.name, echan)] = Point_Source_Continuum(str(i), str(echan))
-            PS_Continuum_dic['{}{:d}'.format(ps.name, echan)].set_function_array(ps.ps_rate_array(cd.time_bins[2:-2], echan))
-            PS_Continuum_dic['{}{:d}'.format(ps.name, echan)].integrate_array(cd.time_bins[2:-2])
-
-            PS_Sources_list.append(PointSource('{}{:d}'.format(ps.name, echan), PS_Continuum_dic['{}{:d}'.format(ps.name, echan)], echan))
-    if len(point_source_list)>0:
-        ep.build_some_source(cd, point_source_list)
-        PS_Continuum_dic = {}
-        PS_Sources_list = []
-
-        for i, ps in enumerate(ep.point_sources.itervalues()):
-            PS_Continuum_dic['{}{:d}'.format(ps.name, echan)] = Point_Source_Continuum(str(i),str(echan))
-            #PS_Continuum_dic[ps.name].set_function_array(cd.effective_angle(ps.calc_occ_array(cd.time_bins[2:-2]),
-            #                                                                echan))
-            PS_Continuum_dic['{}{:d}'.format(ps.name, echan)].set_function_array(ps.ps_rate_array(cd.time_bins[2:-2], echan))
-            #precalculate the integration over the time bins
-            PS_Continuum_dic['{}{:d}'.format(ps.name, echan)].integrate_array(cd.time_bins[2:-2])
-            #PS_Continuum_dic[ps.name].set_earth_zero(ps.earth_occ_of_ps(cd.mean_time[2:-2]))
-
-            PS_Sources_list.append(PointSource('{}{:d}'.format(ps.name, echan), PS_Continuum_dic['{}{:d}'.format(ps.name, echan)], echan))
     # SAA Decay Source
     SAA_Decay_list = []
     if cd.use_SAA:
@@ -89,14 +58,14 @@ def setup_sources(cd, ep, echan, include_point_sources=False, point_source_list=
     Constant.integrate_array(cd.time_bins[2:-2])
     Constant_Continuum = ContinuumSource('Constant_echan_{:d}'.format(echan), Constant, echan)
 
-    source_list = [Source_Magnetic_Continuum, Constant_Continuum] + SAA_Decay_list + PS_Sources_list
+    source_list = [Source_Magnetic_Continuum, Constant_Continuum] + SAA_Decay_list
 
     if echan==0:
         source_list.append(Source_Solar_Continuum)
 
     return source_list
 
-def setup_sources_golbal(cd):
+def setup_sources_golbal(cd, ep, include_point_sources=False, point_source_list=[]):
     """
     set up the global sources which are the same for all echans.
     At the moment the Earth Albedo and the CGB.
@@ -104,10 +73,13 @@ def setup_sources_golbal(cd):
     :param echan:
     :return:
     """
-
+    assert len(point_source_list)==0 or include_point_sources==False, 'Either include all point sources ' \
+                                                                          'or give a list with the wanted sources.' \
+                                                                          'Not both!'
     # Earth Albedo Continuum Source
     earth_albedo = Earth_Albedo_Continuum()
-    earth_albedo.set_function_array(cd.earth_rate_array(cd.time_bins[2:-2]))
+
+    earth_albedo.set_function_array(cd.earth_rate_array(cd.time_bins[2:-2]))#*rigidity_array)
     earth_albedo.set_saa_zero(cd.saa_mask[2:-2])
     # precalculate the integration over the time bins
     earth_albedo.integrate_array(cd.time_bins[2:-2])
@@ -120,7 +92,38 @@ def setup_sources_golbal(cd):
     cgb.integrate_array(cd.time_bins[2:-2])
     Source_CGB_Continuum = GlobalSource('CGB', cgb)
 
-    source_list = [Source_Earth_Albedo_Continuum, Source_CGB_Continuum]
+    
+    PS_Sources_list = []
+    # Point-Source Sources
+    if include_point_sources:
+        ep.build_point_sources(cd)
+        PS_Continuum_dic = {}
+        PS_Sources_list = []
 
+        for i, ps in enumerate(ep.point_sources.itervalues()):
+            PS_Continuum_dic['{}'.format(ps.name)] = Point_Source_Continuum(str(i))
+            PS_Continuum_dic['{}'.format(ps.name)].set_function_array(ps.ps_rate_array(cd.time_bins[2:-2]))
+            PS_Continuum_dic['{}'.format(ps.name)].set_saa_zero(cd.saa_mask[2:-2])
+            PS_Continuum_dic['{}'.format(ps.name)].integrate_array(cd.time_bins[2:-2])
+
+            PS_Sources_list.append(GlobalSource('{}'.format(ps.name), PS_Continuum_dic['{}'.format(ps.name)]))
+    if len(point_source_list)>0:
+        ep.build_some_source(cd, point_source_list)
+        PS_Continuum_dic = {}
+        PS_Sources_list = []
+        for i, ps in enumerate(ep.point_sources.itervalues()):
+            PS_Continuum_dic['{}'.format(ps.name)] = Point_Source_Continuum(str(i))
+
+            PS_Continuum_dic['{}'.format(ps.name)].set_function_array(ps.ps_rate_array(cd.time_bins[2:-2]))
+            PS_Continuum_dic['{}'.format(ps.name)].set_saa_zero(cd.saa_mask[2:-2])
+            #precalculate the integration over the time bins
+            PS_Continuum_dic['{}'.format(ps.name)].integrate_array(cd.time_bins[2:-2])
+            #PS_Continuum_dic[ps.name].set_earth_zero(ps.earth_occ_of_ps(cd.mean_time[2:-2]))
+
+            PS_Sources_list.append(GlobalSource('{}'.format(ps.name), PS_Continuum_dic['{}'.format(ps.name)]))
+
+    source_list = [Source_Earth_Albedo_Continuum, Source_CGB_Continuum] + PS_Sources_list
+    
     return source_list
+
 
