@@ -203,7 +203,7 @@ class ResidualPlot(object):
 
 
 
-    def add_data(self, x, y, residuals, label, xerr=None, yerr=None, residual_yerr=None, color='r', show_data=True, marker_size=3):
+    def add_data(self, x, y, residuals, label, xerr=None, yerr=None, residual_yerr=None, color='r', show_data=True, marker_size=1):
         """
         Add the data for the this model
         :param x: energy of the data
@@ -227,7 +227,7 @@ class ResidualPlot(object):
                                      markersize=marker_size,
                                      linestyle='',
                                      elinewidth=1,
-                                     alpha=.9,
+                                     alpha=.6,
                                      capsize=0,
                                      label=label,
                                      color=color)
