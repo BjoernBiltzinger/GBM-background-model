@@ -397,7 +397,8 @@ class BackgroundLike(object):
 
     def display_model(self, echan, data_color='k', model_color='r', step=True, show_data=True, show_residuals=True,
                       show_legend=True, min_bin_width=1E-99, plot_sources=False, show_grb_trigger=False,
-                      show_model=True, change_time=False, show_occ_region=False, posteriour=None, **kwargs):
+                      show_model=True, change_time=False, show_occ_region=False, posteriour=None, ppc=False, result_dir=None,
+                      qlevels_ppc = [0.68,0.95,0.99], colors_ppc = ['lightgreen', 'green', 'darkgreen'], **kwargs):
 
         """
         Plot the current model with or without the data and the residuals. Multiple models can be plotted by supplying
@@ -468,6 +469,21 @@ class BackgroundLike(object):
         residual_errors = None
         self._residuals = significance_calc.known_background()
 
+        
+        if ppc:
+            if result_dir==None:
+                print('No ppc possible, no results directonary given to display method!')
+            else:
+                ppc_model = copy.deepcopy(self._model)
+                n_params = len(self.get_free_parameter_values)
+                q_levels = q_levels_ppc#[0.68,0.95,0.99]
+                colors = colors_ppc#['lightgreen', 'green', 'darkgreen']
+                residual_plot.add_ppc(result_dir=result_dir, model=ppc_model, background_like=self,
+                                      time_bins=self._total_time_bins-time_ref, saa_mask=self._saa_mask,
+                                      echan=echan, q_levels=q_levels, colors=colors, bin_width=min_bin_width,
+                                      n_params = n_params)
+
+        
         residual_plot.add_data(np.mean( self._rebinned_time_bins, axis=1),
                                         self._rebinned_observed_counts / self._rebinned_time_bin_widths,
                                         self._residuals,

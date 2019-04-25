@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 import numpy as np
+from gbmbkgpy.utils.binner import Rebinner
 
 from gbmbkgpy.io.plotting.step_plots import step_plot
 #from threeML.config.config import config
@@ -254,6 +255,57 @@ class ResidualPlot(object):
                                          markersize=3,
                                          color=color)
 
+    def add_ppc(self, result_dir=None, model=None, background_like=None, time_bins=None,
+                saa_mask=None, echan=None, q_levels=[0.68], colors=['lightgreen'], bin_width=1E-99, n_params = 1):
+        """
+        Add ppc plot
+        :param result_dir: path to result directory
+        :param model: Model object
+        :param time_bin: Time bins where to compute ppc steps
+        :param saa_mask: Mask which time bins are set to zero
+        :param echan: Which echan 
+        :param q_levels: At which levels the ppc should be plotted
+        :param colors: colors for the different q_level
+        """
+        assert len(q_levels)==len(colors), 'q_levels and colors must have same length!'
+
+        q_levels.sort(reverse=True)
+        
+        # Get Analyze object from results file of Multinest Fit
+        import pymultinest
+        analyzer = pymultinest.analyse.Analyzer(n_params, result_dir)
+
+        # Make a mask with 200 random True to choose 200 random samples
+        rates = []
+        a = np.zeros(len(analyzer.get_equal_weighted_posterior()[:,:-1]), dtype=int)
+        a[:200] = 1
+        np.random.shuffle(a)
+        a = a.astype(bool)
+
+        # For these 200 random samples simmulate data
+        # with the parameters of these samples
+        
+        for i, sample in enumerate(analyzer.get_equal_weighted_posterior()[:,:-1][a]):
+            synth_data = background_like.get_synthetic_data(sample, model)
+            this_rebinner = Rebinner(synth_data.time_bins, bin_width)
+            rebinned_time_bins = this_rebinner.time_rebinned
+            rebinned_counts = this_rebinner.rebin(synth_data.counts[:,echan])
+            rebinned_bin_length = np.diff(rebinned_time_bins, axis=1).T[0]
+            rates.append(rebinned_counts/rebinned_bin_length)
+
+        rates = np.array(rates)
+        
+        # Plot the q_level areas around median fit 
+        for i,level in enumerate(q_levels):
+            low = np.percentile(rates, 50-50*level, axis=0)[0]
+            high = np.percentile(rates, 50+50*level, axis=0)[0]
+            self._data_axis.fill_between(np.mean(rebinned_time_bins,axis=1), low, high, color=colors[i], alpha=0.5)
+        
+        # Set Plot range
+        total_mean_rate = np.mean(np.array(rates))
+        self._data_axis.set_ylim((0,2*total_mean_rate))
+
+            
 
     def finalize(self, xlabel='x', ylabel='y',xscale='log',yscale='log', show_legend=True,invert_y=False):
         """
