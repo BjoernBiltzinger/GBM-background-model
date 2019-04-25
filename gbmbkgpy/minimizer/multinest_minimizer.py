@@ -217,8 +217,11 @@ class MultiNestFit(object):
                                   n_live_points=n_live_points,
                                   outputfiles_basename=self.output_dir,
                                   multimodal=True,
-                                  resume=False,
-                                  importance_nested_sampling=False)
+                                  resume=True,
+                                  importance_nested_sampling=False,
+                                  const_efficiency_mode=True, #False
+                                  verbose=True)
+        
         # Store the sample for further use (if needed)
         self._sampler = sampler
 
@@ -257,6 +260,8 @@ class MultiNestFit(object):
         best_fit_values = _raw_samples[idx]
 
         minimum = func_values[idx] * (-1)
+
+        self._samples = _raw_samples
 
         self.multinest_data = multinest_analyzer.get_data()
 
@@ -539,3 +544,8 @@ class MultiNestFit(object):
                     plt.savefig(pp, format='pdf', bbox_inches='tight')
                     #plt.close()
                 pp.close()
+
+    @property
+    def samples(self):
+
+        return self._samples
