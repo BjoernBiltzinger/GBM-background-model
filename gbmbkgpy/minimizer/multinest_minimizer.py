@@ -1,3 +1,4 @@
+
 from astromodels.functions.priors import Uniform_prior, Log_uniform_prior
 import pymultinest
 import numpy as np
@@ -210,15 +211,18 @@ class MultiNestFit(object):
             n_dim = self._n_dim
 
         # Run PyMultiNest
+
         sampler = pymultinest.run(loglike,
                                   prior,
                                   n_dim,
                                   n_dim,
                                   n_live_points=n_live_points,
                                   outputfiles_basename=self.output_dir,
-                                  multimodal=True,
-                                  resume=False,
-                                  verbose=True)
+                                  multimodal=True,#True was default
+                                  resume=True,
+                                  verbose=True,#False was default
+                                  importance_nested_sampling=False,
+                                  const_efficiency_mode=True)#False was default
         # Store the sample for further use (if needed)
         self._sampler = sampler
 
@@ -249,6 +253,8 @@ class MultiNestFit(object):
         # Get the samples from the sampler
 
         _raw_samples = multinest_analyzer.get_equal_weighted_posterior()[:, :-1]
+        print(_raw_samples)
+        print(_raw_samples[0])
 
         # Find the minimum of the function (i.e. the maximum of func_wrapper)
 
@@ -257,7 +263,7 @@ class MultiNestFit(object):
         best_fit_values = _raw_samples[idx]
 
         minimum = func_values[idx] * (-1)
-
+        self._samples = _raw_samples
         self.multinest_data = multinest_analyzer.get_data()
 
         # set parameters to best fit values
@@ -539,3 +545,8 @@ class MultiNestFit(object):
                     plt.savefig(pp, format='pdf', bbox_inches='tight')
                     #plt.close()
                 pp.close()
+
+    @property
+    def samples(self):
+
+        return self._samples

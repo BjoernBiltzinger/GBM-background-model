@@ -170,9 +170,9 @@ class PointSrc(object):
         #interpolate this
         self._earth_rate_interpolator = interpolate.interp1d(self._interpolation_time, self._ps_rate_list)
 
-    def ps_rate_array(self, met, echan):
+    def ps_rate_array(self, met):
 
-        return self._earth_rate_interpolator(met)[echan]
+        return self._earth_rate_interpolator(met)
 
     def _calc_src_occ(self):
         """

@@ -399,3 +399,23 @@ class Model(object):
             total_counts[np.where(~saa_mask)] = 0.
 
         return total_counts
+
+
+    def get_all_global_counts(self, time_bins, echan, bin_mask=None, saa_mask=None):
+        if bin_mask is not None:
+            assert saa_mask is None, "There should only be a bin mask or a saa_mask provided"
+
+        if bin_mask is None:
+            bin_mask = np.ones(len(time_bins), dtype=bool)  # np.full(len(time_bins), True)                                                                                                                                                                                    
+
+        total_counts = np.zeros(len(time_bins))
+
+        for global_source in self._global_sources.values():
+            total_counts += global_source.get_counts(time_bins, echan, bin_mask)
+
+        # The SAA sections will be set to zero if a saa_mask is provided                                                                                                                                                                                                       
+        if saa_mask is not None:
+            assert len(time_bins) == len(saa_mask), "The time_bins and saa_mask should be of equal length"
+            total_counts[np.where(~saa_mask)] = 0.
+
+        return total_counts

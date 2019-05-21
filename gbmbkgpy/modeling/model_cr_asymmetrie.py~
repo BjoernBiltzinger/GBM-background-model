@@ -1,0 +1,10 @@
+import numpy as np
+
+def cr_asymmetrie(east, down):
+    A = -0.106
+    B = -0.104
+    C = 1.409
+    alpha = 1.209
+    beta = 1.445
+
+    return A*east**alpha+B*down**beta+C
