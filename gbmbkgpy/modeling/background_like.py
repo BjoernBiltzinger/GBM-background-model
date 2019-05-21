@@ -13,7 +13,7 @@ import json
 from gbmbkgpy.io.package_data import get_path_of_external_data_dir
 import numexpr as ne
 
-
+import astropy.io.fits as fits
 
 NO_REBIN = 1E-99
 
@@ -259,12 +259,11 @@ class BackgroundLike(object):
         if synth_model == None:
             synth_model = copy.deepcopy(self._model)
 
-
         for i, parameter in enumerate(synth_model.free_parameters.itervalues()):
             parameter.value = synth_parameters[i]
 
-
-        synth_data.counts[:, self._echan][2:-2] = np.random.poisson(synth_model.get_counts(synth_data.time_bins[2:-2]))
+        for echan in self._echan_list:
+            synth_data.counts[:, echan][2:-2] = np.random.poisson(synth_model.get_counts(synth_data.time_bins[2:-2],echan))
 
         self._synth_model = synth_model
 
@@ -397,7 +396,7 @@ class BackgroundLike(object):
 
     def display_model(self, echan, data_color='k', model_color='r', step=True, show_data=True, show_residuals=True,
                       show_legend=True, min_bin_width=1E-99, plot_sources=False, show_grb_trigger=False,
-                      show_model=True, change_time=False, show_occ_region=False, posteriour=None, **kwargs):
+                      show_model=True, change_time=False, show_occ_region=False, posteriour=None, ppc=False, result_dir=None, **kwargs):
 
         """
         Plot the current model with or without the data and the residuals. Multiple models can be plotted by supplying
@@ -417,9 +416,10 @@ class BackgroundLike(object):
         :param show_data: (bool) show_the data with the model
         :param show_residuals: (bool) shoe the residuals
         :param show_legend: (bool) show legend
+        :param ppc: (bool) show ppc
         :return:
         """
-
+        
         # Change time reference to seconds since beginning of the day
         if change_time:
             time_ref = self._day_met
@@ -449,6 +449,7 @@ class BackgroundLike(object):
         # Residuals
 
         # we need to get the rebinned counts
+
         self._rebinned_observed_counts, = this_rebinner.rebin(self._total_counts_all_echan[:,echan])
 
         # the rebinned counts expected from the model
@@ -468,6 +469,16 @@ class BackgroundLike(object):
         residual_errors = None
         self._residuals = significance_calc.known_background()
 
+        if ppc:
+            if result_dir==None:
+                print('No ppc possible, no results directonary given to display method!')
+            else:
+                ppc_model = copy.deepcopy(self._model)
+                n_params = len(self.get_free_parameter_values)
+                residual_plot.add_ppc(result_dir=result_dir, model=ppc_model, background_like=self, time_bins=self._total_time_bins-time_ref, saa_mask=self._saa_mask, echan=echan, q_levels=[0.68,0.95,0.99], colors=['lightgreen', 'green', 'darkgreen'], bin_width=min_bin_width, n_params = n_params)
+                
+
+        
         residual_plot.add_data(np.mean( self._rebinned_time_bins, axis=1),
                                         self._rebinned_observed_counts / self._rebinned_time_bin_widths,
                                         self._residuals,
@@ -476,7 +487,7 @@ class BackgroundLike(object):
                                         xerr=None,
                                         label=self._name,
                                         color=data_color,
-                                        show_data=show_data)
+                                        show_data=show_data, marker_size=1.5)
 
         # if step:
         #
@@ -501,7 +512,6 @@ class BackgroundLike(object):
                                     y,
                                     label=model_label,
                                     color=model_color)
-
         if posteriour is not None:
             # Make a copy of the model for plotting
             plot_model = copy.deepcopy(self._model)
@@ -536,12 +546,55 @@ class BackgroundLike(object):
         if show_occ_region:
             residual_plot.add_occ_region(self._occ_region, time_ref)
 
-
+        self._save_plot_data(echan, time_ref)
         return residual_plot.finalize(xlabel="Time\n(%s)" %time_frame,
                                       ylabel="Count Rate\n(counts s$^{-1}$)",
                                       xscale='linear',
                                       yscale='linear',
                                       show_legend=show_legend)
+    def _save_plot_data(self, echan, time_ref):
+        times_data_binned = np.mean( self._rebinned_time_bins, axis=1)
+        observed = self._rebinned_observed_counts / self._rebinned_time_bin_widths
+        residuals = self._residuals
+        model = self.model_counts(echan) / self._total_time_bin_widths
+        model_time = np.mean(self._total_time_bins - time_ref, axis=1)
+        model_single_sources_dic = self._get_list_of_sources(self._total_time_bins - time_ref, echan, self._total_time_bin_widths)
+        print(np.array(times_data_binned).shape)
+        print(np.array(observed).shape)
+        print(np.array(residuals).shape)
+        print(np.array(model_time).shape)
+        print(np.array(model).shape)
+        hdu_list=[fits.PrimaryHDU([])]
+        col_data_times = fits.Column(name='data_time', format='D', array=np.array(times_data_binned))
+        col_data_obs = fits.Column(name='observed', format='D', array=np.array(observed))
+        col_residuals = fits.Column(name='residuals', format='D', array=np.array(residuals))
+        hdu_list.append(fits.BinTableHDU.from_columns([col_data_times,col_data_obs,col_residuals]))
+        tot=fits.HDUList(hdu_list)
+        save_file = "/home/bbiltzing/plot_data.fits"
+        tot.writeto(save_file, overwrite=True)
+
+
+        hdu_list=[fits.PrimaryHDU([])]
+        col_model_time = fits.Column(name='time_model', format='D', array=np.array(model_time))
+        col_model = fits.Column(name='model', format='D', array=np.array(model))
+        col_list = [col_model_time, col_model]
+        print(np.array(times_data_binned).shape)
+        print(np.array(observed).shape)
+        print(np.array(residuals).shape)
+        print(np.array(model_time).shape)
+        print(np.array(model).shape)
+        for i,a in enumerate(model_single_sources_dic):
+            model_single_sources = np.array(a['data'])
+            print(model_single_sources.shape)
+            col_single_sources = fits.Column(name=a['label'], format='D', array=model_single_sources)
+            col_list.append(col_single_sources)
+
+        cols=fits.ColDefs(col_list)
+        print(col_list)
+        hdu_list.append(fits.BinTableHDU.from_columns(cols))
+        tot=fits.HDUList(hdu_list)
+        save_file = "/home/bbiltzing/plot_model.fits"
+        tot.writeto(save_file, overwrite=True)
 
     def _get_list_of_sources(self,time_bins, echan, time_bin_width=1.):
         """
@@ -550,7 +603,7 @@ class BackgroundLike(object):
         :return:
         """
         source_list = []
-        color_list = ['b', 'g', 'c', 'm', 'y', 'k', 'w']
+        color_list = ['b', 'g', 'c', 'm', 'y', 'k', 'navy', 'darkgreen', 'cyan']
         i_index=0
         for i, source_name in enumerate(self._model.continuum_sources):
             data = self._model.get_continuum_counts(i, time_bins, self._saa_mask, echan)
@@ -686,3 +739,33 @@ class BackgroundLike(object):
     @property
     def res(self):
         return self._residuals
+    
+    def return_rebinned_observed_counts(self, echan, min_bin_width=NO_REBIN):
+        time_ref = 0.
+        if (min_bin_width is not NO_REBIN) or (self._rebinner is None):
+            this_rebinner = Rebinner(self._total_time_bins - time_ref, min_bin_width, self._total_mask)  # _saa_mask
+        rebinned_observed_counts, = this_rebinner.rebin(self._total_counts_all_echan[:,echan])
+
+        return rebinned_observed_counts[2:-2]
+    def return_rebinned_global_observed_counts(self, echan, min_bin_width=NO_REBIN):
+        time_ref = 0.
+        if (min_bin_width is not NO_REBIN) or (self._rebinner is None):
+            this_rebinner = Rebinner(self._total_time_bins - time_ref, min_bin_width, self._total_mask)  # _saa_mask                                                                                                                                                           
+
+        observed_global_counts = self._model.get_all_global_counts(self._total_time_bins, echan, saa_mask=self._saa_mask)
+        
+        rebinned_observed_global_counts, = this_rebinner.rebin(observed_global_counts)
+
+        
+        return rebinned_observed_global_counts[2:-2]
+
+    @property
+    def return_model_counts(self):
+        return self.model_counts(5)
+
+    @property
+    def return_total_time_bins(self):
+        return self._total_time_bins
+    @property
+    def return_rebinned_time_bins(self):
+        return self._rebinned_time_bins

@@ -81,5 +81,3 @@ class GlobalSource(Source):
     def __init__(self, name, continuum_shape):
         super(GlobalSource, self).__init__(name, GLOBAL_SOURCE, continuum_shape, 1) #dummy value for echan
 
-
-

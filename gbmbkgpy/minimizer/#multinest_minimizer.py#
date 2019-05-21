@@ -219,7 +219,7 @@ class MultiNestFit(object):
                                   n_live_points=n_live_points,
                                   outputfiles_basename=self.output_dir,
                                   multimodal=True,#True was default
-                                  resume=True,
+                                  resume=False,
                                   verbose=True,#False was default
                                   importance_nested_sampling=False,
                                   const_efficiency_mode=True)#False was default

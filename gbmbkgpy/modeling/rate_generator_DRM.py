@@ -385,6 +385,9 @@ class Rate_Generator_DRM(object):
         self._folded_rates_cgb = np.array(folded_rates_cgb)
         self._folded_rates_ps = np.array(folded_rates_ps)
 
+    #def fixed_rate(self, powerlaw=True, K, ...):
+        
+    
     @property
     def cgb_rate(self):
 

@@ -263,7 +263,7 @@ class ResidualPlot(object):
         :param saa_mask: Mask which time bins are set to zero
         :param echan: Which echan 
         :param q_levels: At which levels the ppc should be plotted
-        :param colors: colors for the different q_level
+        :param colors: colors for the                         different q_level
         """
         assert len(q_levels)==len(colors), 'q_levels and colors must have same length!'
 

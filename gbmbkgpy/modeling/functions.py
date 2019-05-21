@@ -1,4 +1,4 @@
-from gbmbkgpy.modeling.function import Function, ContinuumFunction, PointSourceFunction, GlobalFunction
+from gbmbkgpy.modeling.function import Function, ContinuumFunction, PointSourceFunction, GlobalFunction, GlobalFunctionEarth
 from gbmbkgpy.modeling.parameter import Parameter
 import numpy as np
 import numexpr as ne
@@ -24,10 +24,10 @@ class Solar_Flare(Function):
 
 class SAA_Decay(Function):
 
-    def __init__(self, saa_number):
+    def __init__(self, saa_number, echan):
 
-        A = Parameter('A-' + saa_number, initial_value=1., min_value=0, max_value=None, delta=0.1, normalization=True, prior='log_uniform')
-        saa_decay_constant = Parameter('saa_decay_constant-' + saa_number, initial_value=0.01, min_value=0., max_value=1., delta=0.1, prior='log_uniform')
+        A = Parameter("A-{} echan-{}".format(saa_number,echan), initial_value=1., min_value=0, max_value=None, delta=0.1, normalization=True, prior='log_uniform')
+        saa_decay_constant = Parameter("saa_decay_constant-{} echan-{}".format(saa_number,echan), initial_value=0.01, min_value=0., max_value=1., delta=0.1, prior='log_uniform')
 
         super(SAA_Decay, self).__init__(A, saa_decay_constant)
 
@@ -49,10 +49,11 @@ class SAA_Decay(Function):
         :return:
         """
 
-        t0 = self._saa_exit_time
-        self._idx_start = self._time_bins[:, 0] < t0
-        self._exp_tstart = np.exp(self._saa_exit_time-self._time_bins[:,0][~self._idx_start])
-        self._exp_tstop = np.exp(self._saa_exit_time - self._time_bins[:, 1][~self._idx_start])
+        self._t0 = self._saa_exit_time
+        self._idx_start = self._time_bins[:, 0] < self._t0
+
+        self._tstart = self._time_bins[:, 0][~self._idx_start]
+        self._tstop = self._time_bins[:, 1][~self._idx_start]
 
     def _evaluate(self, A, saa_decay_constant, echan=None):
         """
@@ -68,10 +69,14 @@ class SAA_Decay(Function):
         """
 
         out = np.zeros_like(self._time_bins[:,0])
-        exp_tstart = self._exp_tstart
-        exp_tstop = self._exp_tstop
-        #use numexpr to speed up the evaluation with the large time_bin lists
-        out[~self._idx_start] = ne.evaluate("-A / saa_decay_constant*(exp_tstop**saa_decay_constant - exp_tstart**saa_decay_constant)")
+
+        t0=self._t0
+        tstart=self._tstart
+        tstop=self._tstop
+
+        #out[~self._idx_start] = ne.evaluate("-A / saa_decay_constant*(exp((t0-tstop)*saa_decay_constant) - exp((t0 - tstart)*saa_decay_constant))")
+        out[~self._idx_start] = ne.evaluate("-A / saa_decay_constant*(exp((t0-tstop)*abs(saa_decay_constant)) - exp((t0 - tstart)*abs(saa_decay_constant)))")
+        
         return out
 
 class GRB(Function):
@@ -128,12 +133,28 @@ class Earth_Albedo_Continuum(GlobalFunction):
     def __init__(self):
         super(Earth_Albedo_Continuum, self).__init__('norm_earth_albedo')
 
-class Point_Source_Continuum(PointSourceFunction):
-    def __init__(self, point_source_nr, echan):
-        super(Point_Source_Continuum, self).__init__('norm_point_source-' + point_source_nr + '_echan-' + echan)
+class Point_Source_Continuum(GlobalFunction):
+    def __init__(self, point_source_nr):
+        super(Point_Source_Continuum, self).__init__('norm_point_source-' + point_source_nr)
 
 class offset(ContinuumFunction):
     def __init__(self, echan):
         super(offset, self).__init__('constant_echan-' + echan)
 
+class Magnetic_Continuum_Global(GlobalFunction):
+    def __init__(self):
+        super(Magnetic_Continuum_Global, self).__init__('norm_magnetic_global')
 
+class Magnetic_Constant_Global(GlobalFunction):
+    def __init__(self):
+        super(Magnetic_Constant_Global, self).__init__('constant_magnetic_global')
+
+
+#Testing secondary earth
+class Magnetic_Secondary_Continuum(ContinuumFunction):
+    def __init__(self, echan):
+        super(Magnetic_Secondary_Continuum, self).__init__('secondary_echan-' + echan)
+
+class West_Effect_Continuum(ContinuumFunction):
+    def __init__(self, echan):
+        super(West_Effect_Continuum, self).__init__('west_effect-' + echan)

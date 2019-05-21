@@ -1,6 +1,6 @@
 
 class Parameter(object):
-    def __init__(self, name, initial_value, min_value, max_value, delta, prior=None, **kwargs):
+    def __init__(self, name, initial_value, min_value, max_value, delta, prior='log_uniform', **kwargs):
         self._name = str(name)
         self._value = initial_value
         self._min_value = min_value

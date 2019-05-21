@@ -45,11 +45,14 @@ def download_lat_spacecraft(week):
         os.mkdir(file_path)
 
 
+    try:
+        url = 'http://heasarc.gsfc.nasa.gov/FTP/fermi/data/lat/weekly/spacecraft/lat_spacecraft_weekly_w%d_p202_v001.fits' % week
 
-    url = 'http://heasarc.gsfc.nasa.gov/FTP/fermi/data/lat/weekly/spacecraft/lat_spacecraft_weekly_w%d_p202_v001.fits' % week
+        path_to_file = download_file(url)
+    except:
+        url = 'http://heasarc.gsfc.nasa.gov/FTP/fermi/data/lat/weekly/spacecraft/lat_spacecraft_weekly_w0%d_p202_v001.fits' % week
 
-    path_to_file = download_file(url)
-
+        path_to_file = download_file(url)
     file_name = 'lat_spacecraft_weekly_w%d_p202_v001.fits' % week
 
     shutil.move(path_to_file, file_path + file_name)
@@ -90,11 +93,33 @@ def download_data_file(date, type, detector='all'):
         print("Making New Directory")
         os.mkdir(file_path)
 
+    try:
+        url = 'https://heasarc.gsfc.nasa.gov/FTP/fermi/data/gbm/daily/{0}/{1}/{2}/current/glg_{3}_{4}_{5}_v00.{6}'.format(year, month, day, type, detector, date, file_type)
 
-    url = 'https://heasarc.gsfc.nasa.gov/FTP/fermi/data/gbm/daily/{0}/{1}/{2}/current/glg_{3}_{4}_{5}_v00.{6}'.format(
-            year, month, day, type, detector, date, file_type)
+        path_to_file = download_file(url)
+    except:
+        try:
+            url = 'https://heasarc.gsfc.nasa.gov/FTP/fermi/data/gbm/daily/{0}/{1}/{2}/current/glg_{3}_{4}_{5}_v01.{6}'.format(year, month, day, type, detector, date, file_type)
 
-    path_to_file = download_file(url)
+            path_to_file = download_file(url)
+        except:
+            try:
+                url = 'https://heasarc.gsfc.nasa.gov/FTP/fermi/data/gbm/daily/{0}/{1}/{2}/current/glg_{3}_{4}_{5}_v02.{6}'.format(year, month, day, type, detector, date, file_type)
+
+                path_to_file = download_file(url)
+            except:
+                try:
+                    url = 'https://heasarc.gsfc.nasa.gov/FTP/fermi/data/gbm/daily/{0}/{1}/{2}/current/glg_{3}_{4}_{5}_v03.{6}'.format(year, month, day, type, detector, date, file_type)
+
+                    path_to_file = download_file(url)
+                except: 
+                    try:
+                        url = 'https://heasarc.gsfc.nasa.gov/FTP/fermi/data/gbm/daily/{0}/{1}/{2}/current/glg_{3}_{4}_{5}_v04.{6}'.format(year, month, day, type, detector, date, file_type)
+
+                        path_to_file = download_file(url)
+                    except:
+                        print('This url not found {}'.format(url))  
+
 
     file_name = 'glg_{0}_{1}_{2}_v00.{3}'.format(type, detector, date, file_type)
 
