@@ -303,6 +303,7 @@ class DataCleaner(object):
 
                 quaternion_gather=np.concatenate(quaternion_gather)
                 sc_pos_gather = np.concatenate(sc_pos_gather)
+
             #broadcast the final arrays again to all ranks
             sun_angle = comm.bcast(sun_angle_gather, root=0)
             sun_time = comm.bcast(sun_time_gather, root=0)
@@ -312,6 +313,9 @@ class DataCleaner(object):
 
             quaternion = comm.bcast(quaternion_gather, root=0)
             sc_pos = comm.bcast(sc_pos_gather, root=0)
+
+            quaternion_array = comm.bcast(np.array(quaternion), root=0)
+            sc_array = comm.bcast(np.array(sc_pos), root=0)
 
         else:
             # go through a subset of times and calculate the sun angle with GBM geometry
@@ -368,6 +372,9 @@ class DataCleaner(object):
             det_ra.append(ra)
             det_dec.append(dec)
 
+            quaternion_array = np.array(quaternion)
+            sc_array = np.array(sc_pos)
+
         self._sun_angle = sun_angle
         self._sun_time = sun_time
         self._earth_az = earth_az
@@ -380,9 +387,6 @@ class DataCleaner(object):
         #test
         self._det_ra = np.array(det_ra)
         self._det_dec = np.array(det_dec)
-
-        quaternion_array = np.array(quaternion)
-        sc_array = np.array(sc_pos)
 
         # interpolate it
 
