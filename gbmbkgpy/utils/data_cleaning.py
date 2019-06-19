@@ -44,7 +44,7 @@ except:
 
 class DataCleaner(object):
 
-    def __init__(self, date, detector, data_type, echan, min_bin_width, rate_generator_DRM=None, use_SAA=True, clean_SAA=False):
+    def __init__(self, date, detector, data_type, min_bin_width, rate_generator_DRM=None, use_SAA=True, clean_SAA=False):
         self._data_type = data_type
         self._det = detector
         self._day = date
@@ -52,10 +52,9 @@ class DataCleaner(object):
         self._clean_SAA = clean_SAA
         self._rate_generator_DRM = rate_generator_DRM
 
-        self.echan = echan
         self.min_bin_width = min_bin_width
 
-        #assert 'ctime' in self._data_type, 'currently only working for CTIME data'
+        # assert 'ctime' in self._data_type, 'currently only working for CTIME data'
         assert 'n' in self._det, 'currently only working NAI detectors'
 
         ### Download data-file and poshist file if not existing:
@@ -88,10 +87,10 @@ class DataCleaner(object):
                 self._bin_start = np.delete(self._bin_start, [i])
                 self._bin_stop = np.delete(self._bin_stop, [i])
                 self._counts = np.delete(self._counts, [i], axis=0)
-                self._exposure=np.delete(self._exposure, [i])
+                self._exposure = np.delete(self._exposure, [i])
                 print('Deleted empty time bin', i)
             else:
-                i+=1
+                i += 1
         # Delete time bins that are outside the interval covered by the poshist file
         # Get boundary for time interval covered by the poshist file
         with fits.open(poshistfile_path) as f:
@@ -99,18 +98,18 @@ class DataCleaner(object):
         min_time_pos = pos_times[0]
         max_time_pos = pos_times[-1]
         # check all time bins if they are outside of this interval
-        i=0
-        counter=0
-        while i<len(self._bin_start):
-            if self._bin_start[i]<min_time_pos or self._bin_stop[i]>max_time_pos:
+        i = 0
+        counter = 0
+        while i < len(self._bin_start):
+            if self._bin_start[i] < min_time_pos or self._bin_stop[i] > max_time_pos:
                 self._bin_start = np.delete(self._bin_start, i)
                 self._bin_stop = np.delete(self._bin_stop, i)
                 self._counts = np.delete(self._counts, i, 0)
                 self._exposure = np.delete(self._exposure, i)
-                counter+=1
+                counter += 1
             else:
-                i+=1
-        if counter>0:
+                i += 1
+        if counter > 0:
             print(str(counter) + ' time bins had to been deleted because they were outside of the time interval covered'
                                  'by the poshist file...')
         self._n_entries = len(self._bin_start)
@@ -140,7 +139,6 @@ class DataCleaner(object):
     @property
     def data_type(self):
         return self._data_type
-
 
     @property
     def detector_id(self):
@@ -197,7 +195,6 @@ class DataCleaner(object):
     def mean_time(self):
         return np.mean(self.time_bins, axis=1)
 
-
     def get_quaternion(self, met):
 
         return self._position_interpolator.quaternion(met)
@@ -219,22 +216,22 @@ class DataCleaner(object):
         sun_time = []
         earth_az = []  # azimuth angle of earth in sat. frame
         earth_zen = []  # zenith angle of earth in sat. frame
-        earth_position = [] #earth pos in icrs frame (skycoord)
+        earth_position = []  # earth pos in icrs frame (skycoord)
 
-        #additionally save the quaternion and the sc_pos of every time step. Needed for PS later.
+        # additionally save the quaternion and the sc_pos of every time step. Needed for PS later.
         quaternion = []
-        sc_pos =[]
+        sc_pos = []
 
-        #ps testing
-        det_ra = [] #det ra in icrs frame
-        det_dec = [] #det dec in icrs frame
+        # ps testing
+        det_ra = []  # det ra in icrs frame
+        det_dec = []  # det dec in icrs frame
 
         if using_mpi:
-            #if using mpi split the times at which the geometry is calculated to all ranks
+            # if using mpi split the times at which the geometry is calculated to all ranks
             list_times_to_calculate = self.mean_time[::n_skip]
-            self._times_per_rank = float(len(list_times_to_calculate))/float(size)
-            self._times_lower_bound_index = int(np.floor(rank*self._times_per_rank))
-            self._times_upper_bound_index = int(np.floor((rank+1)*self._times_per_rank))
+            self._times_per_rank = float(len(list_times_to_calculate)) / float(size)
+            self._times_lower_bound_index = int(np.floor(rank * self._times_per_rank))
+            self._times_upper_bound_index = int(np.floor((rank + 1) * self._times_per_rank))
             with progress_bar(len(list_times_to_calculate[self._times_lower_bound_index:self._times_upper_bound_index]),
                               title='Calculating sun and earth position') as p:
                 for mean_time in list_times_to_calculate[self._times_lower_bound_index:self._times_upper_bound_index]:
@@ -255,7 +252,7 @@ class DataCleaner(object):
                     sc_pos.append(sc_pos_step)
 
                     p.increase()
-                #get the last data point with the last rank
+                # get the last data point with the last rank
             if rank == size - 1:
                 mean_time = self.mean_time[-2]
                 quaternion_step = self._position_interpolator.quaternion(mean_time)
@@ -274,7 +271,7 @@ class DataCleaner(object):
 
                 quaternion.append(quaternion_step)
                 sc_pos.append(sc_pos_step)
-            #make the list numpy arrays
+            # make the list numpy arrays
             sun_angle = np.array(sun_angle)
             sun_time = np.array(sun_time)
             earth_az = np.array(earth_az)
@@ -283,17 +280,16 @@ class DataCleaner(object):
 
             quaternion = np.array(quaternion)
             sc_pos = np.array(sc_pos)
-            #gather all results in rank=0
+            # gather all results in rank=0
             sun_angle_gather = comm.gather(sun_angle, root=0)
             sun_time_gather = comm.gather(sun_time, root=0)
             earth_az_gather = comm.gather(earth_az, root=0)
             earth_zen_gather = comm.gather(earth_zen, root=0)
             earth_position_gather = comm.gather(earth_position, root=0)
 
-
             quaternion_gather = comm.gather(quaternion, root=0)
             sc_pos_gather = comm.gather(sc_pos, root=0)
-            #make one list out of this
+            # make one list out of this
             if rank == 0:
                 sun_angle_gather = np.concatenate(sun_angle_gather)
                 sun_time_gather = np.concatenate(sun_time_gather)
@@ -301,10 +297,9 @@ class DataCleaner(object):
                 earth_zen_gather = np.concatenate(earth_zen_gather)
                 earth_position_gather = np.concatenate(earth_position_gather)
 
-                quaternion_gather=np.concatenate(quaternion_gather)
+                quaternion_gather = np.concatenate(quaternion_gather)
                 sc_pos_gather = np.concatenate(sc_pos_gather)
-
-            #broadcast the final arrays again to all ranks
+            # broadcast the final arrays again to all ranks
             sun_angle = comm.bcast(sun_angle_gather, root=0)
             sun_time = comm.bcast(sun_time_gather, root=0)
             earth_az = comm.bcast(earth_az_gather, root=0)
@@ -313,9 +308,6 @@ class DataCleaner(object):
 
             quaternion = comm.bcast(quaternion_gather, root=0)
             sc_pos = comm.bcast(sc_pos_gather, root=0)
-
-            quaternion_array = comm.bcast(np.array(quaternion), root=0)
-            sc_array = comm.bcast(np.array(sc_pos), root=0)
 
         else:
             # go through a subset of times and calculate the sun angle with GBM geometry
@@ -340,7 +332,7 @@ class DataCleaner(object):
                     quaternion.append(quaternion_step)
                     sc_pos.append(sc_pos_step)
 
-                    #test
+                    # test
                     ra, dec = det.det_ra_dec_icrs
                     det_ra.append(ra)
                     det_dec.append(dec)
@@ -372,9 +364,6 @@ class DataCleaner(object):
             det_ra.append(ra)
             det_dec.append(dec)
 
-            quaternion_array = np.array(quaternion)
-            sc_array = np.array(sc_pos)
-
         self._sun_angle = sun_angle
         self._sun_time = sun_time
         self._earth_az = earth_az
@@ -384,9 +373,14 @@ class DataCleaner(object):
         self._quaternion = quaternion
         self._sc_pos = sc_pos
 
-        #test
+        # test
         self._det_ra = np.array(det_ra)
         self._det_dec = np.array(det_dec)
+
+        quaternion_array = np.array(quaternion)
+        sc_array = np.array(sc_pos)
+
+        sc_height_array = np.sqrt((sc_pos ** 2).sum())
 
         # interpolate it
 
@@ -399,6 +393,12 @@ class DataCleaner(object):
         self._sc0_interpolator = interpolate.interp1d(self._sun_time, sc_array[:, 0])
         self._sc1_interpolator = interpolate.interp1d(self._sun_time, sc_array[:, 1])
         self._sc2_interpolator = interpolate.interp1d(self._sun_time, sc_array[:, 2])
+        self._sc_height_interpolator = interpolate.interp1d(self._sun_time, sc_height_array)
+
+        self._earth_az_interpolator = interpolate.interp1d(self._sun_time, self._earth_az)
+        self._earth_zen_interpolator = interpolate.interp1d(self._sun_time, self._earth_zen)
+        self._sun_angle_interpolator = interpolate.interp1d(self._sun_time, self._sun_angle)
+
         self._det_ra_interpolator = interpolate.interp1d(self._sun_time, np.array(det_ra))
         self._det_dec_interpolator = interpolate.interp1d(self._sun_time, np.array(det_dec))
 
@@ -413,8 +413,23 @@ class DataCleaner(object):
 
     def _rebinned_observed_counts(self):
 
-        self.rebinned_observed_counts, = self._rebinner.rebin(self.counts[:, self.echan])
-        self.rebinned_observed_counts = self.rebinned_observed_counts[2:-2]
+        self.rebinned_counts_0, = self._rebinner.rebin(self.counts[:, 0])
+        self.rebinned_counts_1, = self._rebinner.rebin(self.counts[:, 1])
+        self.rebinned_counts_2, = self._rebinner.rebin(self.counts[:, 2])
+        self.rebinned_counts_3, = self._rebinner.rebin(self.counts[:, 3])
+        self.rebinned_counts_4, = self._rebinner.rebin(self.counts[:, 4])
+        self.rebinned_counts_5, = self._rebinner.rebin(self.counts[:, 5])
+        self.rebinned_counts_6, = self._rebinner.rebin(self.counts[:, 6])
+        self.rebinned_counts_7, = self._rebinner.rebin(self.counts[:, 7])
+
+        self.rebinned_counts_0 = self.rebinned_counts_0[2:-2]
+        self.rebinned_counts_1 = self.rebinned_counts_1[2:-2]
+        self.rebinned_counts_2 = self.rebinned_counts_2[2:-2]
+        self.rebinned_counts_3 = self.rebinned_counts_3[2:-2]
+        self.rebinned_counts_4 = self.rebinned_counts_4[2:-2]
+        self.rebinned_counts_5 = self.rebinned_counts_5[2:-2]
+        self.rebinned_counts_6 = self.rebinned_counts_6[2:-2]
+        self.rebinned_counts_7 = self.rebinned_counts_7[2:-2]
 
         self.rebinned_time_bins = self._rebinner.time_rebinned[2:-2]
 
@@ -426,9 +441,15 @@ class DataCleaner(object):
         self.features = np.stack((
             self._det_ra_interpolator(self.rebinned_mean_times),
             self._det_dec_interpolator(self.rebinned_mean_times),
+
             self._sc0_interpolator(self.rebinned_mean_times),
             self._sc1_interpolator(self.rebinned_mean_times),
             self._sc2_interpolator(self.rebinned_mean_times),
+            self._sc_height_interpolator(self.rebinned_mean_times),
+            self._earth_az_interpolator(self.rebinned_mean_times),
+            self._earth_zen_interpolator(self.rebinned_mean_times),
+            self._sun_angle_interpolator(self.rebinned_mean_times),
+
             self._q0_interpolator(self.rebinned_mean_times),
             self._q1_interpolator(self.rebinned_mean_times),
             self._q2_interpolator(self.rebinned_mean_times),
@@ -437,10 +458,13 @@ class DataCleaner(object):
 
     def save_data(self):
 
-        filename = "cleaned_data_{}_{}_{}.npz".format(self._day, self._det, self.echan)
+        filename = "cleaned_data_{}_{}.npz".format(self._day, self._det)
 
         if os.path.isfile(filename):
             raise Exception("Error: output file already exists")
 
-        np.savez_compressed(filename, counts=self.rebinned_observed_counts[:, self.echan], features=self.features)
+        np.savez_compressed(filename,
+                            counts_0=self.rebinned_counts_0, counts_1=self.rebinned_counts_1, counts_2=self.rebinned_counts_2,
+                            counts_3=self.rebinned_counts_3, counts_4=self.rebinned_counts_4, counts_5=self.rebinned_counts_5,
+                            counts_6=self.rebinned_counts_6, counts_7=self.rebinned_counts_7, features=self.features)
         return
