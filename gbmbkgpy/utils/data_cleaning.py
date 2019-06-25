@@ -379,13 +379,9 @@ class DataCleaner(object):
 
         quaternion_array = np.array(quaternion)
         sc_array = np.array(sc_pos)
-
-        sc_height_array = np.sqrt((sc_pos ** 2).sum())
+        sc_height_array = np.sqrt((sc_array ** 2).sum(axis=1))
 
         # interpolate it
-
-        # self._sun_angle_interpolator = interpolate.interp1d(self._sun_time, self._sun_angle)
-
         self._q0_interpolator = interpolate.interp1d(self._sun_time, quaternion_array[:, 0])
         self._q1_interpolator = interpolate.interp1d(self._sun_time, quaternion_array[:, 1])
         self._q2_interpolator = interpolate.interp1d(self._sun_time, quaternion_array[:, 2])
