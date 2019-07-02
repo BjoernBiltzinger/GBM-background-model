@@ -6,6 +6,7 @@ import os
 from datetime import date, timedelta
 
 using_mpi = False
+file_dir = os.path.join(os.getenv('GBMDATA'), 'ml/data')
 
 try:
     # see if we have mpi and/or are using parallel
@@ -95,7 +96,7 @@ for day in days:
         pass
 
 if rank == 0:
-    filename = "cleaned_data_{}-{}_{}.npz".format(date_start.strftime('%y%m%d'), date_stop.strftime('%y%m%d'), detector)
+    filename = os.path.join(file_dir, "cleaned_data_{}-{}_{}.npz".format(date_start.strftime('%y%m%d'), date_stop.strftime('%y%m%d'), detector))
 
     if os.path.isfile(filename):
         wait = True
