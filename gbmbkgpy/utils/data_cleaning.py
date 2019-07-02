@@ -544,6 +544,17 @@ class DataCleaner(object):
             self._q3_interpolator(self.rebinned_mean_times)
         ), axis=1)
 
+        self.rebinned_counts = np.stack((
+            self.rebinned_counts_0,
+            self.rebinned_counts_1,
+            self.rebinned_counts_2,
+            self.rebinned_counts_3,
+            self.rebinned_counts_4,
+            self.rebinned_counts_5,
+            self.rebinned_counts_6,
+            self.rebinned_counts_7,
+        ), axis=1)
+
     def save_data(self):
 
         filename = "cleaned_data_{}_{}.npz".format(self._day, self._det)
@@ -552,7 +563,5 @@ class DataCleaner(object):
             raise Exception("Error: output file already exists")
 
         np.savez_compressed(filename,
-                            counts_0=self.rebinned_counts_0, counts_1=self.rebinned_counts_1, counts_2=self.rebinned_counts_2,
-                            counts_3=self.rebinned_counts_3, counts_4=self.rebinned_counts_4, counts_5=self.rebinned_counts_5,
-                            counts_6=self.rebinned_counts_6, counts_7=self.rebinned_counts_7, features=self.rebinned_features)
+                            counts=self.rebinned_counts, features=self.rebinned_features)
         return
