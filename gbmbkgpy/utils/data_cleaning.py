@@ -27,7 +27,8 @@ try:
     # see if we have mpi and/or are upalsing parallel
 
     from mpi4py import MPI
-    if MPI.COMM_WORLD.Get_size() > 1: # need parallel capabilities
+
+    if MPI.COMM_WORLD.Get_size() > 1:  # need parallel capabilities
         using_mpi = True
 
         comm = MPI.COMM_WORLD
@@ -44,15 +45,13 @@ except:
 
 class DataCleaner(object):
 
-    def __init__(self, date, detector, data_type, min_bin_width, rate_generator_DRM=None, use_SAA=True, clean_SAA=False):
+    def __init__(self, date, detector, data_type, min_bin_width=None, training=False):
         self._data_type = data_type
         self._det = detector
         self._day = date
-        self._use_SAA = use_SAA
-        self._clean_SAA = clean_SAA
-        self._rate_generator_DRM = rate_generator_DRM
 
         self.min_bin_width = min_bin_width
+        self._training = training
 
         # assert 'ctime' in self._data_type, 'currently only working for CTIME data'
         assert 'n' in self._det, 'currently only working NAI detectors'
@@ -120,9 +119,13 @@ class DataCleaner(object):
 
         # Start precomputation of arrays:
         self._setup_geometery()
-        self._create_rebiner()
-        self._rebinned_observed_counts()
-        self._prepare_data()
+
+        if self._training:
+            self._create_rebiner()
+            self._rebinned_observed_counts()
+            self._prepare_data()
+        else:
+            self._compute_saa_regions()
 
         # Calculate the MET time for the day
         day = self._day
@@ -195,6 +198,15 @@ class DataCleaner(object):
     def mean_time(self):
         return np.mean(self.time_bins, axis=1)
 
+    @property
+    def features(self):
+        return self.features
+
+    @property
+    def saa_mask(self):
+
+        return self._saa_mask
+
     def get_quaternion(self, met):
 
         return self._position_interpolator.quaternion(met)
@@ -202,6 +214,51 @@ class DataCleaner(object):
     def cgb_background(self, time_bins):
 
         return np.ones_like(time_bins)
+
+    def _compute_saa_regions(self):
+        # find where the counts are zero
+
+        min_saa_bin_width = 8
+        bins_to_add = 8
+
+        self._zero_idx = self._counts_combined == 0.
+        idx = self._zero_idx.nonzero()[0]
+        slice_idx = np.array(slice_disjoint(idx))
+
+        # Only the slices which are longer than 8 time bins are used as saa (only for ctime data)
+        if self._data_type == 'cspec':
+            slice_idx = slice_idx[np.where(slice_idx[:, 1] - slice_idx[:, 0] > 0)]
+        else:
+            slice_idx = slice_idx[np.where(slice_idx[:, 1] - slice_idx[:, 0] > min_saa_bin_width)]
+
+        # Add bins_to_add to bin_mask to exclude the bins with corrupt data:
+        # Check first that the start and stop stop of the mask is not the beginning or end of the day
+        slice_idx[:, 0][np.where(slice_idx[:, 0] >= 8)] = \
+            slice_idx[:, 0][np.where(slice_idx[:, 0] >= 8)] - bins_to_add
+
+        slice_idx[:, 1][np.where(slice_idx[:, 1] <= self._n_time_bins - 1 - bins_to_add)] = \
+            slice_idx[:, 1][np.where(slice_idx[:, 1] <= self._n_time_bins - 1 - bins_to_add)] + bins_to_add
+
+        # now find the times of the exits
+
+        if slice_idx[-1, 1] == self._n_time_bins - 1:
+            # the last exit is just the end of the array
+            self._saa_exit_idx = slice_idx[:-1, 1]
+        else:
+            self._saa_exit_idx = slice_idx[:, 1]
+
+        self._saa_exit_mean_times = self.mean_time[self._saa_exit_idx]
+        self._saa_exit_bin_start = self._bin_start[self._saa_exit_idx]
+        self._saa_exit_bin_stop = self._bin_stop[self._saa_exit_idx]
+
+        # make a saa mask from the slices:
+        self._saa_mask = np.ones_like(self._counts_combined, bool)
+
+        for i in range(len(slice_idx)):
+            self._saa_mask[slice_idx[i, 0]:slice_idx[i, 1] + 1] = False
+            self._zero_idx[slice_idx[i, 0]:slice_idx[i, 1] + 1] = True
+
+        self._saa_slices = slice_idx
 
     def _setup_geometery(self):
         n_bins_to_calculate = 800.
@@ -251,6 +308,10 @@ class DataCleaner(object):
                     quaternion.append(quaternion_step)
                     sc_pos.append(sc_pos_step)
 
+                    ra, dec = det.det_ra_dec_icrs
+                    det_ra.append(ra)
+                    det_dec.append(dec)
+
                     p.increase()
                 # get the last data point with the last rank
             if rank == size - 1:
@@ -271,6 +332,11 @@ class DataCleaner(object):
 
                 quaternion.append(quaternion_step)
                 sc_pos.append(sc_pos_step)
+
+                ra, dec = det.det_ra_dec_icrs
+                det_ra.append(ra)
+                det_dec.append(dec)
+
             # make the list numpy arrays
             sun_angle = np.array(sun_angle)
             sun_time = np.array(sun_time)
@@ -280,6 +346,9 @@ class DataCleaner(object):
 
             quaternion = np.array(quaternion)
             sc_pos = np.array(sc_pos)
+            det_ra = np.array(det_ra)
+            det_dec = np.array(det_dec)
+
             # gather all results in rank=0
             sun_angle_gather = comm.gather(sun_angle, root=0)
             sun_time_gather = comm.gather(sun_time, root=0)
@@ -289,6 +358,8 @@ class DataCleaner(object):
 
             quaternion_gather = comm.gather(quaternion, root=0)
             sc_pos_gather = comm.gather(sc_pos, root=0)
+            det_ra_gather = comm.gather(det_ra, root=0)
+            det_dec_gather = comm.gather(det_dec, root=0)
             # make one list out of this
             if rank == 0:
                 sun_angle_gather = np.concatenate(sun_angle_gather)
@@ -299,6 +370,9 @@ class DataCleaner(object):
 
                 quaternion_gather = np.concatenate(quaternion_gather)
                 sc_pos_gather = np.concatenate(sc_pos_gather)
+                det_ra_gather = np.concatenate(det_ra_gather)
+                det_dec_gather = np.concatenate(det_dec_gather)
+
             # broadcast the final arrays again to all ranks
             sun_angle = comm.bcast(sun_angle_gather, root=0)
             sun_time = comm.bcast(sun_time_gather, root=0)
@@ -308,6 +382,8 @@ class DataCleaner(object):
 
             quaternion = comm.bcast(quaternion_gather, root=0)
             sc_pos = comm.bcast(sc_pos_gather, root=0)
+            det_ra = comm.bcast(det_ra_gather, root=0)
+            det_dec = comm.bcast(det_dec_gather, root=0)
 
         else:
             # go through a subset of times and calculate the sun angle with GBM geometry
@@ -373,7 +449,6 @@ class DataCleaner(object):
         self._quaternion = quaternion
         self._sc_pos = sc_pos
 
-        # test
         self._det_ra = np.array(det_ra)
         self._det_dec = np.array(det_dec)
 
@@ -395,10 +470,27 @@ class DataCleaner(object):
         self._earth_zen_interpolator = interpolate.interp1d(self._sun_time, self._earth_zen)
         self._sun_angle_interpolator = interpolate.interp1d(self._sun_time, self._sun_angle)
 
-        self._det_ra_interpolator = interpolate.interp1d(self._sun_time, np.array(det_ra))
-        self._det_dec_interpolator = interpolate.interp1d(self._sun_time, np.array(det_dec))
+        self._det_ra_interpolator = interpolate.interp1d(self._sun_time, self._det_ra)
+        self._det_dec_interpolator = interpolate.interp1d(self._sun_time, self._det_dec)
 
         del sun_angle, sun_time, earth_az, earth_zen, quaternion_array, sc_array
+
+    def calc_features(self, mean_times):
+        return np.stack((
+            self._det_ra_interpolator(mean_times),
+            self._det_dec_interpolator(mean_times),
+            self._sc0_interpolator(mean_times),
+            self._sc1_interpolator(mean_times),
+            self._sc2_interpolator(mean_times),
+            self._sc_height_interpolator(mean_times),
+            self._earth_az_interpolator(mean_times),
+            self._earth_zen_interpolator(mean_times),
+            self._sun_angle_interpolator(mean_times),
+            self._q0_interpolator(mean_times),
+            self._q1_interpolator(mean_times),
+            self._q2_interpolator(mean_times),
+            self._q3_interpolator(mean_times)
+        ), axis=1)
 
     def _create_rebiner(self):
         """
@@ -429,12 +521,12 @@ class DataCleaner(object):
 
         self.rebinned_time_bins = self._rebinner.time_rebinned[2:-2]
 
-        self.rebinned_time_bin_widths = np.diff(self.rebinned_time_bins[2:-2], axis=1)[:, 0]
+        self.rebinned_time_bin_widths = np.diff(self.rebinned_time_bins, axis=1)[:, 0]
 
-        self.rebinned_mean_times = np.mean(self.rebinned_time_bins[2:-2], axis=1)
+        self.rebinned_mean_times = np.mean(self.rebinned_time_bins, axis=1)
 
     def _prepare_data(self):
-        self.features = np.stack((
+        self.rebinned_features = np.stack((
             self._det_ra_interpolator(self.rebinned_mean_times),
             self._det_dec_interpolator(self.rebinned_mean_times),
 
@@ -462,5 +554,5 @@ class DataCleaner(object):
         np.savez_compressed(filename,
                             counts_0=self.rebinned_counts_0, counts_1=self.rebinned_counts_1, counts_2=self.rebinned_counts_2,
                             counts_3=self.rebinned_counts_3, counts_4=self.rebinned_counts_4, counts_5=self.rebinned_counts_5,
-                            counts_6=self.rebinned_counts_6, counts_7=self.rebinned_counts_7, features=self.features)
+                            counts_6=self.rebinned_counts_6, counts_7=self.rebinned_counts_7, features=self.rebinned_features)
         return
