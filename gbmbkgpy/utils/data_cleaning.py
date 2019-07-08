@@ -501,6 +501,10 @@ class DataCleaner(object):
 
     def _rebinned_observed_counts(self):
 
+        self.rebinned_time_bins = self._rebinner.time_rebinned[2:-2]
+        self.rebinned_time_bin_widths = np.diff(self.rebinned_time_bins, axis=1)[:, 0]
+        self.rebinned_mean_times = np.mean(self.rebinned_time_bins, axis=1)
+
         self.rebinned_counts_0, = self._rebinner.rebin(self.counts[:, 0])
         self.rebinned_counts_1, = self._rebinner.rebin(self.counts[:, 1])
         self.rebinned_counts_2, = self._rebinner.rebin(self.counts[:, 2])
@@ -519,11 +523,14 @@ class DataCleaner(object):
         self.rebinned_counts_6 = self.rebinned_counts_6[2:-2]
         self.rebinned_counts_7 = self.rebinned_counts_7[2:-2]
 
-        self.rebinned_time_bins = self._rebinner.time_rebinned[2:-2]
-
-        self.rebinned_time_bin_widths = np.diff(self.rebinned_time_bins, axis=1)[:, 0]
-
-        self.rebinned_mean_times = np.mean(self.rebinned_time_bins, axis=1)
+        self.rebinned_count_rates_0 = self.rebinned_counts_0 / self.rebinned_time_bin_widths
+        self.rebinned_count_rates_1 = self.rebinned_counts_1 / self.rebinned_time_bin_widths
+        self.rebinned_count_rates_2 = self.rebinned_counts_2 / self.rebinned_time_bin_widths
+        self.rebinned_count_rates_3 = self.rebinned_counts_3 / self.rebinned_time_bin_widths
+        self.rebinned_count_rates_4 = self.rebinned_counts_4 / self.rebinned_time_bin_widths
+        self.rebinned_count_rates_5 = self.rebinned_counts_5 / self.rebinned_time_bin_widths
+        self.rebinned_count_rates_6 = self.rebinned_counts_6 / self.rebinned_time_bin_widths
+        self.rebinned_count_rates_7 = self.rebinned_counts_7 / self.rebinned_time_bin_widths
 
     def _prepare_data(self):
         self.rebinned_features = np.stack((
@@ -555,6 +562,17 @@ class DataCleaner(object):
             self.rebinned_counts_7,
         ), axis=1)
 
+        self.rebinned_count_rates = np.stack((
+            self.rebinned_count_rates_0,
+            self.rebinned_count_rates_1,
+            self.rebinned_count_rates_2,
+            self.rebinned_count_rates_3,
+            self.rebinned_count_rates_4,
+            self.rebinned_count_rates_5,
+            self.rebinned_count_rates_6,
+            self.rebinned_count_rates_7,
+        ), axis=1)
+
     def save_data(self):
 
         filename = "cleaned_data_{}_{}.npz".format(self._day, self._det)
@@ -563,5 +581,7 @@ class DataCleaner(object):
             raise Exception("Error: output file already exists")
 
         np.savez_compressed(filename,
-                            counts=self.rebinned_counts, features=self.rebinned_features)
+                            counts=self.rebinned_counts,
+                            count_rates=self.rebinned_count_rates,
+                            features=self.rebinned_features)
         return

@@ -3,7 +3,7 @@ from gbmbkgpy.utils.data_cleaning import DataCleaner
 from gbmbkgpy.io.downloading import download_files
 import numpy as np
 import os
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 
 using_mpi = False
 file_dir = os.path.join(os.getenv('GBMDATA'), 'ml/data')
@@ -39,9 +39,10 @@ min_bin_width = 1
 
 features = np.empty((0, 13))
 counts = np.empty((0, 8))
+count_rates = np.empty((0, 8))
 
-date_start = date(2015, 1, 1)
-date_stop = date(2015, 12, 31)
+date_start = date(2018, 1, 1)
+date_stop = date(2018, 1, 3)
 
 days = daterange(date_start, date_stop)
 
@@ -80,6 +81,7 @@ for day in days:
 
         features = np.vstack((features, dc.rebinned_features))
         counts = np.vstack((counts, dc.rebinned_counts))
+        count_rates = np.vstack((count_rates, dc.rebinned_count_rates))
 
         wait = True
     else:
@@ -89,12 +91,15 @@ for day in days:
     del dc
 
 if rank == 0:
-    filename = os.path.join(file_dir, "cleaned_data_{}-{}_{}.npz".format(date_start.strftime('%y%m%d'), date_stop.strftime('%y%m%d'), detector))
+    filename = os.path.join(file_dir, "cleaned_data_{}-{}_d{}__{}.npz".format(date_start.strftime('%y%m%d'),
+                                                                              date_stop.strftime('%y%m%d'),
+                                                                              detector,
+                                                                              datetime.now().strftime('%H_%M')))
 
     if os.path.isfile(filename):
         wait = True
         raise Exception("Error: output file already exists")
-    np.savez_compressed(filename, counts=counts, features=features)
+    np.savez_compressed(filename, counts=counts, count_rates=count_rates, features=features)
     wait = True
 else:
     wait = None
