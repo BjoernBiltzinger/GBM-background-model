@@ -45,13 +45,14 @@ except:
 
 class DataCleaner(object):
 
-    def __init__(self, date, detector, data_type, min_bin_width=None, training=False):
+    def __init__(self, date, detector, data_type, min_bin_width=None, training=False, trigger_intervals=[]):
         self._data_type = data_type
         self._det = detector
         self._day = date
 
         self.min_bin_width = min_bin_width
         self._training = training
+        self._trigger_intervals = trigger_intervals
 
         # assert 'ctime' in self._data_type, 'currently only working for CTIME data'
         assert 'n' in self._det, 'currently only working NAI detectors'
@@ -117,10 +118,13 @@ class DataCleaner(object):
         self._counts_combined_rate = self._counts_combined / self.time_bin_length
         self._n_time_bins, self._n_channels = self._counts.shape
 
+        self._grb_mask = np.ones(len(self.time_bins), dtype=bool)
+
         # Start precomputation of arrays:
         self._setup_geometery()
 
         if self._training:
+            self._set_grb_mask()
             self._create_rebiner()
             self._rebinned_observed_counts()
             self._prepare_data()
@@ -492,27 +496,33 @@ class DataCleaner(object):
             self._q3_interpolator(mean_times)
         ), axis=1)
 
+    def _set_grb_mask(self):
+        """
+        Mask known GRB intervals provided as an array
+        """
+        for trigger in self._trigger_intervals:
+            bin_exclude = np.logical_and(self.time_bins[:, 0] > trigger[0],
+                                         self.time_bins[:, 1] < trigger[1])
+            self._grb_mask[np.where(bin_exclude)] = False
+
     def _create_rebiner(self):
-        """
-        :param:
-        :return:
-        """
-        self._rebinner = Rebinner(self.time_bins, self.min_bin_width)
+        self._rebinner = Rebinner(self.time_bins[np.where(self._grb_mask)], self.min_bin_width)
 
     def _rebinned_observed_counts(self):
+        masked_counts = self.counts[np.where(self._grb_mask)]
 
         self.rebinned_time_bins = self._rebinner.time_rebinned[2:-2]
         self.rebinned_time_bin_widths = np.diff(self.rebinned_time_bins, axis=1)[:, 0]
         self.rebinned_mean_times = np.mean(self.rebinned_time_bins, axis=1)
 
-        self.rebinned_counts_0, = self._rebinner.rebin(self.counts[:, 0])
-        self.rebinned_counts_1, = self._rebinner.rebin(self.counts[:, 1])
-        self.rebinned_counts_2, = self._rebinner.rebin(self.counts[:, 2])
-        self.rebinned_counts_3, = self._rebinner.rebin(self.counts[:, 3])
-        self.rebinned_counts_4, = self._rebinner.rebin(self.counts[:, 4])
-        self.rebinned_counts_5, = self._rebinner.rebin(self.counts[:, 5])
-        self.rebinned_counts_6, = self._rebinner.rebin(self.counts[:, 6])
-        self.rebinned_counts_7, = self._rebinner.rebin(self.counts[:, 7])
+        self.rebinned_counts_0, = self._rebinner.rebin(masked_counts[:, 0])
+        self.rebinned_counts_1, = self._rebinner.rebin(masked_counts[:, 1])
+        self.rebinned_counts_2, = self._rebinner.rebin(masked_counts[:, 2])
+        self.rebinned_counts_3, = self._rebinner.rebin(masked_counts[:, 3])
+        self.rebinned_counts_4, = self._rebinner.rebin(masked_counts[:, 4])
+        self.rebinned_counts_5, = self._rebinner.rebin(masked_counts[:, 5])
+        self.rebinned_counts_6, = self._rebinner.rebin(masked_counts[:, 6])
+        self.rebinned_counts_7, = self._rebinner.rebin(masked_counts[:, 7])
 
         self.rebinned_counts_0 = self.rebinned_counts_0[2:-2]
         self.rebinned_counts_1 = self.rebinned_counts_1[2:-2]

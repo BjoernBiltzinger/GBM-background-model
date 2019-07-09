@@ -2,6 +2,7 @@ from gbmbkgpy.utils import data_cleaning
 from gbmbkgpy.utils.data_cleaning import DataCleaner
 from gbmbkgpy.io.downloading import download_files
 import numpy as np
+import pandas as pd
 import os
 from datetime import date, timedelta, datetime
 
@@ -46,6 +47,9 @@ date_stop = date(2018, 1, 3)
 
 days = daterange(date_start, date_stop)
 
+grb_triggers = pd.read_json(os.path.join(file_dir, 'grb_triggers.json'))
+grb_trigger_intervals = grb_triggers['trigger_interval']
+
 for day in days:
     date = day.strftime('%y%m%d')
     print('Start with {}'.format(date))
@@ -72,7 +76,7 @@ for day in days:
         continue
 
     print('Downlaod complete')
-    dc = DataCleaner(date, detector, data_type, min_bin_width=min_bin_width, training=True)
+    dc = DataCleaner(date, detector, data_type, min_bin_width=min_bin_width, training=True, trigger_intervals=grb_trigger_intervals)
 
     if rank == 0:
         print('Stack features and counts')
