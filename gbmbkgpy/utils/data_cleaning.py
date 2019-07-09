@@ -265,7 +265,7 @@ class DataCleaner(object):
         self._saa_slices = slice_idx
 
     def _setup_geometery(self):
-        n_bins_to_calculate = 800.
+        n_bins_to_calculate = 8000.
 
         self._position_interpolator = PositionInterpolator(poshist=self._pos_hist)
 
