@@ -8,9 +8,10 @@ from gbmgeometry import PositionInterpolator, gbm_detector_list
 import scipy.interpolate as interpolate
 
 from gbmbkgpy.io.file_utils import file_existing_and_readable
-from gbmbkgpy.io.downloading import download_data_file
+from gbmbkgpy.io.downloading import download_data_file, download_lat_spacecraft
 
 import astropy.time as astro_time
+import astropy.units as u
 import astropy.coordinates as coord
 import math
 import numpy as np
@@ -49,6 +50,16 @@ class DataCleaner(object):
         self._data_type = data_type
         self._det = detector
         self._day = date
+
+        # compute all the quantities that are needed for making date calculations
+        self._year = '20%s' % date[:2]
+        self._month = date[2:-2]
+        self._dd = date[-2:]
+
+        day_at = astro_time.Time("%s-%s-%s" % (self._year, self._month, self._dd))
+
+        self._min_met = GBMTime(day_at).met
+        self._max_met = GBMTime(day_at + u.day).met
 
         self.min_bin_width = min_bin_width
         self._training = training
@@ -119,15 +130,18 @@ class DataCleaner(object):
         self._n_time_bins, self._n_channels = self._counts.shape
 
         self._grb_mask = np.ones(len(self.time_bins), dtype=bool)
+        self.n_bins_to_calculate = 800.
 
         # Start precomputation of arrays:
         self._setup_geometery()
+        self._build_lat_spacecraft()
 
         if self._training:
             self._set_grb_mask()
             self._create_rebiner()
             self._rebinned_observed_counts()
             self._prepare_data()
+            self.n_bins_to_calculate = 8000.
         else:
             self._compute_saa_regions()
 
@@ -265,7 +279,7 @@ class DataCleaner(object):
         self._saa_slices = slice_idx
 
     def _setup_geometery(self):
-        n_bins_to_calculate = 8000.
+        n_bins_to_calculate = self.n_bins_to_calculate
 
         self._position_interpolator = PositionInterpolator(poshist=self._pos_hist)
 
@@ -479,6 +493,93 @@ class DataCleaner(object):
 
         del sun_angle, sun_time, earth_az, earth_zen, quaternion_array, sc_array
 
+    def _build_lat_spacecraft(self):
+        """This function reads a LAT-spacecraft file and stores the data in arrays of the form: lat_time, mc_b, mc_l.\n
+        Input:\n
+        readfile.lat_spacecraft ( week = WWW )\n
+        Output:\n
+        0 = time\n
+        1 = mcilwain parameter B\n
+        2 = mcilwain parameter L"""
+
+        # read the file
+
+        day = astro_time.Time("%s-%s-%s" % (self._year, self._month, self._dd))
+        gbm_time = GBMTime(day)
+        mission_week = np.floor(gbm_time.mission_week.value)
+
+        filename = 'lat_spacecraft_weekly_w%d_p202_v001.fits' % mission_week
+        filepath = get_path_of_data_file('lat', filename)
+
+        if not file_existing_and_readable(filepath):
+            download_lat_spacecraft(mission_week)
+
+        # lets check that this file has the right info
+
+        week_before = False
+        week_after = False
+
+        with fits.open(filepath) as f:
+
+            if (f['PRIMARY'].header['TSTART'] >= self._min_met):
+
+                # we need to get week before
+
+                week_before = True
+
+                before_filename = 'lat_spacecraft_weekly_w%d_p202_v001.fits' % (mission_week - 1)
+                before_filepath = get_path_of_data_file('lat', before_filename)
+
+                if not file_existing_and_readable(before_filepath):
+                    download_lat_spacecraft(mission_week - 1)
+
+            if (f['PRIMARY'].header['TSTOP'] <= self._max_met):
+
+                # we need to get week after
+
+                week_after = True
+
+                after_filename = 'lat_spacecraft_weekly_w%d_p202_v001.fits' % (mission_week + 1)
+                after_filepath = get_path_of_data_file('lat', after_filename)
+
+                if not file_existing_and_readable(after_filepath):
+                    download_lat_spacecraft(mission_week + 1)
+
+            # first lets get the primary file
+
+            lat_time = np.mean(np.vstack((f['SC_DATA'].data['START'], f['SC_DATA'].data['STOP'])), axis=0)
+            mc_l = f['SC_DATA'].data['L_MCILWAIN']
+            mc_b = f['SC_DATA'].data['B_MCILWAIN']
+
+        # if we need to append anything to make up for the
+        # dates not being included in the files
+        # do it here... thanks Fermi!
+        if week_before:
+            with fits.open(before_filepath) as f:
+                lat_time_before = np.mean(np.vstack((f['SC_DATA'].data['START'], f['SC_DATA'].data['STOP'])), axis=0)
+                mc_l_before = f['SC_DATA'].data['L_MCILWAIN']
+                mc_b_before = f['SC_DATA'].data['B_MCILWAIN']
+
+            mc_b = np.append(mc_b_before, mc_b)
+            mc_l = np.append(mc_l_before, mc_l)
+            lat_time = np.append(lat_time_before, lat_time)
+
+        if week_after:
+            with fits.open(after_filepath) as f:
+                lat_time_after = np.mean(np.vstack((f['SC_DATA'].data['START'], f['SC_DATA'].data['STOP'])), axis=0)
+                mc_l_after = f['SC_DATA'].data['L_MCILWAIN']
+                mc_b_after = f['SC_DATA'].data['B_MCILWAIN']
+
+            mc_b = np.append(mc_b, mc_b_after)
+            mc_l = np.append(mc_l, mc_l_after)
+            lat_time = np.append(lat_time, lat_time_after)
+
+        # remove the self-variables for memory saving
+        self._mc_b_interpolator = interpolate.interp1d(lat_time, mc_b)
+        self._mc_l_interpolator = interpolate.interp1d(lat_time, mc_l)
+
+        del mc_l, mc_b, lat_time
+
     def calc_features(self, mean_times):
         return np.stack((
             self._det_ra_interpolator(mean_times),
@@ -493,7 +594,8 @@ class DataCleaner(object):
             self._q0_interpolator(mean_times),
             self._q1_interpolator(mean_times),
             self._q2_interpolator(mean_times),
-            self._q3_interpolator(mean_times)
+            self._q3_interpolator(mean_times),
+            self._mc_l_interpolator(mean_times)
         ), axis=1)
 
     def _set_grb_mask(self):
@@ -558,7 +660,8 @@ class DataCleaner(object):
             self._q0_interpolator(self.rebinned_mean_times),
             self._q1_interpolator(self.rebinned_mean_times),
             self._q2_interpolator(self.rebinned_mean_times),
-            self._q3_interpolator(self.rebinned_mean_times)
+            self._q3_interpolator(self.rebinned_mean_times),
+            self._mc_l_interpolator(self.rebinned_mean_times),
         ), axis=1)
 
         self.rebinned_counts = np.stack((
