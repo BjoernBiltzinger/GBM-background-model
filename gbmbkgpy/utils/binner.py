@@ -66,7 +66,7 @@ class Rebinner(object):
 
                     if index == (len(vector_to_rebin_on) - 1):
                         stop_index = index
-                        print"index is {}".format(index)
+                        print("index is {}".format(index))
                     else:
                         stop_index = index + 1
 
@@ -85,7 +85,8 @@ class Rebinner(object):
 
         self._rebinned_vector_idx = np.array(zip(self._starts, self._stops))
 
-        self._time_rebinned = np.array(zip(vector_to_rebin_on[self._starts, 0], vector_to_rebin_on[self._stops, 0]))
+        self._time_rebinned = np.array(list(zip(vector_to_rebin_on[self._starts, 0], vector_to_rebin_on[self._stops, 0])))
+
         #Set stop time of last bin to correct value
         self._time_rebinned[-1][1] = vector_to_rebin_on[self._stops[-1]][1]
 
