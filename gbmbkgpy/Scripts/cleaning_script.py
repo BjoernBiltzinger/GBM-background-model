@@ -11,7 +11,6 @@ file_dir = os.path.join(os.getenv('GBMDATA'), 'ml/data')
 
 try:
     # see if we have mpi and/or are using parallel
-
     from mpi4py import MPI
 
     if MPI.COMM_WORLD.Get_size() > 1:  # need parallel capabilities
@@ -22,7 +21,6 @@ try:
         size = comm.Get_size()
 
     else:
-
         rank = 0
 except:
     rank = 0
@@ -31,14 +29,15 @@ except:
 def daterange(start_date, end_date):
     return [start_date + timedelta(n) for n in range(int((end_date - start_date).days) + 1)]
 
-
 # setup paramters
 detector = 'nb'
 data_type = 'ctime'
 echan = 1
 min_bin_width = 1
+save_intermediate = True
+inter_files = []
 
-features = np.empty((0, 13))
+features = np.empty((0, 14))
 counts = np.empty((0, 8))
 count_rates = np.empty((0, 8))
 
@@ -79,13 +78,18 @@ for day in days:
     dc = DataCleaner(date, detector, data_type, min_bin_width=min_bin_width, training=True, trigger_intervals=grb_trigger_intervals)
 
     if rank == 0:
-        print('Stack features and counts')
         print('features: {}, counts: {}'.format(len(dc.rebinned_features), len(dc.rebinned_counts)))
         assert len(dc.rebinned_features) == len(dc.rebinned_counts)
 
-        features = np.vstack((features, dc.rebinned_features))
-        counts = np.vstack((counts, dc.rebinned_counts))
-        count_rates = np.vstack((count_rates, dc.rebinned_count_rates))
+        if save_intermediate:
+            inter_filename = os.path.join(file_dir, "days", "{}_inter_data_{}.npz".format(date, detector))
+            inter_files.append(inter_filename)
+            dc.save_data(inter_filename)
+        else:
+            print('Stack features and counts')
+            features = np.vstack((features, dc.rebinned_features))
+            counts = np.vstack((counts, dc.rebinned_counts))
+            count_rates = np.vstack((count_rates, dc.rebinned_count_rates))
 
         wait = True
     else:
@@ -95,15 +99,26 @@ for day in days:
     del dc
 
 if rank == 0:
-    filename = os.path.join(file_dir, "cleaned_data_{}-{}_d{}__{}.npz".format(date_start.strftime('%y%m%d'),
-                                                                              date_stop.strftime('%y%m%d'),
-                                                                              detector,
-                                                                              datetime.now().strftime('%H_%M')))
+    if save_intermediate:
+        inter_file_listname = os.path.join(file_dir, "inter_days_{}__{}-{}.npz".format(detector, date_start.strftime('%y%m%d'),
+                                                                              date_stop.strftime('%y%m%d'),))
+        np.savez_compressed(inter_file_listname, inter_files=inter_files)
 
-    if os.path.isfile(filename):
+        print('Stack features and counts')
+        for day_file in inter_files:
+            with np.load(day_file, allow_pickle=True) as fhandle:
+                counts = np.vstack((counts, fhandle['counts']))
+                count_rates = np.vstack((count_rates, fhandle['count_rates']))
+                features = np.vstack((features, fhandle['features']))
+
+    combined_data_file = os.path.join(file_dir, "cleaned_data_{}-{}_d{}__{}.npz".format(date_start.strftime('%y%m%d'),
+                                                                          date_stop.strftime('%y%m%d'),
+                                                                          detector,
+                                                                          datetime.now().strftime('%H_%M')))
+    if os.path.isfile(combined_data_file):
         wait = True
         raise Exception("Error: output file already exists")
-    np.savez_compressed(filename, counts=counts, count_rates=count_rates, features=features)
+    np.savez_compressed(combined_data_file, counts=counts, count_rates=count_rates, features=features)
     wait = True
 else:
     wait = None

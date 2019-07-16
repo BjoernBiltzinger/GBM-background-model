@@ -686,9 +686,9 @@ class DataCleaner(object):
             self.rebinned_count_rates_7,
         ), axis=1)
 
-    def save_data(self):
-
-        filename = "cleaned_data_{}_{}.npz".format(self._day, self._det)
+    def save_data(self, filename=None):
+        if filename is None:
+            filename = "cleaned_data_{}_{}.npz".format(self._day, self._det)
 
         if os.path.isfile(filename):
             raise Exception("Error: output file already exists")
