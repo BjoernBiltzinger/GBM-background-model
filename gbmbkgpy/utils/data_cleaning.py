@@ -59,7 +59,7 @@ class DataCleaner(object):
         day_at = astro_time.Time("%s-%s-%s" % (self._year, self._month, self._dd))
 
         self._min_met = GBMTime(day_at).met
-        self._max_met = GBMTime(day_at + u.day).met
+        self._max_met = GBMTime(day_at + u.Quantity(1, u.day)).met
 
         self.min_bin_width = min_bin_width
         self._training = training
@@ -686,9 +686,9 @@ class DataCleaner(object):
             self.rebinned_count_rates_7,
         ), axis=1)
 
-    def save_data(self):
-
-        filename = "cleaned_data_{}_{}.npz".format(self._day, self._det)
+    def save_data(self, filename=None):
+        if filename is None:
+            filename = "cleaned_data_{}_{}.npz".format(self._day, self._det)
 
         if os.path.isfile(filename):
             raise Exception("Error: output file already exists")

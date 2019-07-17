@@ -83,9 +83,14 @@ for day in days:
         print('features: {}, counts: {}'.format(len(dc.rebinned_features), len(dc.rebinned_counts)))
         assert len(dc.rebinned_features) == len(dc.rebinned_counts)
 
-        features = np.vstack((features, dc.rebinned_features))
-        counts = np.vstack((counts, dc.rebinned_counts))
-        count_rates = np.vstack((count_rates, dc.rebinned_count_rates))
+        if save_intermediate:
+            filename = os.path.join(file_dir, "days", "{}_inter_data_{}.npz".format(date, detector))
+            inter_files.append(filename)
+            dc.save_data(filename)
+        else:
+            features = np.vstack((features, dc.rebinned_features))
+            counts = np.vstack((counts, dc.rebinned_counts))
+            count_rates = np.vstack((count_rates, dc.rebinned_count_rates))
 
         wait = True
     else:
@@ -95,16 +100,20 @@ for day in days:
     del dc
 
 if rank == 0:
-    filename = os.path.join(file_dir, "cleaned_data_{}-{}_d{}__{}.npz".format(date_start.strftime('%y%m%d'),
+    if save_intermediate:
+        filename = os.path.join(file_dir, "inter_days_{}__{}-{}.npz".format(detector, date_start.strftime('%y%m%d'),
+                                                                              date_stop.strftime('%y%m%d'),))
+        np.savez_compressed(filename, inter_files=inter_files)
+    else:
+        filename = os.path.join(file_dir, "cleaned_data_{}-{}_d{}__{}.npz".format(date_start.strftime('%y%m%d'),
                                                                               date_stop.strftime('%y%m%d'),
                                                                               detector,
                                                                               datetime.now().strftime('%H_%M')))
-
-    if os.path.isfile(filename):
+        if os.path.isfile(filename):
+            wait = True
+            raise Exception("Error: output file already exists")
+        np.savez_compressed(filename, counts=counts, count_rates=count_rates, features=features)
         wait = True
-        raise Exception("Error: output file already exists")
-    np.savez_compressed(filename, counts=counts, count_rates=count_rates, features=features)
-    wait = True
 else:
     wait = None
 
