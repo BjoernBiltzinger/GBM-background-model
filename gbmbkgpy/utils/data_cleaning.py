@@ -132,6 +132,9 @@ class DataCleaner(object):
         self._grb_mask = np.ones(len(self.time_bins), dtype=bool)
         self.n_bins_to_calculate = 800.
 
+        if self._training:
+            self.n_bins_to_calculate = 8000.
+
         # Start precomputation of arrays:
         self._setup_geometery()
         self._build_lat_spacecraft()
@@ -141,7 +144,6 @@ class DataCleaner(object):
             self._create_rebiner()
             self._rebinned_observed_counts()
             self._prepare_data()
-            self.n_bins_to_calculate = 8000.
         else:
             self._compute_saa_regions()
 
