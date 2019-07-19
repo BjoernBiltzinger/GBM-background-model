@@ -1,4 +1,4 @@
-FLARE_SOURCE, CONTINUUM_SOURCE, POINT_SOURCE, SAA_SOURCE, GLOBAL_SOURCE = 'flare_source', 'continuum_source', 'point_source', 'saa_source', 'global_source'
+FLARE_SOURCE, CONTINUUM_SOURCE, POINT_SOURCE, SAA_SOURCE, GLOBAL_SOURCE, FIT_SPECTRUM_SOURCE = 'flare_source', 'continuum_source', 'point_source', 'saa_source', 'global_source', 'fit_spectrum_source'
 from scipy import integrate
 import numpy as np
 
@@ -9,7 +9,7 @@ class Source(object):
         self._shape = shape
         self._echan = echan
 
-        assert source_type in [POINT_SOURCE, CONTINUUM_SOURCE, FLARE_SOURCE, SAA_SOURCE, GLOBAL_SOURCE], 'improper source'
+        assert source_type in [POINT_SOURCE, CONTINUUM_SOURCE, FLARE_SOURCE, SAA_SOURCE, GLOBAL_SOURCE, FIT_SPECTRUM_SOURCE], 'improper source'
 
     def __call__(self):
 
@@ -26,7 +26,8 @@ class Source(object):
         if bin_mask is None:
             bin_mask = np.ones(len(time_bins), dtype=bool)  # np.full(len(time_bins), True)
         return integrate.cumtrapz(self._shape(echan)[bin_mask], time_bins)
-
+    def recalculate_counts(self):
+        self._shape.recalculate_counts()
     def get_counts(self, time_bins, echan, bin_mask=None):
         """
         Calls the evaluation of the source to get the counts per bin. Uses a bin_mask to exclude some bins if needed.
@@ -79,5 +80,8 @@ class SAASource(Source):
 
 class GlobalSource(Source):
     def __init__(self, name, continuum_shape):
-        super(GlobalSource, self).__init__(name, GLOBAL_SOURCE, continuum_shape, 1) #dummy value for echan
+        super(GlobalSource, self).__init__(name, GLOBAL_SOURCE, continuum_shape, -1) #dummy value for echan
 
+class FitSpectrumSource(Source):
+    def __init__(self, name, continuum_shape):
+        super(FitSpectrumSource, self).__init__(name, FIT_SPECTRUM_SOURCE, continuum_shape, -1) #dummy value for echan

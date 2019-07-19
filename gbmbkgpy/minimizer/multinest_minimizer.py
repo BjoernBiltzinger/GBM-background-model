@@ -222,7 +222,7 @@ class MultiNestFit(object):
                                   resume=True,
                                   verbose=True,#False was default
                                   importance_nested_sampling=False,
-                                  const_efficiency_mode=True)#False was default
+                                  const_efficiency_mode=False)#False was default
         # Store the sample for further use (if needed)
         self._sampler = sampler
 

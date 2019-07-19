@@ -1,4 +1,4 @@
-from gbmbkgpy.modeling.function import Function, ContinuumFunction, PointSourceFunction, GlobalFunction, GlobalFunctionEarth
+from gbmbkgpy.modeling.function import Function, ContinuumFunction, PointSourceFunction, GlobalFunction, GlobalFunctionEarth, GlobalFunctionSpectrumFit
 from gbmbkgpy.modeling.parameter import Parameter
 import numpy as np
 import numexpr as ne
@@ -149,8 +149,20 @@ class Magnetic_Constant_Global(GlobalFunction):
     def __init__(self):
         super(Magnetic_Constant_Global, self).__init__('constant_magnetic_global')
 
+class Earth_Albedo_Continuum_Fit_Spectrum(GlobalFunctionSpectrumFit):
+    def __init__(self):
+        super(Earth_Albedo_Continuum_Fit_Spectrum, self).__init__('Earth_Albedo-Spectrum_fitted')
+
+class Cosmic_Gamma_Ray_Background_Fit_Spectrum(GlobalFunctionSpectrumFit):
+    def __init__(self):
+        super(Cosmic_Gamma_Ray_Background_Fit_Spectrum, self).__init__('CGB-Spectrum_fitted')
+
+class SAA_Decay_Linear(ContinuumFunction):
+    def __init__(self, echan):
+        super(SAA_Decay_Linear, self).__init__('saa_decay_long_echan-' + echan)
 
 #Testing secondary earth
+
 class Magnetic_Secondary_Continuum(ContinuumFunction):
     def __init__(self, echan):
         super(Magnetic_Secondary_Continuum, self).__init__('secondary_echan-' + echan)

@@ -65,6 +65,7 @@ class BackgroundLike(object):
         self._grb_triggers = {}
         self._occ_region = {}
 
+        self._get_sources_fit_spectrum()
     def _create_rebinner_before_fit(self, min_bin_width):
         """
         This method rebins the observed counts bevore the fitting process.
@@ -268,7 +269,11 @@ class BackgroundLike(object):
         self._synth_model = synth_model
 
         return synth_data
-
+    
+    def _get_sources_fit_spectrum(self):
+        
+        self._sources_fit_spectrum = self._model.fit_spectrum_sources.values()
+    
 
     def __call__(self, parameters):
         """
@@ -280,6 +285,10 @@ class BackgroundLike(object):
             self._rebinned_observed_counts_fitting()
             self._rebinned_model_counts_fitting()
         log_likelihood_list=[]
+        ######### Calculate rates for new spectral parameter
+        for source in self._sources_fit_spectrum:
+            source.recalculate_counts()
+        ########
         for echan in self._echan_list:
             log_likelihood_list.append(self._get_log_likelihood_echan(echan))
         log_likelihood_list=np.array(log_likelihood_list)
@@ -288,12 +297,10 @@ class BackgroundLike(object):
     def _get_log_likelihood_echan(self, echan):
 
         M = self._evaluate_model(echan)
-
         # Poisson loglikelihood statistic (Cash) is:
         # L = Sum ( M_i - D_i * log(M_i))
 
         logM = self._evaluate_logM(M)
-
         # Evaluate v_i = D_i * log(M_i): if D_i = 0 then the product is zero
         # whatever value has log(M_i). Thus, initialize the whole vector v = {v_i}
         # to zero, then overwrite the elements corresponding to D_i > 0
@@ -308,7 +315,6 @@ class BackgroundLike(object):
             #d_times_logM = self._counts_all_echan[:,echan] * logM
             counts = self._counts_all_echan[:,echan]
             d_times_logM = ne.evaluate("counts*logM")
-
         #log_likelihood = np.sum(M - d_times_logM)
         log_likelihood = ne.evaluate("sum(M - d_times_logM)")
         return log_likelihood
@@ -438,7 +444,7 @@ class BackgroundLike(object):
         if (min_bin_width is not NO_REBIN) or (self._rebinner is None):
 
 
-            this_rebinner = Rebinner(self._total_time_bins - time_ref, min_bin_width, self._saa_mask)
+            this_rebinner = Rebinner((self._total_time_bins - time_ref), min_bin_width, self._saa_mask)
 
         else:
 
@@ -475,7 +481,7 @@ class BackgroundLike(object):
             else:
                 ppc_model = copy.deepcopy(self._model)
                 n_params = len(self.get_free_parameter_values)
-                residual_plot.add_ppc(result_dir=result_dir, model=ppc_model, background_like=self, time_bins=self._total_time_bins-time_ref, saa_mask=self._saa_mask, echan=echan, q_levels=[0.68,0.95,0.99], colors=['lightgreen', 'green', 'darkgreen'], bin_width=min_bin_width, n_params = n_params)
+                residual_plot.add_ppc(result_dir=result_dir, model=ppc_model, background_like=self, time_bins=self._total_time_bins-time_ref, saa_mask=self._saa_mask, echan=echan, q_levels=[0.68,0.95,0.99], colors=['lightgreen', 'green', 'darkgreen'], bin_width=min_bin_width, n_params = n_params, time_ref=time_ref)
                 
 
         
@@ -546,7 +552,7 @@ class BackgroundLike(object):
         if show_occ_region:
             residual_plot.add_occ_region(self._occ_region, time_ref)
 
-        self._save_plot_data(echan, time_ref)
+        #self._save_plot_data(echan, time_ref)
         return residual_plot.finalize(xlabel="Time\n(%s)" %time_frame,
                                       ylabel="Count Rate\n(counts s$^{-1}$)",
                                       xscale='linear',
@@ -614,6 +620,12 @@ class BackgroundLike(object):
             data = self._model.get_global_counts(i, time_bins, self._saa_mask, echan)
             source_list.append({"label": source_name, "data": data / time_bin_width, "color": color_list[i_index]})
             i_index += 1
+            
+        for i, source_name in enumerate(self._model.fit_spectrum_sources):
+            data = self._model.get_fit_spectrum_counts(i, time_bins, self._saa_mask, echan)
+            source_list.append({"label": source_name, "data": data / time_bin_width, "color": color_list[i_index]})
+            i_index += 1
+            
         if self._use_SAA:
             saa_data = self._model.get_saa_counts(self._total_time_bins, self._saa_mask, echan)
             if np.sum(saa_data) != 0:

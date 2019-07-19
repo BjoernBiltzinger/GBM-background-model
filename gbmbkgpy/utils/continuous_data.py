@@ -93,16 +93,16 @@ class ContinuousData(object):
             self._ebins_stop = f['EBOUNDS'].data['E_MAX']
         self._ebins_size = self._ebins_stop - self._ebins_start
         ###
-        manual_start_time = 5.3646*10**8
-        manual_stop_time = 5.3654*10**8
-        self._bin_stop = self._bin_stop[self._bin_start>manual_start_time]
-        self._counts = self._counts[self._bin_start>manual_start_time]
-        self._exposure = self._exposure[self._bin_start>manual_start_time]
-        self._bin_start = self._bin_start[self._bin_start>manual_start_time]
-        self._bin_stop = self._bin_stop[self._bin_start<manual_stop_time]
-        self._counts = self._counts[self._bin_start<manual_stop_time]
-        self._exposure = self._exposure[self._bin_start<manual_stop_time]
-        self._bin_start = self._bin_start[self._bin_start<manual_stop_time]
+        #manual_start_time = 5.3646*10**8
+        #manual_stop_time = 5.3654*10**8
+        #self._bin_stop = self._bin_stop[self._bin_start>manual_start_time]
+        #self._counts = self._counts[self._bin_start>manual_start_time]
+        #self._exposure = self._exposure[self._bin_start>manual_start_time]
+        #self._bin_start = self._bin_start[self._bin_start>manual_start_time]
+        #self._bin_stop = self._bin_stop[self._bin_start<manual_stop_time]
+        #self._counts = self._counts[self._bin_start<manual_stop_time]
+        #self._exposure = self._exposure[self._bin_start<manual_stop_time]
+        #self._bin_start = self._bin_start[self._bin_start<manual_stop_time]
         #print(self._bin_start)
 
         # Delete entries if in data file there are time bins with same start and end time
@@ -145,9 +145,13 @@ class ContinuousData(object):
         # Start precomputation of arrays:
         self._setup_geometery()
         self._compute_saa_regions()
+        self._min_duration = 7000
+        if self._min_duration!=None:
+            self._delete_short_timeintervals(self._min_duration)
         if rate_generator_DRM!=None:
             self._earth_rate_array()
             self._cgb_rate_array()
+            self._response_sum()
         # Calculate the MET time for the day
         day = self._day
         year = '20%s' % day[:2]
@@ -166,6 +170,9 @@ class ContinuousData(object):
     def data_type(self):
         return self._data_type
 
+    @property
+    def ebins(self):
+        return np.vstack((self._ebins_start, self._ebins_stop)).T
 
     @property
     def detector_id(self):
@@ -240,7 +247,7 @@ class ContinuousData(object):
         self._position_interpolator = PositionInterpolator(poshist=self._pos_hist)
 
         # ok we need to get the sun angle
-
+        print(self._n_time_bins)
         n_skip = int(np.ceil(self._n_time_bins / n_bins_to_calculate))
 
         sun_angle = []
@@ -655,7 +662,7 @@ class ContinuousData(object):
 
         # find where the counts are zero
 
-        min_saa_bin_width = 8
+        min_saa_bin_width = 1
         bins_to_add = 8
 
         ############################################################################################################
@@ -669,11 +676,11 @@ class ContinuousData(object):
 
         # Only the slices which are longer than 8 time bins are used as saa (only for ctime data)
         if self._data_type=='cspec':
-            slice_idx = slice_idx[np.where(slice_idx[:, 1] - slice_idx[:, 0] > 1)]
-        else:
-            #slice_idx = slice_idx[np.where(slice_idx[:, 1] - slice_idx[:, 0] > min_saa_bin_width)]
             slice_idx = slice_idx[np.where(slice_idx[:, 1] - slice_idx[:, 0] > 0)]
-
+        else:
+            slice_idx = slice_idx[np.where(slice_idx[:, 1] - slice_idx[:, 0] > min_saa_bin_width)]
+            #slice_idx = slice_idx[np.where(slice_idx[:, 1] - slice_idx[:, 0] > 0)]
+        
         # Add bins_to_add to bin_mask to exclude the bins with corrupt data:
         # Check first that the start and stop stop of the mask is not the beginning or end of the day
         slice_idx[:, 0][np.where(slice_idx[:, 0] >= 8)] =\
@@ -705,20 +712,23 @@ class ContinuousData(object):
         for i in range(len(slice_idx)):
             self._saa_mask[slice_idx[i, 0]:slice_idx[i, 1] + 1] = False
             self._zero_idx[slice_idx[i, 0]:slice_idx[i, 1] + 1] = True
-
+        
 
         # deleting 5000s after every saa exit => ignore saa's
         if not self._use_SAA:
-            time_after_saa = 4000###5000
+            time_after_saa = 5000###5000
             if self._bin_stop[slice_idx[0, 0]] - time_after_saa > self._bin_start[0]:
-                self._saa_mask[0:slice_idx[0, 0] + 1] = False
-                self._zero_idx[0:slice_idx[0, 0] + 1] = True
+                print('a')
+                #self._saa_mask[0:slice_idx[0, 0] + 1] = False
+                #self._zero_idx[0:slice_idx[0, 0] + 1] = True
             else:
                 j = 0
                 while time_after_saa > self._bin_start[j] - self._bin_start[0]:
                     j += 1
                 self._saa_mask[0:j] = False
                 self._zero_idx[0:j] = True
+            print(slice_idx)
+            print(self._saa_mask)
 
             for i in range(len(slice_idx) - 1):
                 if self._bin_stop[slice_idx[i + 1, 0]] - self._bin_start[slice_idx[i, 1]] < time_after_saa:
@@ -740,6 +750,8 @@ class ContinuousData(object):
                     j += 1
                 self._saa_mask[slice_idx[i, 1]:slice_idx[i, 1] + j] = False
                 self._zero_idx[slice_idx[i, 1]:slice_idx[i, 1] + j] = True
+            
+        
         # deleting 300s after very sharp SAA's
         if self._clean_SAA:
             # if self._bin_stop[slice_idx[0, 0]] - 300 > self._bin_start[0]:
@@ -781,7 +793,28 @@ class ContinuousData(object):
 
         self._saa_slices = slice_idx
 
+    def _delete_short_timeintervals(self, min_duration):
+        # get index intervals of SAA mask
+        index_start = [0]
+        index_stop = []
 
+        for i in range(len(self._saa_mask)-1):
+            if self._saa_mask[i]==False and self._saa_mask[i+1]==True:
+                index_stop.append(i-1)
+            if self._saa_mask[i]==True and self._saa_mask[i+1]==False:
+                index_start.append(i)
+
+        if len(index_start)>len(index_stop):
+            index_stop.append(-1)
+
+        assert len(index_start)==len(index_stop)
+
+        #set saa_mask=False between end and next start if time is <min_duration
+        for i in range(len(index_stop)-1):
+            if self.time_bin_stop[index_start[i+1]]-self.time_bin_start[index_stop[i]]<min_duration:
+                self._saa_mask[index_stop[i]-5:index_start[i+1]+5]=np.ones_like(self._saa_mask[index_stop[i]-5:index_start[i+1]+5])==2
+                self._zero_idx[index_stop[i]-5:index_start[i+1]+5]=np.ones_like(self._zero_idx[index_stop[i]-5:index_start[i+1]+5])==1
+                
     @property
     def quaternion(self):
 
@@ -1399,3 +1432,93 @@ class ContinuousData(object):
     def ebins_size(self):
         return self._ebins_size
         
+    def _response_sum(self):
+        """
+        Calculate the cgb_rate_array for all interpolation times for which the geometry was calculated. This supports
+        MPI to reduce the calculation time.
+        To calculate the cgb_rate_array the responses created on a grid in rate_gernerator_DRM are used. All points
+        that are not occulted by the earth are added, assuming a spectrum specified in rate_generator_DRM for the cgb
+        spectrum.
+        :return:
+        """
+        points = self._rate_generator_DRM.points
+        responses = self._rate_generator_DRM.responses
+        sr_points = 4 * np.pi / len(points)
+        # get the earth direction at the interpolation times; zen angle from -90 to 90
+        earth_pos_inter_times = []
+        if using_mpi:
+            # last rank has to cover one more index. Caused by the calculation of the Geometry for the last time
+            # bin of the day
+            if rank == size - 1:
+                upper_index = self._times_upper_bound_index + 1
+            else:
+                upper_index = self._times_upper_bound_index
+
+            for i in range(self._times_lower_bound_index, upper_index):
+                earth_pos_inter_times.append(
+                    np.array([np.cos(self._earth_zen[i] * (np.pi / 180)) * np.cos(self._earth_az[i] * (np.pi / 180)),
+                              np.cos(self._earth_zen[i] * (np.pi / 180)) * np.sin(self._earth_az[i] * (np.pi / 180)),
+                              np.sin(self._earth_zen[i] * (np.pi / 180))]))
+            self._earth_pos_inter_times = np.array(earth_pos_inter_times)
+            # define the opening angle of the earth in degree
+            opening_angle_earth = 67
+            array_cgb_response_sum = []
+            array_earth_response_sum = []
+            for pos in self._earth_pos_inter_times:
+                cgb_response_time = np.zeros_like(responses[0])
+                earth_response_time = np.zeros_like(responses[0])
+                for i, pos_point in enumerate(points):
+                    angle_earth = np.arccos(np.dot(pos, pos_point)) * (180 / np.pi)
+                    if angle_earth > opening_angle_earth:
+                        cgb_response_time += responses[i]
+                    else:
+                        earth_response_time += responses[i]
+                array_cgb_response_sum.append(cgb_response_time)
+                array_earth_response_sum.append(earth_response_time)
+            array_cgb_response_sum = np.array(array_cgb_response_sum)
+            array_earth_response_sum = np.array(array_earth_response_sum)
+            array_cgb_response_sum_g = comm.gather(array_cgb_response_sum, root=0)
+            array_earth_response_sum_g = comm.gather(array_earth_response_sum, root=0) 
+            if rank == 0:
+                array_cgb_response_sum_g = np.concatenate(array_cgb_response_sum_g)
+                array_earth_response_sum_g = np.concatenate(array_earth_response_sum_g)
+            array_cgb_response_sum = comm.bcast(array_cgb_response_sum_g, root=0)
+            array_earth_response_sum = comm.bcast(array_earth_response_sum_g, root=0)
+        else:
+            for i in range(0, len(self._earth_zen)):
+                earth_pos_inter_times.append(
+                    np.array([np.cos(self._earth_zen[i] * (np.pi / 180)) * np.cos(self._earth_az[i] * (np.pi / 180)),
+                              np.cos(self._earth_zen[i] * (np.pi / 180)) * np.sin(self._earth_az[i] * (np.pi / 180)),
+                              np.sin(self._earth_zen[i] * (np.pi / 180))]))
+            self._earth_pos_inter_times = np.array(earth_pos_inter_times)
+            # define the opening angle of the earth in degree
+            opening_angle_earth = 67
+            array_cgb_response_sum = []
+            array_earth_response_sum = []
+            for pos in self._earth_pos_inter_times:
+                cgb_response_time = np.zeros_like(responses[0])
+                earth_response_time = np.zeros_like(responses[0])
+                for i, pos_point in enumerate(points):
+                    angle_earth = np.arccos(np.dot(pos, pos_point)) * (180 / np.pi)
+                    if angle_earth > opening_angle_earth:
+                        cgb_response_time += responses[i]
+                    else:
+                        earth_response_time += responses[i]
+                array_cgb_response_sum.append(cgb_response_time)                                                                                                                                                 
+                array_earth_response_sum.append(earth_response_time)
+                
+        self._array_cgb_response_sum = np.array(array_cgb_response_sum)*sr_points
+        self._array_earth_response_sum = np.array(array_earth_response_sum)*sr_points
+
+    @property
+    def response_array_earth(self):
+        return self._array_earth_response_sum
+
+
+    @property
+    def response_array_cgb(self):
+        return self._array_cgb_response_sum
+
+    @property
+    def Ebin_source(self):
+        return self._rate_generator_DRM.Ebin_in_edge

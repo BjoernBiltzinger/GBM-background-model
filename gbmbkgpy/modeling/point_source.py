@@ -85,15 +85,17 @@ class PointSrc(object):
             self._GBMFrame_list = np.array(GBMFrame_list)
             # get the postion of the PS in the sat frame for every timestep
             self._ps_pos_sat_list = []
+            self._ps_pos_sat_objects = []
             for i in range(0, len(GBMFrame_list)):
                 ps_pos_sat = self._ps_skycoord.transform_to(GBMFrame_list[i])
+                self._ps_pos_sat_objects.append(ps_pos_sat)
                 az = ps_pos_sat.lon.deg
                 zen = ps_pos_sat.lat.deg
                 self._ps_pos_sat_list.append([np.cos(zen * (np.pi / 180)) * np.cos(az * (np.pi / 180)),
                                               np.cos(zen * (np.pi / 180)) * np.sin(az * (np.pi / 180)),
                                               np.sin(zen * (np.pi / 180))])
             self._ps_pos_sat_list = np.array(self._ps_pos_sat_list)
-
+            self._ps_pos_sat_objects = np.array(self._ps_pos_sat_objects)
             # get the point of the grid closet to the ps pointing (save the corresponding index)
             best_grid_point_index = []
             for i in range(len(self._ps_pos_sat_list)):
@@ -119,9 +121,12 @@ class PointSrc(object):
                     ps_rate_list.append(np.zeros_like(self._rates_points[self._best_grid_point_index[i]]))
             ps_rate_list=np.array(ps_rate_list)
             ps_rate_list_g = comm.gather(ps_rate_list, root=0)
+            self._ps_pos_sat_objects_g = comm.gather(self._ps_pos_sat_objects, root=0)
             if rank == 0:
                 ps_rate_list_g = np.concatenate(ps_rate_list_g)
+                self._ps_pos_sat_objects_g = np.concatenate(self._ps_pos_sat_objects_g)
             ps_rate_list = comm.bcast(ps_rate_list_g, root=0)
+            self._ps_pos_sat_objects = comm.bcast(self._ps_pos_sat_objects_g, root=0)
         else:
             #calcutate the GBMFrame for all these times
             GBMFrame_list = []
@@ -293,3 +298,8 @@ class PointSrc(object):
     def separation(self):
 
         return self._separation
+
+    @property
+    def ps_pos_sat_objects(self):
+
+        return self._ps_pos_sat_objects
