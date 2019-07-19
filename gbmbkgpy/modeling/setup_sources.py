@@ -1,8 +1,8 @@
 
-from gbmbkgpy.modeling.source import Source, ContinuumSource, FlareSource, PointSource, SAASource, GlobalSource
+from gbmbkgpy.modeling.source import Source, ContinuumSource, FlareSource, PointSource, SAASource, GlobalSource, FitSpectrumSource
 from gbmbkgpy.modeling.function import Function, ContinuumFunction
 from gbmbkgpy.modeling.functions import (Solar_Flare, Solar_Continuum, SAA_Decay,
-                                         Magnetic_Continuum, Cosmic_Gamma_Ray_Background, Point_Source_Continuum, Earth_Albedo_Continuum, offset, Magnetic_Secondary_Continuum,West_Effect_Continuum, Magnetic_Continuum_Global, Magnetic_Constant_Global)
+                                         Magnetic_Continuum, Cosmic_Gamma_Ray_Background, Point_Source_Continuum, Earth_Albedo_Continuum, offset, Magnetic_Secondary_Continuum,West_Effect_Continuum, Magnetic_Continuum_Global, Magnetic_Constant_Global, Earth_Albedo_Continuum_Fit_Spectrum, Cosmic_Gamma_Ray_Background_Fit_Spectrum,SAA_Decay_Linear)
 
 from gbmbkgpy.modeling.model_cr_asymmetrie import cr_asymmetrie_nb_n5
 
@@ -65,6 +65,14 @@ def setup_sources(cd, ep, echan):
         sol_con.integrate_array(cd.time_bins[2:-2])
         Source_Solar_Continuum = ContinuumSource('Sun effective angle_echan_{:d}'.format(echan), sol_con, echan)
 
+    if not cd.use_SAA:
+        # add -b*t Term for long decay during non SAA passages
+        saa_dec_long = SAA_Decay_Linear(str(echan))
+        saa_dec_long.set_function_array(-1*(cd.time_bins[2:-2]-cd.time_bins[2,0]))
+        saa_dec_long.set_saa_zero(cd.saa_mask[2:-2]) 
+        saa_dec_long.integrate_array(cd.time_bins[2:-2])
+        print(-1*(cd.time_bins[2:-2]-cd.time_bins[2,0]))
+        SAA_Decay_list = [ContinuumSource('SAA long decay echan_{}'.format(echan), saa_dec_long, echan)]
     # Magnetic Continuum Source
     mag_con = Magnetic_Continuum(str(echan))
 
@@ -169,15 +177,17 @@ def setup_sources(cd, ep, echan):
     ################################################
 
     ###############################################
-    # LAT ACD rate
-    mag_con_lat = Magnetic_Continuum(str(echan)+'.1')
-    mag_con_lat.set_function_array(ep.lat_acd(cd.time_bins[2:-2], use_side = 'A'))
-    mag_con_lat.set_saa_zero(cd.saa_mask[2:-2])
-    mag_con_lat.remove_vertical_movement()
-    # precalculate the integration over the time bins                                                                                                                                                                                                                          
-    mag_con_lat.integrate_array(cd.time_bins[2:-2])
-    Source_Magnetic_Continuum_LAT_ACD = ContinuumSource('McIlwain L-parameter_echan_{:d}'.format(echan), mag_con_lat, echan)
-
+    try:
+        # LAT ACD rate
+        mag_con_lat = Magnetic_Continuum(str(echan)+'.1')
+        mag_con_lat.set_function_array(ep.lat_acd(cd.time_bins[2:-2], use_side = 'A'))
+        mag_con_lat.set_saa_zero(cd.saa_mask[2:-2])
+        mag_con_lat.remove_vertical_movement()
+        # precalculate the integration over the time bins                                                                                                                                                                                                                          
+        mag_con_lat.integrate_array(cd.time_bins[2:-2])
+        Source_Magnetic_Continuum_LAT_ACD = ContinuumSource('McIlwain L-parameter_echan_{:d}'.format(echan), mag_con_lat, echan)
+    except:
+        print('NO ASYMMETRY')
     ############################# WEST effect                                                                                                                                                                                                                                  
     #west_effect = West_Effect_Continuum(str(echan))
     #west_effect.set_function_array(cd.west(cd.time_bins[2:-2]))
@@ -186,10 +196,10 @@ def setup_sources(cd, ep, echan):
     #West_Continuum = ContinuumSource('West_echan_{:d}'.format(echan), west_effect, echan)
 
     ############################# 
-    source_list = SAA_Decay_list
-    #source_list = [Source_Magnetic_Continuum, Constant_Continuum] + SAA_Decay_list
+    #source_list = SAA_Decay_list
+    source_list = [Source_Magnetic_Continuum, Constant_Continuum] #+ SAA_Decay_list
     #source_list = [Source_Magnetic_Continuum, Asymmetry_Magnetic_Continuum, Constant_Continuum,Asymmetry_Constant_Continuum] + SAA_Decay_list
-    #source_list = [Source_Magnetic_Continuum_LAT_ACD, Constant_Continuum] + SAA_Decay_list
+    #source_list = [Source_Magnetic_Continuum_LAT_ACD, Constant_Continuum] #+ SAA_Decay_list
     #source_list = [Source_Magnetic_Continuum_1, Source_Magnetic_Continuum_2 , Constant_Continuum_1, Constant_Continuum_2] + SAA_Decay_list
     if echan==0:
         source_list.append(Source_Solar_Continuum)
@@ -262,34 +272,64 @@ def setup_sources_golbal(cd, ep, include_point_sources=False, point_source_list=
 
     ###############################################
     # LAT ACD rate
-    mag_con_lat = Magnetic_Continuum_Global()
-    function_array = []
-    basis = ep.lat_acd(cd.time_bins[2:-2], use_side = 'C')
-    for i in range(8):
-        function_array.append(cd.ebins_size[i]*basis)
-    mag_con_lat.set_function_array(np.array(function_array))
-    mag_con_lat.set_saa_zero(cd.saa_mask[2:-2])
-    #mag_con_lat.remove_vertical_movement()
+    #mag_con_lat = Magnetic_Continuum_Global()
+    #function_array = []
+    #basis = ep.lat_acd(cd.time_bins[2:-2], use_side = 'C')
+    #for i in range(8):
+    #    function_array.append(cd.ebins_size[i]*basis)
+    #mag_con_lat.set_function_array(np.array(function_array))
+    #mag_con_lat.set_saa_zero(cd.saa_mask[2:-2])
+    ##mag_con_lat.remove_vertical_movement()
     # precalculate the integration over the time bins
-    mag_con_lat.integrate_array(cd.time_bins[2:-2])
-    Source_Magnetic_Continuum_LAT_ACD = GlobalSource('ACD rate', mag_con_lat)
+    #mag_con_lat.integrate_array(cd.time_bins[2:-2])
+    #Source_Magnetic_Continuum_LAT_ACD = GlobalSource('ACD rate', mag_con_lat)
 
     # LAT ACD rate
-    mag_con_lat = Magnetic_Constant_Global()
-    function_array = []
-    basis = np.ones_like(cd.time_bins[2:-2])
-    for i in range(8):
-        function_array.append(cd.ebins_size[i]*basis)
-    mag_con_lat.set_function_array(np.array(function_array))
-    mag_con_lat.set_saa_zero(cd.saa_mask[2:-2])
+    #mag_con_lat = Magnetic_Constant_Global()
+    #function_array = []
+    #basis = np.ones_like(cd.time_bins[2:-2])
+    #for i in range(8):
+    #    function_array.append(cd.ebins_size[i]*basis)
+    #mag_con_lat.set_function_array(np.array(function_array))
+    #mag_con_lat.set_saa_zero(cd.saa_mask[2:-2])
     #mag_con_lat.remove_vertical_movement()
     # precalculate the integration over the time bins
-    mag_con_lat.integrate_array(cd.time_bins[2:-2])
-    Source_Magnetic_Constant = GlobalSource('CR constant', mag_con_lat)
+    #mag_con_lat.integrate_array(cd.time_bins[2:-2])
+    #Source_Magnetic_Constant = GlobalSource('CR constant', mag_con_lat)
 
     
-    #source_list = [Source_Earth_Albedo_Continuum, Source_CGB_Continuum] + PS_Sources_list
-    source_list = [Source_Earth_Albedo_Continuum, Source_CGB_Continuum, Source_Magnetic_Continuum_LAT_ACD, Source_Magnetic_Constant] + PS_Sources_list
-    
+    source_list = [Source_Earth_Albedo_Continuum, Source_CGB_Continuum] + PS_Sources_list
+    #source_list = [Source_Earth_Albedo_Continuum, Source_CGB_Continuum, Source_Magnetic_Continuum_LAT_ACD, Source_Magnetic_Constant] + PS_Sources_list
+    #source_list = PS_Sources_list
     return source_list
 
+def setup_sources_fit_spectra(cd):
+    """
+    set up the global sources which are the same for all echans.
+    At the moment the Earth Albedo and the CGB.
+    :param cd:
+    :param echan:
+    :return:
+    """
+
+    # Earth Albedo Continuum Source
+    earth_albedo = Earth_Albedo_Continuum_Fit_Spectrum()
+    earth_albedo.set_response_array(cd.response_array_earth) #???
+    earth_albedo.set_basis_function_array(cd.time_bins[2:-2])
+    earth_albedo.set_saa_zero(cd.saa_mask[2:-2])
+    earth_albedo.set_interpolation_times(cd.interpolation_time)
+    earth_albedo.energy_boundaries(cd.Ebin_source)
+    Source_Earth_Albedo_Continuum = FitSpectrumSource('Earth occultation', earth_albedo)
+
+    # Cosmic gamma-ray background
+    cgb = Cosmic_Gamma_Ray_Background_Fit_Spectrum()
+    
+    cgb.set_response_array(cd.response_array_cgb) #???                                                                                                                                                       
+    cgb.set_basis_function_array(cd.time_bins[2:-2])                                                                                                                                                     
+    cgb.set_saa_zero(cd.saa_mask[2:-2])
+    cgb.set_interpolation_times(cd.interpolation_time)
+    cgb.energy_boundaries(cd.Ebin_source)
+    Source_CGB_Continuum = FitSpectrumSource('CGB', cgb)
+    
+    source_list = [Source_Earth_Albedo_Continuum, Source_CGB_Continuum]
+    return source_list

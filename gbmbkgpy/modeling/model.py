@@ -1,5 +1,5 @@
 import collections
-from source import CONTINUUM_SOURCE, POINT_SOURCE, FLARE_SOURCE, SAA_SOURCE, GLOBAL_SOURCE
+from source import CONTINUUM_SOURCE, POINT_SOURCE, FLARE_SOURCE, SAA_SOURCE, GLOBAL_SOURCE, FIT_SPECTRUM_SOURCE
 import numpy as np
 
 class Model(object):
@@ -15,6 +15,8 @@ class Model(object):
 
         self._global_sources = collections.OrderedDict()
 
+        self._fit_spectrum_sources = collections.OrderedDict()
+        
         for source in sources:
             self._add_source(source)
 
@@ -139,7 +141,7 @@ class Model(object):
 
         parameters = collections.OrderedDict()
 
-        for sources in [self._continuum_sources, self._flare_sources, self._point_sources, self._saa_sources, self._global_sources]:
+        for sources in [self._continuum_sources, self._flare_sources, self._point_sources, self._saa_sources, self._global_sources, self._fit_spectrum_sources]:
 
             for source in sources.itervalues():
 
@@ -148,6 +150,8 @@ class Model(object):
 
         self._parameters = parameters
 
+    
+    
     def _add_source(self, source):
 
         if source.source_type == POINT_SOURCE:
@@ -170,6 +174,10 @@ class Model(object):
 
             self._global_sources[source.name] = source
 
+        if source.source_type == FIT_SPECTRUM_SOURCE:
+
+            self._fit_spectrum_sources[source.name] = source
+            
     def set_initial_SAA_amplitudes(self, norm_array):
         """
         Sets the initial normalization of the saa_sources
@@ -224,7 +232,11 @@ class Model(object):
     def global_sources(self):
 
         return self._global_sources
+    @property
+    def fit_spectrum_sources(self):
 
+        return self._fit_spectrum_sources
+    
     @property
     def saa_sources(self):
 
@@ -268,6 +280,35 @@ class Model(object):
 
         return source_counts
 
+    def _update_parameters(self):
+
+        parameters = collections.OrderedDict()
+
+        for sources in [self._continuum_sources, self._flare_sources, self._point_sources, self._saa_sources, self._global_sources, self._fit_spectrum_sources]:
+
+            for source in sources.itervalues():
+
+                for parameter_name, parameter in source.parameters.iteritems():
+                    parameters[parameter_name] = parameter
+
+        self._parameters = parameters
+
+    def _sources_echan_number_parameter(self):
+
+        source_list = [self._continuum_sources, self._flare_sources, self._point_sources, self._saa_sources, self._global_sources, self._fit_spectrum_sources]
+        echan = np.array([])
+        num_params = np.array([])
+        for sources in source_list:
+
+            for source in sources.itervalues():
+                echan = np.append(echan, source.echan)
+                num_para = 0
+                for parameter_name, parameter in source.parameters.iteritems():
+                    num_para +=1
+                num_params = np.append(num_params, num_para)
+
+        return source_list, echan, num_params
+
 
     def get_global_counts(self, id, time_bins, saa_mask, echan):
         """
@@ -284,7 +325,15 @@ class Model(object):
             source_counts[np.where(~saa_mask)] = 0.
 
         return source_counts
+    def get_fit_spectrum_counts(self, id, time_bins, saa_mask, echan):
 
+        source_counts = self._fit_spectrum_sources.values()[id].get_counts(time_bins, echan)                                                                                                                                    # The SAA sections will be set to zero if a saa_mask is provided
+        if saa_mask is not None:
+            assert len(time_bins) == len(saa_mask), "The time_bins and saa_mask should be of equal length"
+            source_counts[np.where(~saa_mask)] = 0.
+            
+        return source_counts
+    
     def get_flare_counts(self, id, time_bins, saa_mask, echan):
         """
         
@@ -393,6 +442,8 @@ class Model(object):
         for global_source in self._global_sources.values():
             total_counts += global_source.get_counts(time_bins, echan, bin_mask)
 
+        for fit_spectrum_source in self._fit_spectrum_sources.values():
+            total_counts += fit_spectrum_source.get_counts(time_bins, echan, bin_mask)
         # The SAA sections will be set to zero if a saa_mask is provided
         if saa_mask is not None:
             assert len(time_bins) == len(saa_mask), "The time_bins and saa_mask should be of equal length"

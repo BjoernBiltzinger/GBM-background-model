@@ -344,6 +344,7 @@ class Rate_Generator_DRM(object):
             points_per_rank = float(self._Ngrid) / float(size)
             points_lower_index = int(np.floor(points_per_rank * rank))
             points_upper_index = int(np.floor(points_per_rank * (rank + 1)))
+
             for point in self._points[points_lower_index:points_upper_index]:
                 # get the response of every point
                 rsp = self._response(point[0], point[1], point[2], DRM)
