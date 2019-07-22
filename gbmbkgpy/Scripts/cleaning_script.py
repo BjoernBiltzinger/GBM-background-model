@@ -54,6 +54,11 @@ for day in days:
     date = day.strftime('%y%m%d')
     print('Start with {}'.format(date))
 
+    _year = '20%s' % date[:2]
+    _month = date[2:-2]
+    _dd = date[-2:]
+
+    day = astro_time.Time("%s-%s-%s" % (_year, _month, _day))
     gbm_time = GBMTime(date)
     mission_week = np.floor(gbm_time.mission_week.value)
 
