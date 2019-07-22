@@ -1,10 +1,11 @@
 from gbmbkgpy.utils import data_cleaning
 from gbmbkgpy.utils.data_cleaning import DataCleaner
-from gbmbkgpy.io.downloading import download_files
+from gbmbkgpy.io.downloading import download_files, download_lat_spacecraft
 import numpy as np
 import pandas as pd
 import os
 from datetime import date, timedelta, datetime
+from gbmgeometry import GBMTime
 
 using_mpi = False
 file_dir = os.path.join(os.getenv('GBMDATA'), 'ml/data')
@@ -53,10 +54,16 @@ for day in days:
     date = day.strftime('%y%m%d')
     print('Start with {}'.format(date))
 
+    gbm_time = GBMTime(date)
+    mission_week = np.floor(gbm_time.mission_week.value)
+
     # download files with rank=0; all other ranks have to wait!
     if rank == 0:
         try:
             download_files(data_type, detector, date)
+            download_lat_spacecraft(mission_week)
+            download_lat_spacecraft(mission_week + 1)
+            download_lat_spacecraft(mission_week - 1)
             wait = True
             failed = False
         except Exception as e:
