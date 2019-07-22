@@ -1,6 +1,5 @@
 import numpy as np
 from gbmgeometry import PositionInterpolator, gbm_detector_list
-import scipy.interpolate as interpolate
 import astropy.time as astro_time
 
 from gbmbkgpy.io.file_utils import file_existing_and_readable
@@ -38,7 +37,7 @@ class Geometry(object):
         """
 
         # Test if all the input is valid
-        assert type(self.mean_time)==np.ndarray, 'Invalid type for mean_time. Must be an array but is {}.'.format(self.mean_time)
+        assert type(self.mean_time)==np.ndarray, 'Invalid type for mean_time. Must be an array but is {}.'.format(type(self.mean_time))
         assert det in valid_det_names, 'Invalid det name. Must be one of these {} but is {}.'.format(valid_det_names, det)
         assert file_existing_and_readable(pos_hist_path), '{} does not exist'.format(pos_hist_path)
         assert type(n_bins_to_calculate)==int, 'Type of n_bins_to_calculate has to be int but is {}'.format(type(n_bins_to_calculate))
@@ -266,12 +265,6 @@ class Geometry(object):
 
         self._quaternion = quaternion
         self._sc_pos = sc_pos
-
-        # interpolate it
-
-        self._sun_angle_interpolator = interpolate.interp1d(self._time, self._sun_angle)
-
-        del sun_angle, sun_time, earth_az, earth_zen
     
     def _setup_geometery_no_mpi(self):
         """
@@ -363,9 +356,4 @@ class Geometry(object):
         self._quaternion = quaternion
         self._sc_pos = sc_pos
 
-        # interpolate it
-
-        self._sun_angle_interpolator = interpolate.interp1d(self._time, self._sun_angle)
-
-        del sun_angle, sun_time, earth_az, earth_zen
 
