@@ -1,11 +1,13 @@
 from gbmbkgpy.utils import data_cleaning
 from gbmbkgpy.utils.data_cleaning import DataCleaner
 from gbmbkgpy.io.downloading import download_files, download_lat_spacecraft
+from gbmbkgpy.io.package_data import get_path_of_data_dir, get_path_of_data_file, get_path_of_external_data_dir
 import numpy as np
 import pandas as pd
 import os
 from datetime import date, timedelta, datetime
 from gbmgeometry import GBMTime
+import astropy.time as astro_time
 
 using_mpi = False
 file_dir = os.path.join(os.getenv('GBMDATA'), 'ml/data')
@@ -56,19 +58,29 @@ for day in days:
 
     _year = '20%s' % date[:2]
     _month = date[2:-2]
-    _dd = date[-2:]
+    _day = date[-2:]
 
-    day = astro_time.Time("%s-%s-%s" % (_year, _month, _day))
-    gbm_time = GBMTime(date)
+    astro_day = astro_time.Time("%s-%s-%s" % (_year, _month, _day))
+    gbm_time = GBMTime(astro_day)
     mission_week = np.floor(gbm_time.mission_week.value)
 
     # download files with rank=0; all other ranks have to wait!
     if rank == 0:
         try:
             download_files(data_type, detector, date)
-            download_lat_spacecraft(mission_week)
-            download_lat_spacecraft(mission_week + 1)
-            download_lat_spacecraft(mission_week - 1)
+
+            lat_filepath_1 = get_path_of_data_file('lat', 'lat_spacecraft_weekly_w%d_p202_v001.fits' % mission_week)
+            if not file_existing_and_readable(lat_filepath_1):
+                download_lat_spacecraft(mission_week)
+
+            lat_filepath_2 = get_path_of_data_file('lat', 'lat_spacecraft_weekly_w%d_p202_v001.fits' % mission_week + 1)
+            if not file_existing_and_readable(lat_filepath_2):
+                download_lat_spacecraft(mission_week)
+
+            lat_filepath_3 = get_path_of_data_file('lat', 'lat_spacecraft_weekly_w%d_p202_v001.fits' % mission_week - 1)
+            if not file_existing_and_readable(lat_filepath_3):
+                download_lat_spacecraft(mission_week)
+
             wait = True
             failed = False
         except Exception as e:
