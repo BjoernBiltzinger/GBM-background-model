@@ -279,6 +279,7 @@ class Rate_Generator_DRM(object):
         return (e2 - e1) / 6.0 * (
                 self._differential_flux_crab(e1) + 4 * self._differential_flux_crab((e1 + e2) / 2.0) +
                 self._differential_flux_crab(e2))
+
     ##################################################### For CRAB
     def _spectrum_crab(self, energy, C, index_crab):#index_1_crab, index_2_crab, index_3_crab):
         """
@@ -344,7 +345,6 @@ class Rate_Generator_DRM(object):
             points_per_rank = float(self._Ngrid) / float(size)
             points_lower_index = int(np.floor(points_per_rank * rank))
             points_upper_index = int(np.floor(points_per_rank * (rank + 1)))
-
             for point in self._points[points_lower_index:points_upper_index]:
                 # get the response of every point
                 rsp = self._response(point[0], point[1], point[2], DRM)
@@ -411,26 +411,20 @@ class Rate_Generator_DRM(object):
     def ps_rate(self):
 
         return self._folded_rates_ps
-
+    
     def _calculate_responses(self):
         """
-        Function to calculate the expected rates from all the points on the unit sphere for the assumed
-        spectra for earth. Parameter important for MPI calculation.
-        :param points_index_start:
-        :param points_index_stop:
-        :return:
+        Function to calculate the responses from all the points on the unit sphere.
         """
-        # calculate the sr that one point occults, depends on how many points are used
-        #sr_points = 4 * np.pi / self._Ngrid
-        # loop the points array and calculate the expected rate in every Ebin.
-        # This is done by convolving the true flux we get from the spectrum we assume for earth
-        # with the response matrix for every point
+        # Initialize response list
         responses = []
-        # create the DRM object (quaternions and sc_pos are dummy values, not important as we calculate everything in
-        # the sat frame
+        # Create the DRM object (quaternions and sc_pos are dummy values, not important
+        # as we calculate everything in the sat frame
+        
         DRM = DRMGen(np.array([0.0745, -0.105, 0.0939, 0.987]),
-                     np.array([-5.88 * 10 ** 6, -2.08 * 10 ** 6, 2.97 * 10 ** 6]), self._det, self.Ebin_in_edge,
-                     mat_type=0, ebin_edge_out=self._Ebin_out_edge)
+                     np.array([-5.88 * 10 ** 6, -2.08 * 10 ** 6, 2.97 * 10 ** 6]), self._det,
+                     self.Ebin_in_edge, mat_type=0, ebin_edge_out=self._Ebin_out_edge)
+        # If MPI is used split up the points among the used cores to speed up
         if using_mpi:
             points_per_rank = float(self._Ngrid) / float(size)
             points_lower_index = int(np.floor(points_per_rank * rank))
@@ -439,15 +433,12 @@ class Rate_Generator_DRM(object):
                 # get the response of every point
                 rsp = self._response(point[0], point[1], point[2], DRM)
                 responses.append(rsp.matrix.T)
-                #if point[0]==self._points[points_lower_index][0] and point[1]==self._points[points_lower_index][1] and point[2]==self._points[points_lower_index][2]:
-                #    responses = rsp.matrix.T
-                #else:
-                #    responses=np.append(responses, rsp.matrix.T,axis=0)
 
+            # Collect all results in rank=0 and broadcast the final array to all ranks in the end
             responses = np.array(responses)
             responses_g = comm.gather(responses, root=0)
             if rank == 0:
-                responses_g = np.concatenate(responses_g)#
+                responses_g = np.concatenate(responses_g)
 
             # broadcast the resulting list to all ranks
             responses = comm.bcast(responses_g, root=0)
