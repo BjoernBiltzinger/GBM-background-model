@@ -92,7 +92,13 @@ class Geometry(object):
         """
 
         return self._earth_zen
-
+    @property
+    def earth_position(self):
+        """
+        Returns the Earth position as SkyCoord object for all times for which the geometry was 
+        calculated
+        """
+        return self._earth_position
     @property
     def quaternion(self):
         """
@@ -111,6 +117,19 @@ class Geometry(object):
 
         return self._sc_pos
 
+    @property
+    def times_upper_bound_index(self):
+        """
+        Returns the upper time bound of the geometries calculated by this rank
+        """
+        return self._times_upper_bound_index
+
+    @property
+    def times_upper_bound_index(self):
+        """
+        Returns the lower time bound of the geometries calculated by this rank
+        """
+        return self._times_lower_bound_index
 
     def _setup_geometery_mpi(self):
         """

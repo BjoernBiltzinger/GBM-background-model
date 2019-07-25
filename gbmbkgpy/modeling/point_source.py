@@ -1,26 +1,8 @@
 import astropy.coordinates as coord
 import astropy.units as u
 from gbmgeometry.gbm_frame import GBMFrame
-import astropy.time as astro_time
-from numpy.linalg import norm
 
-
-import astropy.io.fits as fits
 import numpy as np
-import collections
-import matplotlib.pyplot as plt
-import math
-
-from gbmgeometry import PositionInterpolator, gbm_detector_list
-
-
-import scipy.interpolate as interpolate
-
-from gbmbkgpy.io.file_utils import file_existing_and_readable
-#from gbmbkgpy.utils.continuous_data import ContinuousData
-
-from gbmbkgpy.io.package_data import get_path_of_data_dir, get_path_of_data_file
-from gbmbkgpy.utils.progress_bar import progress_bar
 
 try:
 
@@ -43,137 +25,217 @@ except:
 
 class PointSrc(object):
 
-    def __init__(self, name, ra, dec, data):
-        self._name = name
-        self._data = data #type: ContinuousData
-        self._ps_skycoord = coord.SkyCoord(ra*u.deg, dec*u.deg, frame='icrs')
-        self._precalculations()
-        #self._calc_src_occ()
-        #self._set_relative_location()
-        #self._cleanup()
-    def _precalculations(self):
+    def __init__(self, name, ra, dec, response_object, geometry_object, index=2.114):
         """
-        funtion that imports and precalculate everything that is needed to get the point source array for all echans
+        Initialize a PS and precalculates the rates for all the times for which the geomerty was
+        calculated.
+
+        :params name: Name of PS
+        :params ra: ra position of PS (J2000)
+        :params dec: dec position of PS (J2000)
+        :params response_object: response_precalculation object
+        :params geometry_object: geomerty precalculatation object
+        :params index: Powerlaw index of PS spectrum
+        """
+        self._name = name
+
+        # Build a SkyCoord object of the PS 
+        self._ps_skycoord = coord.SkyCoord(ra*u.deg, dec*u.deg, frame='icrs')
+
+        self._rsp = response_object
+        self._geom = geometry_object
+
+        self._response_array()
+        self._rate_array()
+
+    @property
+    def name(self):
+        """
+        Returns the name of the PS
+        """
+        return name
+
+    @property
+    def skycoord(self):
+        """
+        Returns the SkyCoord object of the PS
+        """
+        return self._ps_skycoord
+
+    @property
+    def ps_rate_array(self):
+        """
+        Returns an array with the predicted count rates for the times for which the geometry
+        was calculated for all energy channels. Assumed an normalization=1 (will be fitted later)
+        and the fixed spectral index defined in the init of the object.
+        """
+        
+    def _rate_array(self, index): #add this, needs spectrum, diff spectrum and integrarte function
+        true_flux_ps = self._integral_ps(self._rsp.Ebin_in_edge[:-1], self._rsp.Ebin_in_edge[1:], index)
+        self._folded_flux_ps = np.dot(true_flux_ps, self._ps_response)
+
+    def _response_array(self):
+        """
+        Funtion that imports and precalculate everything that is needed to get the point source array 
+        for all echans
         :return:
         """
-        # import interpolation times, quaternions, sc_pos and the earth position at these times from cont. data
-        self._interpolation_time = self._data.interpolation_time  # type: ContinuousData.interpolation_time
-        self._quaternion = self._data.quaternion
-        self._sc_pos = self._data.sc_pos
-        self._earth_positions = self._data.earth_position
-        # import the points of the grid around the detector and the rates for a ps spectrum
-        self._rate_generator_DRM = self._data.rate_generator_DRM
-        self._Ngrid = self._rate_generator_DRM.Ngrid
-        self._points_grid = self._rate_generator_DRM.points
-        self._rates_points = self._rate_generator_DRM.ps_rate  # for all echans
-        if using_mpi:
-            # again need to add one to the upper index of the last rank because of the calculation of the Gemoetry for
-            # the last time bin
-            if rank == size-1:
-                upper_index = self._data.times_upper_bound_index + 1
-            else:
-                upper_index = self._data.times_upper_bound_index
 
-            lower_index = self._data.times_lower_bound_index
-            # calcutate the GBMFrame for all the times covered by this rank
+        # Import the quaternion, sc_pos and earth_position (as SkyCoord object) from the geometry_object
+        quaternion = self._geom.quaternion
+        sc_pos = self._geom.sc_pos
+        earth_positions = self._geom.earth_position
+
+        # Import the points of the grid around the detector from the response_object
+        Ebin_in_edge = self._rsp.Ebin_in_edge
+        Ebin_out_edge = self._rsp.Ebin_out_edge
+        det = self._rsp.det
+        
+        # Use Mpi when it is available
+        if using_mpi:
+            # Need to add one to the upper index of the last rank because of the calculation
+            # of the Gemoetry for the last time bin
+            if rank == size-1:
+                upper_index = self._geom.times_upper_bound_index + 1
+            else:
+                upper_index = self._geom.times_upper_bound_index
+
+            lower_index = self._geom.times_lower_bound_index
+            # Calcutate the GBMFrame for all the times for which the geomerty was calcutated
             GBMFrame_list = []
             for i in range(lower_index, upper_index):
-                q1, q2, q3, q4 = self._quaternion[i]
-                scx, scy, scz = self._sc_pos[i]
-                GBMFrame_list.append(GBMFrame(quaternion_1=q1, quaternion_2=q2, quaternion_3=q3, quaternion_4=q4,
-                                              sc_pos_X=scx, sc_pos_Y=scy, sc_pos_Z=scz))
-            self._GBMFrame_list = np.array(GBMFrame_list)
-            # get the postion of the PS in the sat frame for every timestep
-            self._ps_pos_sat_list = []
-            self._ps_pos_sat_objects = []
+                q1, q2, q3, q4 = quaternion[i]
+                scx, scy, scz = sc_pos[i]
+                GBMFrame_list.append(GBMFrame(quaternion_1=q1, quaternion_2=q2, quaternion_3=q3,
+                                              quaternion_4=q4, sc_pos_X=scx, sc_pos_Y=scy,
+                                              sc_pos_Z=scz))
+            GBMFrame_list = np.array(GBMFrame_list)
+
+            # Get the postion of the PS in the satellite frame (saved as vector and as SkyCoord object)
+            ps_pos_sat_list = []
+            ps_pos_sat_objects = []
             for i in range(0, len(GBMFrame_list)):
                 ps_pos_sat = self._ps_skycoord.transform_to(GBMFrame_list[i])
-                self._ps_pos_sat_objects.append(ps_pos_sat)
+                ps_pos_sat_objects.append(ps_pos_sat)
                 az = ps_pos_sat.lon.deg
                 zen = ps_pos_sat.lat.deg
-                self._ps_pos_sat_list.append([np.cos(zen * (np.pi / 180)) * np.cos(az * (np.pi / 180)),
+                ps_pos_sat_list.append([np.cos(zen * (np.pi / 180)) * np.cos(az * (np.pi / 180)),
                                               np.cos(zen * (np.pi / 180)) * np.sin(az * (np.pi / 180)),
                                               np.sin(zen * (np.pi / 180))])
-            self._ps_pos_sat_list = np.array(self._ps_pos_sat_list)
-            self._ps_pos_sat_objects = np.array(self._ps_pos_sat_objects)
-            # get the point of the grid closet to the ps pointing (save the corresponding index)
-            best_grid_point_index = []
-            for i in range(len(self._ps_pos_sat_list)):
-                res_vector_norm = norm(self._points_grid - self._ps_pos_sat_list[i], axis=1)
-                best_grid_point_index.append(np.argmax(res_vector_norm))
-            self._best_grid_point_index = np.array(best_grid_point_index)
+            ps_pos_sat_list = np.array(ps_pos_sat_list)
+            ps_pos_sat_objects = np.array(ps_pos_sat_objects)
 
-            # calculate the separation of the earth and the ps for every time step
+            # Calcutate the response for the different ps locations
+
+            # DRM object with dummy quaternion and sc_pos values (all in sat frame,
+            # therefore not important)
+            DRM = DRMGen(np.array([0.0745, -0.105, 0.0939, 0.987]),
+                         np.array([-5.88 * 10 ** 6, -2.08 * 10 ** 6, 2.97 * 10 ** 6]), det,
+                         Ebin_in_edge, mat_type=0, ebin_edge_out=Ebin_out_edge)
+            # Calcutate the response matrix for the different ps locations
+            ps_response = []
+            for point in ps_pos_sat_list:
+                resp = self._rsp._response(point[0], point[1], point[2], DRM)
+                ps_response.append(resp.matrix.T)
+
+            # Calculate the separation of the earth and the ps for every time step
             separation = []
-            for earth_position in self._earth_positions:
+            for earth_position in earth_positions:
                 separation.append(coord.SkyCoord.separation(self._ps_skycoord, earth_position).value)
-            self._separation = np.array(separation)
+            separation = np.array(separation)
+            
             # define the earth opening angle
             earth_opening_angle = 67
 
-            # get a list with the rates of the rates of the closest points
-            ps_rate_list = []
-            for i in range(len(self._best_grid_point_index)):
-                # check if not occulted by earth
-                if self._separation[i] > earth_opening_angle:
-                    ps_rate_list.append(self._rates_points[self._best_grid_point_index[i]])
-                else:
-                    ps_rate_list.append(np.zeros_like(self._rates_points[self._best_grid_point_index[i]]))
-            ps_rate_list=np.array(ps_rate_list)
-            ps_rate_list_g = comm.gather(ps_rate_list, root=0)
-            self._ps_pos_sat_objects_g = comm.gather(self._ps_pos_sat_objects, root=0)
+            # Set response 0 when separation is <67 grad (than ps is behind earth)
+            for i in range(len(ps_response)):
+                # Check if not occulted by earth
+                if separation[i] < earth_opening_angle:
+                    # If occulted by earth set response to zero
+                    ps_response[i] = ps_response[i]*0
+
+            # Gather all results in rank=0 and broadcast the final result to all ranks
+            ps_response=np.array(ps_response)
+            ps_response_g = comm.gather(ps_response, root=0)
             if rank == 0:
-                ps_rate_list_g = np.concatenate(ps_rate_list_g)
-                self._ps_pos_sat_objects_g = np.concatenate(self._ps_pos_sat_objects_g)
-            ps_rate_list = comm.bcast(ps_rate_list_g, root=0)
-            self._ps_pos_sat_objects = comm.bcast(self._ps_pos_sat_objects_g, root=0)
-        else:
-            #calcutate the GBMFrame for all these times
-            GBMFrame_list = []
-            for i in range(0, len(self._quaternion)):
-                q1, q2, q3, q4 = self._quaternion[i]
-                scx, scy, scz = self._sc_pos[i]
-                GBMFrame_list.append(GBMFrame(quaternion_1=q1, quaternion_2=q2, quaternion_3=q3, quaternion_4=q4,
-                                              sc_pos_X=scx, sc_pos_Y=scy, sc_pos_Z=scz))
-            self._GBMFrame_list = np.array(GBMFrame_list)
+                ps_response_g = np.concatenate(ps_response_g)
+            ps_response = comm.bcast(ps_response_g, root=0)
 
-            #get the postion of the PS in the sat frame for every timestep
-            self._ps_pos_sat_list = []
+        # Singlecore calculation
+        else:
+            
+            # Calcutate the GBMFrame for all these times
+            GBMFrame_list = []
+            for i in range(0, len(quaternion)):
+                q1, q2, q3, q4 = quaternion[i]
+                scx, scy, scz = sc_pos[i]
+                GBMFrame_list.append(GBMFrame(quaternion_1=q1, quaternion_2=q2, quaternion_3=q3,
+                                              quaternion_4=q4, sc_pos_X=scx, sc_pos_Y=scy,
+                                              sc_pos_Z=scz))
+            GBMFrame_list = np.array(GBMFrame_list)
+
+            # Get the postion of the PS in the sat frame for every timestep
+            ps_pos_sat_list = []
             for i in range(0, len(GBMFrame_list)):
                 ps_pos_sat = self._ps_skycoord.transform_to(GBMFrame_list[i])
                 az = ps_pos_sat.lon.deg
                 zen = ps_pos_sat.lat.deg
-                self._ps_pos_sat_list.append([np.cos(zen * (np.pi / 180)) * np.cos(az * (np.pi / 180)),
+                ps_pos_sat_list.append([np.cos(zen * (np.pi / 180)) * np.cos(az * (np.pi / 180)),
                                               np.cos(zen * (np.pi / 180)) * np.sin(az * (np.pi / 180)),
                                               np.sin(zen * (np.pi / 180))])
-            self._ps_pos_sat_list = np.array(self._ps_pos_sat_list)
+            ps_pos_sat_list = np.array(ps_pos_sat_list)
 
-            # get the point of the grid closet to the ps pointing (save the corresponding index)
-            best_grid_point_index = []
-            for i in range(len(self._ps_pos_sat_list)):
-                res_vector_norm = norm(self._points_grid - self._ps_pos_sat_list[i], axis=1)
-                best_grid_point_index.append(np.argmax(res_vector_norm))
-            self._best_grid_point_index = np.array(best_grid_point_index)
-
-            # calculate the separation of the earth and the ps for every time step
+            # Calculate the separation of the earth and the ps for every time step
             separation = []
-            for earth_position in self._earth_positions:
+            for earth_position in earth_positions:
                 separation.append(coord.SkyCoord.separation(self._ps_skycoord, earth_position).value)
-            self._separation = np.array(separation)
-            # define the earth opening angle
+            separation = np.array(separation)
+
+            # Define the earth opening angle
             earth_opening_angle = 67
 
-            # get a list with the rates of the rates of the closest points
-            ps_rate_list = []
-            for i in range(len(self._best_grid_point_index)):
-                # check if not occulted by earth
-                if self._separation[i] > earth_opening_angle:
-                    ps_rate_list.append(self._rates_points[self._best_grid_point_index[i]])
-                else:
-                    ps_rate_list.append(np.zeros_like(self._rates_points[self._best_grid_point_index[i]]))
-        self._ps_rate_list = np.array(ps_rate_list).T #for all echans
-        #interpolate this
-        self._earth_rate_interpolator = interpolate.interp1d(self._interpolation_time, self._ps_rate_list)
+            # Set response 0 when separation is <67 grad (than ps is behind earth)
+            for i in range(len(ps_response)):
+                # Check if not occulted by earth
+                if separation[i] < earth_opening_angle:
+                    # If occulted by earth set response to zero
+                    ps_response[i] = ps_response[i]*0
+
+            
+        self._ps_response = np.array(ps_response)
+        
+
+    def _spectrum_ps(self, energy, C, index):
+        """
+        Define the function of a power law. Needed for PS spectrum
+        :params energy:
+        :params C:
+        :params index:
+        :return:
+        """
+        return C / energy**index
+    
+    def _differential_flux_ps(self, e, index):
+        """
+        Calculate the diff. flux with the constants defined for the earth
+        :params e: Energy of incoming photon
+        :params index: Index of spectrum 
+        :return: differential flux
+        """
+        C = 1  # Set the Constant=1. It will be fitted later to fit the data best
+        return self._spectrum_ps(e, C, index)
+
+    def _integral_ps(self, e1, e2, index):
+        """
+        Method to integrate the diff. flux over the Ebins of the incoming photons
+        :params e1: lower bound of Ebin_in
+        :params e2: upper bound of Ebin_in
+        :params index: Index of spectrum
+        :return: flux in the Ebin_in
+        """
+        return (e2 - e1) / 6.0 * (self._differential_flux_crab(e1, index) +
+                                  4 * self._differential_flux_crab((e1 + e2) / 2.0, index) +
+                                  self._differential_flux_crab(e2, index))    
 
     def ps_rate_array(self, met):
 
