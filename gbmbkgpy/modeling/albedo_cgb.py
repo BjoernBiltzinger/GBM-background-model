@@ -20,7 +20,7 @@ except:
     using_mpi = False
 
 
-def Albedo_CGB_free(object):
+class Albedo_CGB_free(object):
     """
     Class that precalulated the response arrays for the Earth Albedo and CGB for all times for which the geometry
     was calculated. Use this if you want the spectra to be free in the fit (not only normalization) 
@@ -53,6 +53,11 @@ def Albedo_CGB_free(object):
         Returns the Ebin_in edges as defined in the response object
         """
         return self._rsp.Ebin_in_edge
+
+    @property
+    def geometry_times(self):
+
+        return self._geom.time
     
     def _response_sum(self):
         """
@@ -129,11 +134,11 @@ def Albedo_CGB_free(object):
 
             # The same as above just for single core calculation without MPI
             
-            for i in range(0, len(self._earth_zen)):
+            for i in range(0, len(self._geom.earth_zen)):
                 earth_pos_inter_times.append(
-                    np.array([np.cos(self._earth_zen[i] * (np.pi / 180)) * np.cos(self._earth_az[i] * (np.pi / 180)),
-                              np.cos(self._earth_zen[i] * (np.pi / 180)) * np.sin(self._earth_az[i] * (np.pi / 180)),
-                              np.sin(self._earth_zen[i] * (np.pi / 180))]))
+                    np.array([np.cos(self._geom.earth_zen[i] * (np.pi / 180)) * np.cos(self._geom.earth_az[i] * (np.pi / 180)),
+                              np.cos(self._geom.earth_zen[i] * (np.pi / 180)) * np.sin(self._geom.earth_az[i] * (np.pi / 180)),
+                              np.sin(self._geom.earth_zen[i] * (np.pi / 180))]))
             self._earth_pos_inter_times = np.array(earth_pos_inter_times)
             
             # define the opening angle of the earth in degree
@@ -157,10 +162,10 @@ def Albedo_CGB_free(object):
         self._array_earth_response_sum = np.array(array_earth_response_sum)*sr_points
 
 
-def Albedo_CGB_fixed(object):
+class Albedo_CGB_fixed(object):
     """
     Class that precalulated the rates arrays for the Earth Albedo and CGB for all times for which the geometry
-    was calculated for a normalization 1. Use this if you want that inly the normalization of the spectra 
+    was calculated for a normalization 1. Use this if you want that only the normalization of the spectra
     is a free fit parameter.
     """
     def __init__(self, response_object, geometry_object):
@@ -201,7 +206,17 @@ def Albedo_CGB_fixed(object):
         """
         return self._folded_flux_cgb
 
-    
+    @property
+    def geometry_times(self):
+
+        return self._geom.time
+
+    @property
+    def Ebin_in_edge(self):
+        """
+        Returns the Ebin_in edges as defined in the response object
+        """
+        return self._rsp.Ebin_in_edge
     
     def _rates_array(self):
         # Calculate the true flux for the Earth for the assumed spectral parameters (Normalization=1).
@@ -211,8 +226,6 @@ def Albedo_CGB_fixed(object):
 
         true_flux_cgb= self._integral_cgb(self._rsp.Ebin_in_edge[:-1], self._rsp.Ebin_in_edge[1:])
         self._folded_flux_cgb = np.dot(true_flux_cgb, self._array_cgb_response_sum)
-        
-
 
     def _response_sum(self):
         """
@@ -289,11 +302,11 @@ def Albedo_CGB_fixed(object):
 
             # The same as above just for single core calculation without MPI
             
-            for i in range(0, len(self._earth_zen)):
+            for i in range(0, len(self._geom.earth_zen)):
                 earth_pos_inter_times.append(
-                    np.array([np.cos(self._earth_zen[i] * (np.pi / 180)) * np.cos(self._earth_az[i] * (np.pi / 180)),
-                              np.cos(self._earth_zen[i] * (np.pi / 180)) * np.sin(self._earth_az[i] * (np.pi / 180)),
-                              np.sin(self._earth_zen[i] * (np.pi / 180))]))
+                    np.array([np.cos(self._geom.earth_zen[i] * (np.pi / 180)) * np.cos(self._geom.earth_az[i] * (np.pi / 180)),
+                              np.cos(self._geom.earth_zen[i] * (np.pi / 180)) * np.sin(self._geom.earth_az[i] * (np.pi / 180)),
+                              np.sin(self._geom.earth_zen[i] * (np.pi / 180))]))
             self._earth_pos_inter_times = np.array(earth_pos_inter_times)
             
             # define the opening angle of the earth in degree
@@ -336,7 +349,7 @@ def Albedo_CGB_fixed(object):
         :return: differential flux
         """
         C = 1  # set the constant=1 will be fitted later to fit the data best
-        return self._spectrum(e, C, self._index1_earth, self._index2_earth, self._break_energy_earth)
+        return self._spectrum_bpl(e, C, self._index1_earth, self._index2_earth, self._break_energy_earth)
 
     def _integral_earth(self, e1, e2):
         """
@@ -356,7 +369,7 @@ def Albedo_CGB_fixed(object):
         :return: differential flux
         """
         C = 1  # set the constant=1 will be fitted later to fit the data best
-        return self._spectrum(e, C, self._index1_cgb, self._index2_cgb, self._break_energy_cgb)
+        return self._spectrum_bpl(e, C, self._index1_cgb, self._index2_cgb, self._break_energy_cgb)
 
     def _integral_cgb(self, e1, e2):
         """
@@ -368,136 +381,3 @@ def Albedo_CGB_fixed(object):
         return (e2 - e1) / 6.0 * (
                 self._differential_flux_cgb(e1) + 4 * self._differential_flux_cgb((e1 + e2) / 2.0) +
                 self._differential_flux_cgb(e2))    
-    
-
-    def _earth_rate_array(self):
-        """
-        Calculate the earth_rate_array for all interpolation times for which the geometry 
-        was calculated. This supports MPI to reduce the calculation time. To calculate the 
-        earth_rate_array the responses created on a grid in rate_gernerator_DRM are used. All points
-        that are occulted by the earth are added, assuming a spectrum specified in rate_generator_DRM 
-        for the earth albedo.
-        :return:
-        """
-        points = self._rate_generator_DRM.points
-        earth_rates = self._rate_generator_DRM.earth_rate
-        # get the earth direction at the interpolation times; zen angle from -90 to 90
-        earth_pos_inter_times = []
-        if using_mpi:
-            # last rank has to cover one more index. Caused by the calculation of the Geometry for the last time
-            # bin of the day
-            if rank == size - 1:
-                upper_index = self._times_upper_bound_index + 1
-                print(upper_index)
-            else:
-                upper_index = self._times_upper_bound_index
-            
-            for i in range(self._times_lower_bound_index, upper_index):
-                earth_pos_inter_times.append(
-                    np.array([np.cos(self._earth_zen[i] * (np.pi / 180)) * np.cos(self._earth_az[i] * (np.pi / 180)),
-                              np.cos(self._earth_zen[i] * (np.pi / 180)) * np.sin(self._earth_az[i] * (np.pi / 180)),
-                              np.sin(self._earth_zen[i] * (np.pi / 180))]))
-            self._earth_pos_inter_times = np.array(earth_pos_inter_times)
-            earth_pos = np.array(earth_pos_inter_times) #
-            # define the opening angle of the earth in degree
-            opening_angle_earth = 67
-            array_earth_rate = []
-
-            det_earth_angle = []#
-            #point_earth_angle_all_inter = [] #                                                                                                                                                                                                                                
-            #point_base_rate_all_inter = [] # 
-            for pos in self._earth_pos_inter_times:
-                earth_rate = np.zeros_like(earth_rates[0])
-
-                det = np.array([1,0,0])#
-                det_earth_angle.append(np.arccos(np.dot(pos, det))*180/np.pi)#
-                #point_earth_angle = [] #                                                                                                                                                                                                                                      
-                #point_base_rate = [] #
-                for i, pos_point in enumerate(points):
-                    angle_earth = np.arccos(np.dot(pos, pos_point)) * (180 / np.pi)
-                    #point_earth_angle.append(angle_earth)#
-                    if angle_earth < opening_angle_earth:
-                        B=0
-                        earth_rate += earth_rates[i]*np.exp(B*angle_earth)#TODO RING EFFECT
-                        #point_base_rate.append(earth_rates[i])# 
-                    #else:#                                                                                                                                                                                                                                                    
-                        #point_base_rate.append(np.zeros_like(earth_rates[i]))#
-                array_earth_rate.append(earth_rate)
-                #point_base_rate_all_inter.append(point_base_rate)#
-                #point_earth_angle_all_inter.append(point_earth_angle)#
-                
-            array_earth_rate = np.array(array_earth_rate)
-            det_earth_angle = np.array(det_earth_angle)#
-            #point_earth_angle = np.array(point_earth_angle_all_inter)#                                                                                                                                                                                                  
-            #point_base_rate = np.array(point_base_rate_all_inter)#
-            #del point_earth_angle_all_inter, point_base_rate_all_inter, earth_pos_inter_times
-            array_earth_rate_g = comm.gather(array_earth_rate, root=0)
-            det_earth_angle_g = comm.gather(det_earth_angle, root=0)#
-            earth_pos_g = comm.gather(earth_pos, root=0)#
-            #point_earth_angle_g = comm.gather(point_earth_angle, root=0)
-            #point_base_rate_g = comm.gather(point_base_rate, root=0)
-            if rank == 0:
-                array_earth_rate_g = np.concatenate(array_earth_rate_g)
-                det_earth_angle_g = np.concatenate(det_earth_angle_g)
-                earth_pos_g = np.concatenate(earth_pos_g)
-                #point_earth_angle_g = np.concatenate(point_earth_angle_g)
-                #point_base_rate_g = np.concatenate(point_base_rate_g)
-            array_earth_rate = comm.bcast(array_earth_rate_g, root=0)
-            det_earth_angle = comm.bcast(det_earth_angle_g, root=0)
-            earth_pos = comm.bcast(earth_pos_g,root=0)#
-            #point_earth_angle = comm.bcast(point_earth_angle_g, root=0)
-            #point_base_rate = comm.bcast(point_base_rate_g, root=0)
-            #del array_earth_rate_g, point_earth_angle_g, point_base_rate_g
-        else:
-            for i in range(0, len(self._earth_zen)):
-                earth_pos_inter_times.append(
-                    np.array([np.cos(self._earth_zen[i] * (np.pi / 180)) * np.cos(self._earth_az[i] * (np.pi / 180)),
-                              np.cos(self._earth_zen[i] * (np.pi / 180)) * np.sin(self._earth_az[i] * (np.pi / 180)),
-                              np.sin(self._earth_zen[i] * (np.pi / 180))]))
-            self._earth_pos_inter_times = np.array(earth_pos_inter_times)
-            # define the opening angle of the earth in degree
-            opening_angle_earth = 67
-            array_earth_rate = []
-            #point_earth_angle_all_inter = [] #
-            #point_base_rate_all_inter = [] #
-            for pos in self._earth_pos_inter_times:
-                earth_rate = np.zeros_like(earth_rates[0])
-                #point_earth_angle = [] #
-                #point_base_rate = [] #
-                for i, pos_point in enumerate(points):
-                    angle_earth = np.arccos(np.dot(pos, pos_point)) * (180 / np.pi)
-                    #point_earth_angle.append(angle_earth)#
-                    if angle_earth < opening_angle_earth:
-                        #point_base_rate.append(earth_rates[i])#
-                        earth_rate += earth_rates[i]
-                    #else:#
-                        #point_base_rate.append(np.zeros_like(earth_rates[i]))#
-                array_earth_rate.append(earth_rate)
-                #point_base_rate_all_inter.append(point_base_rate)#
-                #point_earth_angle_all_inter.append(point_earth_angle)#
-            #point_base_rate = point_base_rate_all_inter
-            #point_earth_angle = point_earth_angle_all_inter
-        array_earth_rate = np.array(array_earth_rate).T
-        #point_earth_angle = np.array(point_earth_angle)#
-        #if rank==0:
-            #print('Earth pos')
-            #print(earth_pos[:10])
-            #print('earth_rate')
-            #print(array_earth_rate[4][:10])
-            #fig = plt.figure()
-            #ax = fig.gca(projection='3d')
-            #surf = ax.scatter(earth_pos[:,0],earth_pos[:,1],earth_pos[:,2], s=0.4, c=array_earth_rate[4], cmap='plasma')
-            #ax.scatter(1,0,0,s=10,c='red')
-            #fig.colorbar(surf)
-            #fig.savefig('testing_B_{}.pdf'.format(B))
-            #fig = plt.figure()
-            #ax = fig.gca(projection='3d')
-            #surf = ax.scatter(points[:,0],points[:,1],points[:,2], s=0.4, c=earth_rates[:,4], cmap='plasma')
-            #fig.colorbar(surf)
-            #fig.savefig('testing_2.pdf')
-        #point_base_rate = np.array(point_base_rate)#
-        #self._point_earth_angle_interpolator = interpolate.interp1d(self._sun_time, point_earth_angle, axis=0)#
-        #self._point_base_rate_interpolator = interpolate.interp1d(self._sun_time, point_base_rate, axis=0)#
-        self._earth_rate_interpolator = interpolate.interp1d(self._sun_time, array_earth_rate)
-        #del point_base_rate, point_earth_angle, array_earth_rate
-   
