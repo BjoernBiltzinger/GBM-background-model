@@ -69,7 +69,13 @@ class PointSrc(object):
         was calculated for all energy channels. Assumed an normalization=1 (will be fitted later)
         and the fixed spectral index defined in the init of the object.
         """
-        
+        return self._folded_flux_ps
+
+    @property
+    def geometry_times(self):
+
+        return self._geom.time
+
     def _rate_array(self, index): #add this, needs spectrum, diff spectrum and integrarte function
         true_flux_ps = self._integral_ps(self._rsp.Ebin_in_edge[:-1], self._rsp.Ebin_in_edge[1:], index)
         self._folded_flux_ps = np.dot(true_flux_ps, self._ps_response)
