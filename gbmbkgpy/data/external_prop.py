@@ -48,12 +48,27 @@ class ExternalProps(object):
 
         # self._earth_occ()
 
-    def build_point_sources(self, data):
-        self._data = data
+    def build_point_sources(self, rsp, geom):
+        """
+        Build all PS saved in the txt file
+        :param rsp: response_precalculation
+        :param geom: geometry_precalculation
+        :return:
+        """
+        self._rsp = rsp
+        self._geom = geom
         self._build_point_sources()
 
-    def build_some_source(self,data, source_list):
-        self._data=data
+    def build_some_source(self, rsp, geom, source_list):
+        """
+        Build the PS form the text file with a certain name
+        :param rsp: response_precalculation
+        :param geom: geometry_precalculation
+        :param source_list: which sources to buld
+        :return:
+        """
+        self._rsp = rsp
+        self._geom = geom
         self._build_some_source(source_list)
 
     def mc_l(self, met):
@@ -340,36 +355,17 @@ class ExternalProps(object):
         # instantiate dic of point source objects
         self._point_sources_dic = {}
 
-        # TODO: investigate why calculation runs non stop, print ps_df and look
-
         ###Single core calc###
         for row in self._ps_df.itertuples():
-            self._point_sources_dic[row[1]] = PointSrc(row[1], row[2], row[3], self._data)
+            self._point_sources_dic[row[1]] = PointSrc(row[1], row[2], row[3], self._rsp, self._geom)
 
-
-        """
-        ###multicore calc###
-        from pathos.multiprocessing import ProcessPool
-        # define function for multiprocess calculation
-        def calc_pointsources(x):
-            return self._ps_df.loc[x][0], PointSource(self._ps_df.loc[x][0], self._ps_df.loc[x][1],
-                                                      self._ps_df.loc[x][2], self._data)
-
-        # Initialize Process pool with 8 threads       
-        pool = ProcessPool(8)
-
-        results = pool.map(calc_pointsources, range(len(self._ps_df)))
-
-        # instantiate dic of point source objects
-        for i in range(len(results)):
-            self._point_sources_dic[results[i][0]] = results[i][1]
-
-        del results
-        """
-
-    #function to build only some pointsources, which are specified in the source_list
 
     def _build_some_source(self, source_list):
+        """
+        This function builds the PS specified in source_list
+        :param source_list: list of PS to build
+        :return:
+        """
         file_path = get_path_of_data_file('background_point_sources/', 'point_sources.dat')
 
         self._ps_df = pd.read_table(file_path, names=['name', 'ra', 'dec'])
@@ -381,7 +377,7 @@ class ExternalProps(object):
         for row in self._ps_df.itertuples():
             for element in source_list:
                 if row[1]==element:
-                    self._point_sources_dic[row[1]] = PointSrc(row[1], row[2], row[3], self._data)
+                    self._point_sources_dic[row[1]] = PointSrc(row[1], row[2], row[3], self._rsp, self._geom, index=2.114)
 
     def lat_acd(self, time_bins, use_side):
 
