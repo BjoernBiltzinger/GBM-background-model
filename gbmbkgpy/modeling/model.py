@@ -4,6 +4,10 @@ import numpy as np
 
 class Model(object):
     def __init__(self, *sources):
+        """
+        Init model class with all wanted sources
+        :param sources: list of sources
+        """
 
         self._continuum_sources = collections.OrderedDict()
 
@@ -119,25 +123,11 @@ class Model(object):
 
         return self._parameters
 
-    def set_free_parameters(self, new_parameters):
-        """
-        Set the free parameters to the new values
-        :param new_parameters:
-        :return:
-        """
-        for i, parameter in enumerate(self.free_parameters.itervalues()):
-            parameter.value = new_parameters[i]
-
-    def set_parameter_bounds(self, new_bounds):
-        """
-        Set the parameter bounds
-        :param new_bounds:
-        :return:
-        """
-        for i, parameter in enumerate(self._parameters.itervalues()):
-            parameter.bounds = new_bounds[i]
-
     def _update_parameters(self):
+        """
+        Updates the parameter values
+        :return:
+        """
 
         parameters = collections.OrderedDict()
 
@@ -153,6 +143,11 @@ class Model(object):
     
     
     def _add_source(self, source):
+        """
+        Add a source in the correct dictionary
+        :param source:
+        :return:
+        """
 
         if source.source_type == POINT_SOURCE:
 
@@ -264,7 +259,7 @@ class Model(object):
 
     def get_continuum_counts(self, id, time_bins, saa_mask, echan):
         """
-        
+        Get the count of the sources in the self._continuum_sources dict
         :param id: 
         :param time_bins:
         :return: 
@@ -280,20 +275,10 @@ class Model(object):
 
         return source_counts
 
-    def _update_parameters(self):
-
-        parameters = collections.OrderedDict()
-
-        for sources in [self._continuum_sources, self._flare_sources, self._point_sources, self._saa_sources, self._global_sources, self._fit_spectrum_sources]:
-
-            for source in sources.itervalues():
-
-                for parameter_name, parameter in source.parameters.iteritems():
-                    parameters[parameter_name] = parameter
-
-        self._parameters = parameters
-
     def _sources_echan_number_parameter(self):
+        """
+        :return: sources, echan of sources, number so parameters per source
+        """
 
         source_list = [self._continuum_sources, self._flare_sources, self._point_sources, self._saa_sources, self._global_sources, self._fit_spectrum_sources]
         echan = np.array([])
@@ -312,7 +297,7 @@ class Model(object):
 
     def get_global_counts(self, id, time_bins, saa_mask, echan):
         """
-
+        Get the count of the source id in the self._global_sources dict
         :param id:
         :param time_bins:
         :return:
@@ -326,7 +311,12 @@ class Model(object):
 
         return source_counts
     def get_fit_spectrum_counts(self, id, time_bins, saa_mask, echan):
-
+        """
+        Get the count of the sources in the self._fit_spectrum_sources dict
+        :param id:
+        :param time_bins:
+        :return:
+        """
         source_counts = self._fit_spectrum_sources.values()[id].get_counts(time_bins, echan)                                                                                                                                    # The SAA sections will be set to zero if a saa_mask is provided
         if saa_mask is not None:
             assert len(time_bins) == len(saa_mask), "The time_bins and saa_mask should be of equal length"
@@ -453,6 +443,15 @@ class Model(object):
 
 
     def get_all_global_counts(self, time_bins, echan, bin_mask=None, saa_mask=None):
+        """
+        Get all counts from the sources in the "global dict"
+        :param time_bins:
+        :param echan:
+        :param bin_mask:
+        :param saa_mask:
+        :return:
+        """
+
         if bin_mask is not None:
             assert saa_mask is None, "There should only be a bin mask or a saa_mask provided"
 
