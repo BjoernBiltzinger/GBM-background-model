@@ -1,8 +1,26 @@
 import numpy as np
 
+try:
+
+    # see if we have mpi and/or are upalsing parallel
+
+    from mpi4py import MPI
+    if MPI.COMM_WORLD.Get_size() > 1: # need parallel capabilities
+        using_mpi = True ###################33
+
+        comm = MPI.COMM_WORLD
+        rank = comm.Get_rank()
+        size = comm.Get_size()
+
+    else:
+
+        using_mpi = False
+except:
+
+    using_mpi = False
 
 class SAA_calc(object):
-    def __init__(self, time_bins, bins_to_add=8, use_SAA=True, time_after_SAA=5000, short_time_intervals=False):
+    def __init__(self, data_object, bins_to_add=8, use_SAA=True, time_after_SAA=5000, short_time_intervals=False):
         """
         Initalize the SAA calculation that calculates the start and stop times of the SAAs and builds
         masks. 
@@ -14,15 +32,15 @@ class SAA_calc(object):
         """
         
         assert type(bins_to_add)==int, 'bins_to_add gives the number of time_bins to add before and after the SAA. It must therefore be an int but it is {}.'.format(type(bins_to_add))
-        assert type(time_bins)==np.ndarray, 'Invalid type for time_bins. Must be an array but is {}.'.format(type(time_bins))
+        assert type(data_object.time_bins)==np.ndarray, 'Invalid type for time_bins. Must be an array but is {}.'.format(type(data_object.time_bins))
         assert type(use_SAA)==bool, 'use_SAA must be a bool but is {}'.format(use_SAA)
         assert type(time_after_SAA)==int, 'time_after_SAA must be a int but is a {}'.format(type(time_after_SAA))
         assert type(short_time_intervals)==bool, 'short_time_intervals must be a bool but is {}'.format(short_time_intervals)
         
         
 
-        self._time_bins = time_bins
-        self._build_masks(bins_to_add, use_SAA, short_time_intervals)
+        self._time_bins = data_object.time_bins
+        self._build_masks(bins_to_add, use_SAA, time_after_SAA, short_time_intervals)
 
     @property
     def saa_mask(self):
@@ -37,8 +55,16 @@ class SAA_calc(object):
         Returns times bins
         """
         return self._time_bins
+
+    @property
+    def num_saa(self):
+        """
+        Returns number of SAA's
+        :return:
+        """
+        return self._num_saa
         
-    def _build_masks(self, bins_to_add, use_SAA, short_time_intervals):
+    def _build_masks(self, bins_to_add, use_SAA, time_after_SAA, short_time_intervals):
         """
         Calculates masks that cover the SAAs and some time bins before and after the SAAs
         :params bins_to_add: number of bins to add to mask before and after time bin
@@ -57,7 +83,8 @@ class SAA_calc(object):
         idx = jump_large.nonzero()[0] + 1
 
         # Build slices, that have as first entry start of SAA and as second end of SAA
-        slice_idx = np.array(slice_disjoint(idx))
+        slice_idx = np.array(self.slice_disjoint(idx))
+        self._num_saa = len(slice_idx)
 
         # Add bins_to_add before and after SAAs
         slice_idx[:, 0][np.where(slice_idx[:, 0] >= bins_to_add)] =\
@@ -86,7 +113,7 @@ class SAA_calc(object):
         if not use_SAA:
             # Set first time_after_SAA seconds False
             j = 0
-            while time_after_saa > self._time_bins[j,1] - self._time_bins[0,0]:
+            while time_after_SAA > self._time_bins[j,1] - self._time_bins[0,0]:
                 j += 1
             self._saa_mask[0:j] = False
 
@@ -94,11 +121,11 @@ class SAA_calc(object):
             # after a SAA is less than 500 seconds
             for i in range(len(slice_idx)):
                 
-                if self._time_bins[:,0][slice_idx[i, 1]] + time_after_saa > self._time_bins[-1,0]:
+                if self._time_bins[:,0][slice_idx[i, 1]] + time_after_SAA > self._time_bins[-1,0]:
                     self._saa_mask[slice_idx[i, 1]:len(self._time_bins)] = False
                 else:
                     j = 0
-                    while self._time_bins[:,0][slice_idx[i, 1]] + time_after_saa > self._time_bins[:,0][slice_idx[-1, 1] + j]:
+                    while self._time_bins[:,0][slice_idx[i, 1]] + time_after_SAA > self._time_bins[:,0][slice_idx[-1, 1] + j]:
                         j += 1
                     self._saa_mask[slice_idx[i, 1]:slice_idx[i, 1] + j] = False
         if not short_time_intervals:

@@ -1,7 +1,7 @@
 import numpy as np
 from gbm_drm_gen.drmgen import DRMGen
 import os
-from gbmbkgpy.io.package_data import get_path_of_data_dir, get_path_of_data_file, get_path_of_external_data_dir
+from gbmbkgpy.io.package_data import get_path_of_external_data_dir
 import astropy.io.fits as fits
 
 try:

@@ -1,9 +1,12 @@
 import numpy as np
+import os
 from gbmgeometry import PositionInterpolator, gbm_detector_list
 import astropy.time as astro_time
 
-from gbmbkgpy.io.file_utils import file_existing_and_readable
 from gbmbkgpy.utils.progress_bar import progress_bar
+from gbmbkgpy.io.package_data import get_path_of_external_data_dir
+from gbmbkgpy.io.file_utils import file_existing_and_readable
+from gbmbkgpy.io.downloading import download_data_file
 
 try:
 
@@ -30,24 +33,41 @@ except:
 valid_det_names = ['n0','n1' ,'n2' ,'n3' ,'n4' ,'n5' ,'n6' ,'n7' ,'n8' ,'n9' ,'na' ,'nb'] 
 
 class Geometry(object):
-    def __init__(self, time_bins_mean, det, pos_hist_path, n_bins_to_calculate):
+    def __init__(self, data, det, day, n_bins_to_calculate):
         """
         Initalize the geometry precalculation. This calculates several quantities (e.g. Earth
         position in the satellite frame for n_bins_to_calculate times during the day
         """
 
         # Test if all the input is valid
-        assert type(self.mean_time)==np.ndarray, 'Invalid type for mean_time. Must be an array but is {}.'.format(type(self.mean_time))
+        assert type(data.mean_time)==np.ndarray, 'Invalid type for mean_time. Must be an array but is {}.'.format(type(data.mean_time))
         assert det in valid_det_names, 'Invalid det name. Must be one of these {} but is {}.'.format(valid_det_names, det)
-        assert file_existing_and_readable(pos_hist_path), '{} does not exist'.format(pos_hist_path)
         assert type(n_bins_to_calculate)==int, 'Type of n_bins_to_calculate has to be int but is {}'.format(type(n_bins_to_calculate))
 
 
         # Save everything 
-        self.mean_time = time_bins_mean
+        self.mean_time = data.mean_time
         self._det = det
-        self._pos_hist = pos_hist_path
         self._n_bins_to_calculate = n_bins_to_calculate
+
+        # Check if poshist file exists, if not download it
+        poshistfile_name = 'glg_{0}_all_{1}_v00.fit'.format('poshist', day)
+        poshistfile_path = os.path.join(get_path_of_external_data_dir(), 'poshist', poshistfile_name)
+
+        # If using MPI only rank=0 downloads the data, all other have to wait
+        if using_mpi:
+            if rank==0:
+                if not file_existing_and_readable(poshistfile_path):
+                    download_data_file(day, 'poshist')
+            comm.Barrier()
+        else:
+            if not file_existing_and_readable(poshistfile_path):
+                download_data_file(day, 'poshist')
+
+        # Save poshistfile_path for later usage
+        self._pos_hist = poshistfile_path
+
+        assert file_existing_and_readable(self._pos_hist), '{} does not exist'.format(self._pos_hist)
 
         # Calculate Geometry. With or without Mpi support.
         if using_mpi:
@@ -125,7 +145,7 @@ class Geometry(object):
         return self._times_upper_bound_index
 
     @property
-    def times_upper_bound_index(self):
+    def times_upper_lower_index(self):
         """
         Returns the lower time bound of the geometries calculated by this rank
         """
@@ -144,7 +164,7 @@ class Geometry(object):
         self._position_interpolator = PositionInterpolator(poshist=self._pos_hist)
 
         # Number of bins to skip, to equally distribute the n_bins_to_calculate times over the day 
-        n_skip = int(np.ceil(self._n_time_bins / self._n_bins_to_calculate))
+        n_skip = int(np.ceil(len(self.mean_time) / self._n_bins_to_calculate))
 
         # Init all lists
         sun_angle = []
@@ -186,7 +206,6 @@ class Geometry(object):
                     quaternion.append(quaternion_step)
                     sc_pos.append(sc_pos_step)
 
-                    pointing_vector.append(det.pointing_vector_earth_frame)
                     p.increase()
         else:
             # Calculate the geometry for all times associated with this rank (for rank!=0).
@@ -296,7 +315,7 @@ class Geometry(object):
         self._position_interpolator = PositionInterpolator(poshist=self._pos_hist)
 
         # Number of bins to skip, to equally distribute the n_bins_to_calculate times over the day
-        n_skip = int(np.ceil(self._n_time_bins / self._n_bins_to_calculate))
+        n_skip = int(np.ceil(len(self.mean_time) / self._n_bins_to_calculate))
 
         # Init all lists
         sun_angle = []
