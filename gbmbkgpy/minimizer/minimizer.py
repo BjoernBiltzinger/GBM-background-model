@@ -75,7 +75,7 @@ class Minimizer(object):
 
         # display the results
 
-        print self.display()
+        print(self.display())
 
         return self.result
 

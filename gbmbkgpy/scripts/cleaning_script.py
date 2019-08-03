@@ -2,6 +2,7 @@ from gbmbkgpy.utils import data_cleaning
 from gbmbkgpy.utils.data_cleaning import DataCleaner
 from gbmbkgpy.io.downloading import download_files, download_lat_spacecraft
 from gbmbkgpy.io.package_data import get_path_of_data_dir, get_path_of_data_file, get_path_of_external_data_dir
+from gbmbkgpy.io.file_utils import file_existing_and_readable
 import numpy as np
 import pandas as pd
 import os
@@ -73,13 +74,13 @@ for day in days:
             if not file_existing_and_readable(lat_filepath_1):
                 download_lat_spacecraft(mission_week)
 
-            lat_filepath_2 = get_path_of_data_file('lat', 'lat_spacecraft_weekly_w%d_p202_v001.fits' % mission_week + 1)
+            lat_filepath_2 = get_path_of_data_file('lat', 'lat_spacecraft_weekly_w%d_p202_v001.fits' % (mission_week + 1))
             if not file_existing_and_readable(lat_filepath_2):
-                download_lat_spacecraft(mission_week)
+                download_lat_spacecraft(mission_week + 1)
 
-            lat_filepath_3 = get_path_of_data_file('lat', 'lat_spacecraft_weekly_w%d_p202_v001.fits' % mission_week - 1)
+            lat_filepath_3 = get_path_of_data_file('lat', 'lat_spacecraft_weekly_w%d_p202_v001.fits' % (mission_week - 1))
             if not file_existing_and_readable(lat_filepath_3):
-                download_lat_spacecraft(mission_week)
+                download_lat_spacecraft(mission_week - 1)
 
             wait = True
             failed = False
