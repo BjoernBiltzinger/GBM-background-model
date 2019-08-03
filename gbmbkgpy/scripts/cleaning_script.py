@@ -65,29 +65,40 @@ for day in days:
     gbm_time = GBMTime(astro_day)
     mission_week = np.floor(gbm_time.mission_week.value)
 
+    failed = False
     # download files with rank=0; all other ranks have to wait!
     if rank == 0:
         try:
             download_files(data_type, detector, date)
+        except Exception as e:
+            print(e)
+            failed = True
 
+        try:
             lat_filepath_1 = get_path_of_data_file('lat', 'lat_spacecraft_weekly_w%d_p202_v001.fits' % mission_week)
             if not file_existing_and_readable(lat_filepath_1):
                 download_lat_spacecraft(mission_week)
+        except Exception as e:
+            print(e)
+            failed = True
 
+        try:
             lat_filepath_2 = get_path_of_data_file('lat', 'lat_spacecraft_weekly_w%d_p202_v001.fits' % (mission_week + 1))
             if not file_existing_and_readable(lat_filepath_2):
                 download_lat_spacecraft(mission_week + 1)
+        except Exception as e:
+            print(e)
+            failed = True
 
+        try:
             lat_filepath_3 = get_path_of_data_file('lat', 'lat_spacecraft_weekly_w%d_p202_v001.fits' % (mission_week - 1))
             if not file_existing_and_readable(lat_filepath_3):
                 download_lat_spacecraft(mission_week - 1)
-
-            wait = True
-            failed = False
         except Exception as e:
             print(e)
-            wait = True
             failed = True
+
+        wait = True
     else:
         wait = None
         failed = False
