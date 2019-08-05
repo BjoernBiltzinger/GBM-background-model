@@ -7,8 +7,9 @@ from gbmbkgpy.utils.binner import Rebinner
 NO_REBIN = 1E-99
 
 class Plotter(object):
-    def __init__(self, data, model, echan_list):
+    def __init__(self, data, model, saa_object, echan_list):
 
+        self._data = data
         self._model = model  # type: Model
         self._echan_list = echan_list  # list of all echans which should be fitted
 
@@ -25,7 +26,7 @@ class Plotter(object):
         self._total_time_bin_widths = np.diff(self._total_time_bins, axis=1)[:, 0]
 
         # Get the SAA and GRB mask:
-        self._saa_mask = data.saa_mask[2:-2]
+        self._saa_mask = saa_object.saa_mask[2:-2]
         self._grb_mask = np.ones(len(self._total_time_bins), dtype=bool)  # np.full(len(self._total_time_bins), True)
         # An entry in the total mask is False when one of the two masks is False
         self._total_mask = ~ np.logical_xor(self._saa_mask, self._grb_mask)
@@ -125,8 +126,8 @@ class Plotter(object):
                 print('No ppc possible, no results directonary given to display method!')
             else:
                 ppc_model = copy.deepcopy(self._model)
-                n_params = len(self._model.free_parameters.value())
-                residual_plot.add_ppc(result_dir=result_dir, model=ppc_model, background_like=self,
+                n_params = len(self._model.free_parameters)
+                residual_plot.add_ppc(result_dir=result_dir, model=ppc_model, plotter=self,
                                       time_bins=self._total_time_bins - time_ref, saa_mask=self._saa_mask, echan=echan,
                                       q_levels=[0.68, 0.95, 0.99], colors=['lightgreen', 'green', 'darkgreen'],
                                       bin_width=min_bin_width, n_params=n_params, time_ref=time_ref)
@@ -276,3 +277,25 @@ class Plotter(object):
             met_stop = time_stop
 
         self._occ_region[occ_name] = {'met': (met_start, met_stop), 'color': color}
+
+    def get_synthetic_data(self, synth_parameters, synth_model=None):
+        """
+        Creates a ContinousData object with synthetic data based on the total counts from the synth_model
+        If no synth_model is passed it makes a deepcopy of the existing model
+        :param synth_parameters:
+        :return:
+        """
+
+        synth_data = copy.deepcopy(self._data)
+
+        if synth_model == None:
+            synth_model = copy.deepcopy(self._model)
+
+        for i, parameter in enumerate(synth_model.free_parameters.itervalues()):
+            parameter.value = synth_parameters[i]
+
+        for echan in self._echan_list:
+            synth_data.counts[:, echan][2:-2] = np.random.poisson(synth_model.get_counts(synth_data.time_bins[2:-2],echan))
+
+        return synth_data
+

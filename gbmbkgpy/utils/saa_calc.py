@@ -103,7 +103,7 @@ class SAA_calc(object):
         self._saa_exit_time_bins = self._time_bins[saa_exit_idx]
 
         # make a saa mask from the slices:
-        self._saa_mask = np.ones(len(self._time_bins))
+        self._saa_mask = np.ones(len(self._time_bins), bool)
         for sl in slice_idx:
             self._saa_mask[sl[0]:sl[1]+1]=False
 

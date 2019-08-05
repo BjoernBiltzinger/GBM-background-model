@@ -318,7 +318,7 @@ class GlobalFunctionSpectrumFit(Function):
         :return:
         """
         return self._C / ((energy / self._break_energy) ** self._index1 + (energy / self._break_energy) ** self._index2)
-
+    
     def _integral(self, e1, e2):
         """
         Calculates the flux of photons between two energies
@@ -327,8 +327,8 @@ class GlobalFunctionSpectrumFit(Function):
         :return:
         """
         return (e2 - e1) / 6.0 * (
-            self._differential_flux(e1) + 4 * self._differential_flux((e1 + e2) / 2.0) +
-            self._differential_flux(e2))
+            self._spectrum(e1) + 4 * self._spectrum((e1 + e2) / 2.0) +
+            self._spectrum(e2))
 
     def _fold_spectrum(self, C, index1, index2, break_energy):
         """

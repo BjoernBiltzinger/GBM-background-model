@@ -57,7 +57,7 @@ class Response_Precalculation(object):
         
         if Ebin_edge_incoming==None:
             # Incoming spectrum between ~3 and ~5000 keV in 300 bins
-            self._Ebin_edge_incoming=np.array(np.logspace(0.5, 3.7, 301), dtype=np.float32)
+            self._Ebin_in_edge = np.array(np.logspace(0.5, 3.7, 301), dtype=np.float32)
         else:
             # Use the user defined incoming energy bins
             self._Ebin_in_edge = Ebin_edge_incoming

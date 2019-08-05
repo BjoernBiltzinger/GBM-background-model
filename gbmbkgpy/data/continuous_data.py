@@ -92,7 +92,6 @@ class Data(object):
                 self._bin_stop = np.delete(self._bin_stop, [i])
                 self._counts = np.delete(self._counts, [i], axis=0)
                 self._exposure=np.delete(self._exposure, [i])
-                print('Deleted empty time bin', i)
             else:
                 i+=1
                 

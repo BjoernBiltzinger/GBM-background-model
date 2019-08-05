@@ -4,14 +4,14 @@ import os
 
 
 def get_path_of_data_file(source_type, data_file):
-    file_path = pkg_resources.resource_filename("gbmbkgpy", 'data/{0}/{1}'.format(source_type, data_file))
+    file_path = pkg_resources.resource_filename("gbmbkgpy", 'data_files/{0}/{1}'.format(source_type, data_file))
 
     return file_path
 
 
 
 def get_path_of_data_dir():
-    file_path = pkg_resources.resource_filename("gbmbkgpy", 'data')
+    file_path = pkg_resources.resource_filename("gbmbkgpy", 'data_files')
 
     return file_path
 
