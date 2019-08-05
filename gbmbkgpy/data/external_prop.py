@@ -14,39 +14,33 @@ import csv
 
 class ExternalProps(object):
 
-    def __init__(self, day):
+    def __init__(self, day_list):
         """
         Build the external properties for a given day
         :param day: YYMMDD
         """
 
-        assert isinstance(day,str), 'Day must be a string'
-        assert len(day) == 6, 'Day must be in format YYMMDD'
+        assert len(day_list[0]) == 6, 'Day must be in format YYMMDD'
 
+        # Global list which weeks where already added to the lat data (to prevent double entries later)
+        self._weeks = np.array([])
 
+        for i, date in enumerate(day_list):
+            mc_l, mc_b, lat_time, lat_geo, lon_geo = self._one_day_build_lat_spacecraft(date)
+            if i==0:
+                self._mc_l = mc_l
+                self._mc_b = mc_b
+                self._lat_time = lat_time
+                self._lat_geo = lat_geo
+                self._lon_geo = lon_geo
+            else:
+                self._mc_l = np.append(self._mc_l, mc_l)
+                self._mc_b = np.append(self._mc_b, mc_b)
+                self._lat_time = np.append(self._lat_time, lat_time)
+                self._lat_geo = np.append(self._lat_geo, lat_geo)
+                self._lon_geo = np.append(self._lon_geo, lon_geo)
 
-        # compute all the quantities that are needed for making date calculations
-
-        self._day = day
-        self._year = '20%s'%day[:2]
-        self._month = day[2:-2]
-        self._dd = day[-2:]
-
-        day_at = astro_time.Time("%s-%s-%s" % (self._year, self._month, self._dd))
-
-        self._min_met = GBMTime(day_at).met
-
-        self._max_met = GBMTime(day_at + u.day).met
-
-        # now read external files which can be downloaded
-        # as needed
-
-        #self._build_flares()
-        #self._read_saa()
-        #self._build_point_sources()
-        self._build_lat_spacecraft()
-
-        # self._earth_occ()
+        self._mc_l_interp = interpolate.interp1d(self._lat_time, self._mc_l)
 
     def build_point_sources(self, rsp, geom):
         """
@@ -97,133 +91,12 @@ class ExternalProps(object):
     def lat_geo(self, met):
 
         return self._lat_geo_interp(met)
-    @property
-    def saa(self):
-        return self._saa_properties
-
-    @property
-    def flares(self):
-        return self._flares_properties[self._flare_idx]
-
-    @property
-    def earth_occ(self):
-        return self._earth_occ_properties
 
     @property
     def point_sources(self):
         return self._point_sources_dic
 
-    def _read_saa(self):
-        """
-        This function reads the saa.dat file and returns the polygon in the form: saa[lat][lon]\n
-        Input:\n
-        readfile.saa()\n
-        Output\n
-        0 = saa[latitude][longitude]\n
-        """
-
-        filepath = get_path_of_data_file('saa', 'saa.dat')
-
-        # context managers  allow for quick handling of files open/close
-        with open(filepath, 'r') as poly:
-            lines = poly.readlines()
-
-        saa_lat = []
-        saa_lon = []  # define latitude and longitude arrays
-        # write file data into the arrays
-        for line in lines:
-            p = line.split()
-            saa_lat.append(float(p[0]))
-            saa_lon.append(float(p[1]))  # (float(p[1]) + 360.)%360)
-        saa = np.array([saa_lat, saa_lon])  # merge the arrays
-
-        self._saa_properties = saa
-
-        del saa, saa_lat, saa_lon
-
-    def _earth_occ(self):
-        """This function reads the earth occultation fits file and stores the data in arrays of the form: earth_ang, angle_d, area_frac, free_area, occ_area.\n
-        Input:\n
-        readfile.earth_occ ( )\n
-        Output:\n
-        0 = angle between detector direction and the earth in 0.5 degree intervals\n
-        1 = opening angles of the detector (matrix)\n
-        2 = fraction of the occulted area to the FOV area of the detector (matrix)\n
-        3 = FOV area of the detector (matrix)\n
-        4 = occulted area (matrix)"""
-
-        # read the file
-        fitsname = 'earth_occ_calc_total_kt.fits'
-        fitsfilepath = get_path_of_data_file('earth_occulation', fitsname)
-
-        e_occ_fits = fits.open(fitsfilepath)
-        angle_d = []
-        area_frac = []
-        free_area = []
-        occ_area = []
-        earth_occ_dic = {}
-        for i in range(1, len(e_occ_fits)):
-            data = e_occ_fits[i].data
-            angle_d.append(data.angle_d)
-            area_frac.append(data.area_frac)
-            free_area.append(data.free_area)
-            occ_area.append(data.occ_area)
-        e_occ_fits.close()
-
-        # Store Values in diccionary
-        earth_occ_dic['angle_d'] = np.array(angle_d, dtype='f8')
-        earth_occ_dic['area_frac'] = np.array(area_frac, dtype='f8')
-        earth_occ_dic['free_area'] = np.array(free_area, dtype='f8')
-        earth_occ_dic['occ_area'] = np.array(occ_area, dtype='f8')
-        earth_occ_dic['earth_ang'] = np.arange(0, 180.5, .5)
-
-        self._earth_occ_properties = earth_occ_dic
-
-
-    def _build_flares(self):
-        """This function reads the YYYY.txt file containing the GOES solar flares of the corresponding year and returns the data in arrays of the form: day, time\n
-        Input:\n
-        year = YYYY\n
-        Output\n
-        0 = day ('YYMMDD')
-        1 = time[start][stop] (in seconds on that day -> accuracy ~ 1 minute)\n"""
-        filename =  '%s.dat' % self._year
-        filepath = get_path_of_data_file('flares', str(filename))
-
-        if not file_existing_and_readable(filepath):
-
-            download_flares(self._year)
-
-        with open(filepath, 'r') as flares:
-            lines = flares.readlines()
-
-        day = []  # define day, start & stop arrays
-        start = []
-        stop = []
-        flares_dic = {}
-        for line in lines:  # write file data into the arrays
-            p = line.split()
-            # print p[0]
-
-            day.append(p[0][5:])
-            start.append(int(p[1][0:2]) * 3600. + int(p[1][2:4]) * 60.)
-            stop.append(int(p[2][0:2]) * 3600. + int(p[2][2:4]) * 60.)
-
-        # create numpy arrays
-        flares_dic['day'] = np.array(map(str,day))  # array of days when solar flares occured
-        start = np.array(start)
-        stop = np.array(stop)
-        flares_dic['tstart'] = np.array(start)
-        flares_dic['tstop'] = np.array(stop)
-
-
-        self._flares_properties = pd.DataFrame(flares_dic)
-
-        self._flare_idx = self._flares_properties['day'] == self._day
-
-        del flares_dic, day, start, stop
-
-    def _build_lat_spacecraft(self):
+    def _one_day_build_lat_spacecraft(self, date):
         """This function reads a LAT-spacecraft file and stores the data in arrays of the form: lat_time, mc_b, mc_l.\n
         Input:\n
         readfile.lat_spacecraft ( week = WWW )\n
@@ -233,8 +106,15 @@ class ExternalProps(object):
         2 = mcilwain parameter L"""
 
         # read the file
+        year = '20%s' % date[:2]
+        month = date[2:-2]
+        dd = date[-2:]
 
-        day = astro_time.Time("%s-%s-%s" %(self._year, self._month, self._dd))
+        day = astro_time.Time("%s-%s-%s" %(year, month, dd))
+
+        min_met = GBMTime(day).met
+
+        max_met = GBMTime(day + u.day).met
 
         gbm_time = GBMTime(day)
 
@@ -256,7 +136,7 @@ class ExternalProps(object):
 
         with fits.open(filepath) as f:
             
-            if (f['PRIMARY'].header['TSTART'] >= self._min_met):
+            if (f['PRIMARY'].header['TSTART'] >= min_met):
                 
                 # we need to get week before
 
@@ -269,7 +149,7 @@ class ExternalProps(object):
                     download_lat_spacecraft(mission_week - 1)
 
 
-            if (f['PRIMARY'].header['TSTOP'] <= self._max_met):
+            if (f['PRIMARY'].header['TSTOP'] <= max_met):
 
                 # we need to get week after
 
@@ -283,17 +163,18 @@ class ExternalProps(object):
 
 
             # first lets get the primary file
-
-            lat_time = np.mean( np.vstack( (f['SC_DATA'].data['START'],f['SC_DATA'].data['STOP'])),axis=0)
-            mc_l = f['SC_DATA'].data['L_MCILWAIN']
-            mc_b = f['SC_DATA'].data['B_MCILWAIN']
-            lon_geo = f['SC_DATA'].data['LON_GEO']
-            lat_geo = f['SC_DATA'].data['LAT_GEO']
+            if mission_week not in self._weeks:
+                lat_time = np.mean( np.vstack( (f['SC_DATA'].data['START'],f['SC_DATA'].data['STOP'])), axis=0)
+                mc_l = f['SC_DATA'].data['L_MCILWAIN']
+                mc_b = f['SC_DATA'].data['B_MCILWAIN']
+                lon_geo = f['SC_DATA'].data['LON_GEO']
+                lat_geo = f['SC_DATA'].data['LAT_GEO']
+                self._weeks = np.append(self._weeks, mission_week)
             
         # if we need to append anything to make up for the
         # dates not being included in the files
         # do it here... thanks Fermi!
-        if week_before:
+        if week_before and (mission_week-1) not in self._weeks:
 
             with fits.open(before_filepath) as f:
 
@@ -308,7 +189,10 @@ class ExternalProps(object):
             lon_geo = np.append(lon_geo_before, lon_geo)
             lat_geo = np.append(lat_geo_before, lat_geo)
             lat_time = np.append(lat_time_before, lat_time)
-        if week_after:
+
+            self._weeks = np.append(self._weeks, mission_week-1)
+
+        if week_after and (mission_week+1) not in self._weeks:
 
             with fits.open(after_filepath) as f:
                 lat_time_after = np.mean(np.vstack((f['SC_DATA'].data['START'], f['SC_DATA'].data['STOP'])), axis=0)
@@ -321,25 +205,9 @@ class ExternalProps(object):
             lon_geo = np.append(lon_geo, lon_geo_after)
             lat_geo = np.append(lat_geo, lat_geo_after)
             lat_time = np.append(lat_time, lat_time_after)
+            self._weeks = np.append(self._weeks, mission_week + 1)
 
-        """
-        # save them
-        #TODO: do we need use the mean here?
-        self._mc_l = mc_l
-        self._mc_b = mc_b
-        self._mc_time = lat_time
-
-        # interpolate them
-
-        self._mc_b_interp = interpolate.interp1d(self._mc_time, self._mc_b)
-        self._mc_l_interp = interpolate.interp1d(self._mc_time, self._mc_l)
-        """
-        #remove the self-variables for memory saving
-        self._mc_b_interp = interpolate.interp1d(lat_time, mc_b)
-        self._mc_l_interp = interpolate.interp1d(lat_time, mc_l)
-        self._lon_geo_interp = interpolate.interp1d(lat_time, lon_geo)
-        self._lat_geo_interp = interpolate.interp1d(lat_time, lat_geo)
-        del mc_l, mc_b, lat_time, lat_geo, lon_geo
+        return mc_l, mc_b, lat_time, lat_geo, lon_geo
 
     def _build_point_sources(self):
         """This function reads the point_sources.dat file and returns the sources in the form: names, coordinates[ra][dec]\n
