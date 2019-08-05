@@ -145,7 +145,7 @@ class Geometry(object):
         return self._times_upper_bound_index
 
     @property
-    def times_upper_lower_index(self):
+    def times_lower_bound_index(self):
         """
         Returns the lower time bound of the geometries calculated by this rank
         """

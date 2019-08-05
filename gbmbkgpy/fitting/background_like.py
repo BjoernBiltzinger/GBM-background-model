@@ -1,5 +1,5 @@
 import numpy as np
-from gbmbkgpy.utils.continuous_data import ContinuousData
+from gbmbkgpy.data.continuous_data import Data
 from gbmbkgpy.modeling.model import Model
 from gbmbkgpy.utils.statistics.stats_tools import Significance
 from gbmbkgpy.io.plotting.data_residual_plot import ResidualPlot
@@ -19,7 +19,7 @@ NO_REBIN = 1E-99
 
 class BackgroundLike(object):
 
-    def __init__(self, data, model, echan_list):
+    def __init__(self, data, model, saa_object, echan_list):
         """
         Init backgroundlike that compares the data with the model
         :param data:
@@ -43,7 +43,7 @@ class BackgroundLike(object):
         self._total_time_bin_widths = np.diff(self._total_time_bins, axis=1)[:, 0]
 
         # Get the SAA and GRB mask:
-        self._saa_mask = self._data.saa_mask[2:-2]
+        self._saa_mask = saa_object.saa_mask[2:-2]
         self._grb_mask = np.ones(len(self._total_time_bins), dtype=bool)  # np.full(len(self._total_time_bins), True)
         # An entry in the total mask is False when one of the two masks is False
         self._total_mask = ~ np.logical_xor(self._saa_mask, self._grb_mask)

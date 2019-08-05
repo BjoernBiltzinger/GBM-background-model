@@ -12,6 +12,8 @@ from gbmbkgpy.io.downloading import download_files
 from gbmbkgpy.minimizer.multinest_minimizer import MultiNestFit
 from gbmbkgpy.io.plotting.plot import Plotter
 from gbmbkgpy.modeling.setup_sources import Setup
+from gbmbkgpy.modeling.albedo_cgb import Albedo_CGB_fixed, Albedo_CGB_free
+
 
 import numpy as np
 
@@ -26,6 +28,16 @@ size = comm.Get_size()
 
 start = datetime.now()  
 
+
+def print_progress(text):
+    """
+    Helper function that prints the input text only with rank 0
+    """
+    if rank==0:
+        print(text)
+
+
+        
 ####################### Setup parameters ###############################
 date='160310'
 grb_name='GRB 160310A'
@@ -35,24 +47,25 @@ data_type = 'ctime'
 
 ############################# Data ######################################
 
-
 #download files with rank=0; all other ranks have to wait!
+print_progress('Download data...')
 if rank==0:
     download_files(data_type, detector, date)
     wait=True
 else:
     wait=None
 wait = comm.bcast(wait, root=0)
-
+print_progress('Done')
 # Create the data object for the wanted day and detector
 
+print_progress('Prepare data...')
 data = Data(date, detector, data_type)
-print('Done with Data preparation')
+print_progress('Done')
 
 # Create external properties object (for McIlwain L-parameter)
-
+print_progress('Download and prepare external properties...')
 ep = ExternalProps(date)
-print('Done with ExternalProps Precalculation')
+print_progress('Done')
 
 ############################# Model ########################################
 
@@ -60,9 +73,10 @@ print('Done with ExternalProps Precalculation')
 
 # Create a Response precalculation object, that precalculates the responses on a spherical grid arount the detector.
 # These calculations use the full DRM's and thus include sat. scattering and partial loss of energy by the photons.
-
-resp = Response_Precalculation(detector,date, Ngrid=40000, data_type=data_type)
-print('Done with Rate_Gernerator Precalculation')
+Ngrid = 40000
+print_progress('Precalculate responses for {} points on sphere around detector...'.format(Ngrid))
+resp = Response_Precalculation(detector,date, Ngrid=Ngrid, data_type=data_type)
+print_progress('Done')
 
 ################## SAA precalculation ######################
 
@@ -76,9 +90,12 @@ short_time_intervals = False
 ################################
 
 # Build the SAA object
-
+if not use_SAA:
+    print_progress('Precalculate SAA times and SAA mask. {} seconds after every SAA are excluded from fit...')
+else:
+    print_progress('Precalculate SAA times and SAA mask...')
 saa_calc = SAA_calc(data, use_SAA=use_SAA, time_after_SAA=time_after_SAA, short_time_intervals=short_time_intervals)
-
+print_progress('Done')
 
 ################### Geometry precalculation ##################
 
@@ -87,8 +104,9 @@ saa_calc = SAA_calc(data, use_SAA=use_SAA, time_after_SAA=time_after_SAA, short_
 # For how many times during the day do you want to calculate the geometry? In between a linear interpolation is used.
 n_bins_to_calculate=800
 ###################################
-
+print_progress('Precalculate geometry for {} times during the day...'.format(n_bins_to_calculate))
 geom = Geometry(data, detector, date, n_bins_to_calculate)
+print_progress('Done')
 
 ##################### Setup Sources ##########################
 
@@ -96,7 +114,7 @@ geom = Geometry(data, detector, date, n_bins_to_calculate)
 
 ########## Setup options ###########
 # List with all echans you want to use
-echan_list = [2] #has to be  List! One entry is also possible
+echan_list = [2,3,4] #has to be  List! One entry is also possible
 
 # Use CosmicRay source?
 use_CR= True
@@ -107,20 +125,27 @@ use_CGB=True
 # Which PS should be included (given as list of names)
 ps_list = ['CRAB']
 # Fix the spectrum of the earth albedo?
-fix_earth = False
+fix_earth = True
 # Fix the spectrum of the CGB?
-fix_cgb = False
-####################################
+fix_cgb = True
+###########Albedo-CGB Object###########
+if fix_earth:
+    albedo_cgb_obj = Albedo_CGB_fixed(resp, geom)
+else:
+    albedo_cgb_obj = Albedo_CGB_free(resp, geom)
 
-source_list = Setup(data, saa_calc, echan_list=echan_list, response_object=resp, albedo_cgb_object=albedo_cgb_obj,
+print_progress('Create Source list...')
+
+source_list = Setup(data, saa_calc, ep, geom, echan_list=echan_list, response_object=resp, albedo_cgb_object=albedo_cgb_obj,
                     use_SAA=use_SAA, use_CR=use_CR, use_Earth=use_Earth, use_CGB=use_CGB, point_source_list=ps_list,
                     fix_Earth=fix_earth, fix_CGB=fix_cgb)
 
-print('Done with Source Precalculation - Model is ready')
+print_progress('Done')
 
 ###################### Setup Model #############################
-
+print_progress('Build model with source_list...')
 model = Model(*source_list)
+print_progress('Done')
 
 
 ##################### Prior bounds #############################
@@ -173,7 +198,9 @@ model.set_parameter_bounds(parameter_bounds)
 ################################## Backgroundlike Class #################################
 
 # Class that calcualtes the likelihood
-background_like = BackgroundLike(data, model, echan_list)
+print_progress('Create BackgroundLike class that conects model and data...')
+background_like = BackgroundLike(data, model, saa_calc, echan_list)
+print_progress('Done')
 
 ################################## Fitting ###############################################
 
@@ -227,20 +254,23 @@ ppc = True
 
 # Plot Results with rank 0
 
-if rank == 0:
 
-    # Create Plotter object that creates the plots
-    plotter = Plotter(data, model, echan_list)
+print_progress('Create Plotter object...')
+# Create Plotter object that creates the plots
+plotter = Plotter(data, model, saa_calc, echan_list)
+print_progress('Done')
 
-    # Create one plot for every echan and save it
-    for echan in echan_list:
-        residual_plot = plotter.display_model(echan, min_bin_width=bin_width, show_residuals=show_residuals,
+# Create one plot for every echan and save it
+for echan in echan_list:
+    print_progress('Create Plots for echan {} ...'.format(echan))
+    residual_plot = plotter.display_model(echan, min_bin_width=bin_width, show_residuals=show_residuals,
                                               show_data=show_data, plot_sources=plot_sources,
                                               show_grb_trigger=show_grb_trigger, change_time=change_time, ppc=ppc,
                                               result_dir=output_dir)
+    if rank==0:
         residual_plot.savefig(output_dir + 'residual_plot_{}_det_{}_echan_{}_bin_width_{}.pdf'.format(
             date, detector, echan, bin_width), dpi=300)
-
-    # Print the duration of the script
-    print('Whole calculation took: {}'.format(datetime.now() - start))
+    print_progress('Done')
+# Print the duration of the script
+print('Whole calculation took: {}'.format(datetime.now() - start))
 

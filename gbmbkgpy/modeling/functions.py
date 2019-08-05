@@ -1,4 +1,4 @@
-from gbmbkgpy.modeling.function import Function, ContinuumFunction, PointSourceFunction, GlobalFunction, GlobalFunctionEarth, GlobalFunctionSpectrumFit
+from gbmbkgpy.modeling.function import Function, ContinuumFunction, GlobalFunction, GlobalFunctionSpectrumFit
 from gbmbkgpy.modeling.parameter import Parameter
 import numpy as np
 import numexpr as ne

@@ -6,7 +6,7 @@ from gbmbkgpy.modeling.functions import (SAA_Decay,Magnetic_Continuum, Cosmic_Ga
                                          Earth_Albedo_Continuum_Fit_Spectrum, Cosmic_Gamma_Ray_Background_Fit_Spectrum)
 
 import numpy as np
-import scipy.interpolate as interpolate
+from scipy import interpolate
 
 
     # see if we have mpi and/or are upalsing parallel                                                                                                                                                                                                                          
@@ -50,7 +50,7 @@ def Setup(cd, saa_object, ep, geom_object,echan_list=[],response_object=None, al
     :return:
     """
 
-    assert len(echan_list)>1, 'Please give at least one echan'
+    assert len(echan_list)>0, 'Please give at least one echan'
 
     assert max(echan_list)<len(cd.ebins) and min(echan_list)>0, 'Please onyl use valid ebin numbers ' \
                                                                 'between 0 and {}'.format(len(cd.ebins))
@@ -92,7 +92,15 @@ def Setup(cd, saa_object, ep, geom_object,echan_list=[],response_object=None, al
         else:
             total_sources.append(setup_cgb_free(cd, albedo_cgb_object, saa_object))
 
-    return total_sources
+    # flatten the source list
+    total_sources_f = []
+    for x in total_sources:
+        if type(x)==list:
+            for y in x:
+                total_sources_f.append(y)
+        else:
+            total_sources_f.append(x)
+    return total_sources_f
 
 
 def setup_SAA(cd , echan):
@@ -131,7 +139,7 @@ def setup_CosmicRays(cd, ep, saa_object, echan):
     """
     
     Constant = offset(str(echan))
-    Constant.set_function_array(cd.cgb_background(cd.time_bins[2:-2]))
+    Constant.set_function_array(np.ones_like(cd.time_bins[2:-2]))
     Constant.set_saa_zero(saa_object.saa_mask[2:-2])
     # precalculate the integration over the time bins
     Constant.integrate_array(cd.time_bins[2:-2])
@@ -169,8 +177,8 @@ def setup_ps(cd, ep, saa_object, response_object, geom_object, include_point_sou
 
         for i, ps in enumerate(ep.point_sources.itervalues()):
             PS_Continuum_dic['{}'.format(ps.name)] = Point_Source_Continuum(str(i))
-            rate_inter = interpolate.inter1d(ps.geometry_times, ps.ps_rate_array)
-            PS_Continuum_dic['{}'.format(ps.name)].set_function_array(rate_inter(cd.time_bins[2-2]))
+            rate_inter = interpolate.interp1d(ps.geometry_times, ps.ps_rate_array.T)
+            PS_Continuum_dic['{}'.format(ps.name)].set_function_array(rate_inter(cd.time_bins[2:-2]))
             PS_Continuum_dic['{}'.format(ps.name)].set_saa_zero(saa_object.saa_mask[2:-2])
             PS_Continuum_dic['{}'.format(ps.name)].integrate_array(cd.time_bins[2:-2])
 
@@ -180,7 +188,8 @@ def setup_ps(cd, ep, saa_object, response_object, geom_object, include_point_sou
         PS_Continuum_dic = {}
         for i, ps in enumerate(ep.point_sources.itervalues()):
             PS_Continuum_dic['{}'.format(ps.name)] = Point_Source_Continuum(str(i))
-            PS_Continuum_dic['{}'.format(ps.name)].set_function_array(ps.ps_rate_array(cd.time_bins[2:-2]))
+            rate_inter = interpolate.interp1d(ps.geometry_times, ps.ps_rate_array.T)
+            PS_Continuum_dic['{}'.format(ps.name)].set_function_array(rate_inter(cd.time_bins[2:-2]))
             PS_Continuum_dic['{}'.format(ps.name)].set_saa_zero(saa_object.saa_mask[2:-2])
 
             #precalculate the integration over the time bins
@@ -222,7 +231,7 @@ def setup_earth_fix(cd, albedo_cgb_object, saa_object):
     """
 
     earth_albedo = Earth_Albedo_Continuum()
-    rate_inter = interpolate.inter1d(albedo_cgb_object.geometry_times, albedo_cgb_object.earth_rate_array)
+    rate_inter = interpolate.interp1d(albedo_cgb_object.geometry_times, albedo_cgb_object.earth_rate_array.T)
 
     earth_albedo.set_function_array(rate_inter(cd.time_bins[2:-2]))
     earth_albedo.set_saa_zero(saa_object.saa_mask[2:-2])
@@ -262,7 +271,7 @@ def setup_cgb_fix(cd, albedo_cgb_object, saa_object):
     :return:
     """
     cgb = Cosmic_Gamma_Ray_Background()
-    rate_inter = interpolate.inter1d(albedo_cgb_object.geometry_times, albedo_cgb_object.cgb_rate_array)
+    rate_inter = interpolate.interp1d(albedo_cgb_object.geometry_times, albedo_cgb_object.cgb_rate_array.T)
 
     cgb.set_function_array(rate_inter(cd.time_bins[2:-2]))
     cgb.set_saa_zero(saa_object.saa_mask[2:-2])

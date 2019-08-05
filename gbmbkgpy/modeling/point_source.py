@@ -1,6 +1,7 @@
 import astropy.coordinates as coord
 import astropy.units as u
 from gbmgeometry.gbm_frame import GBMFrame
+from gbm_drm_gen.drmgen import DRMGen
 
 import numpy as np
 
@@ -46,7 +47,7 @@ class PointSrc(object):
         self._geom = geometry_object
 
         self._response_array()
-        self._rate_array()
+        self._rate_array(index=index)
 
     @property
     def name(self):
@@ -76,7 +77,12 @@ class PointSrc(object):
 
         return self._geom.time
 
-    def _rate_array(self, index): #add this, needs spectrum, diff spectrum and integrarte function
+    def _rate_array(self, index=2):
+        """
+        Calaculates the rate in all energy channels for all times for which the geometry was calculated.
+        Uses the responses calculated in _response_array.
+        :param index: Index of powerlaw
+        """
         true_flux_ps = self._integral_ps(self._rsp.Ebin_in_edge[:-1], self._rsp.Ebin_in_edge[1:], index)
         self._folded_flux_ps = np.dot(true_flux_ps, self._ps_response)
 
@@ -239,13 +245,9 @@ class PointSrc(object):
         :params index: Index of spectrum
         :return: flux in the Ebin_in
         """
-        return (e2 - e1) / 6.0 * (self._differential_flux_crab(e1, index) +
-                                  4 * self._differential_flux_crab((e1 + e2) / 2.0, index) +
-                                  self._differential_flux_crab(e2, index))    
-
-    def ps_rate_array(self, met):
-
-        return self._earth_rate_interpolator(met)
+        return (e2 - e1) / 6.0 * (self._differential_flux_ps(e1, index) +
+                                  4 * self._differential_flux_ps((e1 + e2) / 2.0, index) +
+                                  self._differential_flux_ps(e2, index))    
 
     def _calc_src_occ(self):
         """

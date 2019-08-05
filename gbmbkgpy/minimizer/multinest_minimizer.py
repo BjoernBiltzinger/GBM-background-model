@@ -199,7 +199,7 @@ class MultiNestFit(object):
     def output_directory(self):
         return self.output_dir
 
-    def minimize(self, loglike=None, prior=None, n_dim=None, n_live_points=400, const_efficiency_mode):
+    def minimize(self, loglike=None, prior=None, n_dim=None, n_live_points=400, const_efficiency_mode=False):
 
         if loglike is None:
             loglike = self._loglike

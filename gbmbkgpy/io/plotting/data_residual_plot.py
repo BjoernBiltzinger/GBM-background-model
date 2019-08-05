@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 import numpy as np
 from gbmbkgpy.utils.binner import Rebinner
+from gbmbkgpy.utils.progress_bar import progress_bar
 
 from gbmbkgpy.io.plotting.step_plots import step_plot
 #from threeML.config.config import config
@@ -275,7 +276,7 @@ class ResidualPlot(object):
                                          markersize=3,
                                          color=color)
 
-    def add_ppc(self, result_dir=None, model=None, background_like=None, time_bins=None, saa_mask=None, echan=None, q_levels=[0.68], colors=['lightgreen'], bin_width=1E-99, n_params = 1, time_ref=0):
+    def add_ppc(self, result_dir=None, model=None, plotter=None, time_bins=None, saa_mask=None, echan=None, q_levels=[0.68], colors=['lightgreen'], bin_width=1E-99, n_params = 1, time_ref=0):
         """
         Add ppc plot
         :param result_dir: path to result directory
@@ -302,26 +303,35 @@ class ResidualPlot(object):
         np.random.shuffle(a)
         a = a.astype(bool)
 
-        print(time_bins.shape)
-        print(saa_mask.shape)
-        print(np.diff(time_bins, axis=0).shape)
         # For these 300 random samples calculate the corresponding rates for all time bins
         #a with the parameters of this sample
         if using_mpi:
             points_per_rank = float(N_samples) / float(size)
             points_lower_index = int(np.floor(points_per_rank * rank))
             points_upper_index = int(np.floor(points_per_rank * (rank + 1)))
-            for i, sample in enumerate(analyzer.get_equal_weighted_posterior()[:,:-1][a][points_lower_index:points_upper_index]):
-                synth_data = background_like.get_synthetic_data(sample, model)
-                this_rebinner = Rebinner(synth_data.time_bins-time_ref, bin_width)
-                rebinned_time_bins = this_rebinner.time_rebinned
-                rebinned_counts = this_rebinner.rebin(synth_data.counts[:,echan])
-                rebinned_bin_length = np.diff(rebinned_time_bins, axis=1).T[0]
-                rates.append(rebinned_counts/rebinned_bin_length)
-                if rank==0:
-                    print(float(i)/(points_upper_index-points_lower_index))
+            if rank==0:
+                with progress_bar(len(analyzer.get_equal_weighted_posterior()[:,:-1][a][points_lower_index:points_upper_index]), title='Calculating PPC. This shows the progress of rank 0. All other should be about the same.') as p:
+
+                    for i, sample in enumerate(analyzer.get_equal_weighted_posterior()[:,:-1][a][points_lower_index:points_upper_index]):
+                        synth_data = plotter.get_synthetic_data(sample, model)
+                        this_rebinner = Rebinner(synth_data.time_bins-time_ref, bin_width)
+                        rebinned_time_bins = this_rebinner.time_rebinned
+                        rebinned_counts = this_rebinner.rebin(synth_data.counts[:,echan])
+                        rebinned_bin_length = np.diff(rebinned_time_bins, axis=1).T[0]
+                        rates.append(rebinned_counts/rebinned_bin_length)
+                        p.increase()
+                        
+            else:
+                for i, sample in enumerate(analyzer.get_equal_weighted_posterior()[:,:-1][a][points_lower_index:points_upper_index]):
+                    synth_data = plotter.get_synthetic_data(sample, model)
+                    this_rebinner = Rebinner(synth_data.time_bins-time_ref, bin_width)
+                    rebinned_time_bins = this_rebinner.time_rebinned
+                    rebinned_counts = this_rebinner.rebin(synth_data.counts[:,echan])
+                    rebinned_bin_length = np.diff(rebinned_time_bins, axis=1).T[0]
+                    rates.append(rebinned_counts/rebinned_bin_length)
+
+                
             rates = np.array(rates)
-            print(rates)
             rates_g = comm.gather(rates, root=0)
             if rank == 0:
                 rates_g = np.concatenate(rates_g)
@@ -333,7 +343,7 @@ class ResidualPlot(object):
                     self._data_axis.fill_between(np.mean(rebinned_time_bins,axis=1), low, high, color=colors[i], alpha=0.5) 
         else:
             for i, sample in enumerate(analyzer.get_equal_weighted_posterior()[:,:-1][a]):
-                synth_data = background_like.get_synthetic_data(sample, model)
+                synth_data = plotter.get_synthetic_data(sample, model)
                 this_rebinner = Rebinner(synth_data.time_bins-time_ref, bin_width)
                 rebinned_time_bins = this_rebinner.time_rebinned
                 rebinned_counts = this_rebinner.rebin(synth_data.counts[:,echan])
