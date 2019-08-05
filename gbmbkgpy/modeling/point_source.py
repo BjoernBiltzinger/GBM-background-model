@@ -111,11 +111,11 @@ class PointSrc(object):
             times_per_rank = float(num_times) / float(size)
             times_lower_bound_index = int(np.floor(rank * times_per_rank))
             times_upper_bound_index = int(np.floor((rank + 1) * times_per_rank))
-
             # Calcutate the GBMFrame for all the times for which the geomerty was calcutated
             GBMFrame_list = []
             if rank == 0:
-                with progress_bar(times_per_rank,
+                print(num_times)
+                with progress_bar(times_upper_bound_index-times_lower_bound_index,
                                   title='Calculating GBM frame for several times. '
                                         'This shows the progress of rank 0. All other should be about the same.') as p:
                     for i in range(times_lower_bound_index, times_upper_bound_index):
@@ -141,14 +141,18 @@ class PointSrc(object):
             if rank == 0:
                 with progress_bar(len(GBMFrame_list),
                                   title='Calculating PS position in sat frame for {}.This shows the progress of rank 0. All other should be about the same.'.format(self._name)) as p:
-                    ps_pos_sat = self._ps_skycoord.transform_to(GBMFrame_list[i])
-                    ps_pos_sat_objects.append(ps_pos_sat)
-                    az = ps_pos_sat.lon.deg
-                    zen = ps_pos_sat.lat.deg
-                    ps_pos_sat_list.append([np.cos(zen * (np.pi / 180)) * np.cos(az * (np.pi / 180)),
-                                            np.cos(zen * (np.pi / 180)) * np.sin(az * (np.pi / 180)),
-                                            np.sin(zen * (np.pi / 180))])
-                    p.increase()
+                    for i in range(0, len(GBMFrame_list)):
+                        ps_pos_sat = self._ps_skycoord.transform_to(GBMFrame_list[i])
+                        ps_pos_sat_objects.append(ps_pos_sat)
+                        az = ps_pos_sat.lon.deg
+                        zen = ps_pos_sat.lat.deg
+                        ps_pos_sat_list.append([np.cos(zen * (np.pi / 180)) *
+                                                np.cos(az * (np.pi / 180)),
+                                                np.cos(zen * (np.pi / 180)) *
+                                                np.sin(az * (np.pi / 180)),
+                                                np.sin(zen * (np.pi / 180))])
+                        p.increase()
+
             else:
                 for i in range(0, len(GBMFrame_list)):
                     ps_pos_sat = self._ps_skycoord.transform_to(GBMFrame_list[i])
@@ -204,14 +208,14 @@ class PointSrc(object):
             if rank == 0:
                 ps_response_g = np.concatenate(ps_response_g)
             ps_response = comm.bcast(ps_response_g, root=0)
-
+            print(ps_response.shape)
         # Singlecore calculation
         else:
             
             # Calcutate the GBMFrame for all these times
             GBMFrame_list = []
             if rank == 0:
-                with progress_bar(times_per_rank,
+                with progress_bar(len(self._geom.earth_zen),
                                   title='Calculating GBM frame for several times. '
                                         'This shows the progress of rank 0. All other should be about the same.') as p:
                     for i in range(0, len(quaternion)):

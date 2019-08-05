@@ -88,7 +88,7 @@ class Albedo_CGB_free(object):
             times_upper_bound_index = int(np.floor((rank + 1) * times_per_rank))
 
             if rank == 0:
-                with progress_bar(times_per_rank,
+                with progress_bar(times_upper_bound_index-times_lower_bound_index,
                                   title='Calculating earth position in sat frame for several times. '
                                         'This shows the progress of rank 0. All other should be about the same.') as p:
                     for i in range(times_lower_bound_index, times_upper_bound_index):
@@ -293,7 +293,7 @@ class Albedo_CGB_fixed(object):
             times_upper_bound_index = int(np.floor((rank + 1) * times_per_rank))
 
             if rank == 0:
-                with progress_bar(num_times,
+                with progress_bar(times_upper_bound_index-times_lower_bound_index,
                                   title='Calculating earth position in sat frame for several times. '
                                         'This shows the progress of rank 0. All other should be about the same.') as p:
                     for i in range(times_lower_bound_index, times_upper_bound_index):
@@ -313,7 +313,7 @@ class Albedo_CGB_fixed(object):
                                   * np.sin(self._geom.earth_az[i]* (np.pi / 180)),
                                   np.sin(self._geom.earth_zen[i] * (np.pi / 180))]))
             earth_pos_inter_times = np.array(earth_pos_inter_times)
-            
+            print(earth_pos_inter_times)
             # Define the opening angle of the earth in degree
             opening_angle_earth = 67
 

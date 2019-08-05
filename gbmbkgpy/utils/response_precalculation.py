@@ -42,7 +42,7 @@ class Response_Precalculation(object):
         """
         
         assert det in valid_det_names, 'Invalid det name. Must be one of these {} but is {}.'.format(valid_det_names, det)
-        assert type(day)==str and len(day)==6, 'Day must be a string of the format YYMMDD, but is {}'.format(day)
+        assert type(day[0])==str and len(day[0])==6, 'Day must be a string of the format YYMMDD, but is {}'.format(day)
         assert type(Ngrid) == int, 'Ngrid has to be an integer, but is a {}.'.format(type(Ngrid))
         if Ebin_edge_incoming!=None:
             assert type(Ebin_edge_incoming)==np.ndarray, 'Invalid type for mean_time. Must be an array but is {}.'.format(type(Ebin_edge_incoming))
@@ -63,8 +63,8 @@ class Response_Precalculation(object):
             self._Ebin_in_edge = Ebin_edge_incoming
             
         # Read in the datafile to get the energy boundaries
-        datafile_name = 'glg_{0}_{1}_{2}_v00.pha'.format(data_type, det, day)
-        datafile_path = os.path.join(get_path_of_external_data_dir(), data_type, day, datafile_name)
+        datafile_name = 'glg_{0}_{1}_{2}_v00.pha'.format(data_type, det, day[0])
+        datafile_path = os.path.join(get_path_of_external_data_dir(), data_type, day[0], datafile_name)
         with fits.open(datafile_path) as f:
             edge_start = f['EBOUNDS'].data['E_MIN']
             edge_stop = f['EBOUNDS'].data['E_MAX']

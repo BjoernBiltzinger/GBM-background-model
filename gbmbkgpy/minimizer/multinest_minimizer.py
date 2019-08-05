@@ -38,7 +38,10 @@ class MultiNestFit(object):
 
         self._likelihood = likelihood
 
-        self._day = self._likelihood._data._day
+        self._day_list = self._likelihood._data.day
+        self._day = ''
+        for d in self._day_list:
+            self._day = 'test_2days' #TODO change this; set maximum characters for multinestpath higher
         self._det = self._likelihood._data._det
         
         self._echan_list = self._likelihood._echan_list
