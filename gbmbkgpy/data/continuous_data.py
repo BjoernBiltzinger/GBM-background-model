@@ -41,8 +41,133 @@ class Data(object):
         """
         self._data_type = data_type
         self._det = detector
-        self._day = date
+        self._day_list = date
 
+        self._build_arrays()
+
+    @property
+    def counts(self):
+        """
+        Returns the count information of all time bins
+        :return:
+        """
+        return self._counts
+
+    @property
+    def time_bins(self):
+        """
+        Returns the time bin information of all time bins
+        :return:
+        """
+        return self._time_bins
+
+    @property
+    def day_start_times(self):
+        """
+        Returns the start time of the day
+        :return:
+        """
+        return self._day_start_times
+
+    @property
+    def day_stop_times(self):
+        """
+        Returns the stop time of the day
+        :return:
+        """
+        return self._day_stop_times
+
+    @property
+    def day_met(self):
+        """
+        Returns array with the day_met of all used days
+        :return:
+        """
+        return self._day_met
+
+    @property
+    def following_day(self):
+        """
+        Returns array which gives which of the days are following days (len(self._following_day)=num_days-1)
+        :return:
+        """
+        return self._following_day
+
+    @property
+    def day(self):
+        """
+        Returns day_list
+        :return:
+        """
+        return self._day_list
+
+    @property
+    def data_type(self):
+        """
+        Returns used data_type
+        :return:
+        """
+        return self._data_type
+
+    @property
+    def detector_id(self):
+        """
+        Returns detector number
+        :return:
+        """
+        return self._det[-1]
+
+    @property
+    def mean_time(self):
+        """
+        Returns mean time of the time bins
+        :return:
+        """
+        return np.mean(self.time_bins, axis=1)
+
+    def _build_arrays(self):
+        """
+        Iterates over all wanted days and adds the count and time bin information in one big array
+        :return:
+        """
+        following_day = np.array([])
+        for i, day in enumerate(self._day_list):
+            counts, time_bins, day_met = self._one_day_data(day)
+            if i == 0:
+                count_array = counts
+                time_bins_array = time_bins
+                day_met_array = np.array([day_met])
+                day_start_times = time_bins[0, 0]
+                day_stop_times = time_bins[-1, 1]
+            else:
+                j = 0
+                for j in range(len(counts)):
+                    if time_bins_array[j, 0] >= time_bins[-1, 1]:
+                        if time_bins_array[j, 0] < time_bins[-1, 1]+1000:
+                            following_day = np.append(following_day, True)
+                        else:
+                            following_day = np.append(following_day, False)
+                        break
+
+                count_array = np.append(count_array, counts[j:], axis=0)
+                time_bins = np.append(time_bins, time_bins[j:], axis=0)
+                day_start_times = np.append(day_start_times, time_bins[j, 0], axis=0)
+                day_stop_times = np.append(day_stop_times, time_bins[-1, 1], axis=0)
+                day_met_array = np.append(day_met_array, day_met)
+
+        self._counts = count_array
+        self._time_bins = time_bins
+        self._day_start_times = day_start_times
+        self._day_stop_times = day_stop_times
+        self._day_met = day_met
+        self._following_day = following_day
+
+    def _one_day_data(self, day):
+        """
+        Prepares the data for one day
+        :param day:
+        :return:
+        """
         # Download data-file and poshist file if not existing:
         datafile_name = 'glg_{0}_{1}_{2}_v00.pha'.format(self._data_type, self._det, self._day)
         datafile_path = os.path.join(get_path_of_external_data_dir(), self._data_type, self._day, datafile_name)
@@ -54,17 +179,17 @@ class Data(object):
         if using_mpi:
             if rank==0:
                 if not file_existing_and_readable(datafile_path):
-                    download_data_file(self._day, self._data_type, self._det)
+                    download_data_file(day, self._data_type, self._det)
 
                 if not file_existing_and_readable(poshistfile_path):
-                    download_data_file(self._day, 'poshist')
+                    download_data_file(day, 'poshist')
             comm.Barrier()
         else:
             if not file_existing_and_readable(datafile_path):
-                download_data_file(self._day, self._data_type, self._det)
+                download_data_file(day, self._data_type, self._det)
 
             if not file_existing_and_readable(poshistfile_path):
-                download_data_file(self._day, 'poshist')
+                download_data_file(day, 'poshist')
 
         # Save poshistfile_path for later usage
         self._pos_hist = poshistfile_path
@@ -72,26 +197,18 @@ class Data(object):
 
         # Open the datafile of the CTIME/CSPEC data and read in all needed quantities
         with fits.open(datafile_path) as f:
-            self._counts = f['SPECTRUM'].data['COUNTS']
-            self._bin_start = f['SPECTRUM'].data['TIME']
-            self._bin_stop = f['SPECTRUM'].data['ENDTIME']
-
-            self._exposure = f['SPECTRUM'].data['EXPOSURE']
-
-            self._ebins_start = f['EBOUNDS'].data['E_MIN']
-            self._ebins_stop = f['EBOUNDS'].data['E_MAX']
-            
-        self._ebins_size = self._ebins_stop - self._ebins_start
+            counts = f['SPECTRUM'].data['COUNTS']
+            bin_start = f['SPECTRUM'].data['TIME']
+            bin_stop = f['SPECTRUM'].data['ENDTIME']
 
         # Sometimes there are corrupt time bins where the time bin start = time bin stop
         # So we have to delete these times bins
         i = 0
-        while i < len(self._bin_start):
-            if self._bin_start[i] == self._bin_stop[i]:
-                self._bin_start = np.delete(self._bin_start, [i])
-                self._bin_stop = np.delete(self._bin_stop, [i])
-                self._counts = np.delete(self._counts, [i], axis=0)
-                self._exposure=np.delete(self._exposure, [i])
+        while i < len(bin_start):
+            if bin_start[i] == bin_stop[i]:
+                bin_start = np.delete(bin_start, [i])
+                bin_stop = np.delete(bin_stop, [i])
+                counts = np.delete(counts, [i], axis=0)
             else:
                 i+=1
                 
@@ -107,12 +224,11 @@ class Data(object):
         # check for all time bins if they are outside of this interval
         i=0
         counter=0
-        while i<len(self._bin_start):
-            if self._bin_start[i]<min_time_pos or self._bin_stop[i]>max_time_pos:
-                self._bin_start = np.delete(self._bin_start, i)
-                self._bin_stop = np.delete(self._bin_stop, i)
-                self._counts = np.delete(self._counts, i, 0)
-                self._exposure = np.delete(self._exposure, i)
+        while i<len(bin_start):
+            if bin_start[i]<min_time_pos or bin_stop[i]>max_time_pos:
+                bin_start = np.delete(bin_start, i)
+                bin_stop = np.delete(bin_stop, i)
+                counts = np.delete(counts, i, 0)
                 counter+=1
             else:
                 i+=1
@@ -122,85 +238,16 @@ class Data(object):
             print(str(counter) + ' time bins had to been deleted because they were outside of the time interval covered'
                                  'by the poshist file...')
 
-        # Calculate and save some important quantities
-        self._n_entries = len(self._bin_start)
-        self._counts_combined = np.sum(self._counts, axis=1)
-        self._counts_combined_mean = np.mean(self._counts_combined)
-        self._counts_combined_rate = self._counts_combined / self.time_bin_length
-        self._n_time_bins, self._n_channels = self._counts.shape
-
         # Calculate the MET time for the day
-        day = self._day
+        day = day
         year = '20%s' % day[:2]
         month = day[2:-2]
         dd = day[-2:]
         day_at = astro_time.Time("%s-%s-%s" % (year, month, dd))
-        self._day_met = GBMTime(day_at).met
-        
-    @property
-    def day(self):
-        return self._day
+        day_met = GBMTime(day_at).met
 
-    @property
-    def data_type(self):
-        return self._data_type
+        # Get time bins
+        time_bins = np.vstack((bin_start, bin_stop)).T
 
-    @property
-    def ebins(self):
-        return np.vstack((self._ebins_start, self._ebins_stop)).T
-
-    @property
-    def detector_id(self):
-
-        return self._det[-1]
-
-    @property
-    def n_channels(self):
-
-        return self._n_channels
-
-    @property
-    def n_time_bins(self):
-
-        return self._n_time_bins
-
-    @property
-    def rates(self):
-        return self._counts / self._exposure.reshape((self._n_entries, 1))
-
-    @property
-    def counts(self):
-        return self._counts
-
-    @property
-    def counts_combined(self):
-        return self._counts_combined
-
-    @property
-    def counts_combined_rate(self):
-        return self._counts_combined_rate
-
-    @property
-    def exposure(self):
-        return self._exposure
-
-    @property
-    def time_bin_start(self):
-        return self._bin_start
-
-    @property
-    def time_bin_stop(self):
-        return self._bin_stop
-
-    @property
-    def time_bins(self):
-        return np.vstack((self._bin_start, self._bin_stop)).T
-
-    @property
-    def time_bin_length(self):
-        return self._bin_stop - self._bin_start
-
-    @property
-    def mean_time(self):
-        return np.mean(self.time_bins, axis=1)
+        return counts, time_bins, day_met
 
