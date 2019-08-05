@@ -31,13 +31,11 @@ class SAA_calc(object):
         :params short_time_intervals: Should short time intervals (<1000 sec.) be used in the analysis?
         """
         
-        assert type(bins_to_add)==int, 'bins_to_add gives the number of time_bins to add before and after the SAA. It must therefore be an int but it is {}.'.format(type(bins_to_add))
-        assert type(data_object.time_bins)==np.ndarray, 'Invalid type for time_bins. Must be an array but is {}.'.format(type(data_object.time_bins))
-        assert type(use_SAA)==bool, 'use_SAA must be a bool but is {}'.format(use_SAA)
-        assert type(time_after_SAA)==int, 'time_after_SAA must be a int but is a {}'.format(type(time_after_SAA))
-        assert type(short_time_intervals)==bool, 'short_time_intervals must be a bool but is {}'.format(short_time_intervals)
-        
-        
+        assert type(bins_to_add) == int, 'bins_to_add gives the number of time_bins to add before and after the SAA. It must therefore be an int but it is {}.'.format(type(bins_to_add))
+        assert type(data_object.time_bins) == np.ndarray, 'Invalid type for time_bins. Must be an array but is {}.'.format(type(data_object.time_bins))
+        assert type(use_SAA) == bool, 'use_SAA must be a bool but is {}'.format(use_SAA)
+        assert type(time_after_SAA) == int, 'time_after_SAA must be a int but is a {}'.format(type(time_after_SAA))
+        assert type(short_time_intervals) == bool, 'short_time_intervals must be a bool but is {}'.format(short_time_intervals)
 
         self._time_bins = data_object.time_bins
         self._build_masks(bins_to_add, use_SAA, time_after_SAA, short_time_intervals)
@@ -72,7 +70,7 @@ class SAA_calc(object):
 
         # Calculate the time jump between two successive time bins. During the SAAs no data is recorded.
         # This leads to a time jump between two successive time bins before and after the SAA.
-        jump = self._time_bins[1:,0]-self._time_bins[:-1,1]
+        jump = self._time_bins[1:, 0]-self._time_bins[:-1, 1]
 
         # Get mask for which the jump is > 1 second
         jump_large = jump>1
@@ -94,7 +92,7 @@ class SAA_calc(object):
             slice_idx[:, 1][np.where(slice_idx[:, 1] <= len(self._time_bins) - 1 - bins_to_add)] + bins_to_add
         
         # Find the times of the exits
-        if slice_idx[-1 , 1] == len(self._time_bins) - 1:
+        if slice_idx[-1, 1] == len(self._time_bins) - 1:
             # the last exit is just the end of the array
             saa_exit_idx = slice_idx[:-1, 1]
         else:
@@ -117,8 +115,8 @@ class SAA_calc(object):
                 j += 1
             self._saa_mask[0:j] = False
 
-            # Do the same for every SAA exit. We have to be carefull tonot cause an error when the time
-            # after a SAA is less than 500 seconds
+            # Do the same for every SAA exit. We have to be careful to not cause an error when the time
+            # after a SAA is less than time_after_SAA seconds
             for i in range(len(slice_idx)):
                 
                 if self._time_bins[:,0][slice_idx[i, 1]] + time_after_SAA > self._time_bins[-1,0]:
