@@ -128,7 +128,15 @@ class ExternalProps(object):
 
             download_lat_spacecraft(mission_week)
 
+        # Init all arrays as empty arrays
 
+        lat_time = np.array([])
+        mc_l = np.array([]) 
+        mc_b = np.array([]) 
+        lon_geo = np.array([]) 
+        lat_geo = np.array([]) 
+
+        
         # lets check that this file has the right info
 
         week_before = False
@@ -161,7 +169,6 @@ class ExternalProps(object):
                 if not file_existing_and_readable( after_filepath):
                     download_lat_spacecraft(mission_week + 1)
 
-
             # first lets get the primary file
             if mission_week not in self._weeks:
                 lat_time = np.mean( np.vstack( (f['SC_DATA'].data['START'],f['SC_DATA'].data['STOP'])), axis=0)
@@ -169,8 +176,8 @@ class ExternalProps(object):
                 mc_b = f['SC_DATA'].data['B_MCILWAIN']
                 lon_geo = f['SC_DATA'].data['LON_GEO']
                 lat_geo = f['SC_DATA'].data['LAT_GEO']
+                
                 self._weeks = np.append(self._weeks, mission_week)
-            
         # if we need to append anything to make up for the
         # dates not being included in the files
         # do it here... thanks Fermi!

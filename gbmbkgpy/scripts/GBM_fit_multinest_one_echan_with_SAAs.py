@@ -39,18 +39,19 @@ def print_progress(text):
 
         
 ####################### Setup parameters ###############################
-date='160310'
+date=['160310','160311','160312']
 grb_name='GRB 160310A'
 trigger_time='18:42:00.000'
 detector = 'nb'
-data_type = 'ctime'
+data_type = 'cspec'
 
 ############################# Data ######################################
 
 #download files with rank=0; all other ranks have to wait!
 print_progress('Download data...')
 if rank==0:
-    download_files(data_type, detector, date)
+    for d in date:
+        download_files(data_type, detector, d)
     wait=True
 else:
     wait=None
@@ -73,7 +74,7 @@ print_progress('Done')
 
 # Create a Response precalculation object, that precalculates the responses on a spherical grid arount the detector.
 # These calculations use the full DRM's and thus include sat. scattering and partial loss of energy by the photons.
-Ngrid = 40000
+Ngrid = 5000
 print_progress('Precalculate responses for {} points on sphere around detector...'.format(Ngrid))
 resp = Response_Precalculation(detector,date, Ngrid=Ngrid, data_type=data_type)
 print_progress('Done')
@@ -114,7 +115,7 @@ print_progress('Done')
 
 ########## Setup options ###########
 # List with all echans you want to use
-echan_list = [2,3,4] #has to be  List! One entry is also possible
+echan_list = [2,12,22,32,42,52,62,72,82,92] #has to be  List! One entry is also possible
 
 # Use CosmicRay source?
 use_CR= True
@@ -125,9 +126,9 @@ use_CGB=True
 # Which PS should be included (given as list of names)
 ps_list = ['CRAB']
 # Fix the spectrum of the earth albedo?
-fix_earth = True
+fix_earth = False
 # Fix the spectrum of the CGB?
-fix_cgb = True
+fix_cgb = False
 ###########Albedo-CGB Object###########
 if fix_earth:
     albedo_cgb_obj = Albedo_CGB_fixed(resp, geom)

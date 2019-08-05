@@ -41,7 +41,7 @@ class Data(object):
         """
         self._data_type = data_type
         self._det = detector
-        self._day_list = date
+        self._day_list = map(str, sorted(map(int, date)))
 
         self._build_arrays()
 
@@ -123,7 +123,7 @@ class Data(object):
         Returns mean time of the time bins
         :return:
         """
-        return np.mean(self.time_bins, axis=1)
+        return np.mean(self._time_bins, axis=1)
 
     def _build_arrays(self):
         """
@@ -137,12 +137,12 @@ class Data(object):
                 count_array = counts
                 time_bins_array = time_bins
                 day_met_array = np.array([day_met])
-                day_start_times = time_bins[0, 0]
-                day_stop_times = time_bins[-1, 1]
+                day_start_times = np.array(time_bins[0, 0])
+                day_stop_times = np.array(time_bins[-1, 1])
             else:
                 j = 0
                 for j in range(len(counts)):
-                    if time_bins_array[j, 0] >= time_bins[-1, 1]:
+                    if time_bins[j, 0] > time_bins_array[-1, 1]:
                         if time_bins_array[j, 0] < time_bins[-1, 1]+1000:
                             following_day = np.append(following_day, True)
                         else:
@@ -150,13 +150,12 @@ class Data(object):
                         break
 
                 count_array = np.append(count_array, counts[j:], axis=0)
-                time_bins = np.append(time_bins, time_bins[j:], axis=0)
-                day_start_times = np.append(day_start_times, time_bins[j, 0], axis=0)
-                day_stop_times = np.append(day_stop_times, time_bins[-1, 1], axis=0)
+                time_bins_array = np.append(time_bins_array, time_bins[j:], axis=0)
+                day_start_times = np.append(day_start_times, time_bins[j, 0])
+                day_stop_times = np.append(day_stop_times, time_bins[-1, 1])
                 day_met_array = np.append(day_met_array, day_met)
-
         self._counts = count_array
-        self._time_bins = time_bins
+        self._time_bins = time_bins_array
         self._day_start_times = day_start_times
         self._day_stop_times = day_stop_times
         self._day_met = day_met
@@ -169,10 +168,10 @@ class Data(object):
         :return:
         """
         # Download data-file and poshist file if not existing:
-        datafile_name = 'glg_{0}_{1}_{2}_v00.pha'.format(self._data_type, self._det, self._day)
-        datafile_path = os.path.join(get_path_of_external_data_dir(), self._data_type, self._day, datafile_name)
+        datafile_name = 'glg_{0}_{1}_{2}_v00.pha'.format(self._data_type, self._det, day)
+        datafile_path = os.path.join(get_path_of_external_data_dir(), self._data_type, day, datafile_name)
 
-        poshistfile_name = 'glg_{0}_all_{1}_v00.fit'.format('poshist', self._day)
+        poshistfile_name = 'glg_{0}_all_{1}_v00.fit'.format('poshist', day)
         poshistfile_path = os.path.join(get_path_of_external_data_dir(), 'poshist', poshistfile_name)
 
         # If MPI is used only one rank should download the data; the others wait
@@ -232,11 +231,6 @@ class Data(object):
                 counter+=1
             else:
                 i+=1
-
-        # Print how many time bins were deleted
-        if counter>0:
-            print(str(counter) + ' time bins had to been deleted because they were outside of the time interval covered'
-                                 'by the poshist file...')
 
         # Calculate the MET time for the day
         day = day

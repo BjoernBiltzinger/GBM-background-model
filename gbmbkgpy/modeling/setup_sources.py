@@ -52,8 +52,6 @@ def Setup(cd, saa_object, ep, geom_object,echan_list=[],response_object=None, al
 
     assert len(echan_list)>0, 'Please give at least one echan'
 
-    assert max(echan_list)<len(cd.ebins) and min(echan_list)>0, 'Please onyl use valid ebin numbers ' \
-                                                                'between 0 and {}'.format(len(cd.ebins))
     assert type(use_SAA)==bool and type(use_CR)==bool and type(use_Earth)==bool and type(use_CGB)==bool and \
            type(fix_Earth)==bool and type(fix_CGB)==bool and type(use_all_ps)==bool, 'Please only use True or False here.'
 
@@ -188,6 +186,11 @@ def setup_ps(cd, ep, saa_object, response_object, geom_object, include_point_sou
         PS_Continuum_dic = {}
         for i, ps in enumerate(ep.point_sources.itervalues()):
             PS_Continuum_dic['{}'.format(ps.name)] = Point_Source_Continuum(str(i))
+            if rank==0:
+                print(ps.geometry_times)
+                print(ps.ps_rate_array.T)
+                print(ps.geometry_times.shape)
+                print(ps.ps_rate_array.T.shape)
             rate_inter = interpolate.interp1d(ps.geometry_times, ps.ps_rate_array.T)
             PS_Continuum_dic['{}'.format(ps.name)].set_function_array(rate_inter(cd.time_bins[2:-2]))
             PS_Continuum_dic['{}'.format(ps.name)].set_saa_zero(saa_object.saa_mask[2:-2])
