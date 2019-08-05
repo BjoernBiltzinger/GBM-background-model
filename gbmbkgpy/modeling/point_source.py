@@ -2,6 +2,8 @@ import astropy.coordinates as coord
 import astropy.units as u
 from gbmgeometry.gbm_frame import GBMFrame
 from gbm_drm_gen.drmgen import DRMGen
+from gbmbkgpy.utils.progress_bar import progress_bar
+
 
 import numpy as np
 
@@ -105,35 +107,57 @@ class PointSrc(object):
         
         # Use Mpi when it is available
         if using_mpi:
-            # Need to add one to the upper index of the last rank because of the calculation
-            # of the Gemoetry for the last time bin
-            if rank == size-1:
-                upper_index = self._geom.times_upper_bound_index + 1
-            else:
-                upper_index = self._geom.times_upper_bound_index
+            num_times = len(self._geom.earth_zen)
+            times_per_rank = float(num_times) / float(size)
+            times_lower_bound_index = int(np.floor(rank * times_per_rank))
+            times_upper_bound_index = int(np.floor((rank + 1) * times_per_rank))
 
-            lower_index = self._geom.times_lower_bound_index
             # Calcutate the GBMFrame for all the times for which the geomerty was calcutated
             GBMFrame_list = []
-            for i in range(lower_index, upper_index):
-                q1, q2, q3, q4 = quaternion[i]
-                scx, scy, scz = sc_pos[i]
-                GBMFrame_list.append(GBMFrame(quaternion_1=q1, quaternion_2=q2, quaternion_3=q3,
-                                              quaternion_4=q4, sc_pos_X=scx, sc_pos_Y=scy,
-                                              sc_pos_Z=scz))
+            if rank == 0:
+                with progress_bar(times_per_rank,
+                                  title='Calculating GBM frame for several times. '
+                                        'This shows the progress of rank 0. All other should be about the same.') as p:
+                    for i in range(times_lower_bound_index, times_upper_bound_index):
+                        q1, q2, q3, q4 = quaternion[i]
+                        scx, scy, scz = sc_pos[i]
+                        GBMFrame_list.append(GBMFrame(quaternion_1=q1, quaternion_2=q2, quaternion_3=q3,
+                                                      quaternion_4=q4, sc_pos_X=scx, sc_pos_Y=scy,
+                                                      sc_pos_Z=scz))
+
+                        p.increase()
+            else:
+                for i in range(times_lower_bound_index, times_upper_bound_index):
+                    q1, q2, q3, q4 = quaternion[i]
+                    scx, scy, scz = sc_pos[i]
+                    GBMFrame_list.append(GBMFrame(quaternion_1=q1, quaternion_2=q2, quaternion_3=q3,
+                                                  quaternion_4=q4, sc_pos_X=scx, sc_pos_Y=scy,
+                                                  sc_pos_Z=scz))
             GBMFrame_list = np.array(GBMFrame_list)
 
             # Get the postion of the PS in the satellite frame (saved as vector and as SkyCoord object)
             ps_pos_sat_list = []
             ps_pos_sat_objects = []
-            for i in range(0, len(GBMFrame_list)):
-                ps_pos_sat = self._ps_skycoord.transform_to(GBMFrame_list[i])
-                ps_pos_sat_objects.append(ps_pos_sat)
-                az = ps_pos_sat.lon.deg
-                zen = ps_pos_sat.lat.deg
-                ps_pos_sat_list.append([np.cos(zen * (np.pi / 180)) * np.cos(az * (np.pi / 180)),
-                                              np.cos(zen * (np.pi / 180)) * np.sin(az * (np.pi / 180)),
-                                              np.sin(zen * (np.pi / 180))])
+            if rank == 0:
+                with progress_bar(len(GBMFrame_list),
+                                  title='Calculating PS position in sat frame for {}.This shows the progress of rank 0. All other should be about the same.'.format(self._name)) as p:
+                    ps_pos_sat = self._ps_skycoord.transform_to(GBMFrame_list[i])
+                    ps_pos_sat_objects.append(ps_pos_sat)
+                    az = ps_pos_sat.lon.deg
+                    zen = ps_pos_sat.lat.deg
+                    ps_pos_sat_list.append([np.cos(zen * (np.pi / 180)) * np.cos(az * (np.pi / 180)),
+                                            np.cos(zen * (np.pi / 180)) * np.sin(az * (np.pi / 180)),
+                                            np.sin(zen * (np.pi / 180))])
+                    p.increase()
+            else:
+                for i in range(0, len(GBMFrame_list)):
+                    ps_pos_sat = self._ps_skycoord.transform_to(GBMFrame_list[i])
+                    ps_pos_sat_objects.append(ps_pos_sat)
+                    az = ps_pos_sat.lon.deg
+                    zen = ps_pos_sat.lat.deg
+                    ps_pos_sat_list.append([np.cos(zen * (np.pi / 180)) * np.cos(az * (np.pi / 180)),
+                                                  np.cos(zen * (np.pi / 180)) * np.sin(az * (np.pi / 180)),
+                                                  np.sin(zen * (np.pi / 180))])
             ps_pos_sat_list = np.array(ps_pos_sat_list)
             ps_pos_sat_objects = np.array(ps_pos_sat_objects)
 
@@ -146,9 +170,17 @@ class PointSrc(object):
                          Ebin_in_edge, mat_type=0, ebin_edge_out=Ebin_out_edge)
             # Calcutate the response matrix for the different ps locations
             ps_response = []
-            for point in ps_pos_sat_list:
-                resp = self._rsp._response(point[0], point[1], point[2], DRM)
-                ps_response.append(resp.matrix.T)
+            if rank == 0:
+                with progress_bar(len(ps_pos_sat_list),
+                                  title='Calculating the response for all PS positions in sat frame for {}.This shows the progress of rank 0. All other should be about the same.'.format(self._name)) as p:
+                    for point in ps_pos_sat_list:
+                        resp = self._rsp._response(point[0], point[1], point[2], DRM)
+                        ps_response.append(resp.matrix.T)
+                    p.increase()
+            else:
+                for point in ps_pos_sat_list:
+                    resp = self._rsp._response(point[0], point[1], point[2], DRM)
+                    ps_response.append(resp.matrix.T)
 
             # Calculate the separation of the earth and the ps for every time step
             separation = []
@@ -178,24 +210,48 @@ class PointSrc(object):
             
             # Calcutate the GBMFrame for all these times
             GBMFrame_list = []
-            for i in range(0, len(quaternion)):
-                q1, q2, q3, q4 = quaternion[i]
-                scx, scy, scz = sc_pos[i]
-                GBMFrame_list.append(GBMFrame(quaternion_1=q1, quaternion_2=q2, quaternion_3=q3,
-                                              quaternion_4=q4, sc_pos_X=scx, sc_pos_Y=scy,
-                                              sc_pos_Z=scz))
+            if rank == 0:
+                with progress_bar(times_per_rank,
+                                  title='Calculating GBM frame for several times. '
+                                        'This shows the progress of rank 0. All other should be about the same.') as p:
+                    for i in range(0, len(quaternion)):
+                        q1, q2, q3, q4 = quaternion[i]
+                        scx, scy, scz = sc_pos[i]
+                        GBMFrame_list.append(GBMFrame(quaternion_1=q1, quaternion_2=q2, quaternion_3=q3,
+                                                      quaternion_4=q4, sc_pos_X=scx, sc_pos_Y=scy,
+                                                      sc_pos_Z=scz))
+                    p.increase()
             GBMFrame_list = np.array(GBMFrame_list)
 
             # Get the postion of the PS in the sat frame for every timestep
             ps_pos_sat_list = []
-            for i in range(0, len(GBMFrame_list)):
-                ps_pos_sat = self._ps_skycoord.transform_to(GBMFrame_list[i])
-                az = ps_pos_sat.lon.deg
-                zen = ps_pos_sat.lat.deg
-                ps_pos_sat_list.append([np.cos(zen * (np.pi / 180)) * np.cos(az * (np.pi / 180)),
-                                              np.cos(zen * (np.pi / 180)) * np.sin(az * (np.pi / 180)),
-                                              np.sin(zen * (np.pi / 180))])
+            with progress_bar(len(GBMFrame_list),
+                              title='Calculating PS position in sat frame for {}.This shows the progress of rank 0. All other should be about the same.'.format(
+                                  self._name)) as p:
+                for i in range(0, len(GBMFrame_list)):
+                    ps_pos_sat = self._ps_skycoord.transform_to(GBMFrame_list[i])
+                    az = ps_pos_sat.lon.deg
+                    zen = ps_pos_sat.lat.deg
+                    ps_pos_sat_list.append([np.cos(zen * (np.pi / 180)) * np.cos(az * (np.pi / 180)),
+                                                  np.cos(zen * (np.pi / 180)) * np.sin(az * (np.pi / 180)),
+                                                  np.sin(zen * (np.pi / 180))])
+                    p.increase()
+
             ps_pos_sat_list = np.array(ps_pos_sat_list)
+            # DRM object with dummy quaternion and sc_pos values (all in sat frame,
+            # therefore not important)
+            DRM = DRMGen(np.array([0.0745, -0.105, 0.0939, 0.987]),
+                         np.array([-5.88 * 10 ** 6, -2.08 * 10 ** 6, 2.97 * 10 ** 6]), det,
+                         Ebin_in_edge, mat_type=0, ebin_edge_out=Ebin_out_edge)
+            # Calcutate the response matrix for the different ps locations
+            ps_response = []
+            with progress_bar(len(ps_pos_sat_list),
+                              title='Calculating the response for all PS positions in sat frame for {}.This shows the progress of rank 0. All other should be about the same.'.format(
+                                  self._name)) as p:
+                for point in ps_pos_sat_list:
+                    resp = self._rsp._response(point[0], point[1], point[2], DRM)
+                    ps_response.append(resp.matrix.T)
+                p.increase()
 
             # Calculate the separation of the earth and the ps for every time step
             separation = []
@@ -213,7 +269,6 @@ class PointSrc(object):
                     # If occulted by earth set response to zero
                     ps_response[i] = ps_response[i]*0
 
-            
         self._ps_response = np.array(ps_response)
         
 

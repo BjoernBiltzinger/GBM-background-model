@@ -1,4 +1,6 @@
 import numpy as np
+from gbmbkgpy.utils.progress_bar import progress_bar
+
 
 try:
 
@@ -58,13 +60,13 @@ class Albedo_CGB_free(object):
     def geometry_times(self):
 
         return self._geom.time
-    
+
     def _response_sum(self):
         """
         Calculate the effective response sum for all interpolation times for which the geometry was 
         calculated. This supports MPI to reduce the calculation time.
         To calculate the responses created on a grid in the response_object are used. All points 
-        that are not occulted by the earth are added
+        that are not occulted by the earth are added to the cgb and all others to the earth.
         """
 
         # Get the precalulated points and responses on the unit sphere
@@ -74,29 +76,39 @@ class Albedo_CGB_free(object):
         # Factor to multiply the responses with. Needed as the later spectra are given in units of
         # 1/sr. The sr_points gives the area of the sphere occulted by one point
         sr_points = 4 * np.pi / len(points)
-        
+
         # Get the earth direction at the interpolation times; zen angle from -90 to 90
         earth_pos_inter_times = []
 
-        #If MPI available it is used to speed up the calculation
+        # If MPI available it is used to speed up the calculation
         if using_mpi:
-            
-            # Last rank has to cover one more index. Caused by the calculation of the
-            # Geometry for the last time bin of the day
-            if rank == size - 1:
-                upper_index = self._geom.times_upper_bound_index + 1
-            else:
-                upper_index = self._geom.times_upper_bound_index
+            num_times = len(self._geom.earth_zen)
+            times_per_rank = float(num_times) / float(size)
+            times_lower_bound_index = int(np.floor(rank * times_per_rank))
+            times_upper_bound_index = int(np.floor((rank + 1) * times_per_rank))
 
-            for i in range(self._geom.times_lower_bound_index, upper_index):
-                earth_pos_inter_times.append(
-                    np.array([np.cos(self._geom.earth_zen[i] * (np.pi / 180))
-                              * np.cos(self._geom.earth_az[i]* (np.pi / 180)),
-                              np.cos(self._geom.earth_zen[i] * (np.pi / 180))
-                              * np.sin(self._geom.earth_az[i]* (np.pi / 180)),
-                              np.sin(self._geom.earth_zen[i] * (np.pi / 180))]))
+            if rank == 0:
+                with progress_bar(times_per_rank,
+                                  title='Calculating earth position in sat frame for several times. '
+                                        'This shows the progress of rank 0. All other should be about the same.') as p:
+                    for i in range(times_lower_bound_index, times_upper_bound_index):
+                        earth_pos_inter_times.append(
+                            np.array([np.cos(self._geom.earth_zen[i] * (np.pi / 180))
+                                      * np.cos(self._geom.earth_az[i] * (np.pi / 180)),
+                                      np.cos(self._geom.earth_zen[i] * (np.pi / 180))
+                                      * np.sin(self._geom.earth_az[i] * (np.pi / 180)),
+                                      np.sin(self._geom.earth_zen[i] * (np.pi / 180))]))
+                        p.increase()
+            else:
+                for i in range(times_lower_bound_index, times_upper_bound_index):
+                    earth_pos_inter_times.append(
+                        np.array([np.cos(self._geom.earth_zen[i] * (np.pi / 180))
+                                  * np.cos(self._geom.earth_az[i] * (np.pi / 180)),
+                                  np.cos(self._geom.earth_zen[i] * (np.pi / 180))
+                                  * np.sin(self._geom.earth_az[i] * (np.pi / 180)),
+                                  np.sin(self._geom.earth_zen[i] * (np.pi / 180))]))
             earth_pos_inter_times = np.array(earth_pos_inter_times)
-            
+
             # Define the opening angle of the earth in degree
             opening_angle_earth = 67
 
@@ -107,24 +119,42 @@ class Albedo_CGB_free(object):
             # Add the responses that are occulted by earth to earth effective response
             # and the others to CGB effective response. Do this for all times for which the
             # geometry was calculated
-            for pos in earth_pos_inter_times:
-                cgb_response_time = np.zeros_like(responses[0])
-                earth_response_time = np.zeros_like(responses[0])
-                for i, pos_point in enumerate(points):
-                    angle_earth = np.arccos(np.dot(pos, pos_point)) * (180 / np.pi)
-                    if angle_earth > opening_angle_earth:
-                        cgb_response_time += responses[i]
-                    else:
-                        earth_response_time += responses[i]
-                array_cgb_response_sum.append(cgb_response_time)
-                array_earth_response_sum.append(earth_response_time)
+            if rank == 0:
+                with progress_bar(len(earth_pos_inter_times),
+                                  title='Calculating the effective response for several times.'
+                                        'This shows the progress of rank 0. All other should be about the same.') as p:
+                    for pos in earth_pos_inter_times:
+                        cgb_response_time = np.zeros_like(responses[0])
+                        earth_response_time = np.zeros_like(responses[0])
+                        for i, pos_point in enumerate(points):
+                            angle_earth = np.arccos(np.dot(pos, pos_point)) * (180 / np.pi)
+                            if angle_earth > opening_angle_earth:
+                                cgb_response_time += responses[i]
+                            else:
+                                earth_response_time += responses[i]
+                        array_cgb_response_sum.append(cgb_response_time)
+                        array_earth_response_sum.append(earth_response_time)
+
+                        p.increase()
+            else:
+                for pos in earth_pos_inter_times:
+                    cgb_response_time = np.zeros_like(responses[0])
+                    earth_response_time = np.zeros_like(responses[0])
+                    for i, pos_point in enumerate(points):
+                        angle_earth = np.arccos(np.dot(pos, pos_point)) * (180 / np.pi)
+                        if angle_earth > opening_angle_earth:
+                            cgb_response_time += responses[i]
+                        else:
+                            earth_response_time += responses[i]
+                    array_cgb_response_sum.append(cgb_response_time)
+                    array_earth_response_sum.append(earth_response_time)
 
             # Collect all results in rank=0 and broadcast it to all ranks
             # in the end
             array_cgb_response_sum = np.array(array_cgb_response_sum)
             array_earth_response_sum = np.array(array_earth_response_sum)
             array_cgb_response_sum_g = comm.gather(array_cgb_response_sum, root=0)
-            array_earth_response_sum_g = comm.gather(array_earth_response_sum, root=0) 
+            array_earth_response_sum_g = comm.gather(array_earth_response_sum, root=0)
             if rank == 0:
                 array_cgb_response_sum_g = np.concatenate(array_cgb_response_sum_g)
                 array_earth_response_sum_g = np.concatenate(array_earth_response_sum_g)
@@ -133,33 +163,42 @@ class Albedo_CGB_free(object):
         else:
 
             # The same as above just for single core calculation without MPI
-            
-            for i in range(0, len(self._geom.earth_zen)):
-                earth_pos_inter_times.append(
-                    np.array([np.cos(self._geom.earth_zen[i] * (np.pi / 180)) * np.cos(self._geom.earth_az[i] * (np.pi / 180)),
-                              np.cos(self._geom.earth_zen[i] * (np.pi / 180)) * np.sin(self._geom.earth_az[i] * (np.pi / 180)),
-                              np.sin(self._geom.earth_zen[i] * (np.pi / 180))]))
+            with progress_bar(len(self._geom.earth_zen),
+                              title='Calculating earth position in sat frame for several times. '
+                                    'This shows the progress of rank 0. All other should be about the same.') as p:
+                for i in range(0, len(self._geom.earth_zen)):
+                    earth_pos_inter_times.append(
+                        np.array([np.cos(self._geom.earth_zen[i] * (np.pi / 180)) * np.cos(
+                            self._geom.earth_az[i] * (np.pi / 180)),
+                                  np.cos(self._geom.earth_zen[i] * (np.pi / 180)) * np.sin(
+                                      self._geom.earth_az[i] * (np.pi / 180)),
+                                  np.sin(self._geom.earth_zen[i] * (np.pi / 180))]))
+                    p.increase()
             self._earth_pos_inter_times = np.array(earth_pos_inter_times)
-            
+
             # define the opening angle of the earth in degree
             opening_angle_earth = 67
             array_cgb_response_sum = []
             array_earth_response_sum = []
-            for pos in self._earth_pos_inter_times:
-                cgb_response_time = np.zeros_like(responses[0])
-                earth_response_time = np.zeros_like(responses[0])
-                for i, pos_point in enumerate(points):
-                    angle_earth = np.arccos(np.dot(pos, pos_point)) * (180 / np.pi)
-                    if angle_earth > opening_angle_earth:
-                        cgb_response_time += responses[i]
-                    else:
-                        earth_response_time += responses[i]
-                array_cgb_response_sum.append(cgb_response_time)
-                array_earth_response_sum.append(earth_response_time)
+
+            with progress_bar(len(earth_pos_inter_times),
+                              title='Calculating the effective response for several times.'
+                                    'This shows the progress of rank 0. All other should be about the same.') as p:
+                for pos in self._earth_pos_inter_times:
+                    cgb_response_time = np.zeros_like(responses[0])
+                    earth_response_time = np.zeros_like(responses[0])
+                    for i, pos_point in enumerate(points):
+                        angle_earth = np.arccos(np.dot(pos, pos_point)) * (180 / np.pi)
+                        if angle_earth > opening_angle_earth:
+                            cgb_response_time += responses[i]
+                        else:
+                            earth_response_time += responses[i]
+                    array_cgb_response_sum.append(cgb_response_time)
+                    array_earth_response_sum.append(earth_response_time)
 
         # Mulitiply by the sr_points factor which is the area of the unit sphere covered by every point
-        self._array_cgb_response_sum = np.array(array_cgb_response_sum)*sr_points
-        self._array_earth_response_sum = np.array(array_earth_response_sum)*sr_points
+        self._array_cgb_response_sum = np.array(array_cgb_response_sum) * sr_points
+        self._array_earth_response_sum = np.array(array_earth_response_sum) * sr_points
 
 
 class Albedo_CGB_fixed(object):
@@ -248,21 +287,31 @@ class Albedo_CGB_fixed(object):
 
         #If MPI available it is used to speed up the calculation
         if using_mpi:
-            
-            # Last rank has to cover one more index. Caused by the calculation of the
-            # Geometry for the last time bin of the day
-            if rank == size - 1:
-                upper_index = self._geom.times_upper_bound_index + 1
-            else:
-                upper_index = self._geom.times_upper_bound_index
+            num_times = len(self._geom.earth_zen)
+            times_per_rank = float(num_times) / float(size)
+            times_lower_bound_index = int(np.floor(rank * times_per_rank))
+            times_upper_bound_index = int(np.floor((rank + 1) * times_per_rank))
 
-            for i in range(self._geom.times_lower_bound_index, upper_index):
-                earth_pos_inter_times.append(
-                    np.array([np.cos(self._geom.earth_zen[i] * (np.pi / 180))
-                              * np.cos(self._geom.earth_az[i]* (np.pi / 180)),
-                              np.cos(self._geom.earth_zen[i] * (np.pi / 180))
-                              * np.sin(self._geom.earth_az[i]* (np.pi / 180)),
-                              np.sin(self._geom.earth_zen[i] * (np.pi / 180))]))
+            if rank == 0:
+                with progress_bar(num_times,
+                                  title='Calculating earth position in sat frame for several times. '
+                                        'This shows the progress of rank 0. All other should be about the same.') as p:
+                    for i in range(times_lower_bound_index, times_upper_bound_index):
+                        earth_pos_inter_times.append(
+                            np.array([np.cos(self._geom.earth_zen[i] * (np.pi / 180))
+                                      * np.cos(self._geom.earth_az[i] * (np.pi / 180)),
+                                      np.cos(self._geom.earth_zen[i] * (np.pi / 180))
+                                      * np.sin(self._geom.earth_az[i] * (np.pi / 180)),
+                                      np.sin(self._geom.earth_zen[i] * (np.pi / 180))]))
+                        p.increase()
+            else:
+                for i in range(times_lower_bound_index, times_upper_bound_index):
+                    earth_pos_inter_times.append(
+                        np.array([np.cos(self._geom.earth_zen[i] * (np.pi / 180))
+                                  * np.cos(self._geom.earth_az[i]* (np.pi / 180)),
+                                  np.cos(self._geom.earth_zen[i] * (np.pi / 180))
+                                  * np.sin(self._geom.earth_az[i]* (np.pi / 180)),
+                                  np.sin(self._geom.earth_zen[i] * (np.pi / 180))]))
             earth_pos_inter_times = np.array(earth_pos_inter_times)
             
             # Define the opening angle of the earth in degree
@@ -275,17 +324,35 @@ class Albedo_CGB_fixed(object):
             # Add the responses that are occulted by earth to earth effective response
             # and the others to CGB effective response. Do this for all times for which the
             # geometry was calculated
-            for pos in earth_pos_inter_times:
-                cgb_response_time = np.zeros_like(responses[0])
-                earth_response_time = np.zeros_like(responses[0])
-                for i, pos_point in enumerate(points):
-                    angle_earth = np.arccos(np.dot(pos, pos_point)) * (180 / np.pi)
-                    if angle_earth > opening_angle_earth:
-                        cgb_response_time += responses[i]
-                    else:
-                        earth_response_time += responses[i]
-                array_cgb_response_sum.append(cgb_response_time)
-                array_earth_response_sum.append(earth_response_time)
+            if rank == 0:
+                with progress_bar(len(earth_pos_inter_times),
+                                  title='Calculating the effective response for several times.'
+                                        'This shows the progress of rank 0. All other should be about the same.') as p:
+                    for pos in earth_pos_inter_times:
+                        cgb_response_time = np.zeros_like(responses[0])
+                        earth_response_time = np.zeros_like(responses[0])
+                        for i, pos_point in enumerate(points):
+                            angle_earth = np.arccos(np.dot(pos, pos_point)) * (180 / np.pi)
+                            if angle_earth > opening_angle_earth:
+                                cgb_response_time += responses[i]
+                            else:
+                                earth_response_time += responses[i]
+                        array_cgb_response_sum.append(cgb_response_time)
+                        array_earth_response_sum.append(earth_response_time)
+
+                        p.increase()
+            else:
+                for pos in earth_pos_inter_times:
+                    cgb_response_time = np.zeros_like(responses[0])
+                    earth_response_time = np.zeros_like(responses[0])
+                    for i, pos_point in enumerate(points):
+                        angle_earth = np.arccos(np.dot(pos, pos_point)) * (180 / np.pi)
+                        if angle_earth > opening_angle_earth:
+                            cgb_response_time += responses[i]
+                        else:
+                            earth_response_time += responses[i]
+                    array_cgb_response_sum.append(cgb_response_time)
+                    array_earth_response_sum.append(earth_response_time)
 
             # Collect all results in rank=0 and broadcast it to all ranks
             # in the end
@@ -301,29 +368,36 @@ class Albedo_CGB_fixed(object):
         else:
 
             # The same as above just for single core calculation without MPI
-            
-            for i in range(0, len(self._geom.earth_zen)):
-                earth_pos_inter_times.append(
-                    np.array([np.cos(self._geom.earth_zen[i] * (np.pi / 180)) * np.cos(self._geom.earth_az[i] * (np.pi / 180)),
-                              np.cos(self._geom.earth_zen[i] * (np.pi / 180)) * np.sin(self._geom.earth_az[i] * (np.pi / 180)),
-                              np.sin(self._geom.earth_zen[i] * (np.pi / 180))]))
+            with progress_bar(len(self._geom.earth_zen),
+                              title='Calculating earth position in sat frame for several times. '
+                                    'This shows the progress of rank 0. All other should be about the same.') as p:
+                for i in range(0, len(self._geom.earth_zen)):
+                    earth_pos_inter_times.append(
+                        np.array([np.cos(self._geom.earth_zen[i] * (np.pi / 180)) * np.cos(self._geom.earth_az[i] * (np.pi / 180)),
+                                  np.cos(self._geom.earth_zen[i] * (np.pi / 180)) * np.sin(self._geom.earth_az[i] * (np.pi / 180)),
+                                  np.sin(self._geom.earth_zen[i] * (np.pi / 180))]))
+                    p.increase()
             self._earth_pos_inter_times = np.array(earth_pos_inter_times)
             
             # define the opening angle of the earth in degree
             opening_angle_earth = 67
             array_cgb_response_sum = []
             array_earth_response_sum = []
-            for pos in self._earth_pos_inter_times:
-                cgb_response_time = np.zeros_like(responses[0])
-                earth_response_time = np.zeros_like(responses[0])
-                for i, pos_point in enumerate(points):
-                    angle_earth = np.arccos(np.dot(pos, pos_point)) * (180 / np.pi)
-                    if angle_earth > opening_angle_earth:
-                        cgb_response_time += responses[i]
-                    else:
-                        earth_response_time += responses[i]
-                array_cgb_response_sum.append(cgb_response_time)
-                array_earth_response_sum.append(earth_response_time)
+
+            with progress_bar(len(earth_pos_inter_times),
+                              title='Calculating the effective response for several times.'
+                                    'This shows the progress of rank 0. All other should be about the same.') as p:
+                for pos in self._earth_pos_inter_times:
+                    cgb_response_time = np.zeros_like(responses[0])
+                    earth_response_time = np.zeros_like(responses[0])
+                    for i, pos_point in enumerate(points):
+                        angle_earth = np.arccos(np.dot(pos, pos_point)) * (180 / np.pi)
+                        if angle_earth > opening_angle_earth:
+                            cgb_response_time += responses[i]
+                        else:
+                            earth_response_time += responses[i]
+                    array_cgb_response_sum.append(cgb_response_time)
+                    array_earth_response_sum.append(earth_response_time)
 
         # Mulitiply by the sr_points factor which is the area of the unit sphere covered by every point
         self._array_cgb_response_sum = np.array(array_cgb_response_sum)*sr_points
