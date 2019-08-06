@@ -29,7 +29,7 @@ class BackgroundLike(object):
 
         self._data = data       # type: ContinuousData
         self._model = model     # type: Model
-        self._echan_list = echan_list #list of all echans which should be fitted
+        self._echan_list = np.arange(len(echan_list)) # list of index of all echans which should be fitted
 
         self._name = "Count rate detector %s" % self._data._det
         # The MET start time of the day
