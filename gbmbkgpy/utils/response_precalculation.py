@@ -3,6 +3,8 @@ from gbm_drm_gen.drmgen import DRMGen
 import os
 from gbmbkgpy.io.package_data import get_path_of_external_data_dir
 import astropy.io.fits as fits
+from gbmbkgpy.utils.progress_bar import progress_bar
+
 
 try:
 
@@ -161,28 +163,115 @@ class Response_Precalculation(object):
 
         # If MPI is used split up the points among the used cores to speed up
         if using_mpi:
-            points_per_rank = float(self._Ngrid) / float(size)
-            points_lower_index = int(np.floor(points_per_rank * rank))
-            points_upper_index = int(np.floor(points_per_rank * (rank + 1)))
-            for point in self._points[points_lower_index:points_upper_index]:
-                # get the response of every point
-                rsp = self._response(point[0], point[1], point[2], DRM)
-                responses.append(rsp.matrix.T)
 
-            # Collect all results in rank=0 and broadcast the final array to all ranks in the end
-            responses = np.array(responses)
-            responses_g = comm.gather(responses, root=0)
-            if rank == 0:
-                responses_g = np.concatenate(responses_g)
+            # This builds some really large arrays which mpi can sometimes not handle anymore
+            # Therefore we have to separate the calculation and broadcasting in several runs of smaller arrays
 
-            # broadcast the resulting list to all ranks
-            responses = comm.bcast(responses_g, root=0)
-                        
+            # If Ngrid is smaller than 5000 or we are using ctime data everything is fine and mpi works in a single run
+            if self._Ngrid <= 5000 or self._data_type == 'ctime':
+
+                points_per_rank = float(self._Ngrid) / float(size)
+                points_lower_index = int(np.floor(points_per_rank * rank))
+                points_upper_index = int(np.floor(points_per_rank * (rank + 1)))
+
+                if rank == 0:
+
+                    with progress_bar(points_upper_index - points_lower_index,
+                                      title='Calculating response on a grid around detector'
+                                            'This shows the progress of rank 0. All other should be about the same.') as p:
+
+                        for point in self._points[points_lower_index:points_upper_index]:
+
+                            # get the response of every point
+                            rsp = self._response(point[0], point[1], point[2], DRM)
+                            responses.append(rsp.matrix.T)
+                            p.increase()
+
+                else:
+
+                    for point in self._points[points_lower_index:points_upper_index]:
+                        # get the response of every point
+                        rsp = self._response(point[0], point[1], point[2], DRM)
+                        responses.append(rsp.matrix.T)
+
+                # Collect all results in rank=0 and broadcast the final array to all ranks in the end
+                responses = np.array(responses)
+                responses_g = comm.gather(responses, root=0)
+                if rank == 0:
+                    responses_g = np.concatenate(responses_g)
+
+                # broadcast the resulting list to all ranks
+                responses = comm.bcast(responses_g, root=0)
+
+            else:
+
+                # Split the grid points in runs with 4000 points each
+                num_split = int(np.ceil(self._Ngrid/4000.))
+
+                # Save start and stop index of every run
+                N_grid_start = np.arange(0, num_split*4000, 4000)
+                N_grid_stop = np.array([])
+                for i in range(num_split):
+                    if i == num_split-1:
+                        N_grid_stop = np.append(N_grid_stop, self._Ngrid)
+                    else:
+                        N_grid_stop = np.append(N_grid_stop, i*4000)
+
+                # Calcualte the response for all runs and save them as separate arrays in one big array
+                responses_all_split = []
+                for j in range(num_split):
+                    responses_split = []
+                    n_start = N_grid_start[j]
+                    n_stop = N_grid_stop[j]
+
+                    # Split up the points of this run among the mpi ranks
+                    points_per_rank = float(n_stop-n_start) / float(size)
+                    points_lower_index = int(np.floor(points_per_rank * rank) + n_start)
+                    points_upper_index = int(np.floor(points_per_rank * (rank + 1)) + n_start)
+
+                    if rank == 0:
+
+                        with progress_bar(points_upper_index - points_lower_index,
+                                          title='Calculating response on a grid around detector run {} of {}. This shows the progress of rank 0. All other should be about the same.'.format(j, num_split)) as p:
+
+                            for point in self._points[points_lower_index:points_upper_index]:
+                                # get the response of every point
+                                rsp = self._response(point[0], point[1], point[2], DRM)
+                                responses_split.append(rsp.matrix.T)
+                                p.increase()
+
+                    else:
+
+                        for point in self._points[points_lower_index:points_upper_index]:
+                            # get the response of every point
+                            rsp = self._response(point[0], point[1], point[2], DRM)
+                            responses_split.append(rsp.matrix.T)
+
+                    # Collect all results in rank=0 and broadcast the final array to all ranks in the end
+                    responses_split = np.array(responses_split)
+                    responses_split_g = comm.gather(responses_split, root=0)
+                    if rank == 0:
+                        responses_split_g = np.concatenate(responses_split_g)
+
+                    responses_split = comm.bcast(responses_split_g, root=0)
+
+                    # Add results of this run to the big array
+                    responses_all_split.append(responses_split)
+
+                # Concatenate the big array to get one array with length Ngrid where the entries are the responses
+                # of the points
+
+                responses = np.concatenate(responses_all_split)
+
         else:
-            for point in self._points:
-                # get the response of every point
-                rsp = self._response(point[0], point[1], point[2], DRM)
-                responses.append(rsp.matrix.T)
+            with progress_bar(len(self._points),
+                              title='Calculating response on a grid around detector'
+                                    'This shows the progress of rank 0. All other should be about the same.') as p:
+                for point in self._points:
+                    # get the response of every point
+                    rsp = self._response(point[0], point[1], point[2], DRM)
+                    responses.append(rsp.matrix.T)
+                    p.increase()
 
         self._responses = np.array(responses)
 
