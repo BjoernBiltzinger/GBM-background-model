@@ -59,13 +59,13 @@ def Setup(cd, saa_object, ep, geom_object,echan_list=[],response_object=None, al
 
     # Go through all possible types of sources and add them in a list
 
-    for echan in echan_list:
+    for index, echan in enumerate(echan_list):
 
         if use_SAA:
-            total_sources.append(setup_SAA(cd, echan))
+            total_sources.append(setup_SAA(cd, echan, index))
 
         if use_CR:
-            total_sources.append(setup_CosmicRays(cd, ep, saa_object, echan))
+            total_sources.append(setup_CosmicRays(cd, ep, saa_object, echan, index))
 
     if use_all_ps:
         total_sources.append(setup_ps(cd, ep, saa_object, response_object, geom_object, include_point_sources=True))
@@ -101,7 +101,7 @@ def Setup(cd, saa_object, ep, geom_object,echan_list=[],response_object=None, al
     return total_sources_f
 
 
-def setup_SAA(cd , echan):
+def setup_SAA(cd , echan, index):
     """
     Setup for SAA sources
     :param saa_object: SAA precalculation object
@@ -123,11 +123,11 @@ def setup_SAA(cd , echan):
 
         # precalculation for later evaluation
         saa_dec.precalulate_time_bins_integral()
-        SAA_Decay_list.append(SAASource('saa_{:d} echan_{}'.format(saa_n,echan), saa_dec, echan))
+        SAA_Decay_list.append(SAASource('saa_{:d} echan_{}'.format(saa_n,echan), saa_dec, index))
         saa_n += 1
     return SAA_Decay_list
 
-def setup_CosmicRays(cd, ep, saa_object, echan):
+def setup_CosmicRays(cd, ep, saa_object, echan, index):
     """
     Setup for CosmicRay source
     :param ep: external prob object
@@ -141,7 +141,7 @@ def setup_CosmicRays(cd, ep, saa_object, echan):
     Constant.set_saa_zero(saa_object.saa_mask[2:-2])
     # precalculate the integration over the time bins
     Constant.integrate_array(cd.time_bins[2:-2])
-    Constant_Continuum = ContinuumSource('Constant_echan_{:d}'.format(echan), Constant, echan)
+    Constant_Continuum = ContinuumSource('Constant_echan_{:d}'.format(echan), Constant, index)
 
     # Magnetic Continuum Source
     mag_con = Magnetic_Continuum(str(echan))
@@ -151,7 +151,7 @@ def setup_CosmicRays(cd, ep, saa_object, echan):
     # precalculate the integration over the time bins
     mag_con.integrate_array(cd.time_bins[2:-2])
     Source_Magnetic_Continuum = ContinuumSource('McIlwain L-parameter_echan_{:d}'.format(echan),
-                                                mag_con, echan)
+                                                mag_con, index)
     return [Constant_Continuum,Source_Magnetic_Continuum]
 
     
