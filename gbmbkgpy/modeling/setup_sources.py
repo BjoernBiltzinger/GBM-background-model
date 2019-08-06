@@ -186,11 +186,6 @@ def setup_ps(cd, ep, saa_object, response_object, geom_object, include_point_sou
         PS_Continuum_dic = {}
         for i, ps in enumerate(ep.point_sources.itervalues()):
             PS_Continuum_dic['{}'.format(ps.name)] = Point_Source_Continuum(str(i))
-            if rank==0:
-                print(ps.geometry_times)
-                print(ps.ps_rate_array.T)
-                print(ps.geometry_times.shape)
-                print(ps.ps_rate_array.T.shape)
             rate_inter = interpolate.interp1d(ps.geometry_times, ps.ps_rate_array.T)
             PS_Continuum_dic['{}'.format(ps.name)].set_function_array(rate_inter(cd.time_bins[2:-2]))
             PS_Continuum_dic['{}'.format(ps.name)].set_saa_zero(saa_object.saa_mask[2:-2])
