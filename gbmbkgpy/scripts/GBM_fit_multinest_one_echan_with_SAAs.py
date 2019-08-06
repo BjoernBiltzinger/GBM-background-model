@@ -44,6 +44,8 @@ grb_name='GRB 160310A'
 trigger_time='18:42:00.000'
 detector = 'nb'
 data_type = 'cspec'
+# List with all echans you want to use
+echan_list = [2]#,12,22,32,42,52,62,72,82,92] #has to be  List! One entry is also possible
 
 ############################# Data ######################################
 
@@ -60,7 +62,7 @@ print_progress('Done')
 # Create the data object for the wanted day and detector
 
 print_progress('Prepare data...')
-data = Data(date, detector, data_type)
+data = Data(date, detector, data_type, echan_list)
 print_progress('Done')
 
 # Create external properties object (for McIlwain L-parameter)
@@ -76,7 +78,7 @@ print_progress('Done')
 # These calculations use the full DRM's and thus include sat. scattering and partial loss of energy by the photons.
 Ngrid = 40000
 print_progress('Precalculate responses for {} points on sphere around detector...'.format(Ngrid))
-resp = Response_Precalculation(detector,date, Ngrid=Ngrid, data_type=data_type)
+resp = Response_Precalculation(detector,date, echan_list, Ngrid=Ngrid, data_type=data_type)
 print_progress('Done')
 
 ################## SAA precalculation ######################
@@ -114,8 +116,6 @@ print_progress('Done')
 # Create all individual sources and add them to a list
 
 ########## Setup options ###########
-# List with all echans you want to use
-echan_list = [2]#,12,22,32,42,52,62,72,82,92] #has to be  List! One entry is also possible
 
 # Use CosmicRay source?
 use_CR= True
