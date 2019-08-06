@@ -66,7 +66,7 @@ class Rebinner(object):
 
                     if index == (len(vector_to_rebin_on) - 1):
                         stop_index = index
-                        print"index is {}".format(index)
+
                     else:
                         stop_index = index + 1
 
