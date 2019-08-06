@@ -34,7 +34,7 @@ class Response_Precalculation(object):
     around the detector. Is used later to calculate the rates of spectral sources
     like the earth or the CGB
     """
-    def __init__(self, det, day, Ngrid=40000, Ebin_edge_incoming=None, data_type='ctime'):
+    def __init__(self, det, day, echan_list, Ngrid=40000, Ebin_edge_incoming=None, data_type='ctime'):
         """
         initialize the grid around the detector and set the values for the Ebins of incoming and detected photons
         :param det: which detector is used
@@ -48,8 +48,18 @@ class Response_Precalculation(object):
         assert type(Ngrid) == int, 'Ngrid has to be an integer, but is a {}.'.format(type(Ngrid))
         if Ebin_edge_incoming!=None:
             assert type(Ebin_edge_incoming)==np.ndarray, 'Invalid type for mean_time. Must be an array but is {}.'.format(type(Ebin_edge_incoming))
+
         assert data_type=='ctime' or data_type=='cspec', 'Please use a valid data_type (ctime or cspec). Your input is {}.'.format(data_type)
 
+        if data_type == 'ctime':
+            assert type(echan_list) and max(echan_list) <= 7 and min(echan_list) >= 0 \
+                   and all(isinstance(x, int) for x in echan_list), 'Echan_list variable must be a list and can only ' \
+                                                                    'have integer entries between 0 and 7'
+
+        if data_type == 'cspec':
+            assert type(echan_list) and max(echan_list) <= 127 and min(echan_list) >= 0 \
+                   and all(isinstance(x, int) for x in echan_list), 'Echan_list variable must be a list and can only ' \
+                                                                    'have integer entries between 0 and 7'
         
         self._data_type = data_type
 
@@ -90,6 +100,16 @@ class Response_Precalculation(object):
                 self._det=12
             elif det[1]=='1':
                 self._det=13
+
+        self._echan_list = echan_list
+        if self._data_type == 'ctime':
+            self._echan_mask = np.zeros(8, dytpe=bool)
+            for e in echan_list:
+                self._echan_mask[e] = True
+        elif self._data_type == 'cspec':
+            self._echan_mask = np.zeros(128, dytpe=bool)
+            for e in echan_list:
+                self._echan_mask[e] = True
 
         # Calculate the reponse for all points on the unit sphere
         self._calculate_responses()
@@ -183,7 +203,7 @@ class Response_Precalculation(object):
                         for point in self._points[points_lower_index:points_upper_index]:
 
                             # get the response of every point
-                            rsp = self._response(point[0], point[1], point[2], DRM)
+                            rsp = self._response(point[0], point[1], point[2], DRM)[self._echan_mask]
                             responses.append(rsp.matrix.T)
                             p.increase()
 
@@ -191,7 +211,7 @@ class Response_Precalculation(object):
 
                     for point in self._points[points_lower_index:points_upper_index]:
                         # get the response of every point
-                        rsp = self._response(point[0], point[1], point[2], DRM)
+                        rsp = self._response(point[0], point[1], point[2], DRM)[self._echan_mask]
                         responses.append(rsp.matrix.T)
 
                 # Collect all results in rank=0 and broadcast the final array to all ranks in the end
@@ -235,7 +255,7 @@ class Response_Precalculation(object):
 
                             for point in self._points[points_lower_index:points_upper_index]:
                                 # get the response of every point
-                                rsp = self._response(point[0], point[1], point[2], DRM)
+                                rsp = self._response(point[0], point[1], point[2], DRM)[self._echan_mask]
                                 responses_split.append(rsp.matrix.T)
                                 p.increase()
 
@@ -243,7 +263,7 @@ class Response_Precalculation(object):
 
                         for point in self._points[points_lower_index:points_upper_index]:
                             # get the response of every point
-                            rsp = self._response(point[0], point[1], point[2], DRM)
+                            rsp = self._response(point[0], point[1], point[2], DRM)[self._echan_mask]
                             responses_split.append(rsp.matrix.T)
 
                     # Collect all results in rank=0 and broadcast the final array to all ranks in the end
@@ -268,7 +288,7 @@ class Response_Precalculation(object):
                                     'This shows the progress of rank 0. All other should be about the same.') as p:
                 for point in self._points:
                     # get the response of every point
-                    rsp = self._response(point[0], point[1], point[2], DRM)
+                    rsp = self._response(point[0], point[1], point[2], DRM)[self._echan_mask]
                     responses.append(rsp.matrix.T)
                     p.increase()
 
