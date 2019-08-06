@@ -246,29 +246,6 @@ class BackgroundLike(object):
 
         return param_bound_list
 
-    def get_synthetic_data(self, synth_parameters, synth_model=None):
-        """
-        Creates a ContinousData object with synthetic data based on the total counts from the synth_model
-        If no synth_model is passed it makes a deepcopy of the existing model
-        :param synth_parameters:
-        :return:
-        """
-
-        synth_data = copy.deepcopy(self._data)
-
-        if synth_model == None:
-            synth_model = copy.deepcopy(self._model)
-
-        for i, parameter in enumerate(synth_model.free_parameters.itervalues()):
-            parameter.value = synth_parameters[i]
-
-        for echan in self._echan_list:
-            synth_data.counts[:, echan][2:-2] = np.random.poisson(synth_model.get_counts(synth_data.time_bins[2:-2],echan))
-
-        self._synth_model = synth_model
-
-        return synth_data
-    
     def _get_sources_fit_spectrum(self):
         
         self._sources_fit_spectrum = self._model.fit_spectrum_sources.values()
