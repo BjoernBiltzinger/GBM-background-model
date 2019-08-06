@@ -3,11 +3,11 @@ from scipy import integrate
 import numpy as np
 
 class Source(object):
-    def __init__(self, name, source_type, shape, echan):
+    def __init__(self, name, source_type, shape, index):
         self._name = name
         self._source_type = source_type
         self._shape = shape
-        self._echan = echan
+        self._index = index
 
         assert source_type in [POINT_SOURCE, CONTINUUM_SOURCE, FLARE_SOURCE, SAA_SOURCE, GLOBAL_SOURCE, FIT_SPECTRUM_SOURCE], 'improper source'
 
@@ -15,20 +15,10 @@ class Source(object):
 
         return self._shape()
 
-    def get_counts_b(self, time_bins, echan, bin_mask=None):
-        rates = self._shape(echan)[bin_mask]
-        return (time_bins[:,1]-time_bins[:,0])/6*(rates[:,0]+4*rates[:,0]+rates[:,1])
-
-    def get_counts_quad(self, a, b):
-        return integrate.quad(self._shape, a, b)
-
-    def get_counts_old(self, time_bins, echan, bin_mask=None):
-        if bin_mask is None:
-            bin_mask = np.ones(len(time_bins), dtype=bool)  # np.full(len(time_bins), True)
-        return integrate.cumtrapz(self._shape(echan)[bin_mask], time_bins)
     def recalculate_counts(self):
         self._shape.recalculate_counts()
-    def get_counts(self, time_bins, echan, bin_mask=None):
+
+    def get_counts(self, time_bins, index, bin_mask=None):
         """
         Calls the evaluation of the source to get the counts per bin. Uses a bin_mask to exclude some bins if needed.
         No need of integration here anymore! This is done in the function class of the sources!
@@ -39,7 +29,7 @@ class Source(object):
         """
         if bin_mask is None:
             bin_mask = np.ones(len(time_bins), dtype=bool)  # np.full(len(time_bins), True)
-        return self._shape(echan)[bin_mask]
+        return self._shape(index)[bin_mask]
 
     @property
     def name(self):
@@ -51,7 +41,11 @@ class Source(object):
 
     @property
     def echan(self):
-        return self._echan
+        """
+        Returns the index of the echan (the position of the echan in the echan_list)
+        :return:
+        """
+        return self._index
 
     @property
     def parameters(self):
@@ -60,28 +54,28 @@ class Source(object):
 
 
 class ContinuumSource(Source):
-    def __init__(self, name, continuum_shape, echan):
-        super(ContinuumSource, self).__init__(name, CONTINUUM_SOURCE, continuum_shape, echan)
+    def __init__(self, name, continuum_shape, index):
+        super(ContinuumSource, self).__init__(name, CONTINUUM_SOURCE, continuum_shape, index)
 
 
 class FlareSource(Source):
-    def __init__(self, name, flare_shape, echan):
-        super(FlareSource, self).__init__(name, FLARE_SOURCE, flare_shape, echan)
+    def __init__(self, name, flare_shape, index):
+        super(FlareSource, self).__init__(name, FLARE_SOURCE, flare_shape, index)
 
 
 class PointSource(Source):
-    def __init__(self, name, point_shape, echan):
-        super(PointSource, self).__init__(name, POINT_SOURCE, point_shape, echan)
+    def __init__(self, name, point_shape, index):
+        super(PointSource, self).__init__(name, POINT_SOURCE, point_shape, index)
 
 
 class SAASource(Source):
-    def __init__(self, name, saa_shape, echan):
-        super(SAASource, self).__init__(name, SAA_SOURCE, saa_shape, echan)
+    def __init__(self, name, saa_shape, index):
+        super(SAASource, self).__init__(name, SAA_SOURCE, saa_shape, index)
 
 class GlobalSource(Source):
     def __init__(self, name, continuum_shape):
-        super(GlobalSource, self).__init__(name, GLOBAL_SOURCE, continuum_shape, -1) #dummy value for echan
+        super(GlobalSource, self).__init__(name, GLOBAL_SOURCE, continuum_shape, -1) #dummy value for echan index
 
 class FitSpectrumSource(Source):
     def __init__(self, name, continuum_shape):
-        super(FitSpectrumSource, self).__init__(name, FIT_SPECTRUM_SOURCE, continuum_shape, -1) #dummy value for echan
+        super(FitSpectrumSource, self).__init__(name, FIT_SPECTRUM_SOURCE, continuum_shape, -1) #dummy value for echan index
