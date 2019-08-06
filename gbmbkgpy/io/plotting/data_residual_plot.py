@@ -31,7 +31,7 @@ except:
 
 class ResidualPlot(object):
 
-    def __init__(self,**kwargs):
+    def __init__(self, **kwargs):
         """
         A class that makes data/residual plots
         :param show_residuals: to show the residuals
@@ -298,21 +298,21 @@ class ResidualPlot(object):
         # Make a mask with 300 random True to choose 300 random samples
         N_samples = 200
         rates = []
-        a = np.zeros(len(analyzer.get_equal_weighted_posterior()[:,:-1]), dtype=int)
+        a = np.zeros(len(analyzer.get_equal_weighted_posterior()[:, :-1]), dtype=int)
         a[:N_samples] = 1
         np.random.shuffle(a)
         a = a.astype(bool)
 
         # For these 300 random samples calculate the corresponding rates for all time bins
-        #a with the parameters of this sample
+        # with the parameters of this sample
         if using_mpi:
             points_per_rank = float(N_samples) / float(size)
             points_lower_index = int(np.floor(points_per_rank * rank))
             points_upper_index = int(np.floor(points_per_rank * (rank + 1)))
             if rank==0:
-                with progress_bar(len(analyzer.get_equal_weighted_posterior()[:,:-1][a][points_lower_index:points_upper_index]), title='Calculating PPC. This shows the progress of rank 0. All other should be about the same.') as p:
+                with progress_bar(len(analyzer.get_equal_weighted_posterior()[:, :-1][a][points_lower_index:points_upper_index]), title='Calculating PPC. This shows the progress of rank 0. All other should be about the same.') as p:
 
-                    for i, sample in enumerate(analyzer.get_equal_weighted_posterior()[:,:-1][a][points_lower_index:points_upper_index]):
+                    for i, sample in enumerate(analyzer.get_equal_weighted_posterior()[:, :-1][a][points_lower_index:points_upper_index]):
                         synth_data = plotter.get_synthetic_data(sample, model)
                         this_rebinner = Rebinner(synth_data.time_bins-time_ref, bin_width)
                         rebinned_time_bins = this_rebinner.time_rebinned
