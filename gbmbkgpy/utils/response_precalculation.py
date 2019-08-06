@@ -204,7 +204,6 @@ class Response_Precalculation(object):
                 responses = comm.bcast(responses_g, root=0)
 
             else:
-
                 # Split the grid points in runs with 4000 points each
                 num_split = int(np.ceil(self._Ngrid/4000.))
 
@@ -230,9 +229,9 @@ class Response_Precalculation(object):
                     points_upper_index = int(np.floor(points_per_rank * (rank + 1)) + n_start)
 
                     if rank == 0:
-
+                        print('We have to split up the response precalculation in {} runs. MPI can not handle everything at once.'.format(num_split))
                         with progress_bar(points_upper_index - points_lower_index,
-                                          title='Calculating response on a grid around detector run {} of {}. This shows the progress of rank 0. All other should be about the same.'.format(j, num_split)) as p:
+                                          title='Calculating response on a grid around detector run {} of {}. This shows the progress of rank 0. All other should be about the same.'.format(j+1, num_split)) as p:
 
                             for point in self._points[points_lower_index:points_upper_index]:
                                 # get the response of every point
