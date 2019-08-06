@@ -183,7 +183,7 @@ class Data(object):
         self._time_bins = time_bins_array
         self._day_start_times = day_start_times
         self._day_stop_times = day_stop_times
-        self._day_met = day_met
+        self._day_met_array = day_met
         self._following_day = following_day
 
     def _one_day_data(self, day):
@@ -264,7 +264,6 @@ class Data(object):
         dd = day[-2:]
         day_at = astro_time.Time("%s-%s-%s" % (year, month, dd))
         day_met = GBMTime(day_at).met
-
         # Get time bins
         time_bins = np.vstack((bin_start, bin_stop)).T
 

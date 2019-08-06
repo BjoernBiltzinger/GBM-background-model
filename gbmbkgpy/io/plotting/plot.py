@@ -15,8 +15,8 @@ class Plotter(object):
 
         self._name = "Count rate detector %s" % data._det
 
-        # The MET start time of the day
-        self._day_met = data._day_met
+        # The MET start time of the first used day
+        self._day_met = data._day_met[0]
 
         self._free_parameters = self._model.free_parameters
         self._parameters = self._model.parameters
