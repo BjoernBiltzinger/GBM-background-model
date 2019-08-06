@@ -330,7 +330,7 @@ class ResidualPlot(object):
                     rebinned_bin_length = np.diff(rebinned_time_bins, axis=1).T[0]
                     rates.append(rebinned_counts/rebinned_bin_length)
 
-                
+                    
             rates = np.array(rates)
             rates_g = comm.gather(rates, root=0)
             if rank == 0:
