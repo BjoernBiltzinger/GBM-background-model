@@ -31,17 +31,42 @@ except:
 
     using_mpi = False
 
+valid_det_names = ['n0','n1' ,'n2' ,'n3' ,'n4' ,'n5' ,'n6' ,'n7' ,'n8' ,'n9' ,'na' ,'nb']
 
 class Data(object):
 
-    def __init__(self, date, detector, data_type):
+    def __init__(self, date, detector, data_type, echan_list):
         """
         Initalize the ContinousData Class, which contains the information about the time bins 
         and counts of the data.
         """
+
+        assert data_type == 'ctime' or data_type == 'cspec', 'Please use a valid data type: ctime or cspec'
+        assert detector in valid_det_names, 'Please use a valid det name. One of these: {}'.format(valid_det_names)
+        assert type(date) == list and len(date[0]) == 6, 'Date variable has to be a list and every entry must have ' \
+                                                         'the format YYMMDD'
+        if data_type == 'ctime':
+            assert type(echan_list) and max(echan_list) <= 7 and min(echan_list) >= 0 \
+                   and all(isinstance(x, int) for x in echan_list), 'Echan_list variable must be a list and can only ' \
+                                                                    'have integer entries between 0 and 7'
+
+        if data_type == 'cspec':
+            assert type(echan_list) and max(echan_list) <= 127 and min(echan_list) >= 0 \
+                   and all(isinstance(x, int) for x in echan_list), 'Echan_list variable must be a list and can only ' \
+                                                                    'have integer entries between 0 and 7'
+
         self._data_type = data_type
         self._det = detector
         self._day_list = map(str, sorted(map(int, date)))
+        self._echan_list = echan_list
+        if self._data_type=='ctime':
+            self._echan_mask = np.zeros(8, dytpe=bool)
+            for e in echan_list:
+                self._echan_mask[e] = True
+        elif self._data_type=='cspec':
+            self._echan_mask = np.zeros(128, dytpe=bool)
+            for e in echan_list:
+                self._echan_mask[e] = True
 
         self._build_arrays()
 
@@ -211,7 +236,7 @@ class Data(object):
             else:
                 i+=1
                 
-        # Sometimes the poshist file does not cover the whole time coverd by the CTIME/CSPEC file.
+        # Sometimes the poshist file does not cover the whole time covered by the CTIME/CSPEC file.
         # So we have to delete these time bins 
 
 
@@ -242,6 +267,9 @@ class Data(object):
 
         # Get time bins
         time_bins = np.vstack((bin_start, bin_stop)).T
+
+        # Only keep the count informations we need for the echan's we want to fit
+        counts = counts.T[self._echan_mask].T
 
         return counts, time_bins, day_met
 
