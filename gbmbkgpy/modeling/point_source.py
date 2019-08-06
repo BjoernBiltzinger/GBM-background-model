@@ -114,7 +114,7 @@ class PointSrc(object):
             # Calcutate the GBMFrame for all the times for which the geomerty was calcutated
             GBMFrame_list = []
             if rank == 0:
-                print(num_times)
+                
                 with progress_bar(times_upper_bound_index-times_lower_bound_index,
                                   title='Calculating GBM frame for several times. '
                                         'This shows the progress of rank 0. All other should be about the same.') as p:
@@ -208,7 +208,7 @@ class PointSrc(object):
             if rank == 0:
                 ps_response_g = np.concatenate(ps_response_g)
             ps_response = comm.bcast(ps_response_g, root=0)
-            print(ps_response.shape)
+
         # Singlecore calculation
         else:
             

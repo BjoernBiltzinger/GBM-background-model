@@ -237,7 +237,6 @@ class MultiNestFit(object):
             self.analyze_result()
 
     def analyze_result(self):
-
         # Save parameter names
         param_index = []
         for i, parameter in enumerate(self._likelihood._parameters.values()):
@@ -256,8 +255,8 @@ class MultiNestFit(object):
         # Get the samples from the sampler
 
         _raw_samples = multinest_analyzer.get_equal_weighted_posterior()[:, :-1]
-        print(_raw_samples)
-        print(_raw_samples[0])
+        #print(_raw_samples)
+        #print(_raw_samples[0])
 
         # Find the minimum of the function (i.e. the maximum of func_wrapper)
 
@@ -369,7 +368,6 @@ class MultiNestFit(object):
                             plt.ylabel(parameters[j])
                             # plt.savefig('cond_%s_%s.pdf' % (params[i], params[j]), bbox_tight=True)
                             # plt.close()
-
                     plt.savefig(self.output_dir + 'marg.pdf')
                     plt.savefig(self.output_dir + 'marg.png')
                     # plt.close()

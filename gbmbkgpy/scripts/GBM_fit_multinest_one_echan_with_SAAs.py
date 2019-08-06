@@ -39,13 +39,13 @@ def print_progress(text):
 
         
 ####################### Setup parameters ###############################
-date=['160310']#,'160311','160312']
+date=['160310','160311']#,'160312']
 grb_name='GRB 160310A'
 trigger_time='18:42:00.000'
 detector = 'nb'
 data_type = 'cspec'
 # List with all echans you want to use
-echan_list = [2]#,12,22,32,42,52,62,72,82,92] #has to be  List! One entry is also possible
+echan_list = [2,12,22,32,42,52,62,72,82,92] #has to be  List! One entry is also possible
 
 ############################# Data ######################################
 
@@ -105,7 +105,7 @@ print_progress('Done')
 ########## Geom options ###########
 
 # For how many times during the day do you want to calculate the geometry? In between a linear interpolation is used.
-n_bins_to_calculate = 80
+n_bins_to_calculate = 800
 ###################################
 print_progress('Precalculate geometry for {} times during the day...'.format(n_bins_to_calculate))
 geom = Geometry(data, detector, date, n_bins_to_calculate)
