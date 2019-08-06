@@ -39,7 +39,7 @@ def print_progress(text):
 
         
 ####################### Setup parameters ###############################
-date=['160310','160311','160312']
+date=['160310']#,'160311','160312']
 grb_name='GRB 160310A'
 trigger_time='18:42:00.000'
 detector = 'nb'
@@ -74,7 +74,7 @@ print_progress('Done')
 
 # Create a Response precalculation object, that precalculates the responses on a spherical grid arount the detector.
 # These calculations use the full DRM's and thus include sat. scattering and partial loss of energy by the photons.
-Ngrid = 5000
+Ngrid = 40000
 print_progress('Precalculate responses for {} points on sphere around detector...'.format(Ngrid))
 resp = Response_Precalculation(detector,date, Ngrid=Ngrid, data_type=data_type)
 print_progress('Done')
@@ -103,7 +103,7 @@ print_progress('Done')
 ########## Geom options ###########
 
 # For how many times during the day do you want to calculate the geometry? In between a linear interpolation is used.
-n_bins_to_calculate=800
+n_bins_to_calculate=80
 ###################################
 print_progress('Precalculate geometry for {} times during the day...'.format(n_bins_to_calculate))
 geom = Geometry(data, detector, date, n_bins_to_calculate)
@@ -115,7 +115,7 @@ print_progress('Done')
 
 ########## Setup options ###########
 # List with all echans you want to use
-echan_list = [2,12,22,32,42,52,62,72,82,92] #has to be  List! One entry is also possible
+echan_list = [2]#,12,22,32,42,52,62,72,82,92] #has to be  List! One entry is also possible
 
 # Use CosmicRay source?
 use_CR= True
@@ -129,6 +129,9 @@ ps_list = ['CRAB']
 fix_earth = False
 # Fix the spectrum of the CGB?
 fix_cgb = False
+
+assert (fix_earth and fix_cgb) or (not fix_earth and not fix_cgb), 'At the moment albeod and cgb spectrum have to be either both fixed or both free'
+
 ###########Albedo-CGB Object###########
 if fix_earth:
     albedo_cgb_obj = Albedo_CGB_fixed(resp, geom)
