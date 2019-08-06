@@ -11,7 +11,7 @@ class Plotter(object):
 
         self._data = data
         self._model = model  # type: Model
-        self._echan_list = echan_list  # list of all echans which should be fitted
+        self._echan_list = np.arange(len(echan_list))  # list of all echans which should be fitted
 
         self._name = "Count rate detector %s" % data._det
 
@@ -120,7 +120,6 @@ class Plotter(object):
 
         residual_errors = None
         self._residuals = significance_calc.known_background()
-
         if ppc:
             if result_dir == None:
                 print('No ppc possible, no results directonary given to display method!')
