@@ -104,7 +104,6 @@ class SAA_calc(object):
         self._saa_mask = np.ones(len(self._time_bins), bool)
         for sl in slice_idx:
             self._saa_mask[sl[0]:sl[1]+1]=False
-
         # If the use_SAA flag is False we add 5000 seconds after every SAA to the mask
         # For these times the SAAs can hava a large influence and should therefore be ignored
         # if the SAAs is not modeled
@@ -120,12 +119,19 @@ class SAA_calc(object):
             for i in range(len(slice_idx)):
                 
                 if self._time_bins[:,0][slice_idx[i, 1]] + time_after_SAA > self._time_bins[-1,0]:
+                    
                     self._saa_mask[slice_idx[i, 1]:len(self._time_bins)] = False
+                    
                 else:
+                    
                     j = 0
-                    while self._time_bins[:,0][slice_idx[i, 1]] + time_after_SAA > self._time_bins[:,0][slice_idx[-1, 1] + j]:
+                    while time_after_SAA > self._time_bins[:,1][slice_idx[i, 1] + j]-self._time_bins[:,0][slice_idx[i, 1]]:
+
                         j += 1
+                        
                     self._saa_mask[slice_idx[i, 1]:slice_idx[i, 1] + j] = False
+
+        # If wanted delete separeted time intervals shorter than 1000 seconds (makes plots nicer)
         if not short_time_intervals:
             # get index intervals of SAA mask
             index_start = [0]

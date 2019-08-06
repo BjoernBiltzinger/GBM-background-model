@@ -348,12 +348,10 @@ class Geometry(object):
 
         # Get the times for which the geometry should be calculated for this day (Build a mask that masks all time bins
         # outside the start and stop day of this time bin
-        if day_number == 0:
-            masksmaller = self._list_times_to_calculate <= self._day_start_times[day_number]
-            masklarger = self._list_times_to_calculate >= self._day_stop_times[day_number]
-        else:
-            masksmaller = self._list_times_to_calculate < self._day_start_times[day_number]
-            masklarger = self._list_times_to_calculate >= self._day_stop_times[day_number]
+
+        masksmaller = self._list_times_to_calculate >= self._day_start_times[day_number]
+        masklarger = self._list_times_to_calculate <= self._day_stop_times[day_number]
+        
 
         masktot = masksmaller * masklarger
         list_times_to_calculate = self._list_times_to_calculate[masktot]
