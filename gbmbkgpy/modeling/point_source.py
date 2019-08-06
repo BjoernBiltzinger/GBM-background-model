@@ -214,17 +214,16 @@ class PointSrc(object):
             
             # Calcutate the GBMFrame for all these times
             GBMFrame_list = []
-            if rank == 0:
-                with progress_bar(len(self._geom.earth_zen),
-                                  title='Calculating GBM frame for several times. '
-                                        'This shows the progress of rank 0. All other should be about the same.') as p:
-                    for i in range(0, len(quaternion)):
-                        q1, q2, q3, q4 = quaternion[i]
-                        scx, scy, scz = sc_pos[i]
-                        GBMFrame_list.append(GBMFrame(quaternion_1=q1, quaternion_2=q2, quaternion_3=q3,
-                                                      quaternion_4=q4, sc_pos_X=scx, sc_pos_Y=scy,
-                                                      sc_pos_Z=scz))
-                    p.increase()
+            with progress_bar(len(self._geom.earth_zen),
+                              title='Calculating GBM frame for several times. '
+                              'This shows the progress of rank 0. All other should be about the same.') as p:
+                for i in range(0, len(quaternion)):
+                    q1, q2, q3, q4 = quaternion[i]
+                    scx, scy, scz = sc_pos[i]
+                    GBMFrame_list.append(GBMFrame(quaternion_1=q1, quaternion_2=q2, quaternion_3=q3,
+                                                  quaternion_4=q4, sc_pos_X=scx, sc_pos_Y=scy,
+                                                  sc_pos_Z=scz))
+                p.increase()
             GBMFrame_list = np.array(GBMFrame_list)
 
             # Get the postion of the PS in the sat frame for every timestep
