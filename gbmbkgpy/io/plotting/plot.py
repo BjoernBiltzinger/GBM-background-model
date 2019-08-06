@@ -48,7 +48,7 @@ class Plotter(object):
         self._occ_region = {}
 
 
-    def display_model(self, echan, data_color='k', model_color='r', step=True, show_data=True, show_residuals=True,
+    def display_model(self, index, data_color='k', model_color='r', step=True, show_data=True, show_residuals=True,
                       show_legend=True, min_bin_width=1E-99, plot_sources=False, show_grb_trigger=False,
                       show_model=True, change_time=False, show_occ_region=False, posteriour=None, ppc=False,
                       result_dir=None, **kwargs):
@@ -102,10 +102,10 @@ class Plotter(object):
 
         # we need to get the rebinned counts
 
-        self._rebinned_observed_counts, = this_rebinner.rebin(self._total_counts_all_echan[:, echan])
+        self._rebinned_observed_counts, = this_rebinner.rebin(self._total_counts_all_echan[:, index])
 
         # the rebinned counts expected from the model
-        self._rebinned_model_counts, = this_rebinner.rebin(self._model.get_counts(self._total_time_bins, echan,
+        self._rebinned_model_counts, = this_rebinner.rebin(self._model.get_counts(self._total_time_bins, index,
                                                                                  saa_mask=self._saa_mask))
 
         self._rebinned_background_counts = np.zeros_like(self._rebinned_observed_counts)
@@ -128,7 +128,7 @@ class Plotter(object):
                 ppc_model = copy.deepcopy(self._model)
                 n_params = len(self._model.free_parameters)
                 residual_plot.add_ppc(result_dir=result_dir, model=ppc_model, plotter=self,
-                                      time_bins=self._total_time_bins - time_ref, saa_mask=self._saa_mask, echan=echan,
+                                      time_bins=self._total_time_bins - time_ref, saa_mask=self._saa_mask, echan=index,
                                       q_levels=[0.68, 0.95, 0.99], colors=['lightgreen', 'green', 'darkgreen'],
                                       bin_width=min_bin_width, n_params=n_params, time_ref=time_ref)
 
@@ -142,7 +142,7 @@ class Plotter(object):
                                color=data_color,
                                show_data=show_data, marker_size=1.5)
 
-        y = (self._model.get_counts(self._total_time_bins, echan, saa_mask=self._saa_mask)) / self._total_time_bin_widths
+        y = (self._model.get_counts(self._total_time_bins, index, saa_mask=self._saa_mask)) / self._total_time_bin_widths
 
         x = np.mean(self._total_time_bins - time_ref, axis=1)
 
@@ -172,7 +172,7 @@ class Plotter(object):
                                              alpha=0.02)
 
         if plot_sources:
-            source_list = self._get_list_of_sources(self._total_time_bins - time_ref, echan,
+            source_list = self._get_list_of_sources(self._total_time_bins - time_ref, index,
                                                     self._total_time_bin_widths)
 
             residual_plot.add_list_of_sources(x, source_list)

@@ -105,7 +105,7 @@ print_progress('Done')
 ########## Geom options ###########
 
 # For how many times during the day do you want to calculate the geometry? In between a linear interpolation is used.
-n_bins_to_calculate=80
+n_bins_to_calculate = 80
 ###################################
 print_progress('Precalculate geometry for {} times during the day...'.format(n_bins_to_calculate))
 geom = Geometry(data, detector, date, n_bins_to_calculate)
@@ -118,11 +118,11 @@ print_progress('Done')
 ########## Setup options ###########
 
 # Use CosmicRay source?
-use_CR= True
+use_CR = True
 # Use EarthAlbedo source?
-use_Earth=True
+use_Earth = True
 # Use CGB source?
-use_CGB=True
+use_CGB = True
 # Which PS should be included (given as list of names)
 ps_list = ['CRAB']
 # Fix the spectrum of the earth albedo?
@@ -265,9 +265,9 @@ plotter = Plotter(data, model, saa_calc, echan_list)
 print_progress('Done')
 
 # Create one plot for every echan and save it
-for echan in echan_list:
+for index, echan in enumerate(echan_list):
     print_progress('Create Plots for echan {} ...'.format(echan))
-    residual_plot = plotter.display_model(echan, min_bin_width=bin_width, show_residuals=show_residuals,
+    residual_plot = plotter.display_model(index, min_bin_width=bin_width, show_residuals=show_residuals,
                                               show_data=show_data, plot_sources=plot_sources,
                                               show_grb_trigger=show_grb_trigger, change_time=change_time, ppc=ppc,
                                               result_dir=output_dir)
