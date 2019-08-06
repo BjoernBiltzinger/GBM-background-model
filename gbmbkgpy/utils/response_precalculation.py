@@ -215,7 +215,7 @@ class Response_Precalculation(object):
                     if i == num_split-1:
                         N_grid_stop = np.append(N_grid_stop, self._Ngrid)
                     else:
-                        N_grid_stop = np.append(N_grid_stop, i*4000)
+                        N_grid_stop = np.append(N_grid_stop, (i+1)*4000)
 
                 # Calcualte the response for all runs and save them as separate arrays in one big array
                 responses_all_split = []
