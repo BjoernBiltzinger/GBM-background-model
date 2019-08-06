@@ -162,8 +162,8 @@ class Data(object):
                 count_array = counts
                 time_bins_array = time_bins
                 day_met_array = np.array([day_met])
-                day_start_times = np.array(time_bins[0, 0])
-                day_stop_times = np.array(time_bins[-1, 1])
+                day_start_times = np.array([time_bins[0, 0]])
+                day_stop_times = np.array([time_bins[-1, 1]])
             else:
                 j = 0
                 for j in range(len(counts)):
