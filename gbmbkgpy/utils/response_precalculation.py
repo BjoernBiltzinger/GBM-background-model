@@ -103,11 +103,11 @@ class Response_Precalculation(object):
 
         self._echan_list = echan_list
         if self._data_type == 'ctime':
-            self._echan_mask = np.zeros(8, dytpe=bool)
+            self._echan_mask = np.zeros(8, dtype=bool)
             for e in echan_list:
                 self._echan_mask[e] = True
         elif self._data_type == 'cspec':
-            self._echan_mask = np.zeros(128, dytpe=bool)
+            self._echan_mask = np.zeros(128, dtype=bool)
             for e in echan_list:
                 self._echan_mask[e] = True
 
@@ -203,16 +203,17 @@ class Response_Precalculation(object):
                         for point in self._points[points_lower_index:points_upper_index]:
 
                             # get the response of every point
-                            rsp = self._response(point[0], point[1], point[2], DRM)[self._echan_mask]
-                            responses.append(rsp.matrix.T)
+                            matrix = self._response(point[0], point[1], point[2], DRM).matrix[self._echan_mask]
+                            responses_split.append(matrix.T)
+
                             p.increase()
 
                 else:
 
                     for point in self._points[points_lower_index:points_upper_index]:
                         # get the response of every point
-                        rsp = self._response(point[0], point[1], point[2], DRM)[self._echan_mask]
-                        responses.append(rsp.matrix.T)
+                        matrix = self._response(point[0], point[1], point[2], DRM).matrix[self._echan_mask]
+                        responses_split.append(matrix.T)
 
                 # Collect all results in rank=0 and broadcast the final array to all ranks in the end
                 responses = np.array(responses)
@@ -255,16 +256,16 @@ class Response_Precalculation(object):
 
                             for point in self._points[points_lower_index:points_upper_index]:
                                 # get the response of every point
-                                rsp = self._response(point[0], point[1], point[2], DRM)[self._echan_mask]
-                                responses_split.append(rsp.matrix.T)
+                                matrix = self._response(point[0], point[1], point[2], DRM).matrix[self._echan_mask]
+                                responses_split.append(matrix.T)
                                 p.increase()
 
                     else:
 
                         for point in self._points[points_lower_index:points_upper_index]:
                             # get the response of every point
-                            rsp = self._response(point[0], point[1], point[2], DRM)[self._echan_mask]
-                            responses_split.append(rsp.matrix.T)
+                            matrix = self._response(point[0], point[1], point[2], DRM).matrix[self._echan_mask]
+                            responses_split.append(matrix.T)
 
                     # Collect all results in rank=0 and broadcast the final array to all ranks in the end
                     responses_split = np.array(responses_split)
@@ -288,8 +289,8 @@ class Response_Precalculation(object):
                                     'This shows the progress of rank 0. All other should be about the same.') as p:
                 for point in self._points:
                     # get the response of every point
-                    rsp = self._response(point[0], point[1], point[2], DRM)[self._echan_mask]
-                    responses.append(rsp.matrix.T)
+                    matrix = self._response(point[0], point[1], point[2], DRM).matrix[self._echan_mask]
+                    responses_split.append(matrix.T)
                     p.increase()
 
         self._responses = np.array(responses)

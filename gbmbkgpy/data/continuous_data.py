@@ -60,11 +60,11 @@ class Data(object):
         self._day_list = map(str, sorted(map(int, date)))
         self._echan_list = echan_list
         if self._data_type=='ctime':
-            self._echan_mask = np.zeros(8, dytpe=bool)
+            self._echan_mask = np.zeros(8, dtype=bool)
             for e in echan_list:
                 self._echan_mask[e] = True
         elif self._data_type=='cspec':
-            self._echan_mask = np.zeros(128, dytpe=bool)
+            self._echan_mask = np.zeros(128, dtype=bool)
             for e in echan_list:
                 self._echan_mask[e] = True
 
