@@ -204,7 +204,7 @@ class Response_Precalculation(object):
 
                             # get the response of every point
                             matrix = self._response(point[0], point[1], point[2], DRM).matrix[self._echan_mask]
-                            responses_split.append(matrix.T)
+                            responses.append(matrix.T)
 
                             p.increase()
 
@@ -213,7 +213,7 @@ class Response_Precalculation(object):
                     for point in self._points[points_lower_index:points_upper_index]:
                         # get the response of every point
                         matrix = self._response(point[0], point[1], point[2], DRM).matrix[self._echan_mask]
-                        responses_split.append(matrix.T)
+                        responses.append(matrix.T)
 
                 # Collect all results in rank=0 and broadcast the final array to all ranks in the end
                 responses = np.array(responses)
@@ -290,7 +290,7 @@ class Response_Precalculation(object):
                 for point in self._points:
                     # get the response of every point
                     matrix = self._response(point[0], point[1], point[2], DRM).matrix[self._echan_mask]
-                    responses_split.append(matrix.T)
+                    responses.append(matrix.T)
                     p.increase()
 
         self._responses = np.array(responses)
