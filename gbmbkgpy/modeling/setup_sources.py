@@ -274,6 +274,6 @@ def setup_cgb_fix(cd, albedo_cgb_object, saa_object):
     cgb.set_function_array(rate_inter(cd.time_bins[2:-2]))
     cgb.set_saa_zero(saa_object.saa_mask[2:-2])
     cgb.integrate_array(cd.time_bins[2:-2])
-    Source_CGB_Albedo_Continuum = GlobalSource('Earth occultation', cgb)
+    Source_CGB_Albedo_Continuum = GlobalSource('CGB', cgb)
 
     return Source_CGB_Albedo_Continuum
