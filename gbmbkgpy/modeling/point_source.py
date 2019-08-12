@@ -205,9 +205,20 @@ class PointSrc(object):
             # Gather all results in rank=0 and broadcast the final result to all ranks
             ps_response=np.array(ps_response)
             ps_response_g = comm.gather(ps_response, root=0)
+
+            ps_pos_sat_objects = np.array(ps_pos_sat_objects)
+            ps_pos_sat_objects_g = comm.gather(ps_pos_sat_objects, root=0)
+
+            separation = np.array(separation)
+            separation_g = comm.gather(separation, root=0)
+
             if rank == 0:
                 ps_response_g = np.concatenate(ps_response_g)
+                separation_g = np.concatenate(separation_g)
+                ps_pos_sat_objects_g = np.concatenate(ps_pos_sat_objects_g)
             ps_response = comm.bcast(ps_response_g, root=0)
+            separation = comm.bcast(separation_g, root=0)
+            self._ps_pos_sat_objects = comm.bcast(ps_pos_sat_objects_g, root=0)
 
         # Singlecore calculation
         else:
@@ -271,7 +282,7 @@ class PointSrc(object):
                 if separation[i] < earth_opening_angle:
                     # If occulted by earth set response to zero
                     ps_response[i] = ps_response[i]*0
-
+        self._separation = separation
         self._ps_response = np.array(ps_response)
         
 
