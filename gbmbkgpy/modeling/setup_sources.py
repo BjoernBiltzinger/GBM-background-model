@@ -62,7 +62,7 @@ def Setup(cd, saa_object, ep, geom_object,echan_list=[],response_object=None, al
     for index, echan in enumerate(echan_list):
 
         if use_SAA:
-            total_sources.append(setup_SAA(cd, echan, index))
+            total_sources.append(setup_SAA(cd, saa_object, echan, index))
 
         if use_CR:
             total_sources.append(setup_CosmicRays(cd, ep, saa_object, echan, index))
@@ -101,7 +101,7 @@ def Setup(cd, saa_object, ep, geom_object,echan_list=[],response_object=None, al
     return total_sources_f
 
 
-def setup_SAA(cd , echan, index):
+def setup_SAA(cd, saa_object, echan, index):
     """
     Setup for SAA sources
     :param saa_object: SAA precalculation object
@@ -114,7 +114,7 @@ def setup_SAA(cd , echan, index):
     SAA_Decay_list = []
     saa_n = 0
     day_start = np.array(cd._day_met)
-    start_times = np.append(day_start, cd.saa_mean_times)
+    start_times = np.append(day_start, saa_object.saa_exit_times)
 
     for time in start_times:
         saa_dec = SAA_Decay(str(saa_n), str(echan))

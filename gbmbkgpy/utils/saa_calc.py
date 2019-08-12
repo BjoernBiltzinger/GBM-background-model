@@ -61,6 +61,14 @@ class SAA_calc(object):
         :return:
         """
         return self._num_saa
+
+    @property
+    def saa_exit_times(self):
+        """
+        Returns the times of the SAA exit times
+        :return:
+        """
+        return self._saa_exit_time_bins[:,1]
         
     def _build_masks(self, bins_to_add, use_SAA, time_after_SAA, short_time_intervals):
         """
