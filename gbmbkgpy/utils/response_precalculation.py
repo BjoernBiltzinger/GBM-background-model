@@ -138,6 +138,10 @@ class Response_Precalculation(object):
     def Ebin_out_edge(self):
         return self._Ebin_out_edge
 
+    @property
+    def data_type(self):
+        return self._data_type
+
     def set_Ebin_edge_incoming(self, Ebin_edge_incoming):
         """
         Set new Ebins for the incoming photons
@@ -294,6 +298,7 @@ class Response_Precalculation(object):
                     p.increase()
 
         self._responses = np.array(responses)
+        
 
     def _fibonacci_sphere(self, samples=1):
         """
