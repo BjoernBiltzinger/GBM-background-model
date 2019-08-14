@@ -265,6 +265,7 @@ class Albedo_CGB_fixed(object):
 
         true_flux_cgb= self._integral_cgb(self._rsp.Ebin_in_edge[:-1], self._rsp.Ebin_in_edge[1:])
         self._folded_flux_cgb = np.dot(true_flux_cgb, self._array_cgb_response_sum)
+        
 
     def _response_sum(self):
         """
@@ -313,7 +314,7 @@ class Albedo_CGB_fixed(object):
                                   * np.sin(self._geom.earth_az[i]* (np.pi / 180)),
                                   np.sin(self._geom.earth_zen[i] * (np.pi / 180))]))
             earth_pos_inter_times = np.array(earth_pos_inter_times)
-            print(earth_pos_inter_times)
+            
             # Define the opening angle of the earth in degree
             opening_angle_earth = 67
 
