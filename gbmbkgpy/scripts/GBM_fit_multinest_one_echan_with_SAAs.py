@@ -39,13 +39,13 @@ def print_progress(text):
 
         
 ####################### Setup parameters ###############################
-date=['160310','160311']#,'160312']
+date=['190114']#,'160311','160312','160313','160314']#,'160315','160316','160317','160318','160319']
 grb_name='GRB 160310A'
 trigger_time='18:42:00.000'
-detector = 'nb'
+detector = 'n7'
 data_type = 'cspec'
 # List with all echans you want to use
-echan_list = [2,12,22,32,42,52,62,72,82,92] #has to be  List! One entry is also possible
+echan_list = [5,15,45,85,100]#,12,22,32,42,52,62,72,82,92,102,112] #has to be  List! One entry is also possible
 
 ############################# Data ######################################
 
@@ -163,7 +163,7 @@ saa_bounds = [(1, 10**4), (10**-5, 10**-1)]
 cr_bounds = [(0.1,100), (0.1,100)]
 
 # Amplitude of PS spectrum
-ps_bound = [(1,100)]
+ps_bound = [(5,100)]
 
 # If earth spectrum is fixed only the normalization, otherwise C, index1, index2 and E_break
 if fix_earth:
@@ -234,7 +234,7 @@ output_dir = mn_fit.output_dir
 
 ############## Plot options #################
 # Choose a bin width to bin the data
-bin_width = 1
+bin_width = 10
 
 # Change time to seconds from midnight?
 change_time = True
@@ -256,8 +256,16 @@ names_mark = []
 # Create PPC plots?
 ppc = True
 
-# Plot Results with rank 0
+# Time range for plot (as tuple, e.g. (5000,35000))
+xlim = None
 
+# Count rates range for plot (as tuple, e.g. (0,60))
+ylim = None
+
+# Should the legend be outside of the plot?
+legend_outside = False
+
+# Plot Results with rank 0
 
 print_progress('Create Plotter object...')
 # Create Plotter object that creates the plots
@@ -270,7 +278,7 @@ for index, echan in enumerate(echan_list):
     residual_plot = plotter.display_model(index, min_bin_width=bin_width, show_residuals=show_residuals,
                                               show_data=show_data, plot_sources=plot_sources,
                                               show_grb_trigger=show_grb_trigger, change_time=change_time, ppc=ppc,
-                                              result_dir=output_dir)
+                                              result_dir=output_dir, xlim=xlim, ylim=ylim, legend_outside=legend_outside)
     if rank==0:
         residual_plot.savefig(output_dir + 'residual_plot_{}_det_{}_echan_{}_bin_width_{}.pdf'.format(
             date, detector, echan, bin_width), dpi=300)
