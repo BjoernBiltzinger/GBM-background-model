@@ -46,10 +46,11 @@ except:
 
 class DataCleaner(object):
 
-    def __init__(self, date, detector, data_type, min_bin_width=None, training=False, trigger_intervals=[]):
+    def __init__(self, date, detector, data_type, rate_gen=None, min_bin_width=None, training=False, trigger_intervals=[]):
         self._data_type = data_type
         self._det = detector
         self._day = date
+        self._rate_generator_DRM = rate_gen
 
         # compute all the quantities that are needed for making date calculations
         self._year = '20%s' % date[:2]
@@ -60,6 +61,18 @@ class DataCleaner(object):
 
         self._min_met = GBMTime(day_at).met
         self._max_met = GBMTime(day_at + u.Quantity(1, u.day)).met
+
+        # Calculate the MET time for the day
+        day = self._day
+        year = '20%s' % day[:2]
+        month = day[2:-2]
+        dd = day[-2:]
+        day_at = astro_time.Time("%s-%s-%s" % (year, month, dd))
+        self._day_met = GBMTime(day_at).met
+
+        day = astro_time.Time("%s-%s-%s" % (self._year, self._month, self._dd))
+        gbm_time = GBMTime(day)
+        self.mission_week = np.floor(gbm_time.mission_week.value)
 
         self.min_bin_width = min_bin_width
         self._training = training
@@ -133,11 +146,13 @@ class DataCleaner(object):
         self.n_bins_to_calculate = 800.
 
         if self._training:
-            self.n_bins_to_calculate = 8000.
+            self.n_bins_to_calculate = 800.
 
         # Start precomputation of arrays:
         self._setup_geometery()
         self._build_lat_spacecraft()
+        self._earth_rate_array()
+        self._cgb_rate_array()
 
         if self._training:
             self._set_grb_mask()
@@ -146,14 +161,6 @@ class DataCleaner(object):
             self._prepare_data()
         else:
             self._compute_saa_regions()
-
-        # Calculate the MET time for the day
-        day = self._day
-        year = '20%s' % day[:2]
-        month = day[2:-2]
-        dd = day[-2:]
-        day_at = astro_time.Time("%s-%s-%s" % (year, month, dd))
-        self._day_met = GBMTime(day_at).met
 
     @property
     def day(self):
@@ -505,10 +512,7 @@ class DataCleaner(object):
         2 = mcilwain parameter L"""
 
         # read the file
-
-        day = astro_time.Time("%s-%s-%s" % (self._year, self._month, self._dd))
-        gbm_time = GBMTime(day)
-        mission_week = np.floor(gbm_time.mission_week.value)
+        mission_week = self.mission_week
 
         filename = 'lat_spacecraft_weekly_w%d_p202_v001.fits' % mission_week
         filepath = get_path_of_data_file('lat', filename)
@@ -582,22 +586,156 @@ class DataCleaner(object):
 
         del mc_l, mc_b, lat_time
 
-    def calc_features(self, mean_times):
+    def _earth_rate_array(self):
+        """
+        Calculate the earth_rate_array for all interpolation times for which the geometry was calculated. This supports
+        MPI to reduce the calculation time.
+        To calculate the earth_rate_array the responses created on a grid in rate_gernerator_DRM are used. All points
+        that are occulted by the earth are added, assuming a spectrum specified in rate_generator_DRM for the earth
+        albedo.
+        :return:
+        """
+        print("Calculate Earth rate array")
+        points = self._rate_generator_DRM.points
+        earth_rates = self._rate_generator_DRM.earth_rate
+        # get the earth direction at the interpolation times; zen angle from -90 to 90
+        earth_pos_inter_times = []
+        if using_mpi:
+            # last rank has to cover one more index. Caused by the calculation of the Geometry for the last time
+            # bin of the day
+            if rank == size - 1:
+                upper_index = self._times_upper_bound_index + 1
+            else:
+                upper_index = self._times_upper_bound_index
+
+            for i in range(self._times_lower_bound_index, upper_index):
+                earth_pos_inter_times.append(
+                    np.array([np.cos(self._earth_zen[i] * (np.pi / 180)) * np.cos(self._earth_az[i] * (np.pi / 180)),
+                              np.cos(self._earth_zen[i] * (np.pi / 180)) * np.sin(self._earth_az[i] * (np.pi / 180)),
+                              np.sin(self._earth_zen[i] * (np.pi / 180))]))
+            self._earth_pos_inter_times = np.array(earth_pos_inter_times)
+            # define the opening angle of the earth in degree
+            opening_angle_earth = 67
+            array_earth_rate = []
+            for pos in self._earth_pos_inter_times:
+                earth_rate = np.zeros_like(earth_rates[0])
+                for i, pos_point in enumerate(points):
+                    angle_earth = np.arccos(np.dot(pos, pos_point)) * (180 / np.pi)
+                    if angle_earth < opening_angle_earth:
+                        earth_rate += earth_rates[i]
+                array_earth_rate.append(earth_rate)
+
+            array_earth_rate = np.array(array_earth_rate)
+
+            array_earth_rate_g = comm.gather(array_earth_rate, root=0)
+            if rank == 0:
+                array_earth_rate_g = np.concatenate(array_earth_rate_g)
+            array_earth_rate = comm.bcast(array_earth_rate_g, root=0)
+        else:
+            for i in range(0, len(self._earth_zen)):
+                earth_pos_inter_times.append(
+                    np.array([np.cos(self._earth_zen[i] * (np.pi / 180)) * np.cos(self._earth_az[i] * (np.pi / 180)),
+                              np.cos(self._earth_zen[i] * (np.pi / 180)) * np.sin(self._earth_az[i] * (np.pi / 180)),
+                              np.sin(self._earth_zen[i] * (np.pi / 180))]))
+            self._earth_pos_inter_times = np.array(earth_pos_inter_times)
+            # define the opening angle of the earth in degree
+            opening_angle_earth = 67
+            array_earth_rate = []
+            for pos in self._earth_pos_inter_times:
+                earth_rate = np.zeros_like(earth_rates[0])
+                for i, pos_point in enumerate(points):
+                    angle_earth = np.arccos(np.dot(pos, pos_point)) * (180 / np.pi)
+                    if angle_earth < opening_angle_earth:
+                        earth_rate += earth_rates[i]
+                array_earth_rate.append(earth_rate)
+        self._array_earth_rate = np.array(array_earth_rate).T
+        self._earth_rate_interpolator = interpolate.interp1d(self._sun_time, self._array_earth_rate)
+
+    def _cgb_rate_array(self):
+        """
+        Calculate the cgb_rate_array for all interpolation times for which the geometry was calculated. This supports
+        MPI to reduce the calculation time.
+        To calculate the cgb_rate_array the responses created on a grid in rate_gernerator_DRM are used. All points
+        that are not occulted by the earth are added, assuming a spectrum specified in rate_generator_DRM for the cgb
+        spectrum.
+        :return:
+        """
+        print("Calculate CGB rate array")
+        points = self._rate_generator_DRM.points
+        cgb_rates = self._rate_generator_DRM.cgb_rate
+        # get the earth direction at the interpolation times; zen angle from -90 to 90
+        earth_pos_inter_times = []
+        if using_mpi:
+            # last rank has to cover one more index. Caused by the calculation of the Geometry for the last time
+            # bin of the day
+            if rank == size - 1:
+                upper_index = self._times_upper_bound_index + 1
+            else:
+                upper_index = self._times_upper_bound_index
+
+            for i in range(self._times_lower_bound_index, upper_index):
+                earth_pos_inter_times.append(
+                    np.array([np.cos(self._earth_zen[i] * (np.pi / 180)) * np.cos(self._earth_az[i] * (np.pi / 180)),
+                              np.cos(self._earth_zen[i] * (np.pi / 180)) * np.sin(self._earth_az[i] * (np.pi / 180)),
+                              np.sin(self._earth_zen[i] * (np.pi / 180))]))
+            self._earth_pos_inter_times = np.array(earth_pos_inter_times)
+            # define the opening angle of the earth in degree
+            opening_angle_earth = 67
+            array_cgb_rate = []
+            for pos in self._earth_pos_inter_times:
+                cgb_rate = np.zeros_like(cgb_rates[0])
+                for i, pos_point in enumerate(points):
+                    angle_earth = np.arccos(np.dot(pos, pos_point)) * (180 / np.pi)
+                    if angle_earth > opening_angle_earth:
+                        cgb_rate += cgb_rates[i]
+                array_cgb_rate.append(cgb_rate)
+            array_cgb_rate = np.array(array_cgb_rate)
+
+            array_cgb_rate_g = comm.gather(array_cgb_rate, root=0)
+            if rank == 0:
+                array_cgb_rate_g = np.concatenate(array_cgb_rate_g)
+            array_cgb_rate = comm.bcast(array_cgb_rate_g, root=0)
+        else:
+            for i in range(0, len(self._earth_zen)):
+                earth_pos_inter_times.append(
+                    np.array([np.cos(self._earth_zen[i] * (np.pi / 180)) * np.cos(self._earth_az[i] * (np.pi / 180)),
+                              np.cos(self._earth_zen[i] * (np.pi / 180)) * np.sin(self._earth_az[i] * (np.pi / 180)),
+                              np.sin(self._earth_zen[i] * (np.pi / 180))]))
+            self._earth_pos_inter_times = np.array(earth_pos_inter_times)
+            # define the opening angle of the earth in degree
+            opening_angle_earth = 67
+            array_cgb_rate = []
+            for pos in self._earth_pos_inter_times:
+                cgb_rate = np.zeros_like(cgb_rates[0])
+                for i, pos_point in enumerate(points):
+                    angle_earth = np.arccos(np.dot(pos, pos_point)) * (180 / np.pi)
+                    if angle_earth > opening_angle_earth:
+                        cgb_rate += cgb_rates[i]
+                array_cgb_rate.append(cgb_rate)
+        self._array_cgb_rate = np.array(array_cgb_rate).T
+        self._cgb_rate_interpolator = interpolate.interp1d(self._sun_time, self._array_cgb_rate)
+
+    def calc_features(self, mean_times, echan):
         return np.stack((
             self._det_ra_interpolator(mean_times),
             self._det_dec_interpolator(mean_times),
+
             self._sc0_interpolator(mean_times),
             self._sc1_interpolator(mean_times),
             self._sc2_interpolator(mean_times),
             self._sc_height_interpolator(mean_times),
-            self._earth_az_interpolator(mean_times),
-            self._earth_zen_interpolator(mean_times),
-            self._sun_angle_interpolator(mean_times),
             self._q0_interpolator(mean_times),
             self._q1_interpolator(mean_times),
             self._q2_interpolator(mean_times),
             self._q3_interpolator(mean_times),
-            self._mc_l_interpolator(mean_times)
+
+            self._earth_az_interpolator(mean_times),
+            self._earth_zen_interpolator(mean_times),
+            self._sun_angle_interpolator(mean_times),
+            self._earth_rate_interpolator(mean_times)[echan],
+            self._cgb_rate_interpolator(mean_times)[echan],
+            self._mc_l_interpolator(mean_times),
+            self.mission_week * np.ones(len(self.rebinned_mean_times))
         ), axis=1)
 
     def _set_grb_mask(self):
@@ -655,15 +793,35 @@ class DataCleaner(object):
             self._sc1_interpolator(self.rebinned_mean_times),
             self._sc2_interpolator(self.rebinned_mean_times),
             self._sc_height_interpolator(self.rebinned_mean_times),
-            self._earth_az_interpolator(self.rebinned_mean_times),
-            self._earth_zen_interpolator(self.rebinned_mean_times),
-            self._sun_angle_interpolator(self.rebinned_mean_times),
-
             self._q0_interpolator(self.rebinned_mean_times),
             self._q1_interpolator(self.rebinned_mean_times),
             self._q2_interpolator(self.rebinned_mean_times),
             self._q3_interpolator(self.rebinned_mean_times),
+
+            self._earth_az_interpolator(self.rebinned_mean_times),
+            self._earth_zen_interpolator(self.rebinned_mean_times),
+            self._sun_angle_interpolator(self.rebinned_mean_times),
+
+            self._earth_rate_interpolator(self.rebinned_mean_times)[0],
+            self._earth_rate_interpolator(self.rebinned_mean_times)[1],
+            self._earth_rate_interpolator(self.rebinned_mean_times)[2],
+            self._earth_rate_interpolator(self.rebinned_mean_times)[3],
+            self._earth_rate_interpolator(self.rebinned_mean_times)[4],
+            self._earth_rate_interpolator(self.rebinned_mean_times)[5],
+            self._earth_rate_interpolator(self.rebinned_mean_times)[6],
+            self._earth_rate_interpolator(self.rebinned_mean_times)[7],
+
+            self._cgb_rate_interpolator(self.rebinned_mean_times)[0],
+            self._cgb_rate_interpolator(self.rebinned_mean_times)[1],
+            self._cgb_rate_interpolator(self.rebinned_mean_times)[2],
+            self._cgb_rate_interpolator(self.rebinned_mean_times)[3],
+            self._cgb_rate_interpolator(self.rebinned_mean_times)[4],
+            self._cgb_rate_interpolator(self.rebinned_mean_times)[5],
+            self._cgb_rate_interpolator(self.rebinned_mean_times)[6],
+            self._cgb_rate_interpolator(self.rebinned_mean_times)[7],
+
             self._mc_l_interpolator(self.rebinned_mean_times),
+            self.mission_week * np.ones_like(self.rebinned_mean_times),
         ), axis=1)
 
         self.rebinned_counts = np.stack((
@@ -698,5 +856,19 @@ class DataCleaner(object):
         np.savez_compressed(filename,
                             counts=self.rebinned_counts,
                             count_rates=self.rebinned_count_rates,
-                            features=self.rebinned_features)
-        return
+                            features=self.rebinned_features,
+                            feature_labels=[
+                                'det_ra', 'det_dec', 'sc0', 'sc1', 'sc2', 'sc_height', 'q0', 'q1', 'q2', 'q3',
+                                'earth_az', 'earth_zen', 'sun_angle', 'mc_l', 'mission_week',
+                                'earth_rate_0', 'earth_rate_1', 'earth_rate_2', 'earth_rate_3', 'earth_rate_4', 'earth_rate_5', 'earth_rate_6', 'earth_rate_7',
+                                'cgb_rate_0', 'cgb_rate_1', 'cgb_rate_2', 'cgb_rate_3', 'cgb_rate_4', 'cgb_rate_5', 'cgb_rate_6', 'cgb_rate_7',
+                            ])
+
+    @property
+    def feature_labels(self):
+        return [
+            'det_ra', 'det_dec', 'sc0', 'sc1', 'sc2', 'sc_height', 'q0', 'q1', 'q2', 'q3',
+            'earth_az', 'earth_zen', 'sun_angle', 'mc_l', 'mission_week',
+            'earth_rate_0', 'earth_rate_1', 'earth_rate_2', 'earth_rate_3', 'earth_rate_4', 'earth_rate_5', 'earth_rate_6', 'earth_rate_7',
+            'cgb_rate_0', 'cgb_rate_1', 'cgb_rate_2', 'cgb_rate_3', 'cgb_rate_4', 'cgb_rate_5', 'cgb_rate_6', 'cgb_rate_7',
+        ]

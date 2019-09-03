@@ -3,6 +3,7 @@ from gbmbkgpy.utils.data_cleaning import DataCleaner
 from gbmbkgpy.io.downloading import download_files, download_lat_spacecraft
 from gbmbkgpy.io.package_data import get_path_of_data_dir, get_path_of_data_file, get_path_of_external_data_dir
 from gbmbkgpy.io.file_utils import file_existing_and_readable
+from gbmbkgpy.modeling.rate_generator_DRM import Rate_Generator_DRM
 import numpy as np
 import pandas as pd
 import os
@@ -29,9 +30,12 @@ try:
 except:
     rank = 0
 
+print("Using MPI: {}".format(using_mpi))
+
 
 def daterange(start_date, end_date):
     return [start_date + timedelta(n) for n in range(int((end_date - start_date).days) + 1)]
+
 
 # setup paramters
 detector = 'nb'
@@ -41,9 +45,10 @@ min_bin_width = 1
 save_intermediate = True
 inter_files = []
 
-features = np.empty((0, 14))
+features = np.empty((0, 31))
 counts = np.empty((0, 8))
 count_rates = np.empty((0, 8))
+feature_labels = None
 
 date_start = date(2018, 1, 1)
 date_stop = date(2018, 1, 3)
@@ -55,7 +60,6 @@ grb_trigger_intervals = grb_triggers['trigger_interval']
 
 for day in days:
     date = day.strftime('%y%m%d')
-    print('Start with {}'.format(date))
 
     _year = '20%s' % date[:2]
     _month = date[2:-2]
@@ -68,6 +72,8 @@ for day in days:
     failed = False
     # download files with rank=0; all other ranks have to wait!
     if rank == 0:
+        print('Start with {}'.format(date))
+        print('Download files if missing...')
         try:
             download_files(data_type, detector, date)
         except Exception as e:
@@ -98,6 +104,7 @@ for day in days:
             print(e)
             failed = True
 
+        print('Downlaod complete')
         wait = True
     else:
         wait = None
@@ -110,8 +117,10 @@ for day in days:
     if failed:
         continue
 
-    print('Downlaod complete')
-    dc = DataCleaner(date, detector, data_type, min_bin_width=min_bin_width, training=True, trigger_intervals=grb_trigger_intervals)
+    print('Instantiate Rate_Gernerator')
+    rate_gen = Rate_Generator_DRM(detector, date, Ngrid=40000, data_type=data_type)
+    print('Start data cleaning')
+    dc = DataCleaner(date, detector, data_type, rate_gen=rate_gen, min_bin_width=min_bin_width, training=True, trigger_intervals=grb_trigger_intervals)
 
     if rank == 0:
         print('features: {}, counts: {}'.format(len(dc.rebinned_features), len(dc.rebinned_counts)))
@@ -127,6 +136,7 @@ for day in days:
             counts = np.vstack((counts, dc.rebinned_counts))
             count_rates = np.vstack((count_rates, dc.rebinned_count_rates))
 
+        feature_labels = dc.feature_labels
         wait = True
     else:
         wait = None
@@ -137,7 +147,7 @@ for day in days:
 if rank == 0:
     if save_intermediate:
         inter_file_listname = os.path.join(file_dir, "inter_days_{}__{}-{}.npz".format(detector, date_start.strftime('%y%m%d'),
-                                                                              date_stop.strftime('%y%m%d'),))
+                                                                                       date_stop.strftime('%y%m%d'), ))
         np.savez_compressed(inter_file_listname, inter_files=inter_files)
 
         print('Stack features and counts')
@@ -148,13 +158,14 @@ if rank == 0:
                 features = np.vstack((features, fhandle['features']))
 
     combined_data_file = os.path.join(file_dir, "cleaned_data_{}-{}_d{}__{}.npz".format(date_start.strftime('%y%m%d'),
-                                                                          date_stop.strftime('%y%m%d'),
-                                                                          detector,
-                                                                          datetime.now().strftime('%H_%M')))
+                                                                                        date_stop.strftime('%y%m%d'),
+                                                                                        detector,
+                                                                                        datetime.now().strftime('%H_%M')))
     if os.path.isfile(combined_data_file):
         wait = True
         raise Exception("Error: output file already exists")
-    np.savez_compressed(combined_data_file, counts=counts, count_rates=count_rates, features=features)
+
+    np.savez_compressed(combined_data_file, counts=counts, count_rates=count_rates, features=features, feature_labels=feature_labels)
     wait = True
 else:
     wait = None
