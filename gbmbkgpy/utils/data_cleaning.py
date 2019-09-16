@@ -735,7 +735,7 @@ class DataCleaner(object):
             self._earth_rate_interpolator(mean_times)[echan],
             self._cgb_rate_interpolator(mean_times)[echan],
             self._mc_l_interpolator(mean_times),
-            self.mission_week * np.ones(len(self.rebinned_mean_times))
+            self.mission_week * np.ones(len(mean_times))
         ), axis=1)
 
     def _set_grb_mask(self):
@@ -859,16 +859,25 @@ class DataCleaner(object):
                             features=self.rebinned_features,
                             feature_labels=[
                                 'det_ra', 'det_dec', 'sc0', 'sc1', 'sc2', 'sc_height', 'q0', 'q1', 'q2', 'q3',
-                                'earth_az', 'earth_zen', 'sun_angle', 'mc_l', 'mission_week',
+                                'earth_az', 'earth_zen', 'sun_angle',
                                 'earth_rate_0', 'earth_rate_1', 'earth_rate_2', 'earth_rate_3', 'earth_rate_4', 'earth_rate_5', 'earth_rate_6', 'earth_rate_7',
                                 'cgb_rate_0', 'cgb_rate_1', 'cgb_rate_2', 'cgb_rate_3', 'cgb_rate_4', 'cgb_rate_5', 'cgb_rate_6', 'cgb_rate_7',
+                                'mc_l', 'mission_week',
                             ])
 
     @property
-    def feature_labels(self):
+    def feature_all_labels(self):
         return [
             'det_ra', 'det_dec', 'sc0', 'sc1', 'sc2', 'sc_height', 'q0', 'q1', 'q2', 'q3',
-            'earth_az', 'earth_zen', 'sun_angle', 'mc_l', 'mission_week',
+            'earth_az', 'earth_zen', 'sun_angle',
             'earth_rate_0', 'earth_rate_1', 'earth_rate_2', 'earth_rate_3', 'earth_rate_4', 'earth_rate_5', 'earth_rate_6', 'earth_rate_7',
             'cgb_rate_0', 'cgb_rate_1', 'cgb_rate_2', 'cgb_rate_3', 'cgb_rate_4', 'cgb_rate_5', 'cgb_rate_6', 'cgb_rate_7',
+            'mc_l', 'mission_week'
+        ]
+
+    def get_feature_labels(self, echan):
+        return [
+            'det_ra', 'det_dec', 'sc0', 'sc1', 'sc2', 'sc_height', 'q0', 'q1', 'q2', 'q3',
+            'earth_az', 'earth_zen', 'sun_angle',
+            'earth_rate_{}'.format(echan), 'cgb_rate_{}'.format(echan), 'mc_l', 'mission_week'
         ]

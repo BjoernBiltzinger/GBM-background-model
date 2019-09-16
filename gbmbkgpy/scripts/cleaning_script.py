@@ -51,7 +51,7 @@ count_rates = np.empty((0, 8))
 feature_labels = None
 
 date_start = date(2018, 1, 1)
-date_stop = date(2018, 1, 3)
+date_stop = date(2018, 1, 5)
 
 days = daterange(date_start, date_stop)
 

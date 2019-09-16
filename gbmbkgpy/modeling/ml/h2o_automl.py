@@ -13,7 +13,7 @@ NO_REBIN = 1E-99
 
 class H2OAutoML(object):
 
-    def __init__(self, data, file_dir=join(getenv('GBMDATA'), 'ml/models')):
+    def __init__(self, data, echan, file_dir=join(getenv('GBMDATA'), 'ml/models')):
         self._data = data
         self.file_dir = file_dir
 
@@ -25,10 +25,9 @@ class H2OAutoML(object):
         self._total_mean_times = self._data.mean_time[2:-2]
         self._total_time_bin_widths = np.diff(self._total_time_bins, axis=1)[:, 0]
 
-        self.features = data.calc_features(self._total_mean_times)
+        self.features = data.calc_features(self._total_mean_times, echan=echan)
 
-        df = DataFrame(self.features, columns=['det_ra', 'det_dec', 'sc0', 'sc1', 'sc2', 'sc_height', 'earth_az',
-                                               'earth_zen', 'sun_angle', 'q0', 'q1', 'q2', 'q3', 'mc_l'])
+        df = DataFrame(self.features, columns=data.get_feature_labels(echan))
 
         print(df.shape)
         print(data.rates.shape)
@@ -99,7 +98,7 @@ class H2OAutoML(object):
 
         return self._model_counts
 
-    def display_model(self, echan, data_color='k', model_color='r', show_data=True, show_residuals=True,
+    def display_model(self, echan, data_color='k', model_color='r', model_label='automl_model', show_data=True, show_residuals=True,
                       show_legend=True, min_bin_width=1E-99, show_grb_trigger=False,
                       show_model=True, change_time=True, show_occ_region=False, **kwargs):
 
@@ -109,6 +108,7 @@ class H2OAutoML(object):
         Example usage:
         fig = data.display_model()
         fig2 = data2.display_model(model_subplot=fig.axes)
+        :param model_label:
         :param echan:
         :param show_occ_region:
         :param show_grb_trigger:
@@ -132,7 +132,6 @@ class H2OAutoML(object):
             time_ref = 0.
             time_frame = 'MET'
 
-        model_label = "NN Background fit"
         residual_plot = ResidualPlot(show_residuals=show_residuals, **kwargs)
 
         # Create a rebinner if either a min_rate has been given, or if the current data set has no rebinned on its own
