@@ -26,10 +26,12 @@ geom_dict = {'n_bins_to_calculate': 800}
 
 ##### Input for source Setup (use CR, use Earth, use CGB, point source list, fix earth, fix cgb #####
 
-setup_dict = {'use_CR': True,
+setup_dict = {'use_SAA': False,
+              'use_CR': True,
               'use_Earth': True,
               'use_CGB': True,
               'ps_list': ['CRAB'],
+              'fix_ps': [False],
               'fix_earth': False,
               'fix_cgb': False}
 
@@ -44,7 +46,8 @@ bounds_dict = {'saa_bound': [(1, 10**4), (10**-5, 10**-1)],
                'cgb_fixed_bound': [(0.01, 0.5)],
                'earth_free_bound': [(0.001, 1), (-8, -3), (1.1, 1.9), (20, 40)],
                'cgb_free_bound': [(0.01, 0.5), (0.5, 1.7), (2.2, 3.1), (27, 40)],
-               'ps_bound': [(5, 100)]}
+               'ps_fixed_bound': [(5, 100)],
+               'ps_free_bound': [(5, 100), (0, 3)]}
 
 ##################### Input for multinest sampler ###################################################
 
