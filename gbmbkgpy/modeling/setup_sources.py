@@ -3,7 +3,8 @@ from gbmbkgpy.modeling.source import ContinuumSource, SAASource, GlobalSource, F
 
 from gbmbkgpy.modeling.functions import (SAA_Decay,Magnetic_Continuum, Cosmic_Gamma_Ray_Background,
                                          Point_Source_Continuum, Earth_Albedo_Continuum, offset,
-                                         Earth_Albedo_Continuum_Fit_Spectrum, Cosmic_Gamma_Ray_Background_Fit_Spectrum)
+                                         Earth_Albedo_Continuum_Fit_Spectrum, Cosmic_Gamma_Ray_Background_Fit_Spectrum,
+                                         Point_Source_Continuum_Fit_Spectrum)
 
 import numpy as np
 from scipy import interpolate
@@ -28,8 +29,8 @@ except:
     using_mpi = False
 
 def Setup(cd, saa_object, ep, geom_object,echan_list=[],response_object=None, albedo_cgb_object=None, use_SAA=False,
-          use_CR=True, use_Earth=True, use_CGB=True, use_all_ps=False, point_source_list=[], fix_Earth=False,
-          fix_CGB=False):
+          use_CR=True, use_Earth=True, use_CGB=True, use_all_ps=False, point_source_list=[], fix_ps=[],
+          fix_Earth=False, fix_CGB=False):
     """
     Setup all sources
     :param cd: continous_data object
@@ -45,6 +46,7 @@ def Setup(cd, saa_object, ep, geom_object,echan_list=[],response_object=None, al
     :param use_CGB: use cgb?
     :param use_all_ps: use all ps?
     :param point_source_list: PS to use
+    :param free_spectrum_ps: which of the ps in the point_source_list should have a free pl spectrum?
     :param fix_Earth: fix earth spectrum?
     :param fix_CGB: fix cgb spectrum?
     :return:
@@ -68,11 +70,12 @@ def Setup(cd, saa_object, ep, geom_object,echan_list=[],response_object=None, al
             total_sources.append(setup_CosmicRays(cd, ep, saa_object, echan, index))
 
     if use_all_ps:
-        total_sources.append(setup_ps(cd, ep, saa_object, response_object, geom_object, echan_list, include_point_sources=True))
+        total_sources.append(setup_ps(cd, ep, saa_object, response_object, geom_object, echan_list,
+                                      include_point_sources=True, free_spectrum=np.logical_not(fix_ps)))
 
     elif len(point_source_list)!=0:
         total_sources.append(setup_ps(cd, ep, saa_object, response_object, geom_object, echan_list,
-                                      point_source_list=point_source_list))
+                                      point_source_list=point_source_list, free_spectrum=np.logical_not(fix_ps)))
 
     if use_Earth:
 
@@ -155,7 +158,8 @@ def setup_CosmicRays(cd, ep, saa_object, echan, index):
     return [Constant_Continuum,Source_Magnetic_Continuum]
 
     
-def setup_ps(cd, ep, saa_object, response_object, geom_object, echan_list, include_point_sources=False, point_source_list=[]):
+def setup_ps(cd, ep, saa_object, response_object, geom_object, echan_list,
+             include_point_sources=False, point_source_list=[], free_spectrum=[]):
     """
     Set up the global sources which are the same for all echans.
     At the moment the Earth Albedo and the CGB.
@@ -163,34 +167,39 @@ def setup_ps(cd, ep, saa_object, response_object, geom_object, echan_list, inclu
     :param echan:
     :return:
     """
-    assert len(point_source_list)==0 or include_point_sources==False, 'Either include all point sources ' \
+    assert len(point_source_list) == 0 or include_point_sources == False, 'Either include all point sources ' \
                                                                           'or give a list with the wanted sources.' \
                                                                           'Not both!'
-    PS_Sources_list =[]
+    if len(free_spectrum) > 0:
+        assert len(free_spectrum) == len(point_source_list), 'free_spectrum and point_source_list must have same length'
+
+    PS_Sources_list = []
 
     # Point-Source Sources
     if include_point_sources:
-        ep.build_point_sources(response_object, geom_object, echan_list)
-        PS_Continuum_dic = {}
+        ep.build_point_sources(response_object, geom_object, echan_list, free_spectrum=free_spectrum)
 
-        for i, ps in enumerate(ep.point_sources.itervalues()):
+    if len(point_source_list) > 0:
+        ep.build_some_source(response_object, geom_object, point_source_list, echan_list, free_spectrum=free_spectrum)
+
+    PS_Continuum_dic = {}
+
+    for i, ps in enumerate(ep.point_sources.itervalues()):
+        if len(free_spectrum) > 0 and free_spectrum[i]:
+            PS_Continuum_dic['{}'.format(ps.name)] = Point_Source_Continuum_Fit_Spectrum(str(i))
+            response_array = ps.ps_response_array
+            PS_Continuum_dic['{}'.format(ps.name)].set_response_array(response_array)
+            PS_Continuum_dic['{}'.format(ps.name)].set_basis_function_array(cd.time_bins[2:-2])
+            PS_Continuum_dic['{}'.format(ps.name)].set_saa_zero(saa_object.saa_mask[2:-2])
+            PS_Continuum_dic['{}'.format(ps.name)].set_interpolation_times(ps.geometry_times)
+            PS_Continuum_dic['{}'.format(ps.name)].energy_boundaries(ps.Ebin_in_edge)
+
+            PS_Sources_list.append(FitSpectrumSource('{}'.format(ps.name), PS_Continuum_dic['{}'.format(ps.name)]))
+        else:
             PS_Continuum_dic['{}'.format(ps.name)] = Point_Source_Continuum(str(i))
             rate_inter = interpolate.interp1d(ps.geometry_times, ps.ps_rate_array.T)
             PS_Continuum_dic['{}'.format(ps.name)].set_function_array(rate_inter(cd.time_bins[2:-2]))
             PS_Continuum_dic['{}'.format(ps.name)].set_saa_zero(saa_object.saa_mask[2:-2])
-            PS_Continuum_dic['{}'.format(ps.name)].integrate_array(cd.time_bins[2:-2])
-
-            PS_Sources_list.append(GlobalSource('{}'.format(ps.name), PS_Continuum_dic['{}'.format(ps.name)]))
-    if len(point_source_list)>0:
-        ep.build_some_source(response_object, geom_object, point_source_list, echan_list)
-        PS_Continuum_dic = {}
-        for i, ps in enumerate(ep.point_sources.itervalues()):
-            PS_Continuum_dic['{}'.format(ps.name)] = Point_Source_Continuum(str(i))
-            rate_inter = interpolate.interp1d(ps.geometry_times, ps.ps_rate_array.T)
-            PS_Continuum_dic['{}'.format(ps.name)].set_function_array(rate_inter(cd.time_bins[2:-2]))
-            PS_Continuum_dic['{}'.format(ps.name)].set_saa_zero(saa_object.saa_mask[2:-2])
-
-            #precalculate the integration over the time bins
             PS_Continuum_dic['{}'.format(ps.name)].integrate_array(cd.time_bins[2:-2])
 
             PS_Sources_list.append(GlobalSource('{}'.format(ps.name), PS_Continuum_dic['{}'.format(ps.name)]))
