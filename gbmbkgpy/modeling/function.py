@@ -236,23 +236,39 @@ class GlobalFunctionSpectrumFit(Function):
     spectrum!
     """
     
-    def __init__(self, coefficient_name):
+    def __init__(self, coefficient_name, spectrum='bpl'):
         """
         Init the parameters of a broken power law
         :param coefficient_name:
         """
+        self._spec = spectrum
+        if self._spec == 'bpl':
 
-        C = Parameter(coefficient_name + '_C', initial_value=1., min_value=0, max_value=None, delta=0.1,
-                      normalization=True)
-        index1 = Parameter(coefficient_name + '_index1', initial_value=-1., min_value=-10, max_value=5, delta=0.1,
-                           normalization=False, prior='uniform')
-        index2 = Parameter(coefficient_name + '_index2', initial_value=2., min_value=0.1, max_value=5, delta=0.1,                                                                                                            
-                           normalization=False, prior='uniform')
-        break_energy = Parameter(coefficient_name + '_break_energy', initial_value=30., min_value=15, max_value=50, delta=0.1,
-                                 normalization=False,prior='uniform')
-        
-        super(GlobalFunctionSpectrumFit, self).__init__(C, index1, index2, break_energy)
+            C = Parameter(coefficient_name + '_C', initial_value=1., min_value=0, max_value=None, delta=0.1,
+                          normalization=True)
+            index1 = Parameter(coefficient_name + '_index1', initial_value=-1., min_value=-10, max_value=5, delta=0.1,
+                               normalization=False, prior='uniform')
+            index2 = Parameter(coefficient_name + '_index2', initial_value=2., min_value=0.1, max_value=5, delta=0.1,
+                               normalization=False, prior='uniform')
+            break_energy = Parameter(coefficient_name + '_break_energy', initial_value=30., min_value=15, max_value=50, delta=0.1,
+                                     normalization=False,prior='uniform')
 
+            super(GlobalFunctionSpectrumFit, self).__init__(C, index1, index2, break_energy)
+
+        elif self._spec == 'pl':
+
+            C = Parameter(coefficient_name + '_C', initial_value=1., min_value=0, max_value=None, delta=0.1,
+                          normalization=True)
+            index = Parameter(coefficient_name + '_index', initial_value=-1., min_value=0, max_value=3, delta=0.1,
+                               normalization=False, prior='uniform')
+
+            super(GlobalFunctionSpectrumFit, self).__init__(C, index)
+
+        else:
+
+            raise ValueError('Spectrum must be bpl or pl at the moment. But is {}'.format(self._spec))
+
+        self._evaluate = build_evaluation_function()
 
     def set_response_array(self, response_array):
         """
@@ -317,8 +333,14 @@ class GlobalFunctionSpectrumFit(Function):
         :param energy:
         :return:
         """
-        return self._C / ((energy / self._break_energy) ** self._index1 + (energy / self._break_energy) ** self._index2)
-    
+        if self._spec == 'bpl':
+
+            return self._C / ((energy / self._break_energy) ** self._index1 + (energy / self._break_energy) ** self._index2)
+
+        elif self._spec == 'pl':
+
+            return self._C / energy ** self._index
+
     def _integral(self, e1, e2):
         """
         Calculates the flux of photons between two energies
@@ -330,7 +352,7 @@ class GlobalFunctionSpectrumFit(Function):
             self._spectrum(e1) + 4 * self._spectrum((e1 + e2) / 2.0) +
             self._spectrum(e2))
 
-    def _fold_spectrum(self, C, index1, index2, break_energy):
+    def _fold_spectrum(self, *parameters):
         """
         Function to fold the spectrum defined by the current parameter values with the precalculated effective response
         :param C:
@@ -339,25 +361,48 @@ class GlobalFunctionSpectrumFit(Function):
         :param break_energy:
         :return:
         """
-        self._C = C
-        self._index1 = index1
-        self._index2 = index2
-        self._break_energy = break_energy
+        if self._spec == 'bpl':
+
+            self._C = parameters[0]
+            self._index1 = parameters[1]
+            self._index2 = parameters[2]
+            self._break_energy = parameters[3]
+
+        elif self._spec == 'pl':
+
+            self._C = parameters[0]
+            self._index = parameters[1]
+
         true_flux = self._integral(self._energy_bins[:-1], self._energy_bins[1:]) 
         folded_flux = np.dot(true_flux, self._response_array)
 
         self._folded_flux_inter = interpolate.interp1d(self._interpolation_times, folded_flux.T)
         self.integrate_array()
 
-    def _evaluate(self, C, index1, index2, break_energy, echan=None):
-        """
-        Evaulate this source.
-        :param K: the fitted parameter
-        :param echan: echan
-        :return:
-        """
-        
-        return self._integrated_function_array[echan][:, 0]
+    def build_evaluation_function(self):
+        if self._spec=='bpl':
+            def _evaluate(self, C, index1, index2, break_energy, echan=None):
+                """
+                Evaulate this source.
+                :param K: the fitted parameter
+                :param echan: echan
+                :return:
+                """
+
+                return self._integrated_function_array[echan][:, 0]
+        elif self._spec == 'pl':
+
+            def _evaluate(self, C, index, echan=None):
+                """
+                Evaulate this source.
+                :param K: the fitted parameter
+                :param echan: echan
+                :return:
+                """
+
+                return self._integrated_function_array[echan][:, 0]
+
+        return _evaluate
 
 
     def __call__(self, echan):
