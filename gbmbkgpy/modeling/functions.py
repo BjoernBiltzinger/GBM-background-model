@@ -151,11 +151,15 @@ class Magnetic_Constant_Global(GlobalFunction):
 
 class Earth_Albedo_Continuum_Fit_Spectrum(GlobalFunctionSpectrumFit):
     def __init__(self):
-        super(Earth_Albedo_Continuum_Fit_Spectrum, self).__init__('Earth_Albedo-Spectrum_fitted')
+        super(Earth_Albedo_Continuum_Fit_Spectrum, self).__init__('Earth_Albedo-Spectrum_fitted', spectrum='bpl')
 
 class Cosmic_Gamma_Ray_Background_Fit_Spectrum(GlobalFunctionSpectrumFit):
     def __init__(self):
-        super(Cosmic_Gamma_Ray_Background_Fit_Spectrum, self).__init__('CGB-Spectrum_fitted')
+        super(Cosmic_Gamma_Ray_Background_Fit_Spectrum, self).__init__('CGB-Spectrum_fitted', spectrum='bpl')
+
+class Point_Source_Continuum_Fit_Spectrum(GlobalFunctionSpectrumFit):
+    def __init__(self, point_source_nr):
+        super(Point_Source_Continuum_Fit_Spectrum, self).__init__('norm_point_source-' + point_source_nr, spectrum='pl')
 
 class SAA_Decay_Linear(ContinuumFunction):
     def __init__(self, echan):
