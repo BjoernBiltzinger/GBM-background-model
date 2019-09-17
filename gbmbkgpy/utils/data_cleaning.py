@@ -866,7 +866,7 @@ class DataCleaner(object):
                             ])
 
     @property
-    def feature_all_labels(self):
+    def feature_labels(self):
         return [
             'det_ra', 'det_dec', 'sc0', 'sc1', 'sc2', 'sc_height', 'q0', 'q1', 'q2', 'q3',
             'earth_az', 'earth_zen', 'sun_angle',
