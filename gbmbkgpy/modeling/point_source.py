@@ -82,6 +82,13 @@ class PointSrc_fixed(object):
 
         return self._geom.time
 
+    @property
+    def Ebin_in_edge(self):
+        """
+        Returns the Ebin_in edges as defined in the response object
+        """
+        return self._rsp.Ebin_in_edge
+
     def _rate_array(self, index=2):
         """
         Calaculates the rate in all energy channels for all times for which the geometry was calculated.
