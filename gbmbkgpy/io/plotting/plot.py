@@ -51,7 +51,7 @@ class Plotter(object):
     def display_model(self, index, data_color='k', model_color='r', step=True, show_data=True, show_residuals=True,
                       show_legend=True, min_bin_width=1E-99, plot_sources=False, show_grb_trigger=False,
                       show_model=True, change_time=False, show_occ_region=False, posteriour=None, ppc=False,
-                      result_dir=None, **kwargs):
+                      result_dir=None, xlim=None, ylim=None, legend_outside=False, **kwargs):
 
         """
         Plot the current model with or without the data and the residuals. Multiple models can be plotted by supplying
@@ -188,7 +188,10 @@ class Plotter(object):
                                       ylabel="Count Rate\n(counts s$^{-1}$)",
                                       xscale='linear',
                                       yscale='linear',
-                                      show_legend=show_legend)
+                                      show_legend=show_legend,
+                                      xlim=xlim,
+                                      ylim=ylim,
+                                      legend_outside=legend_outside)
 
     #TODO write method to save the data used for plot
 

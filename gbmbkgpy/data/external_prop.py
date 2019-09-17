@@ -42,7 +42,7 @@ class ExternalProps(object):
 
         self._mc_l_interp = interpolate.interp1d(self._lat_time, self._mc_l)
 
-    def build_point_sources(self, rsp, geom):
+    def build_point_sources(self, rsp, geom, echan_list):
         """
         Build all PS saved in the txt file
         :param rsp: response_precalculation
@@ -53,7 +53,7 @@ class ExternalProps(object):
         self._geom = geom
         self._build_point_sources()
 
-    def build_some_source(self, rsp, geom, source_list):
+    def build_some_source(self, rsp, geom, source_list, echan_list):
         """
         Build the PS form the text file with a certain name
         :param rsp: response_precalculation
@@ -63,7 +63,7 @@ class ExternalProps(object):
         """
         self._rsp = rsp
         self._geom = geom
-        self._build_some_source(source_list)
+        self._build_some_source(source_list, echan_list)
 
     def mc_l(self, met):
         """
@@ -216,7 +216,7 @@ class ExternalProps(object):
 
         return mc_l, mc_b, lat_time, lat_geo, lon_geo
 
-    def _build_point_sources(self):
+    def _build_point_sources(self, echan_list):
         """This function reads the point_sources.dat file and returns the sources in the form: names, coordinates[ra][dec]\n
         Input:\n
         readfile.saa()\n
@@ -232,10 +232,10 @@ class ExternalProps(object):
 
         ###Single core calc###
         for row in self._ps_df.itertuples():
-            self._point_sources_dic[row[1]] = PointSrc(row[1], row[2], row[3], self._rsp, self._geom)
+            self._point_sources_dic[row[1]] = PointSrc(row[1], row[2], row[3], self._rsp, self._geom, echan_list, index=2.114)
 
 
-    def _build_some_source(self, source_list):
+    def _build_some_source(self, source_list, echan_list):
         """
         This function builds the PS specified in source_list
         :param source_list: list of PS to build
@@ -252,7 +252,7 @@ class ExternalProps(object):
         for row in self._ps_df.itertuples():
             for element in source_list:
                 if row[1]==element:
-                    self._point_sources_dic[row[1]] = PointSrc(row[1], row[2], row[3], self._rsp, self._geom, index=2.114)
+                    self._point_sources_dic[row[1]] = PointSrc(row[1], row[2], row[3], self._rsp, self._geom, echan_list, index=2.114)
 
     def lat_acd(self, time_bins, use_side):
 
