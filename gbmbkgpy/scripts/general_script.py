@@ -114,6 +114,8 @@ print_progress('Done')
 
 ########## Setup options ###########
 
+# Use SAA?
+use_SAA = setup_dict['use_SAA']
 # Use CosmicRay source?
 use_CR = setup_dict['use_CR']
 # Use EarthAlbedo source?
@@ -122,6 +124,8 @@ use_Earth = setup_dict['use_Earth']
 use_CGB = setup_dict['use_CGB']
 # Which PS should be included (given as list of names)
 ps_list = setup_dict['ps_list']
+# Which of these PS should have a free pl spectrum?
+fix_ps = setup_dict['fix_ps']
 # Fix the spectrum of the earth albedo?
 fix_earth = setup_dict['fix_earth']
 # Fix the spectrum of the CGB?
@@ -139,7 +143,7 @@ print_progress('Create Source list...')
 
 source_list = Setup(data, saa_calc, ep, geom, echan_list=echan_list, response_object=resp, albedo_cgb_object=albedo_cgb_obj,
                     use_SAA=use_SAA, use_CR=use_CR, use_Earth=use_Earth, use_CGB=use_CGB, point_source_list=ps_list,
-                    fix_Earth=fix_earth, fix_CGB=fix_cgb)
+                    fix_ps=fix_ps, fix_Earth=fix_earth, fix_CGB=fix_cgb)
 
 print_progress('Done')
 
@@ -160,8 +164,8 @@ saa_bounds = bounds_dict['saa_bound']
 cr_bounds = bounds_dict['cr_bound']
 
 # Amplitude of PS spectrum
-ps_bound = bounds_dict['ps_bound']
-
+ps_fixed_bound = bounds_dict['ps_fixed_bound']
+ps_free_bound = bounds_dict['ps_free_bound']
 # If earth spectrum is fixed only the normalization, otherwise C, index1, index2 and E_break
 if fix_earth:
     earth_bound = bounds_dict['earth_fixed_bound']
@@ -186,7 +190,12 @@ for i in echan_list:
     if use_CR:
         parameter_bounds.append(cr_bounds)
 # Global sources for all echans
-parameter_bounds.append(ps_bound)
+for i, ps in enumerate(ps_list):
+    if fix_ps[i]:
+        parameter_bounds.append(ps_fixed_bound)
+    else:
+        parameter_bounds.append(ps_free_bound)
+
 parameter_bounds.append(earth_bound)
 parameter_bounds.append(cgb_bound)
 
