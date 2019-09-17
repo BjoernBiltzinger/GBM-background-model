@@ -12,6 +12,29 @@ import matplotlib.pyplot as plt
 import shutil
 from datetime import datetime
 
+try:
+
+    from mininest.integrator import ReactiveNestedSampler
+
+except:
+
+    has_mininest = False
+
+else:
+
+    has_mininest = True
+
+try:
+
+    import pymultinest
+
+except:
+
+    has_pymultinest = False
+
+else:
+
+    has_pymultinest = True
 
 try:
 
@@ -175,40 +198,24 @@ class MultiNestFit(object):
                     # Can only use a uniform prior
                     self._param_priors[parameter_name] = Uniform_prior(lower_bound=min_value, upper_bound=max_value)
 
-        def prior(params, ndim, nparams):
-
-            for i, (parameter_name, parameter) in enumerate(self.parameters.items()):
-
-                try:
-
-                    params[i] = self._param_priors[parameter_name].from_unit_cube(params[i])
-
-                except AttributeError:
-
-                    raise RuntimeError("The prior you are trying to use for parameter %s is "
-                                       "not compatible with multinest" % parameter_name)
-
-        # Give a test run to the prior to check that it is working. If it crashes while multinest is going
-        # it will not stop multinest from running and generate thousands of exceptions (argh!)
-        n_dim = len(self.parameters)
-
-        _ = prior([0.5] * n_dim, n_dim, [])
-
         # declare local likelihood_wrapper object:
         self._loglike = func_wrapper
-        self._prior = prior
+
 
     @property
     def output_directory(self):
         return self.output_dir
 
-    def minimize(self, loglike=None, prior=None, n_dim=None, n_live_points=400, const_efficiency_mode=False):
+    def minimize_multinest(self, loglike=None, prior=None, n_dim=None, n_live_points=400, const_efficiency_mode=False):
+
+
+        assert has_pymultinest, 'You need to have pymultinest installed to use this function'
 
         if loglike is None:
             loglike = self._loglike
 
         if prior is None:
-            prior = self._prior
+            prior = self._construct_multinest_prior()
 
         if n_dim is None:
             n_dim = self._n_dim
@@ -235,6 +242,117 @@ class MultiNestFit(object):
                 self.analyze_result()
         else:
             self.analyze_result()
+
+    def minimize_mininest(self, loglike=None, prior=None, n_dim=None, min_num_live_points=400,
+                           chain_name=None, resume=False, quiet=False, verbose=False, **kwargs):
+
+        assert has_mininest, 'You need to have mininest installed to use this function'
+
+        if loglike is None:
+            loglike = self._loglike
+
+        if prior is None:
+            prior = self._construct_mininest_prior()
+
+        if n_dim is None:
+            n_dim = self._n_dim
+
+        if chain_name is None:
+            chain_name = self.output_dir
+        # Run PyMultiNest
+
+        min_ess = kwargs.pop('min_ess', 400)
+        frac_remain = kwargs.pop('frac_remain', 0.01)
+        dlogz = kwargs.pop('dlogz', 0.5)
+        max_iter = kwargs.pop('max_iter', 0.)
+        dKL = kwargs.pop('dKL', 0.5)
+
+        if not verbose:
+            kwargs['viz_callback'] = False
+
+        sampler = ReactiveNestedSampler(
+            loglike=loglike,
+            transform=prior,
+            log_dir=chain_name,
+            min_num_live_points=min_num_live_points,
+            append_run_num=not resume,
+            show_status=verbose,
+            param_names=self.parameters.keys(),
+            draw_multiple=False,
+            **kwargs)
+
+        sampler.run(dlogz=dlogz,
+                    max_iters=max_iter if max_iter > 0 else None,
+                    min_ess=min_ess,
+                    frac_remain=frac_remain,
+                    dKL=dKL
+                    )
+
+        # Store the sample for further use (if needed)
+        self._sampler = sampler
+
+        # if using mpi only analyze in rank=0
+        if using_mpi:
+            if rank == 0:
+                self.analyze_result()
+        else:
+            self.analyze_result()
+
+    def _construct_multinest_prior(self):
+        """
+        pymultinest becomes confused with the self pointer. We therefore ceate callbacks
+        that pymultinest can understand.
+
+        Here, we construct the prior.
+        """
+
+        def prior(params, ndim, nparams):
+
+            for i, (parameter_name, parameter) in enumerate(self.parameters.items()):
+
+                try:
+
+                    params[i] = parameter.prior.from_unit_cube(params[i])
+
+                except AttributeError:
+
+                    raise RuntimeError("The prior you are trying to use for parameter %s is "
+                                       "not compatible with multinest" % parameter_name)
+
+                    # Give a test run to the prior to check that it is working. If it crashes while multinest is going
+
+        # it will not stop multinest from running and generate thousands of exceptions (argh!)
+        n_dim = len(self.parameters.items())
+
+        _ = prior([0.5] * n_dim, n_dim, [])
+
+        return prior
+
+    def _construct_mininest_prior(self):
+        """
+        pymultinest becomes confused with the self pointer. We therefore ceate callbacks
+        that pymultinest can understand.
+
+        Here, we construct the prior.
+        """
+        ndim = len(self.parameters.items())
+        def prior(params):
+
+            out = np.zeros((len(params), ndim))
+
+            for i, (parameter_name, parameter) in enumerate(self.parameters.items()):
+
+                try:
+
+                    out[:, i] = parameter.prior.from_unit_cube(params[:, i])
+
+                except AttributeError:
+
+                    raise RuntimeError("The prior you are trying to use for parameter %s is "
+                                       "not compatible with multinest" % parameter_name)
+            return out
+
+        return prior
 
     def analyze_result(self):
         # Save parameter names
