@@ -448,7 +448,7 @@ class PointSrc_fixed(object):
         return self._ps_pos_sat_objects
 
 
-class PointSrc_fixed(object):
+class PointSrc_free(object):
 
     def __init__(self, name, ra, dec, response_object, geometry_object, echan_list):
         """
