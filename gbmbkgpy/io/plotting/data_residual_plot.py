@@ -329,9 +329,10 @@ class ResidualPlot(object):
                     rebinned_counts = this_rebinner.rebin(synth_data.counts[:,echan])
                     rebinned_bin_length = np.diff(rebinned_time_bins, axis=1).T[0]
                     rates.append(rebinned_counts/rebinned_bin_length)
-
+            
                     
             rates = np.array(rates)
+            print(rates.shape)
             rates_g = comm.gather(rates, root=0)
             if rank == 0:
                 rates_g = np.concatenate(rates_g)
@@ -363,7 +364,7 @@ class ResidualPlot(object):
         #self._data_axis.set_xlim((70000, 80000))
 
         
-    def finalize(self, xlabel='x', ylabel='y',xscale='log',yscale='log', show_legend=True,invert_y=False, xlim=None):
+    def finalize(self, xlabel='x', ylabel='y',xscale='log',yscale='log', show_legend=True,invert_y=False, xlim=None, ylim=None, legend_outside=False):
         """
         :param xlabel:
         :param ylabel:
@@ -424,6 +425,12 @@ class ResidualPlot(object):
             self._data_axis.set_ylim(self._data_axis.get_ylim()[::-1])
         if xlim!=None:
             self._data_axis.set_xlim(xlim)
+        if ylim!=None:
+            self._data_axis.set_ylim(ylim)
+        if legend_outside:
+            box = self._data_axis.get_position()
+            self._data_axis.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+            self._data_axis.legend(loc='center left', bbox_to_anchor=(1, 0.5))
         #self._data_axis.set_yscale('log')
         #self._data_axis.set_ylim(bottom=1)
         return self._fig

@@ -62,16 +62,16 @@ def Setup(cd, saa_object, ep, geom_object,echan_list=[],response_object=None, al
     for index, echan in enumerate(echan_list):
 
         if use_SAA:
-            total_sources.append(setup_SAA(cd, echan, index))
+            total_sources.append(setup_SAA(cd, saa_object, echan, index))
 
         if use_CR:
             total_sources.append(setup_CosmicRays(cd, ep, saa_object, echan, index))
 
     if use_all_ps:
-        total_sources.append(setup_ps(cd, ep, saa_object, response_object, geom_object, include_point_sources=True))
+        total_sources.append(setup_ps(cd, ep, saa_object, response_object, geom_object, echan_list, include_point_sources=True))
 
     elif len(point_source_list)!=0:
-        total_sources.append(setup_ps(cd, ep, saa_object, response_object, geom_object,
+        total_sources.append(setup_ps(cd, ep, saa_object, response_object, geom_object, echan_list,
                                       point_source_list=point_source_list))
 
     if use_Earth:
@@ -101,7 +101,7 @@ def Setup(cd, saa_object, ep, geom_object,echan_list=[],response_object=None, al
     return total_sources_f
 
 
-def setup_SAA(cd , echan, index):
+def setup_SAA(cd, saa_object, echan, index):
     """
     Setup for SAA sources
     :param saa_object: SAA precalculation object
@@ -114,7 +114,7 @@ def setup_SAA(cd , echan, index):
     SAA_Decay_list = []
     saa_n = 0
     day_start = np.array(cd._day_met)
-    start_times = np.append(day_start, cd.saa_mean_times)
+    start_times = np.append(day_start, saa_object.saa_exit_times)
 
     for time in start_times:
         saa_dec = SAA_Decay(str(saa_n), str(echan))
@@ -155,7 +155,7 @@ def setup_CosmicRays(cd, ep, saa_object, echan, index):
     return [Constant_Continuum,Source_Magnetic_Continuum]
 
     
-def setup_ps(cd, ep, saa_object, response_object, geom_object, include_point_sources=False, point_source_list=[]):
+def setup_ps(cd, ep, saa_object, response_object, geom_object, echan_list, include_point_sources=False, point_source_list=[]):
     """
     Set up the global sources which are the same for all echans.
     At the moment the Earth Albedo and the CGB.
@@ -170,7 +170,7 @@ def setup_ps(cd, ep, saa_object, response_object, geom_object, include_point_sou
 
     # Point-Source Sources
     if include_point_sources:
-        ep.build_point_sources(response_object, geom_object)
+        ep.build_point_sources(response_object, geom_object, echan_list)
         PS_Continuum_dic = {}
 
         for i, ps in enumerate(ep.point_sources.itervalues()):
@@ -182,7 +182,7 @@ def setup_ps(cd, ep, saa_object, response_object, geom_object, include_point_sou
 
             PS_Sources_list.append(GlobalSource('{}'.format(ps.name), PS_Continuum_dic['{}'.format(ps.name)]))
     if len(point_source_list)>0:
-        ep.build_some_source(response_object, geom_object, point_source_list)
+        ep.build_some_source(response_object, geom_object, point_source_list, echan_list)
         PS_Continuum_dic = {}
         for i, ps in enumerate(ep.point_sources.itervalues()):
             PS_Continuum_dic['{}'.format(ps.name)] = Point_Source_Continuum(str(i))
@@ -274,6 +274,6 @@ def setup_cgb_fix(cd, albedo_cgb_object, saa_object):
     cgb.set_function_array(rate_inter(cd.time_bins[2:-2]))
     cgb.set_saa_zero(saa_object.saa_mask[2:-2])
     cgb.integrate_array(cd.time_bins[2:-2])
-    Source_CGB_Albedo_Continuum = GlobalSource('Earth occultation', cgb)
+    Source_CGB_Albedo_Continuum = GlobalSource('CGB', cgb)
 
     return Source_CGB_Albedo_Continuum

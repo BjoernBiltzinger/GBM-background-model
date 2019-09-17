@@ -28,7 +28,7 @@ except:
 
 class PointSrc(object):
 
-    def __init__(self, name, ra, dec, response_object, geometry_object, index=2.114):
+    def __init__(self, name, ra, dec, response_object, geometry_object, echan_list, index=2.114):
         """
         Initialize a PS and precalculates the rates for all the times for which the geomerty was
         calculated.
@@ -47,7 +47,17 @@ class PointSrc(object):
 
         self._rsp = response_object
         self._geom = geometry_object
+        self._data_type = self._rsp.data_type
 
+        if self._data_type == 'ctime':
+            self._echan_mask = np.zeros(8, dtype=bool)
+            for e in echan_list:
+                self._echan_mask[e] = True
+        elif self._data_type == 'cspec':
+            self._echan_mask = np.zeros(128, dtype=bool)
+            for e in echan_list:
+                self._echan_mask[e] = True
+        
         self._response_array()
         self._rate_array(index=index)
 
@@ -87,7 +97,8 @@ class PointSrc(object):
         """
         true_flux_ps = self._integral_ps(self._rsp.Ebin_in_edge[:-1], self._rsp.Ebin_in_edge[1:], index)
         self._folded_flux_ps = np.dot(true_flux_ps, self._ps_response)
-
+        
+            
     def _response_array(self):
         """
         Funtion that imports and precalculate everything that is needed to get the point source array 
@@ -104,7 +115,7 @@ class PointSrc(object):
         Ebin_in_edge = self._rsp.Ebin_in_edge
         Ebin_out_edge = self._rsp.Ebin_out_edge
         det = self._rsp.det
-        
+
         # Use Mpi when it is available
         if using_mpi:
             num_times = len(self._geom.earth_zen)
@@ -178,13 +189,13 @@ class PointSrc(object):
                 with progress_bar(len(ps_pos_sat_list),
                                   title='Calculating the response for all PS positions in sat frame for {}.This shows the progress of rank 0. All other should be about the same.'.format(self._name)) as p:
                     for point in ps_pos_sat_list:
-                        resp = self._rsp._response(point[0], point[1], point[2], DRM)
-                        ps_response.append(resp.matrix.T)
+                        matrix = self._rsp._response(point[0], point[1], point[2], DRM).matrix[self._echan_mask]
+                        ps_response.append(matrix.T)
                     p.increase()
             else:
                 for point in ps_pos_sat_list:
-                    resp = self._rsp._response(point[0], point[1], point[2], DRM)
-                    ps_response.append(resp.matrix.T)
+                    matrix = self._rsp._response(point[0], point[1], point[2], DRM).matrix[self._echan_mask]
+                    ps_response.append(matrix.T)
 
             # Calculate the separation of the earth and the ps for every time step
             separation = []
@@ -205,9 +216,20 @@ class PointSrc(object):
             # Gather all results in rank=0 and broadcast the final result to all ranks
             ps_response=np.array(ps_response)
             ps_response_g = comm.gather(ps_response, root=0)
+
+            ps_pos_sat_objects = np.array(ps_pos_sat_objects)
+            ps_pos_sat_objects_g = comm.gather(ps_pos_sat_objects, root=0)
+
+            separation = np.array(separation)
+            separation_g = comm.gather(separation, root=0)
+
             if rank == 0:
                 ps_response_g = np.concatenate(ps_response_g)
+                separation_g = np.concatenate(separation_g)
+                ps_pos_sat_objects_g = np.concatenate(ps_pos_sat_objects_g)
             ps_response = comm.bcast(ps_response_g, root=0)
+            separation = comm.bcast(separation_g, root=0)
+            self._ps_pos_sat_objects = comm.bcast(ps_pos_sat_objects_g, root=0)
 
         # Singlecore calculation
         else:
@@ -252,8 +274,8 @@ class PointSrc(object):
                               title='Calculating the response for all PS positions in sat frame for {}.This shows the progress of rank 0. All other should be about the same.'.format(
                                   self._name)) as p:
                 for point in ps_pos_sat_list:
-                    resp = self._rsp._response(point[0], point[1], point[2], DRM)
-                    ps_response.append(resp.matrix.T)
+                    matrix = self._rsp._response(point[0], point[1], point[2], DRM).matrix[self._echan_mask]
+                    ps_response.append(matrix.T)
                 p.increase()
 
             # Calculate the separation of the earth and the ps for every time step
@@ -271,7 +293,7 @@ class PointSrc(object):
                 if separation[i] < earth_opening_angle:
                     # If occulted by earth set response to zero
                     ps_response[i] = ps_response[i]*0
-
+        self._separation = separation
         self._ps_response = np.array(ps_response)
         
 
