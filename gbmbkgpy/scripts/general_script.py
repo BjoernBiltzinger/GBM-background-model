@@ -13,7 +13,7 @@ from gbmbkgpy.minimizer.multinest_minimizer import MultiNestFit
 from gbmbkgpy.io.plotting.plot import Plotter
 from gbmbkgpy.modeling.setup_sources import Setup
 from gbmbkgpy.modeling.albedo_cgb import Albedo_CGB_fixed, Albedo_CGB_free
-
+from gbmbkgpy.scripts.config import *
 
 import numpy as np
 
@@ -39,13 +39,11 @@ def print_progress(text):
 
         
 ####################### Setup parameters ###############################
-date=['160310','160311']#,'160312']
-grb_name='GRB 160310A'
-trigger_time='18:42:00.000'
-detector = 'nb'
-data_type = 'cspec'
+date = general_dict['dates']
+detector = general_dict['detector']
+data_type = general_dict['data_type']
 # List with all echans you want to use
-echan_list = [2,12,22,32,42,52,62,72,82,92] #has to be  List! One entry is also possible
+echan_list = general_dict['echan_list'] #has to be  List! One entry is also possible
 
 ############################# Data ######################################
 
@@ -76,7 +74,7 @@ print_progress('Done')
 
 # Create a Response precalculation object, that precalculates the responses on a spherical grid arount the detector.
 # These calculations use the full DRM's and thus include sat. scattering and partial loss of energy by the photons.
-Ngrid = 40000
+Ngrid = response_dict['Ngrid']
 print_progress('Precalculate responses for {} points on sphere around detector...'.format(Ngrid))
 resp = Response_Precalculation(detector,date, echan_list, Ngrid=Ngrid, data_type=data_type)
 print_progress('Done')
@@ -86,10 +84,10 @@ print_progress('Done')
 ######### SAA options ###########
 # Use time after SAA? If no give the time which should be deleted after every SAA in s. If use_SAA=False no SAA sources
 # are build
-use_SAA = False
-time_after_SAA = 5000
+use_SAA = saa_dict['use_SAA']
+time_after_SAA = saa_dict['time_after_SAA']
 # Want to use separated time intervals that are shorter than 1000 seconds?
-short_time_intervals = False
+short_time_intervals = saa_dict['short_time_intervals']
 ################################
 
 # Build the SAA object
@@ -105,7 +103,7 @@ print_progress('Done')
 ########## Geom options ###########
 
 # For how many times during the day do you want to calculate the geometry? In between a linear interpolation is used.
-n_bins_to_calculate = 800
+n_bins_to_calculate = geom_dict['n_bins_to_calculate']
 ###################################
 print_progress('Precalculate geometry for {} times during the day...'.format(n_bins_to_calculate))
 geom = Geometry(data, detector, date, n_bins_to_calculate)
@@ -118,17 +116,17 @@ print_progress('Done')
 ########## Setup options ###########
 
 # Use CosmicRay source?
-use_CR = True
+use_CR = setup_dict['use_CR']
 # Use EarthAlbedo source?
-use_Earth = True
+use_Earth = setup_dict['use_Earth']
 # Use CGB source?
-use_CGB = True
+use_CGB = setup_dict['use_CGB']
 # Which PS should be included (given as list of names)
-ps_list = ['CRAB']
+ps_list = setup_dict['ps_list']
 # Fix the spectrum of the earth albedo?
-fix_earth = False
+fix_earth = setup_dict['fix_earth']
 # Fix the spectrum of the CGB?
-fix_cgb = False
+fix_cgb = setup_dict['fix_cgb']
 
 assert (fix_earth and fix_cgb) or (not fix_earth and not fix_cgb), 'At the moment albeod and cgb spectrum have to be either both fixed or both free'
 
@@ -157,25 +155,25 @@ print_progress('Done')
 ######## Define bounds for all sources ###############
 
 # SAA: Amplitude and decay constant
-saa_bounds = [(1, 10**4), (10**-5, 10**-1)]
+saa_bounds = bounds_dict['saa_bound']
 
 # CR: Constant and McIlwain normalization
-cr_bounds = [(0.1,100), (0.1,100)]
+cr_bounds = bounds_dict['cr_bound']
 
 # Amplitude of PS spectrum
-ps_bound = [(1,100)]
+ps_bound = bounds_dict['ps_bound']
 
 # If earth spectrum is fixed only the normalization, otherwise C, index1, index2 and E_break
 if fix_earth:
-    earth_bound = [(0.001, 1)]
+    earth_bound = bounds_dict['earth_fixed_bound']
 else:
-    earth_bound = [(0.001, 1), (-8, -3), (1.1, 1.9), (20, 40)]
+    earth_bound = bounds_dict['earth_free_bound']
 
 # If cgb spectrum is fixed only the normalization, otherwise C, index1, index2 and E_break
 if fix_cgb:
-    cgb_bound = [(0.01, 0.5)]
+    cgb_bound = bounds_dict['cgb_fixed_bound']
 else:
-    cgb_bound = [(0.01, 0.5), (0.5, 1.7), (2.2, 3.1), (27, 40)]
+    cgb_bound = bounds_dict['cgb_free_bound']
 
 #######################################
 
@@ -211,18 +209,17 @@ print_progress('Done')
 #############Multinest options ##############
 
 # Number of live points for mulitnest?
-num_live_points = 600
+num_live_points = multi_dict['num_live_points']
 
 # const_efficiency_mode of mulitnest?
-const_efficiency_mode = True
+const_efficiency_mode = multi_dict['const_efficiency_mode']
 
 #############################################
 
 #Instantiate Multinest Fit
 mn_fit = MultiNestFit(background_like, model.parameters)
-
 # Fit with multinest and define the number of live points one wants to use
-mn_fit.minimize(n_live_points=num_live_points, const_efficiency_mode=const_efficiency_mode)
+mn_fit.minimize_multinest(n_live_points=num_live_points, const_efficiency_mode=const_efficiency_mode)
 
 # Plot Marginals
 mn_fit.plot_marginals()
@@ -234,29 +231,36 @@ output_dir = mn_fit.output_dir
 
 ############## Plot options #################
 # Choose a bin width to bin the data
-bin_width = 1
+bin_width = plot_dict['bin_width']
 
 # Change time to seconds from midnight?
-change_time = True
+change_time = plot_dict['change_time']
 
 # Show Residuals?
-show_residuals = False
+show_residuals = plot_dict['show_residuals']
 
 # Show data?
-show_data = True
+show_data = plot_dict['show_data']
 
 # Plot best fit of individual sources?
-plot_sources = True
+plot_sources = plot_dict['plot_sources']
 
 # Display the GRB trigger time? What times and names? Time in '20:57:03.000' format.
-show_grb_trigger = True
-times_mark = []
-names_mark = []
+show_grb_trigger = plot_dict['show_grb_trigger']
+times_mark = plot_dict['times_mark']
+names_mark = plot_dict['names_mark']
 
 # Create PPC plots?
-ppc = True
+ppc = plot_dict['ppc']
 
-# Plot Results with rank 0
+# Time range for plot (as tuple, e.g. (5000,35000))
+xlim = plot_dict['xlim']
+
+# Count rates range for plot (as tuple, e.g. (0,60))
+ylim = plot_dict['ylim']
+
+# Should the legend be outside of the plot?
+legend_outside = plot_dict['legend_outside']
 
 
 print_progress('Create Plotter object...')
@@ -268,9 +272,9 @@ print_progress('Done')
 for index, echan in enumerate(echan_list):
     print_progress('Create Plots for echan {} ...'.format(echan))
     residual_plot = plotter.display_model(index, min_bin_width=bin_width, show_residuals=show_residuals,
-                                              show_data=show_data, plot_sources=plot_sources,
-                                              show_grb_trigger=show_grb_trigger, change_time=change_time, ppc=ppc,
-                                              result_dir=output_dir)
+                                          show_data=show_data, plot_sources=plot_sources,
+                                          show_grb_trigger=show_grb_trigger, change_time=change_time, ppc=ppc,
+                                          result_dir=output_dir, xlim=xlim, ylim=ylim, legend_outside=legend_outside)
     if rank==0:
         residual_plot.savefig(output_dir + 'residual_plot_{}_det_{}_echan_{}_bin_width_{}.pdf'.format(
             date, detector, echan, bin_width), dpi=300)
