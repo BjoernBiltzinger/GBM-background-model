@@ -20,7 +20,7 @@ except:
     using_mpi = False
 
 class SAA_calc(object):
-    def __init__(self, data_object, bins_to_add=8, use_SAA=True, time_after_SAA=5000, short_time_intervals=False):
+    def __init__(self, data_object, bins_to_add=8, time_after_SAA=5000, short_time_intervals=False):
         """
         Initalize the SAA calculation that calculates the start and stop times of the SAAs and builds
         masks. 
@@ -112,10 +112,9 @@ class SAA_calc(object):
         self._saa_mask = np.ones(len(self._time_bins), bool)
         for sl in slice_idx:
             self._saa_mask[sl[0]:sl[1]+1]=False
-        # If the use_SAA flag is False we add 5000 seconds after every SAA to the mask
-        # For these times the SAAs can hava a large influence and should therefore be ignored
-        # if the SAAs is not modeled
-        if not use_SAA:
+        # If time_after_SAA is not send to None we add time_after_SAA seconds after every SAA exit to the mask
+        # Useful to ignore the times with a large influence by the SAA
+        if time_after_SAA is not None:
             # Set first time_after_SAA seconds False
             j = 0
             while time_after_SAA > self._time_bins[j,1] - self._time_bins[0,0]:

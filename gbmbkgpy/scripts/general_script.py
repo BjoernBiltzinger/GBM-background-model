@@ -84,18 +84,17 @@ print_progress('Done')
 ######### SAA options ###########
 # Use time after SAA? If no give the time which should be deleted after every SAA in s. If use_SAA=False no SAA sources
 # are build
-use_SAA = saa_dict['use_SAA']
 time_after_SAA = saa_dict['time_after_SAA']
 # Want to use separated time intervals that are shorter than 1000 seconds?
 short_time_intervals = saa_dict['short_time_intervals']
 ################################
 
 # Build the SAA object
-if not use_SAA:
-    print_progress('Precalculate SAA times and SAA mask. {} seconds after every SAA are excluded from fit...')
+if time_after_SAA is not None:
+    print_progress('Precalculate SAA times and SAA mask. {} seconds after every SAA exit are excluded from fit...')
 else:
     print_progress('Precalculate SAA times and SAA mask...')
-saa_calc = SAA_calc(data, use_SAA=use_SAA, time_after_SAA=time_after_SAA, short_time_intervals=short_time_intervals)
+saa_calc = SAA_calc(data, time_after_SAA=time_after_SAA, short_time_intervals=short_time_intervals)
 print_progress('Done')
 
 ################### Geometry precalculation ##################

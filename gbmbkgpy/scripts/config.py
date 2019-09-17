@@ -15,11 +15,9 @@ general_dict = {'dates': ['190114', '190115'],
 
 response_dict = {'Ngrid': 40000}
 
-####### Input for SAA mask precaluclation (include SAA in model, time to exclude after SAA, ##########
-################################# delete short time intervals? ######################################
+####### Input for SAA mask precaluclation (time to exclude after SAA, delete short time intervals? ##
 
-saa_dict = {'use_SAA': False,
-            'time_after_SAA': 5000,
+saa_dict = {'time_after_SAA': 5000,
             'short_time_intervals': False}
 
 ###### Input for geometry calculation (n time bins per day to calculate the geometry ################
