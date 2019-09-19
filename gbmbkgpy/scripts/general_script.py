@@ -13,7 +13,7 @@ from gbmbkgpy.minimizer.multinest_minimizer import MultiNestFit
 from gbmbkgpy.io.plotting.plot import Plotter
 from gbmbkgpy.modeling.setup_sources import Setup
 from gbmbkgpy.modeling.albedo_cgb import Albedo_CGB_fixed, Albedo_CGB_free
-from gbmbkgpy.scripts.config import *
+from config import *
 
 import numpy as np
 
@@ -220,7 +220,7 @@ print_progress('Done')
 num_live_points = multi_dict['num_live_points']
 
 # const_efficiency_mode of mulitnest?
-const_efficiency_mode = multi_dict['const_efficiency_mode']
+const_efficiency_mode = multi_dict['constant_efficiency_mode']
 
 #############################################
 
