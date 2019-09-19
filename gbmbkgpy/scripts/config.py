@@ -6,10 +6,10 @@
 
 ################## General Input (Days, Detector, Data Type, Energy Channels) #######################
 
-general_dict = {'dates': ['190114', '190115'],
-               'detector': 'n7',
+general_dict = {'dates': ['160310', '160311', '160312','160313','160314','160315', '160316', '160317','160318','160319'],
+               'detector': 'nb',
                'data_type': 'cspec',
-               'echan_list': [5, 15, 45, 85, 100]}
+               'echan_list': [5, 15,25,35,45,55, 85, 100]}
 
 ################# Input for response precalculation (how many grid poits?) ##########################
 
@@ -47,7 +47,7 @@ bounds_dict = {'saa_bound': [(1, 10**4), (10**-5, 10**-1)],
                'earth_free_bound': [(0.001, 1), (-8, -3), (1.1, 1.9), (20, 40)],
                'cgb_free_bound': [(0.01, 0.5), (0.5, 1.7), (2.2, 3.1), (27, 40)],
                'ps_fixed_bound': [(5, 100)],
-               'ps_free_bound': [(5, 100), (0, 3)]}
+               'ps_free_bound': [(1, 10), (2, 2.3)]}
 
 ##################### Input for multinest sampler ###################################################
 
@@ -60,10 +60,11 @@ multi_dict = {'num_live_points': 400,
 ### show ppc?, xlim and ylim (as tuple e.g. (0,100)), legend outside of the plot? ####################
 
 
-plot_dict = {'bin_width': 10,
+plot_dict = {'bin_width': 30,
              'change_time': True,
              'show_residuals': False,
              'show_data': True,
+             'plot_sources': True,
              'show_grb_trigger': True,
              'times_mark': [],
              'names_mark': [],
