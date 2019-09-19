@@ -312,7 +312,7 @@ class MultiNestFit(object):
 
                 try:
 
-                    params[i] = parameter.prior.from_unit_cube(params[i])
+                    params[i] = self._param_priors[parameter_name].from_unit_cube(params[i])
 
                 except AttributeError:
 
