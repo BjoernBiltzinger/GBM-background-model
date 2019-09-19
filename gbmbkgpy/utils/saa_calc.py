@@ -26,19 +26,17 @@ class SAA_calc(object):
         masks. 
         :params time_bins: the time bins of the day
         :params bins_to_add: number of bins to add before and after the SAA always
-        :params use_SAA: bool flag that indicates if the SAA is included in the model
         :params time_after_SAA: time after the SAA to ignore if the SAA is not included in the model
         :params short_time_intervals: Should short time intervals (<1000 sec.) be used in the analysis?
         """
         
         assert type(bins_to_add) == int, 'bins_to_add gives the number of time_bins to add before and after the SAA. It must therefore be an int but it is {}.'.format(type(bins_to_add))
         assert type(data_object.time_bins) == np.ndarray, 'Invalid type for time_bins. Must be an array but is {}.'.format(type(data_object.time_bins))
-        assert type(use_SAA) == bool, 'use_SAA must be a bool but is {}'.format(use_SAA)
         assert type(time_after_SAA) == int, 'time_after_SAA must be a int but is a {}'.format(type(time_after_SAA))
         assert type(short_time_intervals) == bool, 'short_time_intervals must be a bool but is {}'.format(short_time_intervals)
 
         self._time_bins = data_object.time_bins
-        self._build_masks(bins_to_add, use_SAA, time_after_SAA, short_time_intervals)
+        self._build_masks(bins_to_add, time_after_SAA, short_time_intervals)
 
     @property
     def saa_mask(self):
@@ -70,7 +68,7 @@ class SAA_calc(object):
         """
         return self._saa_exit_time_bins[:,1]
         
-    def _build_masks(self, bins_to_add, use_SAA, time_after_SAA, short_time_intervals):
+    def _build_masks(self, bins_to_add, time_after_SAA, short_time_intervals):
         """
         Calculates masks that cover the SAAs and some time bins before and after the SAAs
         :params bins_to_add: number of bins to add to mask before and after time bin
