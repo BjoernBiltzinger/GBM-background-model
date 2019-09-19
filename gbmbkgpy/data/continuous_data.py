@@ -108,7 +108,7 @@ class Data(object):
         Returns array with the day_met of all used days
         :return:
         """
-        return self._day_met
+        return self._day_met_array
 
     @property
     def following_day(self):
@@ -183,7 +183,7 @@ class Data(object):
         self._time_bins = time_bins_array
         self._day_start_times = day_start_times
         self._day_stop_times = day_stop_times
-        self._day_met_array = day_met
+        self._day_met_array = day_met_array
         self._following_day = following_day
 
     def _one_day_data(self, day):
