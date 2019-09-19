@@ -268,7 +268,7 @@ class GlobalFunctionSpectrumFit(Function):
 
             raise ValueError('Spectrum must be bpl or pl at the moment. But is {}'.format(self._spec))
 
-        self._evaluate = build_evaluation_function()
+        self._evaluate = self.build_evaluation_function()
 
     def set_response_array(self, response_array):
         """
@@ -381,7 +381,7 @@ class GlobalFunctionSpectrumFit(Function):
 
     def build_evaluation_function(self):
         if self._spec=='bpl':
-            def _evaluate(self, C, index1, index2, break_energy, echan=None):
+            def _evaluate(C, index1, index2, break_energy, echan=None):
                 """
                 Evaulate this source.
                 :param K: the fitted parameter
@@ -390,9 +390,10 @@ class GlobalFunctionSpectrumFit(Function):
                 """
 
                 return self._integrated_function_array[echan][:, 0]
+            
         elif self._spec == 'pl':
 
-            def _evaluate(self, C, index, echan=None):
+            def _evaluate(C, index, echan=None):
                 """
                 Evaulate this source.
                 :param K: the fitted parameter
