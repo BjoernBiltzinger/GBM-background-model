@@ -511,6 +511,15 @@ class PointSrc_free(object):
 
         return self._geom.time
 
+
+    @property
+    def Ebin_in_edge(self):
+        """
+        Returns the Ebin_in edges as defined in the response object
+        """
+        return self._rsp.Ebin_in_edge
+
+    
     def _response_array(self):
         """
         Funtion that imports and precalculate everything that is needed to get the point source array
