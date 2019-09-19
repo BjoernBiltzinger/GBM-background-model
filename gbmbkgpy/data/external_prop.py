@@ -9,8 +9,27 @@ import os
 from gbmbkgpy.io.downloading import download_flares, download_lat_spacecraft
 from gbmbkgpy.io.file_utils import file_existing_and_readable
 from gbmbkgpy.io.package_data import get_path_of_data_file
-from gbmbkgpy.modeling.point_source import PointSrc
+from gbmbkgpy.modeling.point_source import PointSrc_fixed, PointSrc_free
 import csv
+
+try:
+
+    # see if we have mpi and/or are upalsing parallel
+
+    from mpi4py import MPI
+    if MPI.COMM_WORLD.Get_size() > 1: # need parallel capabilities
+        using_mpi = True
+
+        comm = MPI.COMM_WORLD
+        rank = comm.Get_rank()
+        size = comm.Get_size()
+
+    else:
+
+        using_mpi = False
+except:
+
+    using_mpi = False
 
 class ExternalProps(object):
 
@@ -42,7 +61,7 @@ class ExternalProps(object):
 
         self._mc_l_interp = interpolate.interp1d(self._lat_time, self._mc_l)
 
-    def build_point_sources(self, rsp, geom, echan_list):
+    def build_point_sources(self, rsp, geom, echan_list, free_spectrum=[]):
         """
         Build all PS saved in the txt file
         :param rsp: response_precalculation
@@ -51,9 +70,9 @@ class ExternalProps(object):
         """
         self._rsp = rsp
         self._geom = geom
-        self._build_point_sources()
+        self._build_point_sources(echan_list, free_spectrum=free_spectrum)
 
-    def build_some_source(self, rsp, geom, source_list, echan_list):
+    def build_some_source(self, rsp, geom, source_list, echan_list, free_spectrum=[]):
         """
         Build the PS form the text file with a certain name
         :param rsp: response_precalculation
@@ -63,7 +82,7 @@ class ExternalProps(object):
         """
         self._rsp = rsp
         self._geom = geom
-        self._build_some_source(source_list, echan_list)
+        self._build_some_source(source_list, echan_list, free_spectrum=free_spectrum)
 
     def mc_l(self, met):
         """
@@ -123,11 +142,15 @@ class ExternalProps(object):
 
         filename = 'lat_spacecraft_weekly_w%d_p202_v001.fits' % mission_week
         filepath = get_path_of_data_file('lat', filename)
+        if using_mpi:
+            if not file_existing_and_readable(filepath) and rank==0:
 
-        if not file_existing_and_readable(filepath):
+                download_lat_spacecraft(mission_week)
+        else:
+            if not file_existing_and_readable(filepath):
 
-            download_lat_spacecraft(mission_week)
-
+                download_lat_spacecraft(mission_week)
+                
         # Init all arrays as empty arrays
 
         lat_time = np.array([])
@@ -152,9 +175,12 @@ class ExternalProps(object):
 
                 before_filename = 'lat_spacecraft_weekly_w%d_p202_v001.fits' % (mission_week - 1)
                 before_filepath = get_path_of_data_file('lat', before_filename)
-
-                if not file_existing_and_readable(before_filepath):
-                    download_lat_spacecraft(mission_week - 1)
+                if using_mpi:
+                    if not file_existing_and_readable(before_filepath) and rank==0:
+                        download_lat_spacecraft(mission_week - 1)
+                else:
+                    if not file_existing_and_readable(before_filepath):
+                        download_lat_spacecraft(mission_week - 1)
 
 
             if (f['PRIMARY'].header['TSTOP'] <= max_met):
@@ -165,9 +191,12 @@ class ExternalProps(object):
 
                 after_filename = 'lat_spacecraft_weekly_w%d_p202_v001.fits' % (mission_week + 1)
                 after_filepath = get_path_of_data_file('lat', after_filename)
-
-                if not file_existing_and_readable( after_filepath):
-                    download_lat_spacecraft(mission_week + 1)
+                if using_mpi:
+                    if not file_existing_and_readable( after_filepath) and rank==0:
+                        download_lat_spacecraft(mission_week + 1)
+                else:
+                    if not file_existing_and_readable( after_filepath):
+                        download_lat_spacecraft(mission_week + 1)
 
             # first lets get the primary file
             if mission_week not in self._weeks:
@@ -233,10 +262,10 @@ class ExternalProps(object):
         ###Single core calc###
         for i, row in enumerate(self._ps_df.itertuples()):
             if len(free_spectrum) > 0 and free_spectrum[i]:
-                self._point_sources_dic[row[1]] = PointSrc(row[1], row[2], row[3], self._rsp, self._geom,
+                self._point_sources_dic[row[1]] = PointSrc_free(row[1], row[2], row[3], self._rsp, self._geom,
                                                            echan_list)
             else:
-                self._point_sources_dic[row[1]] = PointSrc(row[1], row[2], row[3], self._rsp, self._geom,
+                self._point_sources_dic[row[1]] = PointSrc_fixed(row[1], row[2], row[3], self._rsp, self._geom,
                                                            echan_list, index=2.114)
 
     def _build_some_source(self, source_list, echan_list, free_spectrum=[]):
@@ -257,10 +286,10 @@ class ExternalProps(object):
             for i, element in enumerate(source_list):
                 if row[1]==element:
                     if len(free_spectrum) > 0 and free_spectrum[i]:
-                        self._point_sources_dic[row[1]] = PointSrc(row[1], row[2], row[3], self._rsp, self._geom,
+                        self._point_sources_dic[row[1]] = PointSrc_free(row[1], row[2], row[3], self._rsp, self._geom,
                                                                    echan_list)
                     else:
-                        self._point_sources_dic[row[1]] = PointSrc(row[1], row[2], row[3], self._rsp, self._geom,
+                        self._point_sources_dic[row[1]] = PointSrc_fixed(row[1], row[2], row[3], self._rsp, self._geom,
                                                                    echan_list, index=2.114)
 
     def lat_acd(self, time_bins, use_side):
