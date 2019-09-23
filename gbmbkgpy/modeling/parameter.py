@@ -169,6 +169,6 @@ class Parameter(object):
     def prior(self):
         return self._prior
 
-    @prior
+    @property
     def get_prior_parameter(self):
         return self._min_value, self._max_value, self._mu, self._sigma
