@@ -243,15 +243,14 @@ class GlobalFunctionSpectrumFit(Function):
         """
         self._spec = spectrum
         if self._spec == 'bpl':
-
             C = Parameter(coefficient_name + '_C', initial_value=1., min_value=0, max_value=None, delta=0.1,
                           normalization=True)
-            index1 = Parameter(coefficient_name + '_index1', initial_value=-1., min_value=-10, max_value=5, delta=0.1,
-                               normalization=False, prior='uniform')
-            index2 = Parameter(coefficient_name + '_index2', initial_value=2., min_value=0.1, max_value=5, delta=0.1,
-                               normalization=False, prior='uniform')
-            break_energy = Parameter(coefficient_name + '_break_energy', initial_value=30., min_value=15, max_value=50, delta=0.1,
-                                     normalization=False,prior='uniform')
+            index1 = Parameter(coefficient_name + '_index1', initial_value=-1., min_value=-10, max_value=5, mu=1,
+                               sigma=1 , delta=0.1, normalization=False, prior='truncated_gaussian')
+            index2 = Parameter(coefficient_name + '_index2', initial_value=2., min_value=0.1, max_value=5, mu=1,
+                               sigma=1, delta=0.1, normalization=False, prior='truncated_gaussian')
+            break_energy = Parameter(coefficient_name + '_break_energy', initial_value=-1., min_value=-10, max_value=5,
+                                     mu=1, sigma=1, delta=0.1, normalization=False, prior='truncated_gaussian')
 
             super(GlobalFunctionSpectrumFit, self).__init__(C, index1, index2, break_energy)
 
