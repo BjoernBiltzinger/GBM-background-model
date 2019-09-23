@@ -13,15 +13,15 @@ class Parameter(object):
         self._sigma = sigma
         self._delta = delta
         self._prior = prior
-        assert self._prior in prior_parameter_needed, 'Unknown prior please use one of these: ' \
+        assert prior in prior_parameter_needed, 'Unknown prior please use one of these: ' \
                                                       '{}'.format(prior_parameter_needed.keys())
-        if 'min_value' in prior_parameter_needed[self._prior]:
+        if 'min_value' in prior_parameter_needed[prior]:
             assert self._min_value is not None, 'Please give a minimal value!'
-        if 'max_value' in prior_parameter_needed[self._prior]:
+        if 'max_value' in prior_parameter_needed[prior]:
             assert self._max_value is not None, 'Please give a maximum value!'
-        if 'mu' in prior_parameter_needed[self._prior]:
+        if 'mu' in prior_parameter_needed[prior]:
             assert self._mu is not None, 'Please give a mu value!'
-        if 'sigma' in prior_parameter_needed[self._prior]:
+        if 'sigma' in prior_parameter_needed[prior]:
             assert self._sigma is not None, 'Please give a sigma value!'
 
 
