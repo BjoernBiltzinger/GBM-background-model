@@ -488,7 +488,6 @@ class PointSrc_free(object):
                 self._echan_mask[e] = True
 
         self._response_array()
-        self._response_array()
 
 
     @property
