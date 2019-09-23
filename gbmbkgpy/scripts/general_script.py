@@ -178,6 +178,29 @@ if fix_cgb:
 else:
     cgb_bound = bounds_dict['cgb_free_bound']
 
+######## Define gaussian parameter for all sources ###############
+
+# SAA: Amplitude and decay constant
+saa_gaussian = gaussian_dict['saa_bound']
+
+# CR: Constant and McIlwain normalization
+cr_gaussian = gaussian_dict['cr_bound']
+
+# Amplitude of PS spectrum
+ps_fixed_gaussian = gaussian_dict['ps_fixed_bound']
+ps_free_gaussian = gaussian_dict['ps_free_bound']
+# If earth spectrum is fixed only the normalization, otherwise C, index1, index2 and E_break
+if fix_earth:
+    earth_gaussian = gaussian_dict['earth_fixed_bound']
+else:
+    earth_gaussian = gaussian_dict['earth_free_bound']
+
+# If cgb spectrum is fixed only the normalization, otherwise C, index1, index2 and E_break
+if fix_cgb:
+    cgb_gaussian = gaussian_dict['cgb_fixed_bound']
+else:
+    cgb_gaussian = gaussian_dict['cgb_free_bound']
+
 #######################################
 
 parameter_bounds = []
@@ -205,6 +228,30 @@ parameter_bounds = np.concatenate(parameter_bounds)
 # Add bounds to the parameters for multinest
 model.set_parameter_bounds(parameter_bounds)
 
+gaussian_parameter_bounds = []
+
+# Echan individual sources
+for i in echan_list:
+    if use_SAA:
+        for j in range(saa_calc.num_saa):
+            gaussian_parameter_bounds.append(saa_gaussian)
+    if use_CR:
+        gaussian_parameter_bounds.append(cr_gaussian)
+# Global sources for all echans
+for i, ps in enumerate(ps_list):
+    if fix_ps[i]:
+        gaussian_parameter_bounds.append(ps_fixed_gaussian)
+    else:
+        gaussian_parameter_bounds.append(ps_free_gaussian)
+
+gaussian_parameter_bounds.append(earth_gaussian)
+gaussian_parameter_bounds.append(cgb_gaussian)
+
+# Concatenate this
+parameter_bounds = np.concatenate(gaussian_parameter_bounds)
+
+# Add bounds to the parameters for multinest
+model.set_parameter_gaussian(gaussian_parameter_bounds)
 ################################## Backgroundlike Class #################################
 
 # Class that calcualtes the likelihood

@@ -49,6 +49,15 @@ bounds_dict = {'saa_bound': [(1, 10**4), (10**-5, 10**-1)],
                'ps_fixed_bound': [(5, 100)],
                'ps_free_bound': [(1, 10), (2, 2.3)]}
 
+gaussian_dict = {'saa_bound': [(None, None), (None, None)],
+               'cr_bound': [(None, None), (None, None)],
+               'earth_fixed_bound': [(None, None)],
+               'cgb_fixed_bound': [(None, None)],
+               'earth_free_bound': [(None, None), (-5, 2), (1.72, 0.1), (None, None)],
+               'cgb_free_bound': [(None, None), (1.32, 0.1), (2.88, 0.15), (None, None)],
+               'ps_fixed_bound': [(None, None)],
+               'ps_free_bound': [(None, None), (2, 2.3)]}
+
 ##################### Input for multinest sampler ###################################################
 
 multi_dict = {'num_live_points': 400,
