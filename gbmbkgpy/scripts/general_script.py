@@ -248,7 +248,7 @@ gaussian_parameter_bounds.append(earth_gaussian)
 gaussian_parameter_bounds.append(cgb_gaussian)
 
 # Concatenate this
-parameter_bounds = np.concatenate(gaussian_parameter_bounds)
+gaussian_parameter_bounds = np.concatenate(gaussian_parameter_bounds)
 
 # Add bounds to the parameters for multinest
 model.set_parameter_gaussian(gaussian_parameter_bounds)
