@@ -1,6 +1,6 @@
 
-from astromodels.functions.priors import Uniform_prior, Log_uniform_prior
-import pymultinest
+from astromodels.functions.priors import Uniform_prior, Log_uniform_prior, Log_normal, Truncated_gaussian, Gaussian
+
 import numpy as np
 import os, sys
 from gbmbkgpy.io.package_data import get_path_of_external_data_dir
@@ -157,7 +157,7 @@ class MultiNestFit(object):
 
         for parameter_name in self.parameters:
 
-            min_value, max_value = self.parameters[parameter_name].bounds
+            min_value, max_value, mu, sigma = self.parameters[parameter_name].get_prior_parameter
             prior_type = self.parameters[parameter_name].prior
 
             assert min_value is not None, "Minimum value of parameter %s is None. In order to use the Multinest " \
@@ -176,6 +176,13 @@ class MultiNestFit(object):
 
                 elif prior_type == 'log_uniform':
                     self._param_priors[parameter_name] = Log_uniform_prior(lower_bound=min_value, upper_bound=max_value)
+                elif prior_type == 'gaussian':
+                    self._param_priors[parameter_name] = Gaussian(mu=mu, sigma=sigma)
+                elif prior_type == 'truncated_gaussian':
+                    self._param_priors[parameter_name] = Truncated_gaussian(mu=mu, sigma=sigma, lower_bound=min_value,
+                                                                            upper_bound=max_value)
+                elif prior_type == 'log_normal':
+                    self._param_priors[parameter_name] = Log_normal(mu=mu, sigma=sigma)
                 else:
                     raise TypeError('Unknown prior! Please choose uniform or log_uniform prior')
             else:
