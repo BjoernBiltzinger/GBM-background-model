@@ -629,11 +629,20 @@ class PointSrc_free(object):
             earth_opening_angle = 67
 
             # Set response 0 when separation is <67 grad (than ps is behind earth)
-            for i in range(len(ps_response)):
-                # Check if not occulted by earth
-                if separation[i] < earth_opening_angle:
-                    # If occulted by earth set response to zero
-                    ps_response[i] = ps_response[i] * 0
+            if rank==0:
+                with progress_bar(len(ps_pos_sat_list),
+                                  title='Checking earth occultation for {}.'.format(self._name)) as p:
+                    for i in range(len(ps_response)):
+                        # Check if not occulted by earth
+                        if separation[i] < earth_opening_angle:
+                            # If occulted by earth set response to zero
+                            ps_response[i] = ps_response[i] * 0
+            else:
+                for i in range(len(ps_response)):
+                    # Check if not occulted by earth
+                    if separation[i] < earth_opening_angle:
+                        # If occulted by earth set response to zero
+                        ps_response[i] = ps_response[i] * 0
 
             # Gather all results in rank=0 and broadcast the final result to all ranks
             ps_response = np.array(ps_response)
