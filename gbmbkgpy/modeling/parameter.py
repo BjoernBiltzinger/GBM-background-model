@@ -1,14 +1,21 @@
+prior_parameter_needed = {'uniform': ['min_value', 'max_value'], 'log_uniform': ['min_value', 'max_value'],
+                          'gaussian': ['mu', 'sigma'], 'truncated_gaussian': ['mu', 'sigma', 'min_value', 'max_value'],
+                          'log_normal': ['mu', 'sigma']}
 
 class Parameter(object):
-    def __init__(self, name, initial_value, min_value, max_value, delta, prior=None, **kwargs):
+    def __init__(self, name, initial_value=None, delta=None, min_value=None, max_value=None, mu=None, sigma=None,
+                 prior='log_uniform', **kwargs):
         self._name = str(name)
         self._value = initial_value
         self._min_value = min_value
         self._max_value = max_value
+        self._mu = mu
+        self._sigma = sigma
         self._delta = delta
         self._prior = prior
+        assert prior in prior_parameter_needed, 'Unknown prior please use one of these: ' \
+                                                      '{}'.format(prior_parameter_needed.keys())
 
-        self._prior = prior
 
         self._free = True
 
@@ -115,9 +122,32 @@ class Parameter(object):
 
         return self._min_value, self._max_value
 
-
     bounds = property(_get_bounds, _set_bounds, doc="Gets or sets the boundaries (minimum and maximum) for this "
                                                     "parameter")
+
+    def _set_gaussian_parameter(self, parameter):
+        """Sets the boundaries for this parameter to min_value and max_value"""
+
+        # Use the properties so that the checks and the handling of units are made automatically
+
+        mu, sigma = parameter
+
+        # Remove old boundaries to avoid problems with the new one, if the current value was within the old boundaries
+        # but is not within the new ones (it will then be adjusted automatically later)
+        self._mu = None
+        self._sigma = None
+
+        self._mu = mu
+
+        self._sigma = sigma
+
+    def _get_gaussian_parameter(self):
+        """Returns the current boundaries for the parameter"""
+
+        return self._mu, self._sigma
+
+    gaussian_parameter = property(_get_gaussian_parameter, _set_gaussian_parameter, doc="Gets or sets the gaussian paramter"
+                                                                            " (mu and sigma) for this parameter")
 
     @property
     def normalization(self):
@@ -130,3 +160,7 @@ class Parameter(object):
     @property
     def prior(self):
         return self._prior
+
+    @property
+    def get_prior_parameter(self):
+        return self._min_value, self._max_value, self._mu, self._sigma
