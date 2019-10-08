@@ -1,5 +1,6 @@
-from astromodels.functions.priors import Uniform_prior, Log_uniform_prior
-import pymultinest
+
+from astromodels.functions.priors import Uniform_prior, Log_uniform_prior, Log_normal, Truncated_gaussian, Gaussian
+
 import numpy as np
 import os, sys
 from gbmbkgpy.io.package_data import get_path_of_external_data_dir
@@ -11,6 +12,29 @@ import matplotlib.pyplot as plt
 import shutil
 from datetime import datetime
 
+try:
+
+    from mininest.integrator import ReactiveNestedSampler
+
+except:
+
+    has_mininest = False
+
+else:
+
+    has_mininest = True
+
+try:
+
+    import pymultinest
+
+except:
+
+    has_pymultinest = False
+
+else:
+
+    has_pymultinest = True
 
 try:
 
@@ -37,7 +61,10 @@ class MultiNestFit(object):
 
         self._likelihood = likelihood
 
-        self._day = self._likelihood._data._day
+        self._day_list = self._likelihood._data.day
+        self._day = ''
+        for d in self._day_list:
+            self._day = 'test_2days' #TODO change this; set maximum characters for multinestpath higher
         self._det = self._likelihood._data._det
         
         self._echan_list = self._likelihood._echan_list
@@ -130,7 +157,7 @@ class MultiNestFit(object):
 
         for parameter_name in self.parameters:
 
-            min_value, max_value = self.parameters[parameter_name].bounds
+            min_value, max_value, mu, sigma = self.parameters[parameter_name].get_prior_parameter
             prior_type = self.parameters[parameter_name].prior
 
             assert min_value is not None, "Minimum value of parameter %s is None. In order to use the Multinest " \
@@ -149,6 +176,13 @@ class MultiNestFit(object):
 
                 elif prior_type == 'log_uniform':
                     self._param_priors[parameter_name] = Log_uniform_prior(lower_bound=min_value, upper_bound=max_value)
+                elif prior_type == 'gaussian':
+                    self._param_priors[parameter_name] = Gaussian(mu=mu, sigma=sigma)
+                elif prior_type == 'truncated_gaussian':
+                    self._param_priors[parameter_name] = Truncated_gaussian(mu=mu, sigma=sigma, lower_bound=min_value,
+                                                                            upper_bound=max_value)
+                elif prior_type == 'log_normal':
+                    self._param_priors[parameter_name] = Log_normal(mu=mu, sigma=sigma)
                 else:
                     raise TypeError('Unknown prior! Please choose uniform or log_uniform prior')
             else:
@@ -171,6 +205,114 @@ class MultiNestFit(object):
                     # Can only use a uniform prior
                     self._param_priors[parameter_name] = Uniform_prior(lower_bound=min_value, upper_bound=max_value)
 
+        # declare local likelihood_wrapper object:
+        self._loglike = func_wrapper
+
+
+    @property
+    def output_directory(self):
+        return self.output_dir
+
+    def minimize_multinest(self, loglike=None, prior=None, n_dim=None, n_live_points=400, const_efficiency_mode=False):
+
+
+        assert has_pymultinest, 'You need to have pymultinest installed to use this function'
+
+        if loglike is None:
+            loglike = self._loglike
+
+        if prior is None:
+            prior = self._construct_multinest_prior()
+
+        if n_dim is None:
+            n_dim = self._n_dim
+
+        # Run PyMultiNest
+
+        sampler = pymultinest.run(loglike,
+                                  prior,
+                                  n_dim,
+                                  n_dim,
+                                  n_live_points=n_live_points,
+                                  outputfiles_basename=self.output_dir,
+                                  multimodal=True,#True was default
+                                  resume=True,
+                                  verbose=True,#False was default
+                                  importance_nested_sampling=False,
+                                  const_efficiency_mode=const_efficiency_mode)#False was default
+        # Store the sample for further use (if needed)
+        self._sampler = sampler
+
+        #if using mpi only analyze in rank=0
+        if using_mpi:
+            if rank==0:
+                self.analyze_result()
+        else:
+            self.analyze_result()
+
+    def minimize_mininest(self, loglike=None, prior=None, n_dim=None, min_num_live_points=400,
+                           chain_name=None, resume=False, quiet=False, verbose=False, **kwargs):
+
+        assert has_mininest, 'You need to have mininest installed to use this function'
+
+        if loglike is None:
+            loglike = self._loglike
+
+        if prior is None:
+            prior = self._construct_mininest_prior()
+
+        if n_dim is None:
+            n_dim = self._n_dim
+
+        if chain_name is None:
+            chain_name = self.output_dir
+        # Run PyMultiNest
+
+        min_ess = kwargs.pop('min_ess', 400)
+        frac_remain = kwargs.pop('frac_remain', 0.01)
+        dlogz = kwargs.pop('dlogz', 0.5)
+        max_iter = kwargs.pop('max_iter', 0.)
+        dKL = kwargs.pop('dKL', 0.5)
+
+        if not verbose:
+            kwargs['viz_callback'] = False
+
+        sampler = ReactiveNestedSampler(
+            loglike=loglike,
+            transform=prior,
+            log_dir=chain_name,
+            min_num_live_points=min_num_live_points,
+            append_run_num=not resume,
+            show_status=verbose,
+            param_names=self.parameters.keys(),
+            draw_multiple=False,
+            **kwargs)
+
+        sampler.run(dlogz=dlogz,
+                    max_iters=max_iter if max_iter > 0 else None,
+                    min_ess=min_ess,
+                    frac_remain=frac_remain,
+                    dKL=dKL
+                    )
+
+        # Store the sample for further use (if needed)
+        self._sampler = sampler
+
+        # if using mpi only analyze in rank=0
+        if using_mpi:
+            if rank == 0:
+                self.analyze_result()
+        else:
+            self.analyze_result()
+
+    def _construct_multinest_prior(self):
+        """
+        pymultinest becomes confused with the self pointer. We therefore ceate callbacks
+        that pymultinest can understand.
+
+        Here, we construct the prior.
+        """
+
         def prior(params, ndim, nparams):
 
             for i, (parameter_name, parameter) in enumerate(self.parameters.items()):
@@ -184,53 +326,42 @@ class MultiNestFit(object):
                     raise RuntimeError("The prior you are trying to use for parameter %s is "
                                        "not compatible with multinest" % parameter_name)
 
-        # Give a test run to the prior to check that it is working. If it crashes while multinest is going
+                    # Give a test run to the prior to check that it is working. If it crashes while multinest is going
+
         # it will not stop multinest from running and generate thousands of exceptions (argh!)
-        n_dim = len(self.parameters)
+        n_dim = len(self.parameters.items())
 
         _ = prior([0.5] * n_dim, n_dim, [])
 
-        # declare local likelihood_wrapper object:
-        self._loglike = func_wrapper
-        self._prior = prior
+        return prior
 
-    @property
-    def output_directory(self):
-        return self.output_dir
+    def _construct_mininest_prior(self):
+        """
+        pymultinest becomes confused with the self pointer. We therefore ceate callbacks
+        that pymultinest can understand.
 
-    def minimize(self, loglike=None, prior=None, n_dim=None, n_live_points=400):
+        Here, we construct the prior.
+        """
+        ndim = len(self.parameters.items())
+        def prior(params):
 
-        if loglike is None:
-            loglike = self._loglike
+            out = np.zeros((len(params), ndim))
 
-        if prior is None:
-            prior = self._prior
+            for i, (parameter_name, parameter) in enumerate(self.parameters.items()):
 
-        if n_dim is None:
-            n_dim = self._n_dim
+                try:
 
-        # Run PyMultiNest
-        sampler = pymultinest.run(loglike,
-                                  prior,
-                                  n_dim,
-                                  n_dim,
-                                  n_live_points=n_live_points,
-                                  outputfiles_basename=self.output_dir,
-                                  multimodal=True,
-                                  resume=False,
-                                  importance_nested_sampling=False)
-        # Store the sample for further use (if needed)
-        self._sampler = sampler
+                    out[:, i] = parameter.prior.from_unit_cube(params[:, i])
 
-        #if using mpi only analyze in rank=0
-        if using_mpi:
-            if rank==0:
-                self.analyze_result()
-        else:
-            self.analyze_result()
+                except AttributeError:
+
+                    raise RuntimeError("The prior you are trying to use for parameter %s is "
+                                       "not compatible with multinest" % parameter_name)
+            return out
+
+        return prior
 
     def analyze_result(self):
-
         # Save parameter names
         param_index = []
         for i, parameter in enumerate(self._likelihood._parameters.values()):
@@ -249,6 +380,8 @@ class MultiNestFit(object):
         # Get the samples from the sampler
 
         _raw_samples = multinest_analyzer.get_equal_weighted_posterior()[:, :-1]
+        #print(_raw_samples)
+        #print(_raw_samples[0])
 
         # Find the minimum of the function (i.e. the maximum of func_wrapper)
 
@@ -257,7 +390,7 @@ class MultiNestFit(object):
         best_fit_values = _raw_samples[idx]
 
         minimum = func_values[idx] * (-1)
-
+        self._samples = _raw_samples
         self.multinest_data = multinest_analyzer.get_data()
 
         # set parameters to best fit values
@@ -360,7 +493,6 @@ class MultiNestFit(object):
                             plt.ylabel(parameters[j])
                             # plt.savefig('cond_%s_%s.pdf' % (params[i], params[j]), bbox_tight=True)
                             # plt.close()
-
                     plt.savefig(self.output_dir + 'marg.pdf')
                     plt.savefig(self.output_dir + 'marg.png')
                     # plt.close()
@@ -539,3 +671,8 @@ class MultiNestFit(object):
                     plt.savefig(pp, format='pdf', bbox_inches='tight')
                     #plt.close()
                 pp.close()
+
+    @property
+    def samples(self):
+
+        return self._samples
