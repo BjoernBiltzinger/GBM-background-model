@@ -8,7 +8,7 @@ from gbmgeometry import GBMTime
 import os
 from gbmbkgpy.io.downloading import download_flares, download_lat_spacecraft
 from gbmbkgpy.io.file_utils import file_existing_and_readable
-from gbmbkgpy.io.package_data import get_path_of_data_file
+from gbmbkgpy.io.package_data import get_path_of_data_file, get_path_of_external_data_file
 from gbmbkgpy.modeling.point_source import PointSrc_fixed, PointSrc_free
 import csv
 
@@ -141,7 +141,7 @@ class ExternalProps(object):
 
 
         filename = 'lat_spacecraft_weekly_w%d_p202_v001.fits' % mission_week
-        filepath = get_path_of_data_file('lat', filename)
+        filepath = get_path_of_external_data_file('lat', filename)
         if using_mpi:
             if not file_existing_and_readable(filepath) and rank==0:
 
@@ -174,7 +174,7 @@ class ExternalProps(object):
                 week_before = True
 
                 before_filename = 'lat_spacecraft_weekly_w%d_p202_v001.fits' % (mission_week - 1)
-                before_filepath = get_path_of_data_file('lat', before_filename)
+                before_filepath = get_path_of_external_data_file('lat', before_filename)
                 if using_mpi:
                     if not file_existing_and_readable(before_filepath) and rank==0:
                         download_lat_spacecraft(mission_week - 1)
@@ -190,7 +190,7 @@ class ExternalProps(object):
                 week_after = True
 
                 after_filename = 'lat_spacecraft_weekly_w%d_p202_v001.fits' % (mission_week + 1)
-                after_filepath = get_path_of_data_file('lat', after_filename)
+                after_filepath = get_path_of_external_data_file('lat', after_filename)
                 if using_mpi:
                     if not file_existing_and_readable( after_filepath) and rank==0:
                         download_lat_spacecraft(mission_week + 1)
