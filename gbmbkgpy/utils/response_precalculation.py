@@ -5,13 +5,13 @@ from gbmbkgpy.io.package_data import get_path_of_external_data_dir
 import astropy.io.fits as fits
 from gbmbkgpy.utils.progress_bar import progress_bar
 
-
 try:
 
     # see if we have mpi and/or are upalsing parallel
 
     from mpi4py import MPI
-    if MPI.COMM_WORLD.Get_size() > 1: # need parallel capabilities
+
+    if MPI.COMM_WORLD.Get_size() > 1:  # need parallel capabilities
         using_mpi = True
 
         comm = MPI.COMM_WORLD
@@ -25,8 +25,8 @@ except:
 
     using_mpi = False
 
+valid_det_names = ['n0', 'n1', 'n2', 'n3', 'n4', 'n5', 'n6', 'n7', 'n8', 'n9', 'na', 'nb']
 
-valid_det_names = ['n0','n1' ,'n2' ,'n3' ,'n4' ,'n5' ,'n6' ,'n7' ,'n8' ,'n9' ,'na' ,'nb']
 
 class Response_Precalculation(object):
     """
@@ -34,6 +34,7 @@ class Response_Precalculation(object):
     around the detector. Is used later to calculate the rates of spectral sources
     like the earth or the CGB
     """
+
     def __init__(self, det, day, echan_list, Ngrid=40000, Ebin_edge_incoming=None, data_type='ctime'):
         """
         initialize the grid around the detector and set the values for the Ebins of incoming and detected photons
@@ -42,14 +43,14 @@ class Response_Precalculation(object):
         :param Ebin_edge_incoming: Ebins edges of incomming photons
         :param Ebin_edge_detector: Ebins edges of detector
         """
-        
-        assert det in valid_det_names, 'Invalid det name. Must be one of these {} but is {}.'.format(valid_det_names, det)
-        assert type(day[0])==str and len(day[0])==6, 'Day must be a string of the format YYMMDD, but is {}'.format(day)
-        assert type(Ngrid) == int, 'Ngrid has to be an integer, but is a {}.'.format(type(Ngrid))
-        if Ebin_edge_incoming!=None:
-            assert type(Ebin_edge_incoming)==np.ndarray, 'Invalid type for mean_time. Must be an array but is {}.'.format(type(Ebin_edge_incoming))
 
-        assert data_type=='ctime' or data_type=='cspec', 'Please use a valid data_type (ctime or cspec). Your input is {}.'.format(data_type)
+        assert det in valid_det_names, 'Invalid det name. Must be one of these {} but is {}.'.format(valid_det_names, det)
+        assert type(day[0]) == str and len(day[0]) == 6, 'Day must be a string of the format YYMMDD, but is {}'.format(day)
+        assert type(Ngrid) == int, 'Ngrid has to be an integer, but is a {}.'.format(type(Ngrid))
+        if Ebin_edge_incoming != None:
+            assert type(Ebin_edge_incoming) == np.ndarray, 'Invalid type for mean_time. Must be an array but is {}.'.format(type(Ebin_edge_incoming))
+
+        assert data_type == 'ctime' or data_type == 'cspec', 'Please use a valid data_type (ctime or cspec). Your input is {}.'.format(data_type)
 
         if data_type == 'ctime':
             assert type(echan_list) and max(echan_list) <= 7 and min(echan_list) >= 0 \
@@ -60,20 +61,20 @@ class Response_Precalculation(object):
             assert type(echan_list) and max(echan_list) <= 127 and min(echan_list) >= 0 \
                    and all(isinstance(x, int) for x in echan_list), 'Echan_list variable must be a list and can only ' \
                                                                     'have integer entries between 0 and 7'
-        
+
         self._data_type = data_type
 
         # If no values for Ngrid or Ebin_incoming are given we use the standard values
 
         self._Ngrid = Ngrid
-        
-        if Ebin_edge_incoming==None:
+
+        if Ebin_edge_incoming == None:
             # Incoming spectrum between ~3 and ~5000 keV in 300 bins
             self._Ebin_in_edge = np.array(np.logspace(0.5, 3.7, 301), dtype=np.float32)
         else:
             # Use the user defined incoming energy bins
             self._Ebin_in_edge = Ebin_edge_incoming
-            
+
         # Read in the datafile to get the energy boundaries
         datafile_name = 'glg_{0}_{1}_{2}_v00.pha'.format(data_type, det, day[0])
         datafile_path = os.path.join(get_path_of_external_data_dir(), data_type, day[0], datafile_name)
@@ -88,18 +89,18 @@ class Response_Precalculation(object):
 
         # Translate the n0-nb and b0,b1 notation to the detector 0-14 notation that is used
         # by the response generator
-        if det[0]=='n':
-            if det[1]=='a':
-                self._det=10
-            elif det[1]=='b':
-                self._det=11
+        if det[0] == 'n':
+            if det[1] == 'a':
+                self._det = 10
+            elif det[1] == 'b':
+                self._det = 11
             else:
-                self._det=int(det[1])
-        elif det[0]=='b':
-            if det[1]=='0':
-                self._det=12
-            elif det[1]=='1':
-                self._det=13
+                self._det = int(det[1])
+        elif det[0] == 'b':
+            if det[1] == '0':
+                self._det = 12
+            elif det[1] == '1':
+                self._det = 13
 
         self._echan_list = echan_list
         if self._data_type == 'ctime':
@@ -129,7 +130,7 @@ class Response_Precalculation(object):
     @property
     def det(self):
         return self._det
-    
+
     @property
     def Ebin_in_edge(self):
         return self._Ebin_in_edge
@@ -148,7 +149,7 @@ class Response_Precalculation(object):
         :param Ebin_edge_incoming:
         :return:
         """
-        self._Ebin_in_edge=Ebin_edge_incoming
+        self._Ebin_in_edge = Ebin_edge_incoming
 
     def set_Ebin_edge_outcoming(self, Ebin_edge_outcoming):
         """
@@ -156,7 +157,7 @@ class Response_Precalculation(object):
         :param Ebin_edge_outcoming:
         :return:
         """
-        self._Ebin_out_edge=Ebin_edge_outcoming
+        self._Ebin_out_edge = Ebin_edge_outcoming
 
     def _response(self, x, y, z, DRM):
         """
@@ -180,7 +181,7 @@ class Response_Precalculation(object):
         responses = []
         # Create the DRM object (quaternions and sc_pos are dummy values, not important
         # as we calculate everything in the sat frame
-        
+
         DRM = DRMGen(np.array([0.0745, -0.105, 0.0939, 0.987]),
                      np.array([-5.88 * 10 ** 6, -2.08 * 10 ** 6, 2.97 * 10 ** 6]), self._det,
                      self.Ebin_in_edge, mat_type=0, ebin_edge_out=self._Ebin_out_edge)
@@ -201,11 +202,10 @@ class Response_Precalculation(object):
                 if rank == 0:
 
                     with progress_bar(points_upper_index - points_lower_index,
-                                      title='Calculating response on a grid around detector'
+                                      title='Calculating response on a grid around detector '
                                             'This shows the progress of rank 0. All other should be about the same.') as p:
 
                         for point in self._points[points_lower_index:points_upper_index]:
-
                             # get the response of every point
                             matrix = self._response(point[0], point[1], point[2], DRM).matrix[self._echan_mask]
                             responses.append(matrix.T)
@@ -230,16 +230,16 @@ class Response_Precalculation(object):
 
             else:
                 # Split the grid points in runs with 4000 points each
-                num_split = int(np.ceil(self._Ngrid/4000.))
+                num_split = int(np.ceil(self._Ngrid / 4000.))
 
                 # Save start and stop index of every run
-                N_grid_start = np.arange(0, num_split*4000, 4000)
+                N_grid_start = np.arange(0, num_split * 4000, 4000)
                 N_grid_stop = np.array([])
                 for i in range(num_split):
-                    if i == num_split-1:
+                    if i == num_split - 1:
                         N_grid_stop = np.append(N_grid_stop, self._Ngrid)
                     else:
-                        N_grid_stop = np.append(N_grid_stop, (i+1)*4000)
+                        N_grid_stop = np.append(N_grid_stop, (i + 1) * 4000)
 
                 # Calcualte the response for all runs and save them as separate arrays in one big array
                 responses_all_split = []
@@ -249,14 +249,14 @@ class Response_Precalculation(object):
                     n_stop = N_grid_stop[j]
 
                     # Split up the points of this run among the mpi ranks
-                    points_per_rank = float(n_stop-n_start) / float(size)
+                    points_per_rank = float(n_stop - n_start) / float(size)
                     points_lower_index = int(np.floor(points_per_rank * rank) + n_start)
                     points_upper_index = int(np.floor(points_per_rank * (rank + 1)) + n_start)
 
                     if rank == 0:
                         print('We have to split up the response precalculation in {} runs. MPI can not handle everything at once.'.format(num_split))
                         with progress_bar(points_upper_index - points_lower_index,
-                                          title='Calculating response on a grid around detector run {} of {}. This shows the progress of rank 0. All other should be about the same.'.format(j+1, num_split)) as p:
+                                          title='Calculating response on a grid around detector run {} of {}. This shows the progress of rank 0. All other should be about the same.'.format(j + 1, num_split)) as p:
 
                             for point in self._points[points_lower_index:points_upper_index]:
                                 # get the response of every point
@@ -289,7 +289,7 @@ class Response_Precalculation(object):
 
         else:
             with progress_bar(len(self._points),
-                              title='Calculating response on a grid around detector'
+                              title='Calculating response on a grid around detector '
                                     'This shows the progress of rank 0. All other should be about the same.') as p:
                 for point in self._points:
                     # get the response of every point
@@ -298,7 +298,6 @@ class Response_Precalculation(object):
                     p.increase()
 
         self._responses = np.array(responses)
-        
 
     def _fibonacci_sphere(self, samples=1):
         """
