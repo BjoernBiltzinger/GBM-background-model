@@ -17,6 +17,7 @@ import astropy.io.fits as fits
 
 NO_REBIN = 1E-99
 
+
 class BackgroundLike(object):
 
     def __init__(self, data, model, saa_object, echan_list):
@@ -27,16 +28,15 @@ class BackgroundLike(object):
         :param echan_list:
         """
 
-        self._data = data       # type: ContinuousData
-        self._model = model     # type: Model
-        self._echan_list = np.arange(len(echan_list)) # list of index of all echans which should be fitted
+        self._data = data  # type: ContinuousData
+        self._model = model  # type: Model
+        self._echan_list = np.arange(len(echan_list))  # list of index of all echans which should be fitted
 
         self._name = "Count rate detector %s" % self._data._det
         # The MET start time of the day
 
         self._free_parameters = self._model.free_parameters
         self._parameters = self._model.parameters
-
 
         # The data object should return all the time bins that are valid... i.e. non-zero
         self._total_time_bins = self._data.time_bins[2:-2]
@@ -62,6 +62,7 @@ class BackgroundLike(object):
         self._grb_mask_calculated = False
 
         self._get_sources_fit_spectrum()
+
     def _create_rebinner_before_fit(self, min_bin_width):
         """
         This method rebins the observed counts bevore the fitting process.
@@ -73,16 +74,15 @@ class BackgroundLike(object):
 
         self._fit_rebinner = Rebinner(self._total_time_bins, min_bin_width, self._saa_mask)
 
-
     def _rebinned_observed_counts_fitting(self):
         """
         :return:
         """
         # Rebinn the observec counts on time
-        self._rebinned_observed_counts_fitting_all_echan=[]
+        self._rebinned_observed_counts_fitting_all_echan = []
         for echan in self._echan_list:
             self._rebinned_observed_counts_fitting_all_echan.append(self._fit_rebinner.rebin(self._total_counts_all_echan[:, echan]))
-        self._rebinned_observed_counts_fitting_all_echan=np.array(self._rebinned_observed_counts_fitting_all_echan)
+        self._rebinned_observed_counts_fitting_all_echan = np.array(self._rebinned_observed_counts_fitting_all_echan)
 
     def _rebinned_model_counts_fitting(self):
         """
@@ -92,7 +92,7 @@ class BackgroundLike(object):
         self._rebinned_model_counts_fitting_all_echan = []
         for echan in self._echan_list:
             self._rebinned_model_counts_fitting_all_echan.append(self._fit_rebinner.rebin(self.model_counts(echan))[0])
-        self._rebinned_model_counts_fitting_all_echan=np.array(self._rebinned_model_counts_fitting_all_echan)
+        self._rebinned_model_counts_fitting_all_echan = np.array(self._rebinned_model_counts_fitting_all_echan)
 
     def _evaluate_model(self, echan):
         """
@@ -102,7 +102,7 @@ class BackgroundLike(object):
 
         model_counts = self._model.get_counts(self._time_bins, echan, bin_mask=self._total_mask)
 
-        if self._fit_rebinned == True:
+        if self._fit_rebinned:
             index = int(np.argwhere(self._echan_list == echan))
             return self._rebinned_model_counts_fitting_all_echan[index]
 
@@ -117,9 +117,7 @@ class BackgroundLike(object):
         """
 
         for i, parameter in enumerate(self._free_parameters.itervalues()):
-
             parameter.value = new_parameters[i]
-
 
     def set_free_parameters(self, new_parameters):
         """
@@ -149,7 +147,6 @@ class BackgroundLike(object):
         norm_param_list = []
 
         for parameter_name in self._model.normalization_parameters:
-
             norm_param_list.append(parameter_name)
 
         return norm_param_list
@@ -164,7 +161,6 @@ class BackgroundLike(object):
         not_norm_param_list = []
 
         for parameter_name in self._model.not_normalization_parameters:
-
             not_norm_param_list.append(parameter_name)
 
         return not_norm_param_list
@@ -183,14 +179,13 @@ class BackgroundLike(object):
             for parameter_name in self._parameters:
 
                 if param_name == parameter_name:
-
                     self._parameters[param_name]._free = False
 
                     parameter_exits = True
 
-                    #print ("Parameter {0} has been fixed".format(param_name))
+                    # print ("Parameter {0} has been fixed".format(param_name))
 
-            if parameter_exits == False:
+            if not parameter_exits:
                 print ("Parameter does not exist in parameter list")
 
         # update the free parameter list
@@ -214,7 +209,7 @@ class BackgroundLike(object):
 
                     parameter_exits = True
 
-                    #print ("Parameter {0} has been unfixed".format(param_name))
+                    # print ("Parameter {0} has been unfixed".format(param_name))
 
             if parameter_exits == False:
                 print ("Parameter does not exist in parameter list")
@@ -247,9 +242,8 @@ class BackgroundLike(object):
         return param_bound_list
 
     def _get_sources_fit_spectrum(self):
-        
+
         self._sources_fit_spectrum = self._model.fit_spectrum_sources.values()
-    
 
     def __call__(self, parameters):
         """
@@ -260,14 +254,14 @@ class BackgroundLike(object):
         if self._fit_rebinned:
             self._rebinned_observed_counts_fitting()
             self._rebinned_model_counts_fitting()
-        log_likelihood_list=[]
+        log_likelihood_list = []
         ######### Calculate rates for new spectral parameter
         for source in self._sources_fit_spectrum:
             source.recalculate_counts()
         ########
         for echan in self._echan_list:
             log_likelihood_list.append(self._get_log_likelihood_echan(echan))
-        log_likelihood_list=np.array(log_likelihood_list)
+        log_likelihood_list = np.array(log_likelihood_list)
         return np.sum(log_likelihood_list)
 
     def _get_log_likelihood_echan(self, echan):
@@ -283,34 +277,34 @@ class BackgroundLike(object):
 
         # Use rebinned counts if fir_rebinned is set to true:
         if self._fit_rebinned:
-            index = int(np.argwhere(self._echan_list==echan))
+            index = int(np.argwhere(self._echan_list == echan))
             d_times_logM = self._rebinned_observed_counts_fitting_all_echan[index] * logM
 
         else:
 
-            counts = self._counts_all_echan[:,echan]
+            counts = self._counts_all_echan[:, echan]
             d_times_logM = ne.evaluate("counts*logM")
 
         log_likelihood = ne.evaluate("sum(M - d_times_logM)")
         return log_likelihood
 
     def _fix_precision(self, v):
-      """
-      Round extremely small number inside v to the smallest usable
-      number of the type corresponding to v. This is to avoid warnings
-      and errors like underflows or overflows in math operations.
-    
-    
-      :param v: 
-      :return: 
-      """
+        """
+        Round extremely small number inside v to the smallest usable
+        number of the type corresponding to v. This is to avoid warnings
+        and errors like underflows or overflows in math operations.
 
-      tiny = np.float64(np.finfo(v[0]).tiny)
-      zero_mask = (np.abs(v) <= tiny)
-      if (len(zero_mask.nonzero()[0]) > 0):
-          v[zero_mask] = np.sign(v[zero_mask]) * tiny
 
-      return v, tiny
+        :param v:
+        :return:
+        """
+
+        tiny = np.float64(np.finfo(v[0]).tiny)
+        zero_mask = (np.abs(v) <= tiny)
+        if (len(zero_mask.nonzero()[0]) > 0):
+            v[zero_mask] = np.sign(v[zero_mask]) * tiny
+
+        return v, tiny
 
     def _evaluate_logM(self, M):
         # Evaluate the logarithm with protection for negative or small
@@ -333,7 +327,6 @@ class BackgroundLike(object):
 
         return logM
 
-
     def set_grb_mask(self, *intervals):
         """
         Sets the grb_mask for the provided intervals to False
@@ -353,7 +346,6 @@ class BackgroundLike(object):
 
             self._grb_mask[np.where(bin_exclude)] = False
 
-
     def _parse_interval(self, time_interval):
         """
         The following regular expression matches any two numbers, positive or negative,
@@ -366,14 +358,12 @@ class BackgroundLike(object):
 
         return map(float, tokens)
 
-
     def reset_grb_mask(self):
         """
 
         :return:
         """
         self._grb_mask = np.ones(len(self._time_bins), dtype=bool)  # np.full(len(self._time_bins), True)
-
 
     def _read_fits_file(self, date, detector, echan, file_number=0):
 
@@ -395,4 +385,3 @@ class BackgroundLike(object):
         self.set_free_parameters(fit_result)
 
         print("Fits file was successfully loaded and the free parameters set")
-
