@@ -210,6 +210,11 @@ for i in echan_list:
     if use_SAA:
         for j in range(saa_calc.num_saa):
             parameter_bounds.append(saa_bounds)
+
+        # If fitting only one day add additional 'SAA' decay to account for leftover excitation
+        if len(date) == 1:
+            parameter_bounds.append(saa_bounds)
+
     if use_CR:
         parameter_bounds.append(cr_bounds)
 # Global sources for all echans
