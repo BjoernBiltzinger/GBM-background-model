@@ -5,6 +5,7 @@ from gbmbkgpy.io.file_utils import file_existing_and_readable
 from gbmbkgpy.io.package_data import get_path_of_data_dir, get_path_of_external_data_dir
 from astropy.utils.data import download_file
 
+
 def download_flares(year):
     """This function downloads a yearly solar flar data file and stores it in the appropriate folder\n
     Input:\n
@@ -16,14 +17,13 @@ def download_flares(year):
         print("Making New Directory")
         os.mkdir(file_path)
 
-    
     if year == 2017:
         url = (
-        'ftp://ftp.ngdc.noaa.gov/STP/space-weather/solar-data/solar-features/solar-flares/x-rays/goes/xrs/goes-xrs-report_' + str(
+                'ftp://ftp.ngdc.noaa.gov/STP/space-weather/solar-data/solar-features/solar-flares/x-rays/goes/xrs/goes-xrs-report_' + str(
             year) + '-ytd.txt')
     else:
         url = (
-        'ftp://ftp.ngdc.noaa.gov/STP/space-weather/solar-data/solar-features/solar-flares/x-rays/goes/xrs/goes-xrs-report_' + str(
+                'ftp://ftp.ngdc.noaa.gov/STP/space-weather/solar-data/solar-features/solar-flares/x-rays/goes/xrs/goes-xrs-report_' + str(
             year) + '.txt')
     file_name = '%s.dat' % str(year)
 
@@ -32,27 +32,36 @@ def download_flares(year):
     shutil.move(path_to_file, file_path + file_name)
 
 
-
 def download_lat_spacecraft(week):
     """This function downloads a weekly lat-data file and stores it in the appropriate folder\n
     Input:\n
     download.lat_spacecraft ( week = XXX )\n"""
 
     # create the appropriate folder if it doesn't already exist and switch to it
-    file_path = os.path.join(get_path_of_data_dir(), 'lat/')
+
+    data_path = get_path_of_external_data_dir()
+    if not os.access(data_path, os.F_OK):
+        print("Making New Directory")
+        os.mkdir(data_path)
+
+    file_path = os.path.join(get_path_of_external_data_dir(), 'lat/')
+
     if not os.access(file_path, os.F_OK):
         print("Making New Directory")
         os.mkdir(file_path)
 
+    try:
+        url = 'http://heasarc.gsfc.nasa.gov/FTP/fermi/data/lat/weekly/spacecraft/lat_spacecraft_weekly_w%d_p202_v001.fits' % week
 
+        path_to_file = download_file(url)
+    except:
+        url = 'http://heasarc.gsfc.nasa.gov/FTP/fermi/data/lat/weekly/spacecraft/lat_spacecraft_weekly_w0%d_p202_v001.fits' % week
 
-    url = 'http://heasarc.gsfc.nasa.gov/FTP/fermi/data/lat/weekly/spacecraft/lat_spacecraft_weekly_w%d_p202_v001.fits' % week
-
-    path_to_file = download_file(url)
-
+        path_to_file = download_file(url)
     file_name = 'lat_spacecraft_weekly_w%d_p202_v001.fits' % week
 
     shutil.move(path_to_file, file_path + file_name)
+
 
 def download_data_file(date, type, detector='all'):
     """
@@ -74,7 +83,7 @@ def download_data_file(date, type, detector='all'):
         os.mkdir(data_path)
 
     # poshist files are not stored in a sub folder of the date
-    if type =='poshist':
+    if type == 'poshist':
         file_path = os.path.join(data_path, type)
         file_type = 'fit'
     else:
@@ -90,15 +99,37 @@ def download_data_file(date, type, detector='all'):
         print("Making New Directory")
         os.mkdir(file_path)
 
+    try:
+        url = 'https://heasarc.gsfc.nasa.gov/FTP/fermi/data/gbm/daily/{0}/{1}/{2}/current/glg_{3}_{4}_{5}_v00.{6}'.format(year, month, day, type, detector, date, file_type)
 
-    url = 'https://heasarc.gsfc.nasa.gov/FTP/fermi/data/gbm/daily/{0}/{1}/{2}/current/glg_{3}_{4}_{5}_v00.{6}'.format(
-            year, month, day, type, detector, date, file_type)
+        path_to_file = download_file(url)
+    except:
+        try:
+            url = 'https://heasarc.gsfc.nasa.gov/FTP/fermi/data/gbm/daily/{0}/{1}/{2}/current/glg_{3}_{4}_{5}_v01.{6}'.format(year, month, day, type, detector, date, file_type)
 
-    path_to_file = download_file(url)
+            path_to_file = download_file(url)
+        except:
+            try:
+                url = 'https://heasarc.gsfc.nasa.gov/FTP/fermi/data/gbm/daily/{0}/{1}/{2}/current/glg_{3}_{4}_{5}_v02.{6}'.format(year, month, day, type, detector, date, file_type)
+
+                path_to_file = download_file(url)
+            except:
+                try:
+                    url = 'https://heasarc.gsfc.nasa.gov/FTP/fermi/data/gbm/daily/{0}/{1}/{2}/current/glg_{3}_{4}_{5}_v03.{6}'.format(year, month, day, type, detector, date, file_type)
+
+                    path_to_file = download_file(url)
+                except:
+                    try:
+                        url = 'https://heasarc.gsfc.nasa.gov/FTP/fermi/data/gbm/daily/{0}/{1}/{2}/current/glg_{3}_{4}_{5}_v04.{6}'.format(year, month, day, type, detector, date, file_type)
+
+                        path_to_file = download_file(url)
+                    except:
+                        print('This url not found {}'.format(url))
 
     file_name = 'glg_{0}_{1}_{2}_v00.{3}'.format(type, detector, date, file_type)
 
     shutil.move(path_to_file, file_path + '/' + file_name)
+
 
 def download_files(data_type, det, day):
     ### Download data-file and poshist file if not existing:
