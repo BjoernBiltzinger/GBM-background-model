@@ -138,7 +138,7 @@ class ExternalProps(object):
 
         min_met = GBMTime(day).met
 
-        max_met = GBMTime(day + u.day).met
+        max_met = GBMTime(day + u.Quantity(1, u.day)).met
 
         gbm_time = GBMTime(day)
 
