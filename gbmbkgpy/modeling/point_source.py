@@ -4,7 +4,6 @@ from gbmgeometry.gbm_frame import GBMFrame
 from gbm_drm_gen.drmgen import DRMGen
 from gbmbkgpy.utils.progress_bar import progress_bar
 
-
 import numpy as np
 
 try:
@@ -12,7 +11,8 @@ try:
     # see if we have mpi and/or are upalsing parallel
 
     from mpi4py import MPI
-    if MPI.COMM_WORLD.Get_size() > 1: # need parallel capabilities
+
+    if MPI.COMM_WORLD.Get_size() > 1:  # need parallel capabilities
         using_mpi = True
 
         comm = MPI.COMM_WORLD
@@ -25,6 +25,7 @@ try:
 except:
 
     using_mpi = False
+
 
 class PointSrc_fixed(object):
 
@@ -43,7 +44,7 @@ class PointSrc_fixed(object):
         self._name = name
 
         # Build a SkyCoord object of the PS 
-        self._ps_skycoord = coord.SkyCoord(ra*u.deg, dec*u.deg, frame='icrs')
+        self._ps_skycoord = coord.SkyCoord(ra * u.deg, dec * u.deg, frame='icrs')
 
         self._rsp = response_object
         self._geom = geometry_object
@@ -57,7 +58,7 @@ class PointSrc_fixed(object):
             self._echan_mask = np.zeros(128, dtype=bool)
             for e in echan_list:
                 self._echan_mask[e] = True
-        
+
         self._response_array()
         self._rate_array(index=index)
 
@@ -97,8 +98,7 @@ class PointSrc_fixed(object):
         """
         true_flux_ps = self._integral_ps(self._rsp.Ebin_in_edge[:-1], self._rsp.Ebin_in_edge[1:], index)
         self._folded_flux_ps = np.dot(true_flux_ps, self._ps_response)
-        
-            
+
     def _response_array(self):
         """
         Funtion that imports and precalculate everything that is needed to get the point source array 
@@ -125,8 +125,8 @@ class PointSrc_fixed(object):
             # Calcutate the GBMFrame for all the times for which the geomerty was calcutated
             GBMFrame_list = []
             if rank == 0:
-                
-                with progress_bar(times_upper_bound_index-times_lower_bound_index,
+
+                with progress_bar(times_upper_bound_index - times_lower_bound_index,
                                   title='Calculating GBM frame for several times. '
                                         'This shows the progress of rank 0. All other should be about the same.') as p:
                     for i in range(times_lower_bound_index, times_upper_bound_index):
@@ -171,8 +171,8 @@ class PointSrc_fixed(object):
                     az = ps_pos_sat.lon.deg
                     zen = ps_pos_sat.lat.deg
                     ps_pos_sat_list.append([np.cos(zen * (np.pi / 180)) * np.cos(az * (np.pi / 180)),
-                                                  np.cos(zen * (np.pi / 180)) * np.sin(az * (np.pi / 180)),
-                                                  np.sin(zen * (np.pi / 180))])
+                                            np.cos(zen * (np.pi / 180)) * np.sin(az * (np.pi / 180)),
+                                            np.sin(zen * (np.pi / 180))])
             ps_pos_sat_list = np.array(ps_pos_sat_list)
             ps_pos_sat_objects = np.array(ps_pos_sat_objects)
 
@@ -202,7 +202,7 @@ class PointSrc_fixed(object):
             for earth_position in earth_positions:
                 separation.append(coord.SkyCoord.separation(self._ps_skycoord, earth_position).value)
             separation = np.array(separation)
-            
+
             # define the earth opening angle
             earth_opening_angle = 67
 
@@ -211,10 +211,10 @@ class PointSrc_fixed(object):
                 # Check if not occulted by earth
                 if separation[i] < earth_opening_angle:
                     # If occulted by earth set response to zero
-                    ps_response[i] = ps_response[i]*0
+                    ps_response[i] = ps_response[i] * 0
 
             # Gather all results in rank=0 and broadcast the final result to all ranks
-            ps_response=np.array(ps_response)
+            ps_response = np.array(ps_response)
             ps_response_g = comm.gather(ps_response, root=0)
 
             ps_pos_sat_objects = np.array(ps_pos_sat_objects)
@@ -233,12 +233,12 @@ class PointSrc_fixed(object):
 
         # Singlecore calculation
         else:
-            
+
             # Calcutate the GBMFrame for all these times
             GBMFrame_list = []
             with progress_bar(len(self._geom.earth_zen),
                               title='Calculating GBM frame for several times. '
-                              'This shows the progress of rank 0. All other should be about the same.') as p:
+                                    'This shows the progress of rank 0. All other should be about the same.') as p:
                 for i in range(0, len(quaternion)):
                     q1, q2, q3, q4 = quaternion[i]
                     scx, scy, scz = sc_pos[i]
@@ -258,8 +258,8 @@ class PointSrc_fixed(object):
                     az = ps_pos_sat.lon.deg
                     zen = ps_pos_sat.lat.deg
                     ps_pos_sat_list.append([np.cos(zen * (np.pi / 180)) * np.cos(az * (np.pi / 180)),
-                                                  np.cos(zen * (np.pi / 180)) * np.sin(az * (np.pi / 180)),
-                                                  np.sin(zen * (np.pi / 180))])
+                                            np.cos(zen * (np.pi / 180)) * np.sin(az * (np.pi / 180)),
+                                            np.sin(zen * (np.pi / 180))])
                     p.increase()
 
             ps_pos_sat_list = np.array(ps_pos_sat_list)
@@ -292,10 +292,9 @@ class PointSrc_fixed(object):
                 # Check if not occulted by earth
                 if separation[i] < earth_opening_angle:
                     # If occulted by earth set response to zero
-                    ps_response[i] = ps_response[i]*0
+                    ps_response[i] = ps_response[i] * 0
         self._separation = separation
         self._ps_response = np.array(ps_response)
-        
 
     def _spectrum_ps(self, energy, C, index):
         """
@@ -305,8 +304,8 @@ class PointSrc_fixed(object):
         :params index:
         :return:
         """
-        return C / energy**index
-    
+        return C / energy ** index
+
     def _differential_flux_ps(self, e, index):
         """
         Calculate the diff. flux with the constants defined for the earth
@@ -327,7 +326,7 @@ class PointSrc_fixed(object):
         """
         return (e2 - e1) / 6.0 * (self._differential_flux_ps(e1, index) +
                                   4 * self._differential_flux_ps((e1 + e2) / 2.0, index) +
-                                  self._differential_flux_ps(e2, index))    
+                                  self._differential_flux_ps(e2, index))
 
     def _calc_src_occ(self):
         """
@@ -336,7 +335,7 @@ class PointSrc_fixed(object):
         """
 
         src_occ_ang = []
-        earth_positions = self._data.earth_position #type: ContinuousData.earth_position
+        earth_positions = self._data.earth_position  # type: ContinuousData.earth_position
 
         with progress_bar(len(self._interpolation_time) - 1, title='Calculating earth occultation of point source') as p:
             for earth_position in earth_positions:
@@ -352,14 +351,11 @@ class PointSrc_fixed(object):
 
         self._point_source_earth_angle_interpolator = interpolate.interp1d(self._interpolation_time, src_occ_ang)
 
-
         del src_occ_ang, earth_positions
 
-
     def _zero(self):
-        print( "Numpy where condition true")
+        print("Numpy where condition true")
         return 0
-
 
     def _set_relative_location(self):
 
@@ -375,14 +371,13 @@ class PointSrc_fixed(object):
         """
 
         sep_angle = []
-        pointing = self._data.pointing #type: ContinuousData.pointing
+        pointing = self._data.pointing  # type: ContinuousData.pointing
 
         # go through a subset of times and calculate the sun angle with GBM geometry
 
-        with progress_bar(len(self._interpolation_time)-1,title='Calculating point source seperation angles') as p:
-
+        with progress_bar(len(self._interpolation_time) - 1, title='Calculating point source seperation angles') as p:
             for point in pointing:
-                sep_angle.append(coord.SkyCoord.separation(self._ps_skycoord,point).value)
+                sep_angle.append(coord.SkyCoord.separation(self._ps_skycoord, point).value)
 
                 p.increase()
 
@@ -390,7 +385,6 @@ class PointSrc_fixed(object):
         self._point_source_interpolator = interpolate.interp1d(self._interpolation_time, sep_angle)
 
         del sep_angle, pointing
-
 
     def calc_occ_array(self, time_bins):
         """
@@ -403,7 +397,7 @@ class PointSrc_fixed(object):
 
         return self._src_ang_bin
 
-    def earth_occ_of_ps(self,mean_time): #mask for ps behind earth
+    def earth_occ_of_ps(self, mean_time):  # mask for ps behind earth
         """
         Calculates a mask that is 0 for all time_bins in which the PS is behind the earth and 1 if not
         :param mean_time:
@@ -437,7 +431,6 @@ class PointSrc_fixed(object):
     def src_ang_bin(self):
 
         return self._src_ang_bin
-
 
     @property
     def name(self):
@@ -489,7 +482,6 @@ class PointSrc_free(object):
 
         self._response_array()
 
-
     @property
     def skycoord(self):
         """
@@ -510,7 +502,6 @@ class PointSrc_free(object):
 
         return self._geom.time
 
-
     @property
     def Ebin_in_edge(self):
         """
@@ -518,7 +509,6 @@ class PointSrc_free(object):
         """
         return self._rsp.Ebin_in_edge
 
-    
     def _response_array(self):
         """
         Funtion that imports and precalculate everything that is needed to get the point source array
@@ -629,7 +619,7 @@ class PointSrc_free(object):
             earth_opening_angle = 67
 
             # Set response 0 when separation is <67 grad (than ps is behind earth)
-            if rank==0:
+            if rank == 0:
                 with progress_bar(len(ps_pos_sat_list),
                                   title='Checking earth occultation for {}.'.format(self._name)) as p:
                     for i in range(len(ps_response)):

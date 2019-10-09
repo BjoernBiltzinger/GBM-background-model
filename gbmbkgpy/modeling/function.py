@@ -5,8 +5,8 @@ import scipy.integrate as integrate
 import numexpr as ne
 import scipy.interpolate as interpolate
 
-class Function(object):
 
+class Function(object):
 
     def __init__(self, *parameters):
         """
@@ -17,15 +17,12 @@ class Function(object):
         parameter_dict = collections.OrderedDict()
 
         for parameter in parameters:
-
             parameter_dict[parameter.name] = parameter
-
 
         self._parameter_dict = parameter_dict
 
         for key, value in self._parameter_dict.iteritems():
             self.__dict__[key] = value
-
 
     @property
     def parameter_value(self):
@@ -35,7 +32,7 @@ class Function(object):
         """
 
         return [par.value for par in self._parameter_dict.itervalues()]
-    
+
     def __call__(self, echan):
         """
         Starts the evaluation of the counts per time bin with the current parameters
@@ -43,7 +40,7 @@ class Function(object):
         :return:
         """
 
-        return self._evaluate(*self.parameter_value, echan = echan)
+        return self._evaluate(*self.parameter_value, echan=echan)
 
     def recalculate_counts(self):
         """
@@ -62,6 +59,7 @@ class Function(object):
         """
 
         return self._parameter_dict
+
 
 class ContinuumFunction(Function):
 
@@ -88,7 +86,6 @@ class ContinuumFunction(Function):
         """
 
         self._function_array = function_array
-
 
     def set_saa_zero(self, saa_mask):
         """
@@ -135,12 +132,10 @@ class ContinuumFunction(Function):
         :param echan: echan,dummy value as this source is only for one echan
         :return:
         """
-        int_function_array = self._integrated_function_array[:,0]
+        int_function_array = self._integrated_function_array[:, 0]
         return ne.evaluate("K*int_function_array")
 
-
     def __call__(self, echan):
-
         return self._evaluate(*self.parameter_value, echan=echan)
 
 
@@ -149,6 +144,7 @@ class GlobalFunction(Function):
     A class in which a global constant can be generated which is the same for all Echans.
     Used for photon sources with fixed spectrum to predict the count rates in all echans simultaneously
     """
+
     def __init__(self, coefficient_name):
         """
         Init one Parameter K
@@ -160,7 +156,6 @@ class GlobalFunction(Function):
 
         super(GlobalFunction, self).__init__(K)
 
-
     def set_function_array(self, function_array):
         """
         Set the temporal interpolation that will be used for the function
@@ -170,7 +165,6 @@ class GlobalFunction(Function):
         """
 
         self._function_array = function_array
-
 
     def set_saa_zero(self, saa_mask):
         """
@@ -223,9 +217,7 @@ class GlobalFunction(Function):
         int_function_array_echan = self._integrated_function_array[echan][:, 0]
         return ne.evaluate("K*int_function_array_echan")
 
-
     def __call__(self, echan):
-
         return self._evaluate(*self.parameter_value, echan=echan)
 
 
@@ -235,7 +227,7 @@ class GlobalFunctionSpectrumFit(Function):
     Use this if you want a source with free spectral parameters. Is computational much more expensive than the fixed
     spectrum!
     """
-    
+
     def __init__(self, coefficient_name, spectrum='bpl'):
         """
         Init the parameters of a broken power law
@@ -285,7 +277,7 @@ class GlobalFunctionSpectrumFit(Function):
         :return:
         """
         self._interpolation_times = interpolation_times
-        
+
     def set_basis_function_array(self, time_bins):
         """
         Basis array that has the length as the time_bins array with all entries 1
@@ -302,6 +294,7 @@ class GlobalFunctionSpectrumFit(Function):
         :return:
         """
         self._function_array_b[np.where(~saa_mask)] = 0.
+
     def energy_boundaries(self, energy_bins):
         """
         Energie bundaries for the incoming photon spectrum (defined in the response precalculation)
@@ -309,7 +302,7 @@ class GlobalFunctionSpectrumFit(Function):
         :return:
         """
         self._energy_bins = energy_bins
-        
+
     def integrate_array(self):
         """
         Integrate the count rates to get the counts in each time bin. Can not be precalcualted here as the
@@ -324,7 +317,7 @@ class GlobalFunctionSpectrumFit(Function):
 
         # For all echans calculate the count prediction for all time bins
         for i in range(len(folded_flux_all)):
-            self._integrated_function_array.append(integrate.cumtrapz(folded_flux_all[i]*self._function_array_b, self._time_bins))
+            self._integrated_function_array.append(integrate.cumtrapz(folded_flux_all[i] * self._function_array_b, self._time_bins))
 
     def _spectrum(self, energy):
         """
@@ -348,8 +341,8 @@ class GlobalFunctionSpectrumFit(Function):
         :return:
         """
         return (e2 - e1) / 6.0 * (
-            self._spectrum(e1) + 4 * self._spectrum((e1 + e2) / 2.0) +
-            self._spectrum(e2))
+                self._spectrum(e1) + 4 * self._spectrum((e1 + e2) / 2.0) +
+                self._spectrum(e2))
 
     def _fold_spectrum(self, *parameters):
         """
@@ -372,14 +365,14 @@ class GlobalFunctionSpectrumFit(Function):
             self._C = parameters[0]
             self._index = parameters[1]
 
-        true_flux = self._integral(self._energy_bins[:-1], self._energy_bins[1:]) 
+        true_flux = self._integral(self._energy_bins[:-1], self._energy_bins[1:])
         folded_flux = np.dot(true_flux, self._response_array)
 
         self._folded_flux_inter = interpolate.interp1d(self._interpolation_times, folded_flux.T)
         self.integrate_array()
 
     def build_evaluation_function(self):
-        if self._spec=='bpl':
+        if self._spec == 'bpl':
             def _evaluate(C, index1, index2, break_energy, echan=None):
                 """
                 Evaulate this source.
@@ -389,7 +382,7 @@ class GlobalFunctionSpectrumFit(Function):
                 """
 
                 return self._integrated_function_array[echan][:, 0]
-            
+
         elif self._spec == 'pl':
 
             def _evaluate(C, index, echan=None):
@@ -403,7 +396,6 @@ class GlobalFunctionSpectrumFit(Function):
                 return self._integrated_function_array[echan][:, 0]
 
         return _evaluate
-
 
     def __call__(self, echan):
 
