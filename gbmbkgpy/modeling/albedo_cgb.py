@@ -1,13 +1,13 @@
 import numpy as np
 from gbmbkgpy.utils.progress_bar import progress_bar
 
-
 try:
 
     # see if we have mpi and/or are upalsing parallel
 
     from mpi4py import MPI
-    if MPI.COMM_WORLD.Get_size() > 1: # need parallel capabilities
+
+    if MPI.COMM_WORLD.Get_size() > 1:  # need parallel capabilities
         using_mpi = True
 
         comm = MPI.COMM_WORLD
@@ -27,10 +27,11 @@ class Albedo_CGB_free(object):
     Class that precalulated the response arrays for the Earth Albedo and CGB for all times for which the geometry
     was calculated. Use this if you want the spectra to be free in the fit (not only normalization) 
     """
+
     def __init__(self, response_object, geometry_object):
         self._rsp = response_object
         self._geom = geometry_object
-        
+
         self._response_sum()
 
     @property
@@ -88,7 +89,7 @@ class Albedo_CGB_free(object):
             times_upper_bound_index = int(np.floor((rank + 1) * times_per_rank))
 
             if rank == 0:
-                with progress_bar(times_upper_bound_index-times_lower_bound_index,
+                with progress_bar(times_upper_bound_index - times_lower_bound_index,
                                   title='Calculating earth position in sat frame for several times. '
                                         'This shows the progress of rank 0. All other should be about the same.') as p:
                     for i in range(times_lower_bound_index, times_upper_bound_index):
@@ -207,6 +208,7 @@ class Albedo_CGB_fixed(object):
     was calculated for a normalization 1. Use this if you want that only the normalization of the spectra
     is a free fit parameter.
     """
+
     def __init__(self, response_object, geometry_object):
 
         self._rsp = response_object
@@ -214,12 +216,12 @@ class Albedo_CGB_fixed(object):
 
         # Set spectral parameters to literature values (Earth and CGB from Ajello)
 
-        #cgb spectrum
+        # cgb spectrum
         self._index1_cgb = 1.32
         self._index2_cgb = 2.88
         self._break_energy_cgb = 29.99
 
-        #earth spectrum
+        # earth spectrum
         self._index1_earth = -5
         self._index2_earth = 1.72
         self._break_energy_earth = 33.7
@@ -256,16 +258,15 @@ class Albedo_CGB_fixed(object):
         Returns the Ebin_in edges as defined in the response object
         """
         return self._rsp.Ebin_in_edge
-    
+
     def _rates_array(self):
         # Calculate the true flux for the Earth for the assumed spectral parameters (Normalization=1).
         # This true flux is binned in energy bins as defined in the response object
-        true_flux_earth = self._integral_earth(self._rsp.Ebin_in_edge[:-1], self._rsp.Ebin_in_edge[1:]) 
+        true_flux_earth = self._integral_earth(self._rsp.Ebin_in_edge[:-1], self._rsp.Ebin_in_edge[1:])
         self._folded_flux_earth = np.dot(true_flux_earth, self._array_earth_response_sum)
 
-        true_flux_cgb= self._integral_cgb(self._rsp.Ebin_in_edge[:-1], self._rsp.Ebin_in_edge[1:])
+        true_flux_cgb = self._integral_cgb(self._rsp.Ebin_in_edge[:-1], self._rsp.Ebin_in_edge[1:])
         self._folded_flux_cgb = np.dot(true_flux_cgb, self._array_cgb_response_sum)
-        
 
     def _response_sum(self):
         """
@@ -282,11 +283,11 @@ class Albedo_CGB_fixed(object):
         # Factor to multiply the responses with. Needed as the later spectra are given in units of
         # 1/sr. The sr_points gives the area of the sphere occulted by one point
         sr_points = 4 * np.pi / len(points)
-        
+
         # Get the earth direction at the interpolation times; zen angle from -90 to 90
         earth_pos_inter_times = []
 
-        #If MPI available it is used to speed up the calculation
+        # If MPI available it is used to speed up the calculation
         if using_mpi:
             num_times = len(self._geom.earth_zen)
             times_per_rank = float(num_times) / float(size)
@@ -294,7 +295,7 @@ class Albedo_CGB_fixed(object):
             times_upper_bound_index = int(np.floor((rank + 1) * times_per_rank))
 
             if rank == 0:
-                with progress_bar(times_upper_bound_index-times_lower_bound_index,
+                with progress_bar(times_upper_bound_index - times_lower_bound_index,
                                   title='Calculating earth position in sat frame for several times. '
                                         'This shows the progress of rank 0. All other should be about the same.') as p:
                     for i in range(times_lower_bound_index, times_upper_bound_index):
@@ -309,12 +310,12 @@ class Albedo_CGB_fixed(object):
                 for i in range(times_lower_bound_index, times_upper_bound_index):
                     earth_pos_inter_times.append(
                         np.array([np.cos(self._geom.earth_zen[i] * (np.pi / 180))
-                                  * np.cos(self._geom.earth_az[i]* (np.pi / 180)),
+                                  * np.cos(self._geom.earth_az[i] * (np.pi / 180)),
                                   np.cos(self._geom.earth_zen[i] * (np.pi / 180))
-                                  * np.sin(self._geom.earth_az[i]* (np.pi / 180)),
+                                  * np.sin(self._geom.earth_az[i] * (np.pi / 180)),
                                   np.sin(self._geom.earth_zen[i] * (np.pi / 180))]))
             earth_pos_inter_times = np.array(earth_pos_inter_times)
-            
+
             # Define the opening angle of the earth in degree
             opening_angle_earth = 67
 
@@ -360,7 +361,7 @@ class Albedo_CGB_fixed(object):
             array_cgb_response_sum = np.array(array_cgb_response_sum)
             array_earth_response_sum = np.array(array_earth_response_sum)
             array_cgb_response_sum_g = comm.gather(array_cgb_response_sum, root=0)
-            array_earth_response_sum_g = comm.gather(array_earth_response_sum, root=0) 
+            array_earth_response_sum_g = comm.gather(array_earth_response_sum, root=0)
             if rank == 0:
                 array_cgb_response_sum_g = np.concatenate(array_cgb_response_sum_g)
                 array_earth_response_sum_g = np.concatenate(array_earth_response_sum_g)
@@ -379,7 +380,7 @@ class Albedo_CGB_fixed(object):
                                   np.sin(self._geom.earth_zen[i] * (np.pi / 180))]))
                     p.increase()
             self._earth_pos_inter_times = np.array(earth_pos_inter_times)
-            
+
             # define the opening angle of the earth in degree
             opening_angle_earth = 67
             array_cgb_response_sum = []
@@ -401,10 +402,9 @@ class Albedo_CGB_fixed(object):
                     array_earth_response_sum.append(earth_response_time)
 
         # Mulitiply by the sr_points factor which is the area of the unit sphere covered by every point
-        self._array_cgb_response_sum = np.array(array_cgb_response_sum)*sr_points
-        self._array_earth_response_sum = np.array(array_earth_response_sum)*sr_points
-    
-    
+        self._array_cgb_response_sum = np.array(array_cgb_response_sum) * sr_points
+        self._array_earth_response_sum = np.array(array_earth_response_sum) * sr_points
+
     def _spectrum_bpl(self, energy, C, index1, index2, break_energy):
         """
         Define the function of a broken power law. Needed for earth and cgb spectrum
@@ -455,4 +455,4 @@ class Albedo_CGB_fixed(object):
         """
         return (e2 - e1) / 6.0 * (
                 self._differential_flux_cgb(e1) + 4 * self._differential_flux_cgb((e1 + e2) / 2.0) +
-                self._differential_flux_cgb(e2))    
+                self._differential_flux_cgb(e2))

@@ -1,7 +1,6 @@
-
 from gbmbkgpy.modeling.source import ContinuumSource, SAASource, GlobalSource, FitSpectrumSource
 
-from gbmbkgpy.modeling.functions import (SAA_Decay,Magnetic_Continuum, Cosmic_Gamma_Ray_Background,
+from gbmbkgpy.modeling.functions import (SAA_Decay, Magnetic_Continuum, Cosmic_Gamma_Ray_Background,
                                          Point_Source_Continuum, Earth_Albedo_Continuum, offset,
                                          Earth_Albedo_Continuum_Fit_Spectrum, Cosmic_Gamma_Ray_Background_Fit_Spectrum,
                                          Point_Source_Continuum_Fit_Spectrum)
@@ -9,13 +8,12 @@ from gbmbkgpy.modeling.functions import (SAA_Decay,Magnetic_Continuum, Cosmic_Ga
 import numpy as np
 from scipy import interpolate
 
-
-    # see if we have mpi and/or are upalsing parallel                                                                                                                                                                                                                          
+# see if we have mpi and/or are upalsing parallel
 try:
     from mpi4py import MPI
 
-    if MPI.COMM_WORLD.Get_size() > 1: # need parallel capabilities                                                                                                                                                                                                             
-        using_mpi = True ###################33                                                                                                                                                                                                                                 
+    if MPI.COMM_WORLD.Get_size() > 1:  # need parallel capabilities
+        using_mpi = True  ###################33
 
         comm = MPI.COMM_WORLD
         rank = comm.Get_rank()
@@ -28,7 +26,8 @@ except:
 
     using_mpi = False
 
-def Setup(cd, saa_object, ep, geom_object,echan_list=[],response_object=None, albedo_cgb_object=None, use_SAA=False,
+
+def Setup(cd, saa_object, ep, geom_object, echan_list=[], response_object=None, albedo_cgb_object=None, use_SAA=False,
           use_CR=True, use_Earth=True, use_CGB=True, use_all_ps=False, point_source_list=[], fix_ps=[],
           fix_Earth=False, fix_CGB=False):
     """
@@ -52,10 +51,10 @@ def Setup(cd, saa_object, ep, geom_object,echan_list=[],response_object=None, al
     :return:
     """
 
-    assert len(echan_list)>0, 'Please give at least one echan'
+    assert len(echan_list) > 0, 'Please give at least one echan'
 
-    assert type(use_SAA)==bool and type(use_CR)==bool and type(use_Earth)==bool and type(use_CGB)==bool and \
-           type(fix_Earth)==bool and type(fix_CGB)==bool and type(use_all_ps)==bool, 'Please only use True or False here.'
+    assert type(use_SAA) == bool and type(use_CR) == bool and type(use_Earth) == bool and type(use_CGB) == bool and \
+           type(fix_Earth) == bool and type(fix_CGB) == bool and type(use_all_ps) == bool, 'Please only use True or False here.'
 
     total_sources = []
 
@@ -73,7 +72,7 @@ def Setup(cd, saa_object, ep, geom_object,echan_list=[],response_object=None, al
         total_sources.append(setup_ps(cd, ep, saa_object, response_object, geom_object, echan_list,
                                       include_point_sources=True, free_spectrum=np.logical_not(fix_ps)))
 
-    elif len(point_source_list)!=0:
+    elif len(point_source_list) != 0:
         total_sources.append(setup_ps(cd, ep, saa_object, response_object, geom_object, echan_list,
                                       point_source_list=point_source_list, free_spectrum=np.logical_not(fix_ps)))
 
@@ -96,7 +95,7 @@ def Setup(cd, saa_object, ep, geom_object,echan_list=[],response_object=None, al
     # flatten the source list
     total_sources_f = []
     for x in total_sources:
-        if type(x)==list:
+        if type(x) == list:
             for y in x:
                 total_sources_f.append(y)
         else:
@@ -126,9 +125,10 @@ def setup_SAA(cd, saa_object, echan, index):
 
         # precalculation for later evaluation
         saa_dec.precalulate_time_bins_integral()
-        SAA_Decay_list.append(SAASource('saa_{:d} echan_{}'.format(saa_n,echan), saa_dec, index))
+        SAA_Decay_list.append(SAASource('saa_{:d} echan_{}'.format(saa_n, echan), saa_dec, index))
         saa_n += 1
     return SAA_Decay_list
+
 
 def setup_CosmicRays(cd, ep, saa_object, echan, index):
     """
@@ -138,7 +138,7 @@ def setup_CosmicRays(cd, ep, saa_object, echan, index):
     :param cd: ContinuousData object
     :return: Constant and magnetic continuum source
     """
-    
+
     Constant = offset(str(echan))
     Constant.set_function_array(np.ones_like(cd.time_bins[2:-2]))
     Constant.set_saa_zero(saa_object.saa_mask[2:-2])
@@ -155,9 +155,9 @@ def setup_CosmicRays(cd, ep, saa_object, echan, index):
     mag_con.integrate_array(cd.time_bins[2:-2])
     Source_Magnetic_Continuum = ContinuumSource('McIlwain L-parameter_echan_{:d}'.format(echan),
                                                 mag_con, index)
-    return [Constant_Continuum,Source_Magnetic_Continuum]
+    return [Constant_Continuum, Source_Magnetic_Continuum]
 
-    
+
 def setup_ps(cd, ep, saa_object, response_object, geom_object, echan_list,
              include_point_sources=False, point_source_list=[], free_spectrum=[]):
     """
@@ -227,6 +227,7 @@ def setup_earth_free(cd, albedo_cgb_object, saa_object):
     Source_Earth_Albedo_Continuum = FitSpectrumSource('Earth occultation', earth_albedo)
 
     return Source_Earth_Albedo_Continuum
+
 
 def setup_earth_fix(cd, albedo_cgb_object, saa_object):
     """

@@ -2,6 +2,7 @@ FLARE_SOURCE, CONTINUUM_SOURCE, POINT_SOURCE, SAA_SOURCE, GLOBAL_SOURCE, FIT_SPE
 from scipy import integrate
 import numpy as np
 
+
 class Source(object):
     def __init__(self, name, source_type, shape, index):
         self._name = name
@@ -12,7 +13,6 @@ class Source(object):
         assert source_type in [POINT_SOURCE, CONTINUUM_SOURCE, FLARE_SOURCE, SAA_SOURCE, GLOBAL_SOURCE, FIT_SPECTRUM_SOURCE], 'improper source'
 
     def __call__(self):
-
         return self._shape()
 
     def recalculate_counts(self):
@@ -49,7 +49,6 @@ class Source(object):
 
     @property
     def parameters(self):
-
         return self._shape.parameters
 
 
@@ -72,10 +71,12 @@ class SAASource(Source):
     def __init__(self, name, saa_shape, index):
         super(SAASource, self).__init__(name, SAA_SOURCE, saa_shape, index)
 
+
 class GlobalSource(Source):
     def __init__(self, name, continuum_shape):
-        super(GlobalSource, self).__init__(name, GLOBAL_SOURCE, continuum_shape, -1) #dummy value for echan index
+        super(GlobalSource, self).__init__(name, GLOBAL_SOURCE, continuum_shape, -1)  # dummy value for echan index
+
 
 class FitSpectrumSource(Source):
     def __init__(self, name, continuum_shape):
-        super(FitSpectrumSource, self).__init__(name, FIT_SPECTRUM_SOURCE, continuum_shape, -1) #dummy value for echan index
+        super(FitSpectrumSource, self).__init__(name, FIT_SPECTRUM_SOURCE, continuum_shape, -1)  # dummy value for echan index

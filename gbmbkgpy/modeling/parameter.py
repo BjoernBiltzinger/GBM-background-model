@@ -2,6 +2,7 @@ prior_parameter_needed = {'uniform': ['min_value', 'max_value'], 'log_uniform': 
                           'gaussian': ['mu', 'sigma'], 'truncated_gaussian': ['mu', 'sigma', 'min_value', 'max_value'],
                           'log_normal': ['mu', 'sigma']}
 
+
 class Parameter(object):
     def __init__(self, name, initial_value=None, delta=None, min_value=None, max_value=None, mu=None, sigma=None,
                  prior='log_uniform', **kwargs):
@@ -14,8 +15,7 @@ class Parameter(object):
         self._delta = delta
         self._prior = prior
         assert prior in prior_parameter_needed, 'Unknown prior please use one of these: ' \
-                                                      '{}'.format(prior_parameter_needed.keys())
-
+                                                '{}'.format(prior_parameter_needed.keys())
 
         self._free = True
 
@@ -27,7 +27,6 @@ class Parameter(object):
                 self._normalization = bool(v)
             elif (k.lower() == 'fixed'):
                 self._free = not bool(v)
-
 
     def __eq__(self, value):
 
@@ -53,7 +52,6 @@ class Parameter(object):
         return "%20s: %10g %10s %10s %10g %s" % (
             self._name, self._value, min_value, max_value, self._delta, ff)
 
-
     def _get_value(self):
 
         return self._value
@@ -68,10 +66,8 @@ class Parameter(object):
     value = property(_get_value, _set_value,
                      doc="")
 
-
     def _set_delta(self, delta):
         self._delta = delta
-
 
     # Define property "free"
 
@@ -99,7 +95,6 @@ class Parameter(object):
                    doc="Gets or sets whether the parameter is fixed or not. Use booleans, like: 'p.fix = True' "
                        " or 'p.fix = False'. ")
 
-
     def _set_bounds(self, bounds):
         """Sets the boundaries for this parameter to min_value and max_value"""
 
@@ -115,7 +110,6 @@ class Parameter(object):
         self._min_value = min_value
 
         self._max_value = max_value
-
 
     def _get_bounds(self):
         """Returns the current boundaries for the parameter"""
@@ -147,7 +141,7 @@ class Parameter(object):
         return self._mu, self._sigma
 
     gaussian_parameter = property(_get_gaussian_parameter, _set_gaussian_parameter, doc="Gets or sets the gaussian paramter"
-                                                                            " (mu and sigma) for this parameter")
+                                                                                        " (mu and sigma) for this parameter")
 
     @property
     def normalization(self):

@@ -2,6 +2,7 @@ import collections
 from source import CONTINUUM_SOURCE, POINT_SOURCE, FLARE_SOURCE, SAA_SOURCE, GLOBAL_SOURCE, FIT_SPECTRUM_SOURCE
 import numpy as np
 
+
 class Model(object):
     def __init__(self, *sources):
         """
@@ -20,7 +21,7 @@ class Model(object):
         self._global_sources = collections.OrderedDict()
 
         self._fit_spectrum_sources = collections.OrderedDict()
-        
+
         for source in sources:
             self._add_source(source)
 
@@ -57,7 +58,6 @@ class Model(object):
         :return:
         """
         for i, parameter in enumerate(self.free_parameters.itervalues()):
-
             parameter.value = new_parameters[i]
 
     def set_parameter_bounds(self, new_bounds):
@@ -149,8 +149,6 @@ class Model(object):
 
         self._parameters = parameters
 
-    
-    
     def _add_source(self, source):
         """
         Add a source in the correct dictionary
@@ -159,29 +157,23 @@ class Model(object):
         """
 
         if source.source_type == POINT_SOURCE:
-
             self._point_sources[source.name] = source
 
         if source.source_type == FLARE_SOURCE:
-
             self._flare_sources[source.name] = source
 
         if source.source_type == CONTINUUM_SOURCE:
-
             self._continuum_sources[source.name] = source
 
         if source.source_type == SAA_SOURCE:
-
             self._saa_sources[source.name] = source
 
         if source.source_type == GLOBAL_SOURCE:
-
             self._global_sources[source.name] = source
 
         if source.source_type == FIT_SPECTRUM_SOURCE:
-
             self._fit_spectrum_sources[source.name] = source
-            
+
     def set_initial_SAA_amplitudes(self, norm_array):
         """
         Sets the initial normalization of the saa_sources
@@ -189,9 +181,7 @@ class Model(object):
         :return:
         """
         for i, saa_source in enumerate(self._saa_sources.itervalues()):
-
-                saa_source.parameters['A-%s' % i].value = norm_array[i]
-
+            saa_source.parameters['A-%s' % i].value = norm_array[i]
 
     def set_initial_continuum_amplitudes(self, norm_array):
         """
@@ -202,7 +192,6 @@ class Model(object):
         for i, continuum_source in enumerate(self._continuum_sources.itervalues()):
 
             for j, parameter in enumerate(continuum_source.parameters.itervalues()):
-
                 parameter.value = norm_array[i]
 
     def set_initial_global_amplitudes(self, norm_array):
@@ -214,7 +203,6 @@ class Model(object):
         for i, global_source in enumerate(self._global_sources.itervalues()):
 
             for j, parameter in enumerate(global_source.parameters.itervalues()):
-
                 parameter.value = norm_array[i]
 
     @property
@@ -236,11 +224,12 @@ class Model(object):
     def global_sources(self):
 
         return self._global_sources
+
     @property
     def fit_spectrum_sources(self):
 
         return self._fit_spectrum_sources
-    
+
     @property
     def saa_sources(self):
 
@@ -429,7 +418,7 @@ class Model(object):
         total_counts = np.zeros(len(time_bins))
 
         for continuum_source in self._continuum_sources.values():
-            if continuum_source.echan==echan:
+            if continuum_source.echan == echan:
                 total_counts += continuum_source.get_counts(time_bins, echan, bin_mask)
 
         for flare_source in self._flare_sources.values():
@@ -456,7 +445,6 @@ class Model(object):
 
         return total_counts
 
-
     def get_all_global_counts(self, time_bins, echan, bin_mask=None, saa_mask=None):
         """
         Get all counts from the sources in the "global dict"
@@ -471,7 +459,8 @@ class Model(object):
             assert saa_mask is None, "There should only be a bin mask or a saa_mask provided"
 
         if bin_mask is None:
-            bin_mask = np.ones(len(time_bins), dtype=bool)  # np.full(len(time_bins), True)                                                                                                                                                                                    
+            bin_mask = np.ones(len(time_bins),
+                               dtype=bool)  # np.full(len(time_bins), True)
 
         total_counts = np.zeros(len(time_bins))
 

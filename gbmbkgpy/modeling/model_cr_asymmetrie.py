@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def cr_asymmetrie_nb_n5(east, down):
     """
     Gives asymmetrie between nb and n5 side (nb/n5) for certain
@@ -11,4 +12,4 @@ def cr_asymmetrie_nb_n5(east, down):
     alpha = 1.209
     beta = 1.445
 
-    return A*east**alpha+B*down**beta+C
+    return A * east ** alpha + B * down ** beta + C
