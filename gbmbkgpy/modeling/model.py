@@ -60,23 +60,15 @@ class Model(object):
         for i, parameter in enumerate(self.free_parameters.itervalues()):
             parameter.value = new_parameters[i]
 
-    def set_parameter_bounds(self, new_bounds):
+    def set_parameter_bounds(self, param_dict):
         """
         Set the parameter bounds
-        :param new_bounds:
+        :param param_dict:
         :return:
         """
-        for i, parameter in enumerate(self._parameters.itervalues()):
-            parameter.bounds = new_bounds[i]
-
-    def set_parameter_gaussian(self, new_gaussian_parameter):
-        """
-        Set the parameter bounds
-        :param new_gaussian_parameter:
-        :return:
-        """
-        for i, parameter in enumerate(self._parameters.itervalues()):
-            parameter.gaussian_parameter = new_gaussian_parameter[i]
+        for param_name, bound_dict in param_dict.items():
+            self._parameters[param_name].bounds = bound_dict['bounds']
+            self._parameters[param_name].gaussian_parameter = bound_dict['gaussian_parameter']
 
     @property
     def normalization_parameters(self):
