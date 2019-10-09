@@ -54,7 +54,7 @@ class Data(object):
         if data_type == 'cspec':
             assert type(echan_list) and max(echan_list) <= 127 and min(echan_list) >= 0 \
                    and all(isinstance(x, int) for x in echan_list), 'Echan_list variable must be a list and can only ' \
-                                                                    'have integer entries between 0 and 7'
+                                                                    'have integer entries between 0 and 127'
 
         self._data_type = data_type
         self._det = detector
