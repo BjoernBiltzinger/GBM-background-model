@@ -31,12 +31,13 @@ except:
 
     using_mpi = False
 
+
 class ExternalProps(object):
 
     def __init__(self, day_list):
         """
         Build the external properties for a given day
-        :param day: YYMMDD
+        :param day_list: [YYMMDD, YYMMDD,]
         """
 
         assert len(day_list[0]) == 6, 'Day must be in format YYMMDD'
@@ -64,6 +65,8 @@ class ExternalProps(object):
     def build_point_sources(self, rsp, geom, echan_list, free_spectrum=[]):
         """
         Build all PS saved in the txt file
+        :param free_spectrum:
+        :param echan_list:
         :param rsp: response_precalculation
         :param geom: geometry_precalculation
         :return:
@@ -75,6 +78,8 @@ class ExternalProps(object):
     def build_some_source(self, rsp, geom, source_list, echan_list, free_spectrum=[]):
         """
         Build the PS form the text file with a certain name
+        :param free_spectrum:
+        :param echan_list:
         :param rsp: response_precalculation
         :param geom: geometry_precalculation
         :param source_list: which sources to buld
