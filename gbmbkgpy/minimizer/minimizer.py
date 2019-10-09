@@ -20,7 +20,7 @@ class Minimizer(object):
         self._det = self._likelihood._data._det
 
 
-    def fit(self, n_interations = 6, method_1 = 'L-BFGS-B',  method_2 = 'Powell'):
+    def fit(self, n_interations = 3, method_1 = 'L-BFGS-B',  method_2 = 'Powell'):
         """
         Fits the model stepwise by calling the scipy.minimize in the following steps:
         1. Fit linear/normalization paramters
@@ -79,13 +79,13 @@ class Minimizer(object):
 
         return self.result
 
-    def _fit_with_bounds(self, method='L-BFGS-B', type='bounded', iter_nr=1, ftol=1e-9):
+    def _fit_with_bounds(self, method='L-BFGS-B', type='bounded', iter_nr=1, ftol=1e-12):
 
         step = datetime.now()
         start_params = self._likelihood.get_free_parameter_values
         bounds = self._likelihood.get_free_parameter_bounds
         self._result_steps[str(iter_nr)] = minimize(self._likelihood, start_params, method=method, bounds=bounds,
-                                           options={'maxiter': 15000, 'gtol': 1e-10, 'ftol': ftol})
+                                           options={'maxiter': 15000, 'gtol': 1e-13, 'ftol': ftol})
 
         self._build_fit_param_df('Fit-'+str(iter_nr))
         print ("{}. The {} optimization took: {}".format(str(iter_nr), type, datetime.now() - step))

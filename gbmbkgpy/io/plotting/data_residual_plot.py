@@ -1,14 +1,37 @@
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 import numpy as np
+from gbmbkgpy.utils.binner import Rebinner
+from gbmbkgpy.utils.progress_bar import progress_bar
 
 from gbmbkgpy.io.plotting.step_plots import step_plot
-#from threeML.config.config import config
+# from threeML.config.config import config
 from gbmbkgpy.exceptions.custom_exceptions import custom_warnings
+
+try:
+
+    # see if we have mpi and/or are upalsing parallel
+
+    from mpi4py import MPI
+
+    if MPI.COMM_WORLD.Get_size() > 1:  # need parallel capabilities
+        using_mpi = True
+
+        comm = MPI.COMM_WORLD
+        rank = comm.Get_rank()
+        size = comm.Get_size()
+
+    else:
+
+        using_mpi = False
+except:
+
+    using_mpi = False
+
 
 class ResidualPlot(object):
 
-    def __init__(self,**kwargs):
+    def __init__(self, **kwargs):
         """
         A class that makes data/residual plots
         :param show_residuals: to show the residuals
@@ -16,18 +39,15 @@ class ResidualPlot(object):
         :param model_subplot: and axis or list of axes to plot to rather than create a new one
         """
 
-
         self._ratio_residuals = False
         self._show_residuals = True
-
+        self._ppc = False
 
         if 'show_residuals' in kwargs:
-
             self._show_residuals = bool(kwargs.pop('show_residuals'))
 
         if 'ratio_residuals' in kwargs:
             self._ratio_residuals = bool(kwargs.pop('ratio_residuals'))
-
 
         # this lets you overplot other fits
 
@@ -81,9 +101,6 @@ class ResidualPlot(object):
 
                 self._fig, self._data_axis = plt.subplots(**kwargs)
 
-
-
-
     @property
     def figure(self):
         """
@@ -105,7 +122,6 @@ class ResidualPlot(object):
         """
         :return: the bottom or residual axis
         """
-
 
         assert self._show_residuals, 'this plot has no residual axis'
 
@@ -148,7 +164,6 @@ class ResidualPlot(object):
         for key, value in grb_triggers.iteritems():
             self._data_axis.axvline(x=value['met'] - time_ref, color=value['color'], alpha=0.3, label=key)
 
-
     def add_occ_region(self, occ_region, time_ref):
         """
 
@@ -158,11 +173,9 @@ class ResidualPlot(object):
         """
 
         for key, value in occ_region.iteritems():
-
             self._data_axis.axvspan(xmin=value['met'][0] - time_ref,
                                     xmax=value['met'][1] - time_ref,
                                     color=value['color'], alpha=0.1, label=key)
-
 
     def add_model(self, x, y, label, color):
         """
@@ -175,7 +188,7 @@ class ResidualPlot(object):
         """
         self._data_axis.plot(x, y, label=label, color=color, alpha=.6, zorder=20)
 
-    def add_posteriour(self, x, y, color='grey', alpha = 0.002):
+    def add_posteriour(self, x, y, color='grey', alpha=0.002):
         """
 
         :param x:
@@ -197,10 +210,7 @@ class ResidualPlot(object):
          :return: None
          """
         for i, source in enumerate(source_list):
-
             self._data_axis.plot(x, source['data'], color=source['color'], label=source['label'], alpha=.6, zorder=18)
-
-
 
     def add_data(self, x, y, residuals, label, xerr=None, yerr=None, residual_yerr=None, color='r', show_data=True, marker_size=3):
         """
@@ -231,7 +241,6 @@ class ResidualPlot(object):
                                      label=label,
                                      color=color)
 
-
         # if we want to show the residuals
 
         if self._show_residuals:
@@ -239,11 +248,9 @@ class ResidualPlot(object):
             # normal residuals from the likelihood
 
             if not self.ratio_residuals:
-
                 residual_yerr = np.ones_like(residuals)
 
             self._residual_axis.axhline(0, linestyle='--', color='k')
-
 
             self._residual_axis.errorbar(x,
                                          residuals,
@@ -254,8 +261,93 @@ class ResidualPlot(object):
                                          markersize=3,
                                          color=color)
 
+    def add_ppc(self, result_dir=None, model=None, plotter=None, time_bins=None, saa_mask=None, echan=None, q_levels=[0.68], colors=['lightgreen'], bin_width=1E-99, n_params=1, time_ref=0):
+        """
+        Add ppc plot
+        :param result_dir: path to result directory
+        :param model: Model object
+        :param time_bin: Time bins where to compute ppc steps
+        :param saa_mask: Mask which time bins are set to zero
+        :param echan: Which echan 
+        :param q_levels: At which levels the ppc should be plotted
+        :param colors: colors for the different q_level
+        """
+        assert len(q_levels) == len(colors), 'q_levels and colors must have same length!'
 
-    def finalize(self, xlabel='x', ylabel='y',xscale='log',yscale='log', show_legend=True,invert_y=False):
+        q_levels.sort(reverse=True)
+
+        # Get Analyze object from results file of Multinest Fit
+        import pymultinest
+        analyzer = pymultinest.analyse.Analyzer(n_params, result_dir)
+
+        # Make a mask with 300 random True to choose 300 random samples
+        N_samples = 200
+        rates = []
+        a = np.zeros(len(analyzer.get_equal_weighted_posterior()[:, :-1]), dtype=int)
+        a[:N_samples] = 1
+        np.random.shuffle(a)
+        a = a.astype(bool)
+
+        # For these 300 random samples calculate the corresponding rates for all time bins
+        # with the parameters of this sample
+        if using_mpi:
+            points_per_rank = float(N_samples) / float(size)
+            points_lower_index = int(np.floor(points_per_rank * rank))
+            points_upper_index = int(np.floor(points_per_rank * (rank + 1)))
+            if rank == 0:
+                with progress_bar(len(analyzer.get_equal_weighted_posterior()[:, :-1][a][points_lower_index:points_upper_index]), title='Calculating PPC. This shows the progress of rank 0. All other should be about the same.') as p:
+
+                    for i, sample in enumerate(analyzer.get_equal_weighted_posterior()[:, :-1][a][points_lower_index:points_upper_index]):
+                        synth_data = plotter.get_synthetic_data(sample, model)
+                        this_rebinner = Rebinner(synth_data.time_bins - time_ref, bin_width)
+                        rebinned_time_bins = this_rebinner.time_rebinned
+                        rebinned_counts = this_rebinner.rebin(synth_data.counts[:, echan])
+                        rebinned_bin_length = np.diff(rebinned_time_bins, axis=1).T[0]
+                        rates.append(rebinned_counts / rebinned_bin_length)
+                        p.increase()
+
+            else:
+                for i, sample in enumerate(analyzer.get_equal_weighted_posterior()[:, :-1][a][points_lower_index:points_upper_index]):
+                    synth_data = plotter.get_synthetic_data(sample, model)
+                    this_rebinner = Rebinner(synth_data.time_bins - time_ref, bin_width)
+                    rebinned_time_bins = this_rebinner.time_rebinned
+                    rebinned_counts = this_rebinner.rebin(synth_data.counts[:, echan])
+                    rebinned_bin_length = np.diff(rebinned_time_bins, axis=1).T[0]
+                    rates.append(rebinned_counts / rebinned_bin_length)
+
+            rates = np.array(rates)
+            print(rates.shape)
+            rates_g = comm.gather(rates, root=0)
+            if rank == 0:
+                rates_g = np.concatenate(rates_g)
+            rates = comm.bcast(rates_g, root=0)
+            if rank == 0:
+                for i, level in enumerate(q_levels):
+                    low = np.percentile(rates, 50 - 50 * level, axis=0)[0]
+                    high = np.percentile(rates, 50 + 50 * level, axis=0)[0]
+                    self._data_axis.fill_between(np.mean(rebinned_time_bins, axis=1), low, high, color=colors[i], alpha=0.5)
+        else:
+            for i, sample in enumerate(analyzer.get_equal_weighted_posterior()[:, :-1][a]):
+                synth_data = plotter.get_synthetic_data(sample, model)
+                this_rebinner = Rebinner(synth_data.time_bins - time_ref, bin_width)
+                rebinned_time_bins = this_rebinner.time_rebinned
+                rebinned_counts = this_rebinner.rebin(synth_data.counts[:, echan])
+                rebinned_bin_length = np.diff(rebinned_time_bins, axis=1).T[0]
+                rates.append(rebinned_counts / rebinned_bin_length)
+
+            rates = np.array(rates)
+            # Plot the q_level areas around median fit 
+            for i, level in enumerate(q_levels):
+                low = np.percentile(rates, 50 - 50 * level, axis=0)[0]
+                high = np.percentile(rates, 50 + 50 * level, axis=0)[0]
+                self._data_axis.fill_between(np.mean(rebinned_time_bins, axis=1), low, high, color=colors[i], alpha=0.5)
+
+        # Set Plot range
+        # total_mean_rate = np.mean(np.array(rates))
+        # self._data_axis.set_ylim((0,3*total_mean_rate))
+        # self._data_axis.set_xlim((70000, 80000))
+
+    def finalize(self, xlabel='x', ylabel='y', xscale='log', yscale='log', show_legend=True, invert_y=False, xlim=None, ylim=None, legend_outside=False):
         """
         :param xlabel:
         :param ylabel:
@@ -264,7 +356,6 @@ class ResidualPlot(object):
         :param show_legend:
         :return:
         """
-
 
         if show_legend:
             self._data_axis.legend(fontsize='x-small', loc=0)
@@ -300,9 +391,6 @@ class ResidualPlot(object):
 
             self._data_axis.set_xlabel(xlabel)
 
-
-
-
             # This takes care of making space for all labels around the figure
 
         self._fig.tight_layout()
@@ -314,6 +402,14 @@ class ResidualPlot(object):
 
         if invert_y:
             self._data_axis.set_ylim(self._data_axis.get_ylim()[::-1])
-
-
+        if xlim != None:
+            self._data_axis.set_xlim(xlim)
+        if ylim != None:
+            self._data_axis.set_ylim(ylim)
+        if legend_outside:
+            box = self._data_axis.get_position()
+            self._data_axis.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+            self._data_axis.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+        # self._data_axis.set_yscale('log')
+        # self._data_axis.set_ylim(bottom=1)
         return self._fig
