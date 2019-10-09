@@ -1,4 +1,3 @@
-
 from astromodels.functions.priors import Uniform_prior, Log_uniform_prior, Log_normal, Truncated_gaussian, Gaussian
 
 import numpy as np
@@ -41,7 +40,8 @@ try:
     # see if we have mpi and/or are upalsing parallel
 
     from mpi4py import MPI
-    if MPI.COMM_WORLD.Get_size() > 1: # need parallel capabilities
+
+    if MPI.COMM_WORLD.Get_size() > 1:  # need parallel capabilities
         using_mpi = True
 
         comm = MPI.COMM_WORLD
@@ -64,16 +64,16 @@ class MultiNestFit(object):
         self._day_list = self._likelihood._data.day
         self._day = ''
         for d in self._day_list:
-            self._day = 'test_2days' #TODO change this; set maximum characters for multinestpath higher
+            self._day = 'test_2days'  # TODO change this; set maximum characters for multinestpath higher
         self._det = self._likelihood._data._det
-        
+
         self._echan_list = self._likelihood._echan_list
         self.parameters = parameters
 
         self._n_dim = len(self._likelihood._free_parameters)
-        
+
         if using_mpi:
-            if rank==0:
+            if rank == 0:
                 current_time = datetime.now()
                 fits_path = os.path.join(get_path_of_external_data_dir(), 'fits/')
                 multinest_out_dir = os.path.join(get_path_of_external_data_dir(), 'fits', 'mn_out/')
@@ -108,7 +108,7 @@ class MultiNestFit(object):
                     print("Making New Directory")
                     os.mkdir(self.output_dir)
             else:
-                self.output_dir=None
+                self.output_dir = None
 
             self.output_dir = comm.bcast(self.output_dir, root=0)
         else:
@@ -119,9 +119,9 @@ class MultiNestFit(object):
                 date_det_echan_dir = '{}_{}_{:d}/'.format(self._day, self._det, self._echan_list[0])
             else:
                 date_det_echan_dir = '{}_{}_{:d}_ech_{:d}_to_{:d}/'.format(self._day, self._det,
-                                                                                   len(self._echan_list),
-                                                                                   self._echan_list[0],
-                                                                                   self._echan_list[-1])
+                                                                           len(self._echan_list),
+                                                                           self._echan_list[0],
+                                                                           self._echan_list[-1])
             time_dir = 'fit_' + current_time.strftime("%m-%d_%H-%M") + '/'
 
             self.output_dir = os.path.join(multinest_out_dir, date_det_echan_dir, time_dir)
@@ -208,13 +208,11 @@ class MultiNestFit(object):
         # declare local likelihood_wrapper object:
         self._loglike = func_wrapper
 
-
     @property
     def output_directory(self):
         return self.output_dir
 
     def minimize_multinest(self, loglike=None, prior=None, n_dim=None, n_live_points=400, const_efficiency_mode=False):
-
 
         assert has_pymultinest, 'You need to have pymultinest installed to use this function'
 
@@ -235,23 +233,23 @@ class MultiNestFit(object):
                                   n_dim,
                                   n_live_points=n_live_points,
                                   outputfiles_basename=self.output_dir,
-                                  multimodal=True,#True was default
+                                  multimodal=True,  # True was default
                                   resume=True,
-                                  verbose=True,#False was default
+                                  verbose=True,  # False was default
                                   importance_nested_sampling=False,
-                                  const_efficiency_mode=const_efficiency_mode)#False was default
+                                  const_efficiency_mode=const_efficiency_mode)  # False was default
         # Store the sample for further use (if needed)
         self._sampler = sampler
 
-        #if using mpi only analyze in rank=0
+        # if using mpi only analyze in rank=0
         if using_mpi:
-            if rank==0:
+            if rank == 0:
                 self.analyze_result()
         else:
             self.analyze_result()
 
     def minimize_mininest(self, loglike=None, prior=None, n_dim=None, min_num_live_points=400,
-                           chain_name=None, resume=False, quiet=False, verbose=False, **kwargs):
+                          chain_name=None, resume=False, quiet=False, verbose=False, **kwargs):
 
         assert has_mininest, 'You need to have mininest installed to use this function'
 
@@ -343,6 +341,7 @@ class MultiNestFit(object):
         Here, we construct the prior.
         """
         ndim = len(self.parameters.items())
+
         def prior(params):
 
             out = np.zeros((len(params), ndim))
@@ -380,8 +379,8 @@ class MultiNestFit(object):
         # Get the samples from the sampler
 
         _raw_samples = multinest_analyzer.get_equal_weighted_posterior()[:, :-1]
-        #print(_raw_samples)
-        #print(_raw_samples[0])
+        # print(_raw_samples)
+        # print(_raw_samples[0])
 
         # Find the minimum of the function (i.e. the maximum of func_wrapper)
 
@@ -398,16 +397,15 @@ class MultiNestFit(object):
 
         return best_fit_values, minimum
 
-
     def plot_marginals(self, true_params=None):
         """
         Script that does default visualizations (marginal plots, 1-d and 2-d).
 
         Author: Johannes Buchner (C) 2013
         """
-        #if using mpi only rank 0 should plot the marginals
+        # if using mpi only rank 0 should plot the marginals
         if using_mpi:
-            if rank==0:
+            if rank == 0:
                 print('model "%s"' % self.output_dir)
                 if not os.path.exists(self.output_dir + 'params.json'):
                     sys.stderr.write("""Expected the file %sparams.json with the parameter names.
@@ -628,7 +626,7 @@ class MultiNestFit(object):
 
                 plt.savefig(self.output_dir + 'marg.pdf')
                 plt.savefig(self.output_dir + 'marg.png')
-                #plt.close()
+                # plt.close()
             else:
                 from matplotlib.backends.backend_pdf import PdfPages
                 sys.stderr.write('1dimensional only. Set the D environment variable \n')
@@ -669,7 +667,7 @@ class MultiNestFit(object):
                     newax.set_xlim(xlim)
                     oldax.set_xlim(xlim)
                     plt.savefig(pp, format='pdf', bbox_inches='tight')
-                    #plt.close()
+                    # plt.close()
                 pp.close()
 
     @property
