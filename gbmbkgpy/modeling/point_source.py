@@ -151,7 +151,8 @@ class PointSrc_fixed(object):
             ps_pos_sat_objects = []
             if rank == 0:
                 with progress_bar(len(GBMFrame_list),
-                                  title='Calculating PS position in sat frame for {}.This shows the progress of rank 0. All other should be about the same.'.format(self._name)) as p:
+                                  title='Calculating PS position in sat frame for {}. '
+                                        'This shows the progress of rank 0. All other should be about the same.'.format(self._name)) as p:
                     for i in range(0, len(GBMFrame_list)):
                         ps_pos_sat = self._ps_skycoord.transform_to(GBMFrame_list[i])
                         ps_pos_sat_objects.append(ps_pos_sat)
@@ -187,7 +188,8 @@ class PointSrc_fixed(object):
             ps_response = []
             if rank == 0:
                 with progress_bar(len(ps_pos_sat_list),
-                                  title='Calculating the response for all PS positions in sat frame for {}.This shows the progress of rank 0. All other should be about the same.'.format(self._name)) as p:
+                                  title='Calculating the response for all PS positions in sat frame for {}. '
+                                        'This shows the progress of rank 0. All other should be about the same.'.format(self._name)) as p:
                     for point in ps_pos_sat_list:
                         matrix = self._rsp._response(point[0], point[1], point[2], DRM).matrix[self._echan_mask]
                         ps_response.append(matrix.T)
@@ -251,7 +253,8 @@ class PointSrc_fixed(object):
             # Get the postion of the PS in the sat frame for every timestep
             ps_pos_sat_list = []
             with progress_bar(len(GBMFrame_list),
-                              title='Calculating PS position in sat frame for {}.This shows the progress of rank 0. All other should be about the same.'.format(
+                              title='Calculating PS position in sat frame for {}. '
+                                    'This shows the progress of rank 0. All other should be about the same.'.format(
                                   self._name)) as p:
                 for i in range(0, len(GBMFrame_list)):
                     ps_pos_sat = self._ps_skycoord.transform_to(GBMFrame_list[i])
@@ -271,7 +274,8 @@ class PointSrc_fixed(object):
             # Calcutate the response matrix for the different ps locations
             ps_response = []
             with progress_bar(len(ps_pos_sat_list),
-                              title='Calculating the response for all PS positions in sat frame for {}.This shows the progress of rank 0. All other should be about the same.'.format(
+                              title='Calculating the response for all PS positions in sat frame for {}. '
+                                    'This shows the progress of rank 0. All other should be about the same.'.format(
                                   self._name)) as p:
                 for point in ps_pos_sat_list:
                     matrix = self._rsp._response(point[0], point[1], point[2], DRM).matrix[self._echan_mask]
@@ -561,7 +565,8 @@ class PointSrc_free(object):
             ps_pos_sat_objects = []
             if rank == 0:
                 with progress_bar(len(GBMFrame_list),
-                                  title='Calculating PS position in sat frame for {}.This shows the progress of rank 0. All other should be about the same.'.format(
+                                  title='Calculating PS position in sat frame for {}. '
+                                        'This shows the progress of rank 0. All other should be about the same.'.format(
                                       self._name)) as p:
                     for i in range(0, len(GBMFrame_list)):
                         ps_pos_sat = self._ps_skycoord.transform_to(GBMFrame_list[i])
@@ -598,7 +603,8 @@ class PointSrc_free(object):
             ps_response = []
             if rank == 0:
                 with progress_bar(len(ps_pos_sat_list),
-                                  title='Calculating the response for all PS positions in sat frame for {}.This shows the progress of rank 0. All other should be about the same.'.format(
+                                  title='Calculating the response for all PS positions in sat frame for {}. '
+                                        'This shows the progress of rank 0. All other should be about the same.'.format(
                                       self._name)) as p:
                     for point in ps_pos_sat_list:
                         matrix = self._rsp._response(point[0], point[1], point[2], DRM).matrix[self._echan_mask]
@@ -672,7 +678,8 @@ class PointSrc_free(object):
             # Get the postion of the PS in the sat frame for every timestep
             ps_pos_sat_list = []
             with progress_bar(len(GBMFrame_list),
-                              title='Calculating PS position in sat frame for {}.This shows the progress of rank 0. All other should be about the same.'.format(
+                              title='Calculating PS position in sat frame for {}. '
+                                    'This shows the progress of rank 0. All other should be about the same.'.format(
                                   self._name)) as p:
                 for i in range(0, len(GBMFrame_list)):
                     ps_pos_sat = self._ps_skycoord.transform_to(GBMFrame_list[i])
@@ -692,7 +699,8 @@ class PointSrc_free(object):
             # Calcutate the response matrix for the different ps locations
             ps_response = []
             with progress_bar(len(ps_pos_sat_list),
-                              title='Calculating the response for all PS positions in sat frame for {}.This shows the progress of rank 0. All other should be about the same.'.format(
+                              title='Calculating the response for all PS positions in sat frame for {}. '
+                                    'This shows the progress of rank 0. All other should be about the same.'.format(
                                   self._name)) as p:
                 for point in ps_pos_sat_list:
                     matrix = self._rsp._response(point[0], point[1], point[2], DRM).matrix[self._echan_mask]
