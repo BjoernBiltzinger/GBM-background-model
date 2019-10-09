@@ -11,14 +11,14 @@ import os
 from gbmbkgpy.io.package_data import get_path_of_external_data_dir
 from gbmgeometry import GBMTime
 
-
 try:
 
     # see if we have mpi and/or are upalsing parallel
 
     from mpi4py import MPI
-    if MPI.COMM_WORLD.Get_size() > 1: # need parallel capabilities
-        using_mpi = True ###################33
+
+    if MPI.COMM_WORLD.Get_size() > 1:  # need parallel capabilities
+        using_mpi = True
 
         comm = MPI.COMM_WORLD
         rank = comm.Get_rank()
@@ -31,7 +31,8 @@ except:
 
     using_mpi = False
 
-valid_det_names = ['n0','n1' ,'n2' ,'n3' ,'n4' ,'n5' ,'n6' ,'n7' ,'n8' ,'n9' ,'na' ,'nb']
+valid_det_names = ['n0', 'n1', 'n2', 'n3', 'n4', 'n5', 'n6', 'n7', 'n8', 'n9', 'na', 'nb']
+
 
 class Data(object):
 
@@ -59,11 +60,11 @@ class Data(object):
         self._det = detector
         self._day_list = map(str, sorted(map(int, date)))
         self._echan_list = echan_list
-        if self._data_type=='ctime':
+        if self._data_type == 'ctime':
             self._echan_mask = np.zeros(8, dtype=bool)
             for e in echan_list:
                 self._echan_mask[e] = True
-        elif self._data_type=='cspec':
+        elif self._data_type == 'cspec':
             self._echan_mask = np.zeros(128, dtype=bool)
             for e in echan_list:
                 self._echan_mask[e] = True
@@ -168,7 +169,7 @@ class Data(object):
                 j = 0
                 for j in range(len(counts)):
                     if time_bins[j, 0] > time_bins_array[-1, 1]:
-                        if time_bins_array[j, 0] < time_bins[-1, 1]+1000:
+                        if time_bins_array[j, 0] < time_bins[-1, 1] + 1000:
                             following_day = np.append(following_day, True)
                         else:
                             following_day = np.append(following_day, False)
@@ -201,7 +202,7 @@ class Data(object):
 
         # If MPI is used only one rank should download the data; the others wait
         if using_mpi:
-            if rank==0:
+            if rank == 0:
                 if not file_existing_and_readable(datafile_path):
                     download_data_file(day, self._data_type, self._det)
 
@@ -218,7 +219,6 @@ class Data(object):
         # Save poshistfile_path for later usage
         self._pos_hist = poshistfile_path
 
-
         # Open the datafile of the CTIME/CSPEC data and read in all needed quantities
         with fits.open(datafile_path) as f:
             counts = f['SPECTRUM'].data['COUNTS']
@@ -234,11 +234,10 @@ class Data(object):
                 bin_stop = np.delete(bin_stop, [i])
                 counts = np.delete(counts, [i], axis=0)
             else:
-                i+=1
-                
+                i += 1
+
         # Sometimes the poshist file does not cover the whole time covered by the CTIME/CSPEC file.
         # So we have to delete these time bins 
-
 
         # Get boundary for time interval covered by the poshist file
         with fits.open(poshistfile_path) as f:
@@ -246,16 +245,16 @@ class Data(object):
         min_time_pos = pos_times[0]
         max_time_pos = pos_times[-1]
         # check for all time bins if they are outside of this interval
-        i=0
-        counter=0
-        while i<len(bin_start):
-            if bin_start[i]<min_time_pos or bin_stop[i]>max_time_pos:
+        i = 0
+        counter = 0
+        while i < len(bin_start):
+            if bin_start[i] < min_time_pos or bin_stop[i] > max_time_pos:
                 bin_start = np.delete(bin_start, i)
                 bin_stop = np.delete(bin_stop, i)
                 counts = np.delete(counts, i, 0)
-                counter+=1
+                counter += 1
             else:
-                i+=1
+                i += 1
 
         # Calculate the MET time for the day
         day = day
@@ -271,4 +270,3 @@ class Data(object):
         counts = counts.T[self._echan_mask].T
 
         return counts, time_bins, day_met
-
