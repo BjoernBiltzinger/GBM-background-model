@@ -86,7 +86,7 @@ class Rebinner(object):
         self._rebinned_vector_idx = np.array(zip(self._starts, self._stops))
 
         self._time_rebinned = np.array(zip(vector_to_rebin_on[self._starts, 0], vector_to_rebin_on[self._stops, 0]))
-        #Set stop time of last bin to correct value
+        # Set stop time of last bin to correct value
         self._time_rebinned[-1][1] = vector_to_rebin_on[self._stops[-1]][1]
 
     @property
@@ -126,11 +126,11 @@ class Rebinner(object):
             for low_bound, hi_bound in zip(self._starts, self._stops):
                 rebinned_vector.append(np.sum(vector_a[low_bound:hi_bound]))
 
-            #If the last time_bin is the last rebinned time bin fix the sum
+            # If the last time_bin is the last rebinned time bin fix the sum
             if self._starts[-1] == self._stops[-1]:
                 rebinned_vector[-1] = np.sum(vector_a[self._starts[-1]:])
 
-            #if self._starts
+            # if self._starts
 
             # Vector might not contain counts, so we use a relative comparison to check that we didn't miss
             # anything.
@@ -138,7 +138,7 @@ class Rebinner(object):
             # fail when it shouldn't
 
             # TODO: Only took out assert to run multi day fit withouth assertion error!!!
-            #assert abs((np.sum(rebinned_vector) + 1e-100) / (np.sum(vector_a[self._mask]) + 1e-100) - 1) < 1e-4
+            # assert abs((np.sum(rebinned_vector) + 1e-100) / (np.sum(vector_a[self._mask]) + 1e-100) - 1) < 1e-4
 
             if abs((np.sum(rebinned_vector) + 1e-100) / (np.sum(vector_a[self._mask]) + 1e-100) - 1) > 1e-4:
                 print ("The sum of rebinned counts is not equal to the sum of unbinned counts!!!")
@@ -166,7 +166,6 @@ class Rebinner(object):
             rebinned_vector = []
 
             for low_bound, hi_bound in zip(self._starts, self._stops):
-
                 rebinned_vector.append(np.sqrt(np.sum(vector[low_bound:hi_bound] ** 2)))
 
             rebinned_vectors.append(np.array(rebinned_vector))
