@@ -13,7 +13,7 @@ from gbmbkgpy.minimizer.multinest_minimizer import MultiNestFit
 from gbmbkgpy.io.plotting.plot import Plotter
 from gbmbkgpy.modeling.setup_sources import Setup
 from gbmbkgpy.modeling.albedo_cgb import Albedo_CGB_fixed, Albedo_CGB_free
-from config import *
+from .config import *
 
 import numpy as np
 
