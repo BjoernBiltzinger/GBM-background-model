@@ -6,6 +6,7 @@ from gbmbkgpy.utils.binner import Rebinner
 
 NO_REBIN = 1E-99
 
+
 class Plotter(object):
     def __init__(self, data, model, saa_object, echan_list):
 
@@ -46,7 +47,6 @@ class Plotter(object):
 
         self._grb_triggers = {}
         self._occ_region = {}
-
 
     def display_model(self, index, data_color='k', model_color='r', step=True, show_data=True, show_residuals=True,
                       show_legend=True, min_bin_width=1E-99, plot_sources=False, show_grb_trigger=False,
@@ -106,7 +106,7 @@ class Plotter(object):
 
         # the rebinned counts expected from the model
         self._rebinned_model_counts, = this_rebinner.rebin(self._model.get_counts(self._total_time_bins, index,
-                                                                                 saa_mask=self._saa_mask))
+                                                                                  saa_mask=self._saa_mask))
 
         self._rebinned_background_counts = np.zeros_like(self._rebinned_observed_counts)
 
@@ -193,7 +193,7 @@ class Plotter(object):
                                       ylim=ylim,
                                       legend_outside=legend_outside)
 
-    #TODO write method to save the data used for plot
+    # TODO write method to save the data used for plot
 
     def _get_list_of_sources(self, time_bins, echan, time_bin_width=1.):
         """
@@ -297,7 +297,6 @@ class Plotter(object):
             parameter.value = synth_parameters[i]
 
         for echan in self._echan_list:
-            synth_data.counts[:, echan][2:-2] = np.random.poisson(synth_model.get_counts(synth_data.time_bins[2:-2],echan))
+            synth_data.counts[:, echan][2:-2] = np.random.poisson(synth_model.get_counts(synth_data.time_bins[2:-2], echan))
 
         return synth_data
-
