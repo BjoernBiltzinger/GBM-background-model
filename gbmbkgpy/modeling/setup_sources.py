@@ -116,7 +116,8 @@ def setup_SAA(data, saa_object, echan, index):
     # SAA Decay Source
     SAA_Decay_list = []
     saa_n = 0
-    day_start = np.array(data.day_met)
+    # Add 'SAA' decay at start of the day if fitting only one day to account for leftover excitation
+    day_start = np.array(data.day_met) if len(data.day_met) <= 1 else []
     start_times = np.append(day_start, saa_object.saa_exit_times)
 
     for time in start_times:
