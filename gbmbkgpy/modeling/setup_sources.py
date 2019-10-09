@@ -1,7 +1,7 @@
 from gbmbkgpy.modeling.source import ContinuumSource, SAASource, GlobalSource, FitSpectrumSource
 
 from gbmbkgpy.modeling.functions import (SAA_Decay, Magnetic_Continuum, Cosmic_Gamma_Ray_Background,
-                                         Point_Source_Continuum, Earth_Albedo_Continuum, offset,
+                                         Point_Source_Continuum, Earth_Albedo_Continuum, Offset,
                                          Earth_Albedo_Continuum_Fit_Spectrum, Cosmic_Gamma_Ray_Background_Fit_Spectrum,
                                          Point_Source_Continuum_Fit_Spectrum)
 
@@ -143,7 +143,7 @@ def setup_CosmicRays(data, ep, saa_object, echan, index):
     :return: Constant and magnetic continuum source
     """
 
-    Constant = offset(str(echan))
+    Constant = Offset(str(echan))
     Constant.set_function_array(np.ones_like(data.time_bins[2:-2]))
     Constant.set_saa_zero(saa_object.saa_mask[2:-2])
     # precalculate the integration over the time bins
