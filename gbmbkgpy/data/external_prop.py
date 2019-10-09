@@ -147,8 +147,10 @@ class ExternalProps(object):
         filename = 'lat_spacecraft_weekly_w%d_p202_v001.fits' % mission_week
         filepath = get_path_of_external_data_file('lat', filename)
         if using_mpi:
-            if not file_existing_and_readable(filepath) and rank == 0:
-                download_lat_spacecraft(mission_week)
+            if not file_existing_and_readable(filepath):
+                if rank == 0:
+                    download_lat_spacecraft(mission_week)
+                comm.Barrier()
         else:
             if not file_existing_and_readable(filepath):
                 download_lat_spacecraft(mission_week)
@@ -177,8 +179,10 @@ class ExternalProps(object):
                 before_filename = 'lat_spacecraft_weekly_w%d_p202_v001.fits' % (mission_week - 1)
                 before_filepath = get_path_of_external_data_file('lat', before_filename)
                 if using_mpi:
-                    if not file_existing_and_readable(before_filepath) and rank == 0:
-                        download_lat_spacecraft(mission_week - 1)
+                    if not file_existing_and_readable(before_filepath):
+                        if rank == 0:
+                            download_lat_spacecraft(mission_week - 1)
+                        comm.Barrier()
                 else:
                     if not file_existing_and_readable(before_filepath):
                         download_lat_spacecraft(mission_week - 1)
@@ -192,8 +196,10 @@ class ExternalProps(object):
                 after_filename = 'lat_spacecraft_weekly_w%d_p202_v001.fits' % (mission_week + 1)
                 after_filepath = get_path_of_external_data_file('lat', after_filename)
                 if using_mpi:
-                    if not file_existing_and_readable(after_filepath) and rank == 0:
-                        download_lat_spacecraft(mission_week + 1)
+                    if not file_existing_and_readable(after_filepath):
+                        if rank == 0:
+                            download_lat_spacecraft(mission_week + 1)
+                        comm.Barrier()
                 else:
                     if not file_existing_and_readable(after_filepath):
                         download_lat_spacecraft(mission_week + 1)
