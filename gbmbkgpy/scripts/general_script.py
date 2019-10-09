@@ -195,8 +195,8 @@ for e in echan_list:
 for i, ps in enumerate(ps_list):
     if fix_ps[i]:
         parameter_bounds['norm_point_source-{}'.format(i)] = {
-            'bounds': bounds_dict['ps_fixed_bound'],
-            'gaussian_parameter': gaussian_dict['ps_fixed_bound']
+            'bounds': bounds_dict['ps_fixed_bound'][0],
+            'gaussian_parameter': gaussian_dict['ps_fixed_bound'][0]
         }
     else:
         parameter_bounds['PS-{}-Spectrum_fitted_C'.format(e)] = {
@@ -211,8 +211,8 @@ for i, ps in enumerate(ps_list):
 # If earth spectrum is fixed only the normalization, otherwise C, index1, index2 and E_break
 if fix_earth:
     parameter_bounds['norm_earth_albedo'] = {
-        'bounds': bounds_dict['earth_fixed_bound'],
-        'gaussian_parameter': gaussian_dict['earth_fixed_bound']
+        'bounds': bounds_dict['earth_fixed_bound'][0],
+        'gaussian_parameter': gaussian_dict['earth_fixed_bound'][0]
     }
 else:
     parameter_bounds['Earth_Albedo-Spectrum_fitted_C'] = {
@@ -235,8 +235,8 @@ else:
 # If cgb spectrum is fixed only the normalization, otherwise C, index1, index2 and E_break
 if fix_cgb:
     parameter_bounds['norm_cgb'] = {
-        'bounds': bounds_dict['cgb_fixed_bound'],
-        'gaussian_parameter': gaussian_dict['cgb_fixed_bound']
+        'bounds': bounds_dict['cgb_fixed_bound'][0],
+        'gaussian_parameter': gaussian_dict['cgb_fixed_bound'][0]
     }
 else:
     parameter_bounds['Spectrum_fitted_C'] = {
