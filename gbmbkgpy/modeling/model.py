@@ -72,7 +72,7 @@ class Model(object):
     def set_parameter_gaussian(self, new_gaussian_parameter):
         """
         Set the parameter bounds
-        :param new_bounds:
+        :param new_gaussian_parameter:
         :return:
         """
         for i, parameter in enumerate(self._parameters.itervalues()):
@@ -117,7 +117,7 @@ class Model(object):
 
         for parameter_name, parameter in self._parameters.iteritems():
 
-            if parameter.normalization == False:
+            if not parameter.normalization:
                 normalization_parameters_dictionary[parameter_name] = parameter
 
         return normalization_parameters_dictionary
@@ -298,15 +298,16 @@ class Model(object):
                 echan = np.append(echan, source.echan)
                 num_para = 0
                 for parameter_name, parameter in source.parameters.iteritems():
-                    num_para +=1
+                    num_para += 1
                 num_params = np.append(num_params, num_para)
 
         return source_list, echan, num_params
 
-
     def get_global_counts(self, id, time_bins, saa_mask, echan):
         """
         Get the count of the source id in the self._global_sources dict
+        :param echan:
+        :param saa_mask:
         :param id:
         :param time_bins:
         :return:
@@ -319,26 +320,30 @@ class Model(object):
             source_counts[np.where(~saa_mask)] = 0.
 
         return source_counts
+
     def get_fit_spectrum_counts(self, id, time_bins, saa_mask, echan):
         """
         Get the count of the sources in the self._fit_spectrum_sources dict
+        :param echan:
+        :param saa_mask:
         :param id:
         :param time_bins:
         :return:
         """
-        source_counts = self._fit_spectrum_sources.values()[id].get_counts(time_bins, echan)                                                                                                                                    # The SAA sections will be set to zero if a saa_mask is provided
+        source_counts = self._fit_spectrum_sources.values()[id].get_counts(time_bins, echan)  # The SAA sections will be set to zero if a saa_mask is provided
         if saa_mask is not None:
             assert len(time_bins) == len(saa_mask), "The time_bins and saa_mask should be of equal length"
             source_counts[np.where(~saa_mask)] = 0.
-            
+
         return source_counts
-    
+
     def get_flare_counts(self, id, time_bins, saa_mask, echan):
         """
         
+        :param echan:
+        :param saa_mask:
         :param time_bins:
         :param id:
-        :param t: 
         :return: 
         """
         source_counts = np.zeros(len(time_bins))
@@ -352,13 +357,13 @@ class Model(object):
 
         return source_counts
 
-
     def get_point_source_counts(self, time_bins, saa_mask, echan):
         """
         
+        :param echan:
+        :param saa_mask:
         :param time_bins:
         :param id:
-        :param t: 
         :return: 
         """
         source_counts = np.zeros(len(time_bins))
@@ -372,14 +377,13 @@ class Model(object):
             source_counts[np.where(~saa_mask)] = 0.
         return source_counts
 
-
-
     def get_saa_counts(self, time_bins, saa_mask, echan):
         """
 
+        :param echan:
+        :param saa_mask:
         :param time_bins:
         :param id:
-        :param t:
         :return:
         """
         source_counts = np.zeros(len(time_bins))
@@ -410,6 +414,8 @@ class Model(object):
         1) The bin_mask serves for masking the saa sections for faster fitting
         2) The saa_mask sets the SAA sections to zero when the counts for all time bins are returned
 
+        :param saa_mask:
+        :param echan:
         :param time_bins:
         :param bin_mask:
         :return:
