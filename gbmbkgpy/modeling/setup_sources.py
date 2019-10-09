@@ -63,17 +63,17 @@ def Setup(data, saa_object, ep, geom_object, echan_list=[], response_object=None
     for index, echan in enumerate(echan_list):
 
         if use_SAA:
-            total_sources.append(setup_SAA(data, saa_object, echan, index))
+            total_sources.extend(setup_SAA(data, saa_object, echan, index))
 
         if use_CR:
-            total_sources.append(setup_CosmicRays(data, ep, saa_object, echan, index))
+            total_sources.extend(setup_CosmicRays(data, ep, saa_object, echan, index))
 
     if use_all_ps:
-        total_sources.append(setup_ps(data, ep, saa_object, response_object, geom_object, echan_list,
+        total_sources.extend(setup_ps(data, ep, saa_object, response_object, geom_object, echan_list,
                                       include_point_sources=True, free_spectrum=np.logical_not(fix_ps)))
 
     elif len(point_source_list) != 0:
-        total_sources.append(setup_ps(data, ep, saa_object, response_object, geom_object, echan_list,
+        total_sources.extend(setup_ps(data, ep, saa_object, response_object, geom_object, echan_list,
                                       point_source_list=point_source_list, free_spectrum=np.logical_not(fix_ps)))
 
     if use_Earth:
@@ -92,15 +92,7 @@ def Setup(data, saa_object, ep, geom_object, echan_list=[], response_object=None
         else:
             total_sources.append(setup_cgb_free(data, albedo_cgb_object, saa_object))
 
-    # flatten the source list
-    total_sources_f = []
-    for x in total_sources:
-        if type(x) == list:
-            for y in x:
-                total_sources_f.append(y)
-        else:
-            total_sources_f.append(x)
-    return total_sources_f
+    return total_sources
 
 
 def setup_SAA(data, saa_object, echan, index):
