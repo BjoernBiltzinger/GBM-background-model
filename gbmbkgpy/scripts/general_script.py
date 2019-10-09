@@ -1,6 +1,7 @@
 import matplotlib
+
 matplotlib.use('Agg')
-#imports
+# imports
 from gbmbkgpy.data.continuous_data import Data
 from gbmbkgpy.data.external_prop import ExternalProps
 from gbmbkgpy.modeling.model import Model
@@ -19,42 +20,40 @@ import numpy as np
 
 from datetime import datetime
 
-
 from mpi4py import MPI
 
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 size = comm.Get_size()
 
-start = datetime.now()  
+start = datetime.now()
 
 
 def print_progress(text):
     """
     Helper function that prints the input text only with rank 0
     """
-    if rank==0:
+    if rank == 0:
         print(text)
 
 
-        
 ####################### Setup parameters ###############################
 date = general_dict['dates']
 detector = general_dict['detector']
 data_type = general_dict['data_type']
 # List with all echans you want to use
-echan_list = general_dict['echan_list'] #has to be  List! One entry is also possible
+echan_list = general_dict['echan_list']  # has to be  List! One entry is also possible
 
 ############################# Data ######################################
 
-#download files with rank=0; all other ranks have to wait!
+# download files with rank=0; all other ranks have to wait!
 print_progress('Download data...')
-if rank==0:
+if rank == 0:
     for d in date:
         download_files(data_type, detector, d)
-    wait=True
+    wait = True
 else:
-    wait=None
+    wait = None
 wait = comm.bcast(wait, root=0)
 print_progress('Done')
 # Create the data object for the wanted day and detector
@@ -76,7 +75,7 @@ print_progress('Done')
 # These calculations use the full DRM's and thus include sat. scattering and partial loss of energy by the photons.
 Ngrid = response_dict['Ngrid']
 print_progress('Precalculate responses for {} points on sphere around detector...'.format(Ngrid))
-resp = Response_Precalculation(detector,date, echan_list, Ngrid=Ngrid, data_type=data_type)
+resp = Response_Precalculation(detector, date, echan_list, Ngrid=Ngrid, data_type=data_type)
 print_progress('Done')
 
 ################## SAA precalculation ######################
@@ -133,7 +132,7 @@ fix_cgb = setup_dict['fix_cgb']
 
 assert (fix_earth and fix_cgb) or (not fix_earth and not fix_cgb), 'At the moment albeod and cgb spectrum have to be either both fixed or both free'
 
-###########Albedo-CGB Object###########
+########### Albedo-CGB Object ###########
 if fix_earth:
     albedo_cgb_obj = Albedo_CGB_fixed(resp, geom)
 else:
@@ -151,7 +150,6 @@ print_progress('Done')
 print_progress('Build model with source_list...')
 model = Model(*source_list)
 print_progress('Done')
-
 
 ##################### Prior bounds #############################
 
@@ -271,7 +269,7 @@ print_progress('Done')
 
 ################################## Fitting ###############################################
 
-#############Multinest options ##############
+############# Multinest options ##############
 
 # Number of live points for mulitnest?
 num_live_points = multi_dict['num_live_points']
@@ -281,7 +279,7 @@ const_efficiency_mode = multi_dict['constant_efficiency_mode']
 
 #############################################
 
-#Instantiate Multinest Fit
+# Instantiate Multinest Fit
 mn_fit = MultiNestFit(background_like, model.parameters)
 # Fit with multinest and define the number of live points one wants to use
 mn_fit.minimize_multinest(n_live_points=num_live_points, const_efficiency_mode=const_efficiency_mode)
@@ -327,7 +325,6 @@ ylim = plot_dict['ylim']
 # Should the legend be outside of the plot?
 legend_outside = plot_dict['legend_outside']
 
-
 print_progress('Create Plotter object...')
 # Create Plotter object that creates the plots
 plotter = Plotter(data, model, saa_calc, echan_list)
@@ -340,10 +337,9 @@ for index, echan in enumerate(echan_list):
                                           show_data=show_data, plot_sources=plot_sources,
                                           show_grb_trigger=show_grb_trigger, change_time=change_time, ppc=ppc,
                                           result_dir=output_dir, xlim=xlim, ylim=ylim, legend_outside=legend_outside)
-    if rank==0:
+    if rank == 0:
         residual_plot.savefig(output_dir + 'residual_plot_{}_det_{}_echan_{}_bin_width_{}.pdf'.format(
             date, detector, echan, bin_width), dpi=300)
     print_progress('Done')
 # Print the duration of the script
 print('Whole calculation took: {}'.format(datetime.now() - start))
-

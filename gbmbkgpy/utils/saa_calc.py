@@ -152,7 +152,8 @@ class SAA_calc(object):
             if len(index_start) > len(index_stop):
                 index_stop.append(-1)
 
-            assert len(index_start) == len(index_stop), 'Something is wrong, index_start and index_stop must have same length. But index_start as length {} and index_stop has length {}.'.format(len(index_start), len(index_stop))
+            assert len(index_start) == len(index_stop), 'Something is wrong, index_start and index_stop must have same length.' \
+                                                        ' But index_start as length {} and index_stop has length {}.'.format(len(index_start), len(index_stop))
 
             # set saa_mask=False between end and next start if time is <min_duration
             for i in range(len(index_stop) - 1):
