@@ -38,7 +38,14 @@ def download_lat_spacecraft(week):
     download.lat_spacecraft ( week = XXX )\n"""
 
     # create the appropriate folder if it doesn't already exist and switch to it
-    file_path = os.path.join(get_path_of_data_dir(), 'lat/')
+
+    data_path = get_path_of_external_data_dir()
+    if not os.access(data_path, os.F_OK):
+        print("Making New Directory")
+        os.mkdir(data_path)
+
+    file_path = os.path.join(get_path_of_external_data_dir(), 'lat/')
+
     if not os.access(file_path, os.F_OK):
         print("Making New Directory")
         os.mkdir(file_path)
