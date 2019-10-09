@@ -81,7 +81,6 @@ def disjoint_patch_plot(ax, bin_min, bin_max, top, bottom, mask, **kwargs):
 
     # Find the contiguous regions that are selected
 
-
     non_zero = (mask).nonzero()[0]
 
     if len(non_zero) > 0:
@@ -95,8 +94,6 @@ def disjoint_patch_plot(ax, bin_min, bin_max, top, bottom, mask, **kwargs):
                             **kwargs)
 
     ax.set_ylim(bottom, top)
-
-
 
 
 def slice_disjoint(arr):
@@ -119,4 +116,3 @@ def slice_disjoint(arr):
     if end_slice != arr[-1]:
         slices.append([start_slice, arr[-1]])
     return slices
-
