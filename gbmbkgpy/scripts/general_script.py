@@ -340,6 +340,7 @@ for index, echan in enumerate(echan_list):
     if rank == 0:
         residual_plot.savefig(output_dir + 'residual_plot_{}_det_{}_echan_{}_bin_width_{}.pdf'.format(
             date, detector, echan, bin_width), dpi=300)
-    print_progress('Done')
+plotter._plot_data(output_dir + 'data_for_plots.hdf5', output_dir, echan_list)
+print_progress('Done')
 # Print the duration of the script
 print('Whole calculation took: {}'.format(datetime.now() - start))
