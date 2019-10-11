@@ -3,6 +3,8 @@ import copy
 from gbmbkgpy.utils.statistics.stats_tools import Significance
 from gbmbkgpy.io.plotting.data_residual_plot import ResidualPlot
 from gbmbkgpy.utils.binner import Rebinner
+import h5py
+from gbmbkgpy.utils.progress_bar import progress_bar
 
 NO_REBIN = 1E-99
 
@@ -193,7 +195,108 @@ class Plotter(object):
                                       ylim=ylim,
                                       legend_outside=legend_outside)
 
-    # TODO write method to save the data used for plot
+    def _plot_data(self, path, result_dir, echan_list):
+        """
+        Function to save the data needed to create the plots.
+        """
+        ppc_counts_all = []
+        for index in self._echan_list:
+            ppc_counts_all.append(self.ppc_data(result_dir, index))
+        if rank==0:
+            with h5py.File(path, "w") as f1:
+            
+                group_general = f1.create_group('general')
+
+                group_general.create_dataset('Detector', data=self._data.det)
+                group_general.create_dataset('Dates', data=self._data.day)
+                group_general.create_dataset('day_start_times', data=self._day_start_times)
+                group_general.create_dataset('day_stop_times', data=self._day_stop_times)
+                group_general.create_dataset('saa_mask', data=self._saa_mask, compression="gzip", compression_opts=9)
+
+        
+                for j, index in enumerate(self._echan_list):
+                    source_list = self._get_counts_of_sources(self._total_time_bins, index)
+                
+                    model_counts = self._model.get_counts(self._total_time_bins, index, saa_mask=self._saa_mask)
+            
+                    time_bins = self._total_time_bins
+
+                    ppc_counts = ppc_counts_all[j]
+
+                    observed_counts = self._total_counts_all_echan[:, index]
+                    
+                    group_echan = f1.create_group('Echan {}'.format(echan_list[j]))
+
+                    #group_ppc = group_echan.create_group('PPC data')
+                    
+                    group_sources = group_echan.create_group('Sources')
+            
+                    group_echan.create_dataset('time_bins_start', data=time_bins[:,0], compression="gzip", compression_opts=9)
+                    group_echan.create_dataset('time_bins_stop', data=time_bins[:,1], compression="gzip", compression_opts=9)
+                    group_echan.create_dataset('total_model_counts', data=model_counts, compression="gzip", compression_opts=9)
+                    group_echan.create_dataset('observed_counts', data=observed_counts, compression="gzip", compression_opts=9)
+                    for source in source_list:
+                        group_sources.create_dataset(source['label'], data=source['data'], compression="gzip", compression_opts=9)
+                    group_echan.create_dataset('PPC', data=ppc_counts, compression="gzip", compression_opts=9)
+
+    def ppc_data(self, result_dir, echan):
+        """
+        Add ppc plot
+        :param result_dir: path to result directory
+        :param model: Model object
+        :param time_bin: Time bins where to compute ppc steps
+        :param saa_mask: Mask which time bins are set to zero
+        :param echan: Which echan 
+        :param q_levels: At which levels the ppc should be plotted
+        :param colors: colors for the different q_level
+        """
+        import pymultinest
+        analyzer = pymultinest.analyse.Analyzer(1, result_dir)
+
+        # Make a mask with 300 random True to choose 300 random samples
+        N_samples = 500
+        rates = []
+        counts = []
+        a = np.zeros(len(analyzer.get_equal_weighted_posterior()[:, :-1]), dtype=int)
+        a[:N_samples] = 1
+        np.random.shuffle(a)
+        a = a.astype(bool)
+
+        # For these 300 random samples calculate the corresponding rates for all time bins
+        # with the parameters of this sample
+        if using_mpi:
+            points_per_rank = float(N_samples) / float(size)
+            points_lower_index = int(np.floor(points_per_rank * rank))
+            points_upper_index = int(np.floor(points_per_rank * (rank + 1)))
+            if rank==0:
+                with progress_bar(len(analyzer.get_equal_weighted_posterior()[:, :-1][a]
+                                      [points_lower_index:points_upper_index]),
+                                  title='Calculating PPC for echan {}'.format(echan)) as p:
+
+                    for i, sample in enumerate(analyzer.get_equal_weighted_posterior()[:, :-1][a]
+                                               [points_lower_index:points_upper_index]):
+                        synth_data = self.get_synthetic_data(sample)
+                        counts.append(synth_data.counts[:,echan])
+                        p.increase()
+                        
+            else:
+                for i, sample in enumerate(analyzer.get_equal_weighted_posterior()[:,:-1][a]
+                                           [points_lower_index:points_upper_index]):
+                    synth_data = self.get_synthetic_data(sample)
+                    counts.append(synth_data.counts[:,echan])
+                    
+            counts = np.array(counts)
+            counts_g = comm.gather(counts, root=0)
+            if rank == 0:
+                counts_g = np.concatenate(counts_g)
+            counts = comm.bcast(counts_g, root=0)
+        else:
+            for i, sample in enumerate(analyzer.get_equal_weighted_posterior()[:,:-1][a]):
+                synth_data = self.get_synthetic_data(sample)
+                counts.append(synth_data.counts[:,echan])
+            counts = np.array(counts)
+        return counts
+
 
     def _get_list_of_sources(self, time_bins, echan, time_bin_width=1.):
         """
