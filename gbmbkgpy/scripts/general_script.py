@@ -14,7 +14,15 @@ from gbmbkgpy.minimizer.multinest_minimizer import MultiNestFit
 from gbmbkgpy.io.plotting.plot import Plotter
 from gbmbkgpy.modeling.setup_sources import Setup
 from gbmbkgpy.modeling.albedo_cgb import Albedo_CGB_fixed, Albedo_CGB_free
-from config import *
+from gbmbkgpy.io.package_data import get_path_of_external_data_dir
+from gbmbkgpy.io.file_utils import file_existing_and_readable
+
+import os
+from shutil import copyfile
+import sys
+
+config_custom_path = os.path.join(get_path_of_external_data_dir(), 'fits', 'config_custom.py')
+config_custom_dir = os.path.join(get_path_of_external_data_dir(), 'fits')
 
 import numpy as np
 
@@ -35,6 +43,17 @@ def print_progress(text):
     """
     if rank == 0:
         print(text)
+
+# Import Config file, use the custom config file if it exists, otherwise use default config file
+if file_existing_and_readable(config_custom_path):
+    sys.path.append(config_custom_dir)
+    from config_custom import *
+    print_progress('Using custom config file from {}'.format(config_custom_path))
+    custom = True
+else:
+    from config_default import *
+    print_progress('Using default config file')
+    custom = False
 
 
 ####################### Setup parameters ###############################
@@ -340,6 +359,11 @@ for index, echan in enumerate(echan_list):
     if rank == 0:
         residual_plot.savefig(output_dir + 'residual_plot_{}_det_{}_echan_{}_bin_width_{}.pdf'.format(
             date, detector, echan, bin_width), dpi=300)
-    print_progress('Done')
+plotter._save_plotting_data(output_dir + 'data_for_plots.hdf5', output_dir, echan_list)
+if custom:
+    copyfile(config_custom_path, output_dir + 'used_config.py')
+else:
+    copyfile(config_default + '.py', output_dir + 'used_config.py')
+print_progress('Done')
 # Print the duration of the script
 print('Whole calculation took: {}'.format(datetime.now() - start))

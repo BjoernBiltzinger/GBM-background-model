@@ -88,6 +88,14 @@ class Data(object):
         return self._time_bins
 
     @property
+    def det(self):
+        """
+        Returns the used detector
+        :return:
+        """
+        return self._det
+            
+    @property
     def day_start_times(self):
         """
         Returns the start time of the day
