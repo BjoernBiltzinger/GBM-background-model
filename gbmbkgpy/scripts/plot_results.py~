@@ -11,7 +11,7 @@ NO_REBIN = 1E-99
 import matplotlib.pyplot as plt
 
 # Path to data_for_plots.hdf5 file
-path = '/data/bbiltzing/data/fits/mn_out/test_2days_nb_0/fit_10-14_10-03/data_for_plots.hdf5'
+path = '/data/bbiltzing/data/fits/mn_out/test_2days_n5_14_ech_0_to_13/fit_10-02_11-37/data_for_plots.hdf5'
 
 # Svae path basis
 save_path_basis = '/'.join(path.split('/')[:-1]) 
@@ -173,7 +173,9 @@ def display_model(echan, which_day=0, add_sources=True, add_ppc=True, add_residu
 
         res_high_lim = 1.5*np.percentile(residuals[residuals<100], 99)
         res_low_lim = 1.5*np.percentile(residuals[residuals<100], 1)
-
+        print residuals
+        print res_high_lim
+        print res_low_lim
         ax_residuals.set_ylim((res_low_lim, res_high_lim))
     else:
         ax_main.set_xlabel(time_frame)
@@ -225,4 +227,4 @@ with h5py.File(path, 'r') as f:
 
                 display_model(echan, which_day = i, savepath='{}/plot_{}_date_{}_echan_{}.pdf'.format(save_path_basis,
                                                                                                        time_stamp, day, echan),
-                              min_bin_width=5, add_residuals=True) 
+                              min_bin_width=60, add_residuals=True) 
