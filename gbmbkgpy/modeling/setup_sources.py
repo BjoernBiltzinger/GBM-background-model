@@ -213,7 +213,7 @@ def setup_ps(data, ep, saa_object, response_object, geom_object, echan_list,
 
     for i, ps in enumerate(ep.point_sources.itervalues()):
         if len(free_spectrum) > 0 and free_spectrum[i]:
-            PS_Continuum_dic['{}'.format(ps.name)] = Point_Source_Continuum_Fit_Spectrum('norm_point_source-'+str(i))
+            PS_Continuum_dic['{}'.format(ps.name)] = Point_Source_Continuum_Fit_Spectrum('norm_point_source-'+str(i), E_norm=25.)
             response_array = ps.ps_response_array
             PS_Continuum_dic['{}'.format(ps.name)].set_response_array(response_array)
             PS_Continuum_dic['{}'.format(ps.name)].set_basis_function_array(data.time_bins[2:-2])
