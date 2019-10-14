@@ -142,8 +142,8 @@ class Earth_Albedo_Continuum(GlobalFunction):
 
 
 class Point_Source_Continuum(GlobalFunction):
-    def __init__(self, point_source_nr):
-        super(Point_Source_Continuum, self).__init__('norm_point_source-' + point_source_nr)
+    def __init__(self, name):
+        super(Point_Source_Continuum, self).__init__(name)
 
 
 class offset(ContinuumFunction):
@@ -172,8 +172,8 @@ class Cosmic_Gamma_Ray_Background_Fit_Spectrum(GlobalFunctionSpectrumFit):
 
 
 class Point_Source_Continuum_Fit_Spectrum(GlobalFunctionSpectrumFit):
-    def __init__(self, point_source_nr):
-        super(Point_Source_Continuum_Fit_Spectrum, self).__init__('norm_point_source-' + point_source_nr, spectrum='pl')
+    def __init__(self, name):
+        super(Point_Source_Continuum_Fit_Spectrum, self).__init__(name, spectrum='pl')
 
 
 class SAA_Decay_Linear(ContinuumFunction):
