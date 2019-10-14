@@ -217,7 +217,7 @@ class Plotter(object):
                                       ylim=ylim,
                                       legend_outside=legend_outside)
 
-    def _plot_data(self, path, result_dir, echan_list):
+    def _save_plotting_data(self, path, result_dir, echan_list):
         """
         Function to save the data needed to create the plots.
         """
