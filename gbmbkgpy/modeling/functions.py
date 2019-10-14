@@ -172,8 +172,8 @@ class Cosmic_Gamma_Ray_Background_Fit_Spectrum(GlobalFunctionSpectrumFit):
 
 
 class Point_Source_Continuum_Fit_Spectrum(GlobalFunctionSpectrumFit):
-    def __init__(self, name):
-        super(Point_Source_Continuum_Fit_Spectrum, self).__init__(name, spectrum='pl')
+    def __init__(self, name, E_norm=1):
+        super(Point_Source_Continuum_Fit_Spectrum, self).__init__(name, spectrum='pl', E_norm=E_norm)
 
 
 class SAA_Decay_Linear(ContinuumFunction):
