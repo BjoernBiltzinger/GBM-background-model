@@ -33,7 +33,8 @@ setup_dict = {'use_SAA': False,
               'ps_list': ['CRAB'],
               'fix_ps': [False],
               'fix_earth': False,
-              'fix_cgb': False}
+              'fix_cgb': False,
+              'use_sun': True}
 
 ################################ Bounds for the different sources ###################################
 ####### SAA: Amplitude and decay constant, CR: Constant and McIlwain normalization ##################
@@ -47,16 +48,18 @@ bounds_dict = {'saa_bound': [(1, 10**4), (10**-5, 10**-1)],
                'earth_free_bound': [(0.001, 1), (-8, -3), (1.1, 1.9), (20, 40)],
                'cgb_free_bound': [(0.01, 0.5), (0.5, 1.7), (2.2, 3.1), (27, 40)],
                'ps_fixed_bound': [(5, 100)],
-               'ps_free_bound': [(1, 10), (2, 2.3)]}
+               'ps_free_bound': [(1, 10), (2, 2.3)],
+               'sun_bound': [(0.01,100),(0.5,4)]}
 
 gaussian_dict = {'saa_bound': [(None, None), (None, None)],
-               'cr_bound': [(None, None), (None, None)],
-               'earth_fixed_bound': [(None, None)],
-               'cgb_fixed_bound': [(None, None)],
-               'earth_free_bound': [(None, None), (-5, 2), (1.72, 0.1), (None, None)],
-               'cgb_free_bound': [(None, None), (1.32, 0.1), (2.88, 0.15), (None, None)],
-               'ps_fixed_bound': [(None, None)],
-               'ps_free_bound': [(None, None), (2, 2.3)]}
+                 'cr_bound': [(None, None), (None, None)],
+                 'earth_fixed_bound': [(None, None)],
+                 'cgb_fixed_bound': [(None, None)],
+                 'earth_free_bound': [(None, None), (-5, 2), (1.72, 0.1), (None, None)],
+                 'cgb_free_bound': [(None, None), (1.32, 0.1), (2.88, 0.15), (None, None)],
+                 'ps_fixed_bound': [(None, None)],
+                 'ps_free_bound': [(None, None), (2, 2.3)],
+                 'sun_bound': [(None, None),(2., 1.)]}
 
 ##################### Input for multinest sampler ###################################################
 
