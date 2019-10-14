@@ -9,6 +9,28 @@ from gbmbkgpy.utils.progress_bar import progress_bar
 NO_REBIN = 1E-99
 
 
+try:
+
+    # see if we have mpi and/or are upalsing parallel
+
+    from mpi4py import MPI
+
+    if MPI.COMM_WORLD.Get_size() > 1:  # need parallel capabilities
+        using_mpi = True
+
+        comm = MPI.COMM_WORLD
+        rank = comm.Get_rank()
+        size = comm.Get_size()
+
+    else:
+
+        using_mpi = False
+except:
+
+    using_mpi = False
+
+
+
 class Plotter(object):
     def __init__(self, data, model, saa_object, echan_list):
 
@@ -209,13 +231,13 @@ class Plotter(object):
 
                 group_general.create_dataset('Detector', data=self._data.det)
                 group_general.create_dataset('Dates', data=self._data.day)
-                group_general.create_dataset('day_start_times', data=self._day_start_times)
-                group_general.create_dataset('day_stop_times', data=self._day_stop_times)
+                group_general.create_dataset('day_start_times', data=self._data.day_start_times)
+                group_general.create_dataset('day_stop_times', data=self._data.day_stop_times)
                 group_general.create_dataset('saa_mask', data=self._saa_mask, compression="gzip", compression_opts=9)
 
         
                 for j, index in enumerate(self._echan_list):
-                    source_list = self._get_counts_of_sources(self._total_time_bins, index)
+                    source_list = self.get_counts_of_sources(self._total_time_bins, index)
                 
                     model_counts = self._model.get_counts(self._total_time_bins, index, saa_mask=self._saa_mask)
             
@@ -403,3 +425,39 @@ class Plotter(object):
             synth_data.counts[:, echan][2:-2] = np.random.poisson(synth_model.get_counts(synth_data.time_bins[2:-2], echan))
 
         return synth_data
+
+    def get_counts_of_sources(self, time_bins, echan):
+        """
+        Builds a list of the different model sources.
+        Each source is a dict containing the label of the source, the data, and the plotting color
+        :return:
+        """
+
+        source_list = []
+        color_list = ['b', 'g', 'c', 'm', 'y', 'k', 'navy', 'darkgreen', 'cyan']
+        i_index = 0
+        for i, source_name in enumerate(self._model.continuum_sources):
+            data = self._model.get_continuum_counts(i, time_bins, self._saa_mask, echan)
+            if np.sum(data) != 0:
+                source_list.append({"label": source_name, "data": data, "color": color_list[i_index]})
+                i_index += 1
+        for i, source_name in enumerate(self._model._global_sources):
+            data = self._model.get_global_counts(i, time_bins, self._saa_mask, echan)
+            source_list.append({"label": source_name, "data": data, "color": color_list[i_index]})
+            i_index += 1
+
+        for i, source_name in enumerate(self._model.fit_spectrum_sources):
+            data = self._model.get_fit_spectrum_counts(i, time_bins, self._saa_mask, echan)
+            source_list.append({"label": source_name, "data": data, "color": color_list[i_index]})
+            i_index += 1
+
+        saa_data = self._model.get_saa_counts(self._total_time_bins, self._saa_mask, echan)
+        if np.sum(saa_data) != 0:
+            source_list.append({"label": "SAA_decays", "data": saa_data, "color": color_list[i_index]})
+            i_index += 1
+        point_source_data = self._model.get_point_source_counts(self._total_time_bins, self._saa_mask, echan)
+        if np.sum(point_source_data) != 0:
+            source_list.append(
+                {"label": "Point_sources", "data": point_source_data, "color": color_list[i_index]})
+            i_index += 1
+        return source_list
