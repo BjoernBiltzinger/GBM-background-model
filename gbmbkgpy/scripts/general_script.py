@@ -15,6 +15,8 @@ from gbmbkgpy.io.plotting.plot import Plotter
 from gbmbkgpy.modeling.setup_sources import Setup
 from gbmbkgpy.modeling.albedo_cgb import Albedo_CGB_fixed, Albedo_CGB_free
 from gbmbkgpy.io.package_data import get_path_of_external_data_dir                                                               
+from gbmbkgpy.modeling.sun import Sun
+
 import os
 from shutil import copyfile
 import sys
@@ -145,6 +147,8 @@ fix_ps = setup_dict['fix_ps']
 fix_earth = setup_dict['fix_earth']
 # Fix the spectrum of the CGB?
 fix_cgb = setup_dict['fix_cgb']
+# Use Sun?
+use_sun = setup_dict['use_sun']
 
 assert (fix_earth and fix_cgb) or (not fix_earth and not fix_cgb), 'At the moment albeod and cgb spectrum have to be either both fixed or both free'
 
@@ -154,11 +158,13 @@ if fix_earth:
 else:
     albedo_cgb_obj = Albedo_CGB_free(resp, geom)
 
+sun_obj = Sun(resp, geom, echan_list)
+    
 print_progress('Create Source list...')
 
-source_list = Setup(data, saa_calc, ep, geom, echan_list=echan_list, response_object=resp, albedo_cgb_object=albedo_cgb_obj,
-                    use_SAA=use_SAA, use_CR=use_CR, use_Earth=use_Earth, use_CGB=use_CGB, point_source_list=ps_list,
-                    fix_ps=fix_ps, fix_Earth=fix_earth, fix_CGB=fix_cgb)
+source_list = Setup(data, saa_calc, ep, geom, sun_object=sun_obj, echan_list=echan_list, response_object=resp,
+                    albedo_cgb_object=albedo_cgb_obj, use_SAA=use_SAA, use_CR=use_CR, use_Earth=use_Earth, use_CGB=use_CGB,
+                    point_source_list=ps_list, fix_ps=fix_ps, fix_Earth=fix_earth, fix_CGB=fix_cgb, use_sun=use_sun)
 
 print_progress('Done')
 
@@ -177,6 +183,7 @@ saa_bounds = bounds_dict['saa_bound']
 # CR: Constant and McIlwain normalization
 cr_bounds = bounds_dict['cr_bound']
 
+sun_bounds = bounds_dict['sun_bound']
 # Amplitude of PS spectrum
 ps_fixed_bound = bounds_dict['ps_fixed_bound']
 ps_free_bound = bounds_dict['ps_free_bound']
@@ -200,6 +207,8 @@ saa_gaussian = gaussian_dict['saa_bound']
 # CR: Constant and McIlwain normalization
 cr_gaussian = gaussian_dict['cr_bound']
 
+sun_gaussian = gaussian_dict['sun_bound']
+ 
 # Amplitude of PS spectrum
 ps_fixed_gaussian = gaussian_dict['ps_fixed_bound']
 ps_free_gaussian = gaussian_dict['ps_free_bound']
@@ -231,6 +240,8 @@ for i in echan_list:
 
     if use_CR:
         parameter_bounds.append(cr_bounds)
+if use_sun:
+    parameter_bounds.append(sun_bounds)
 # Global sources for all echans
 for i, ps in enumerate(ps_list):
     if fix_ps[i]:
@@ -261,6 +272,10 @@ for i in echan_list:
 
     if use_CR:
         gaussian_parameter_bounds.append(cr_gaussian)
+if use_sun:
+    gaussian_parameter_bounds.append(sun_gaussian)
+
+
 # Global sources for all echans
 for i, ps in enumerate(ps_list):
     if fix_ps[i]:
