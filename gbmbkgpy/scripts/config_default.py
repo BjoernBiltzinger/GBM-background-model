@@ -47,8 +47,8 @@ bounds_dict = {'saa_bound': [(1, 10**4), (10**-5, 10**-1)],
                'cgb_fixed_bound': [(0.01, 0.5)],
                'earth_free_bound': [(0.001, 1), (-8, -3), (1.1, 1.9), (20, 40)],
                'cgb_free_bound': [(0.01, 0.5), (0.5, 1.7), (2.2, 3.1), (27, 40)],
-               'ps_fixed_bound': [(5, 100)],
-               'ps_free_bound': [(1, 10), (2, 2.3)],
+               'ps_fixed_bound': [(0.0001, 1)],
+               'ps_free_bound': [(0.0001, 1), (1.5, 2.5)],
                'sun_bound': [(0.01,100),(0.5,4)]}
 
 gaussian_dict = {'saa_bound': [(None, None), (None, None)],
@@ -58,7 +58,7 @@ gaussian_dict = {'saa_bound': [(None, None), (None, None)],
                  'earth_free_bound': [(None, None), (-5, 2), (1.72, 0.1), (None, None)],
                  'cgb_free_bound': [(None, None), (1.32, 0.1), (2.88, 0.15), (None, None)],
                  'ps_fixed_bound': [(None, None)],
-                 'ps_free_bound': [(None, None), (2, 2.3)],
+                 'ps_free_bound': [(None, None), (2.1, 0.3)],
                  'sun_bound': [(None, None),(2., 1.)]}
 
 ##################### Input for multinest sampler ###################################################
