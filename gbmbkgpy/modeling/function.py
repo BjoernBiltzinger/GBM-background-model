@@ -228,11 +228,12 @@ class GlobalFunctionSpectrumFit(Function):
     spectrum!
     """
 
-    def __init__(self, coefficient_name, spectrum='bpl'):
+    def __init__(self, coefficient_name, spectrum='bpl', E_norm=1):
         """
         Init the parameters of a broken power law
         :param coefficient_name:
         """
+        self._E_norm = E_norm
         self._spec = spectrum
         if self._spec == 'bpl':
             C = Parameter(coefficient_name + '_C', initial_value=1., min_value=0, max_value=None, delta=0.1,
@@ -331,7 +332,7 @@ class GlobalFunctionSpectrumFit(Function):
 
         elif self._spec == 'pl':
 
-            return self._C / energy ** self._index
+            return self._C / (energy/self._E_norm) ** self._index
 
     def _integral(self, e1, e2):
         """
