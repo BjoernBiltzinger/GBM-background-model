@@ -242,14 +242,16 @@ for i in echan_list:
 
     if use_CR:
         parameter_bounds.append(cr_bounds)
-if use_sun:
-    parameter_bounds.append(sun_bounds)
+        
+    
 # Global sources for all echans
 for i, ps in enumerate(ps_list):
     if fix_ps[i]:
         parameter_bounds.append(ps_fixed_bound)
     else:
         parameter_bounds.append(ps_free_bound)
+if use_sun:
+    parameter_bounds.append(sun_bounds)
 
 parameter_bounds.append(earth_bound)
 parameter_bounds.append(cgb_bound)
@@ -274,9 +276,6 @@ for i in echan_list:
 
     if use_CR:
         gaussian_parameter_bounds.append(cr_gaussian)
-if use_sun:
-    gaussian_parameter_bounds.append(sun_gaussian)
-
 
 # Global sources for all echans
 for i, ps in enumerate(ps_list):
@@ -285,12 +284,14 @@ for i, ps in enumerate(ps_list):
     else:
         gaussian_parameter_bounds.append(ps_free_gaussian)
 
+if use_sun:
+    gaussian_parameter_bounds.append(sun_gaussian)
+
 gaussian_parameter_bounds.append(earth_gaussian)
 gaussian_parameter_bounds.append(cgb_gaussian)
 
 # Concatenate this
 gaussian_parameter_bounds = np.concatenate(gaussian_parameter_bounds)
-
 # Add bounds to the parameters for multinest
 model.set_parameter_gaussian(gaussian_parameter_bounds)
 ################################## Backgroundlike Class #################################
