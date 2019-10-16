@@ -22,6 +22,7 @@ import os
 from shutil import copyfile
 import sys
 
+config_default_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config_default.py')
 config_custom_path = os.path.join(get_path_of_external_data_dir(), 'fits', 'config_custom.py')
 config_custom_dir = os.path.join(get_path_of_external_data_dir(), 'fits')
 
@@ -44,6 +45,7 @@ def print_progress(text):
     """
     if rank == 0:
         print(text)
+
 
 # Import Config file, use the custom config file if it exists, otherwise use default config file
 if file_existing_and_readable(config_custom_path):
@@ -178,121 +180,122 @@ print_progress('Done')
 ##################### Prior bounds #############################
 
 ######## Define bounds for all sources ###############
-
-# SAA: Amplitude and decay constant
-saa_bounds = bounds_dict['saa_bound']
-
-# CR: Constant and McIlwain normalization
-cr_bounds = bounds_dict['cr_bound']
-
-sun_bounds = bounds_dict['sun_bound']
-# Amplitude of PS spectrum
-ps_fixed_bound = bounds_dict['ps_fixed_bound']
-ps_free_bound = bounds_dict['ps_free_bound']
-# If earth spectrum is fixed only the normalization, otherwise C, index1, index2 and E_break
-if fix_earth:
-    earth_bound = bounds_dict['earth_fixed_bound']
-else:
-    earth_bound = bounds_dict['earth_free_bound']
-
-# If cgb spectrum is fixed only the normalization, otherwise C, index1, index2 and E_break
-if fix_cgb:
-    cgb_bound = bounds_dict['cgb_fixed_bound']
-else:
-    cgb_bound = bounds_dict['cgb_free_bound']
-
 ######## Define gaussian parameter for all sources ###############
 
-# SAA: Amplitude and decay constant
-saa_gaussian = gaussian_dict['saa_bound']
-
-# CR: Constant and McIlwain normalization
-cr_gaussian = gaussian_dict['cr_bound']
-
-sun_gaussian = gaussian_dict['sun_bound']
- 
-# Amplitude of PS spectrum
-ps_fixed_gaussian = gaussian_dict['ps_fixed_bound']
-ps_free_gaussian = gaussian_dict['ps_free_bound']
-# If earth spectrum is fixed only the normalization, otherwise C, index1, index2 and E_break
-if fix_earth:
-    earth_gaussian = gaussian_dict['earth_fixed_bound']
-else:
-    earth_gaussian = gaussian_dict['earth_free_bound']
-
-# If cgb spectrum is fixed only the normalization, otherwise C, index1, index2 and E_break
-if fix_cgb:
-    cgb_gaussian = gaussian_dict['cgb_fixed_bound']
-else:
-    cgb_gaussian = gaussian_dict['cgb_free_bound']
-
-#######################################
-
-parameter_bounds = []
+parameter_bounds = {}
 
 # Echan individual sources
-for i in echan_list:
+for e in echan_list:
+
     if use_SAA:
-        for j in range(saa_calc.num_saa):
-            parameter_bounds.append(saa_bounds)
 
         # If fitting only one day add additional 'SAA' decay to account for leftover excitation
         if len(date) == 1:
-            parameter_bounds.append(saa_bounds)
+            offset = 1
+        else:
+            offset = 0
+
+        for saa_nr in range(saa_calc.num_saa + offset):
+            parameter_bounds['norm_saa-{}_echan-{}'.format(saa_nr, e)] = {
+                'bounds': bounds_dict['saa_bound'][0],
+                'gaussian_parameter': gaussian_dict['saa_bound'][0]
+            }
+            parameter_bounds['decay_saa-{}_echan-{}'.format(saa_nr, e)] = {
+                'bounds': bounds_dict['saa_bound'][1],
+                'gaussian_parameter': gaussian_dict['saa_bound'][1]
+            }
 
     if use_CR:
-        parameter_bounds.append(cr_bounds)
+
+        parameter_bounds['constant_echan'.format(e)] = {
+            'bounds': bounds_dict['cr_bound'][0],
+            'gaussian_parameter': gaussian_dict['cr_bound'][0]
+        }
+        parameter_bounds['norm_magnetic_echan-{}'.format(e)] = {
+            'bounds': bounds_dict['cr_bound'][1],
+            'gaussian_parameter': gaussian_dict['cr_bound'][1]
+        }
+
 if use_sun:
-    parameter_bounds.append(sun_bounds)
+    parameter_bounds['Sun_C'] = {
+        'bounds': bounds_dict['sun_bound'][0],
+        'gaussian_parameter': gaussian_dict['sun_bound'][0]
+    }
+    parameter_bounds['Sun_index'] = {
+        'bounds': bounds_dict['sun_bound'][1],
+        'gaussian_parameter': gaussian_dict['sun_bound'][1]
+    }
 # Global sources for all echans
+
+# If PS spectrum is fixed only the normalization, otherwise C, index
 for i, ps in enumerate(ps_list):
     if fix_ps[i]:
-        parameter_bounds.append(ps_fixed_bound)
+        parameter_bounds['norm_point_source-{}'.format(i)] = {
+            'bounds': bounds_dict['ps_fixed_bound'][0],
+            'gaussian_parameter': gaussian_dict['ps_fixed_bound'][0]
+        }
     else:
-        parameter_bounds.append(ps_free_bound)
+        parameter_bounds['PS-{}-Spectrum_fitted_C'.format(e)] = {
+            'bounds': bounds_dict['ps_free_bound'][0],
+            'gaussian_parameter': gaussian_dict['ps_free_bound'][0]
+        }
+        parameter_bounds['PS-{}-Spectrum_fitted_index'.format(e)] = {
+            'bounds': bounds_dict['ps_free_bound'][1],
+            'gaussian_parameter': gaussian_dict['ps_free_bound'][1]
+        }
 
-parameter_bounds.append(earth_bound)
-parameter_bounds.append(cgb_bound)
+# If earth spectrum is fixed only the normalization, otherwise C, index1, index2 and E_break
+if fix_earth:
+    parameter_bounds['norm_earth_albedo'] = {
+        'bounds': bounds_dict['earth_fixed_bound'][0],
+        'gaussian_parameter': gaussian_dict['earth_fixed_bound'][0]
+    }
+else:
+    parameter_bounds['Earth_Albedo-Spectrum_fitted_C'] = {
+        'bounds': bounds_dict['earth_free_bound'][0],
+        'gaussian_parameter': gaussian_dict['earth_free_bound'][0]
+    }
+    parameter_bounds['Earth_Albedo-Spectrum_fitted_index1'] = {
+        'bounds': bounds_dict['earth_free_bound'][1],
+        'gaussian_parameter': gaussian_dict['earth_free_bound'][1]
+    }
+    parameter_bounds['Earth_Albedo-Spectrum_fitted_index2'] = {
+        'bounds': bounds_dict['earth_free_bound'][2],
+        'gaussian_parameter': gaussian_dict['earth_free_bound'][2]
+    }
+    parameter_bounds['Earth_Albedo-Spectrum_fitted_E_break'] = {
+        'bounds': bounds_dict['earth_free_bound'][3],
+        'gaussian_parameter': gaussian_dict['earth_free_bound'][3]
+    }
 
-# Concatenate this
-parameter_bounds = np.concatenate(parameter_bounds)
+# If cgb spectrum is fixed only the normalization, otherwise C, index1, index2 and E_break
+if fix_cgb:
+    parameter_bounds['norm_cgb'] = {
+        'bounds': bounds_dict['cgb_fixed_bound'][0],
+        'gaussian_parameter': gaussian_dict['cgb_fixed_bound'][0]
+    }
+else:
+    parameter_bounds['Spectrum_fitted_C'] = {
+        'bounds': bounds_dict['cgb_free_bound'][0],
+        'gaussian_parameter': gaussian_dict['cgb_free_bound'][0]
+    }
+    parameter_bounds['CGB-Spectrum_fitted_index1'] = {
+        'bounds': bounds_dict['cgb_free_bound'][1],
+        'gaussian_parameter': gaussian_dict['cgb_free_bound'][1]
+    }
+    parameter_bounds['CGB-Spectrum_fitted_index2'] = {
+        'bounds': bounds_dict['cgb_free_bound'][2],
+        'gaussian_parameter': gaussian_dict['cgb_free_bound'][2]
+    }
+    parameter_bounds['CGB-Spectrum_fitted_E_break'] = {
+        'bounds': bounds_dict['cgb_free_bound'][3],
+        'gaussian_parameter': gaussian_dict['cgb_free_bound'][3]
+    }
 
 # Add bounds to the parameters for multinest
 model.set_parameter_bounds(parameter_bounds)
 
-gaussian_parameter_bounds = []
 
-# Echan individual sources
-for i in echan_list:
-    if use_SAA:
-        for j in range(saa_calc.num_saa):
-            gaussian_parameter_bounds.append(saa_gaussian)
-
-        # If fitting only one day add additional 'SAA' decay to account for leftover excitation
-        if len(date) == 1:
-            gaussian_parameter_bounds.append(saa_gaussian)
-
-    if use_CR:
-        gaussian_parameter_bounds.append(cr_gaussian)
-if use_sun:
-    gaussian_parameter_bounds.append(sun_gaussian)
-
-
-# Global sources for all echans
-for i, ps in enumerate(ps_list):
-    if fix_ps[i]:
-        gaussian_parameter_bounds.append(ps_fixed_gaussian)
-    else:
-        gaussian_parameter_bounds.append(ps_free_gaussian)
-
-gaussian_parameter_bounds.append(earth_gaussian)
-gaussian_parameter_bounds.append(cgb_gaussian)
-
-# Concatenate this
-gaussian_parameter_bounds = np.concatenate(gaussian_parameter_bounds)
-
-# Add bounds to the parameters for multinest
-model.set_parameter_gaussian(gaussian_parameter_bounds)
 ################################## Backgroundlike Class #################################
 
 # Class that calcualtes the likelihood
@@ -377,7 +380,7 @@ plotter._save_plotting_data(output_dir + 'data_for_plots.hdf5', output_dir, echa
 if custom:
     copyfile(config_custom_path, output_dir + 'used_config.py')
 else:
-    copyfile(config_default + '.py', output_dir + 'used_config.py')
+    copyfile(config_default_path, output_dir + 'used_config.py')
 print_progress('Done')
 # Print the duration of the script
 print('Whole calculation took: {}'.format(datetime.now() - start))
