@@ -126,6 +126,7 @@ def setup_SAA(data, saa_object, echan, index):
         saa_n += 1
     return SAA_Decay_list
 
+
 def setup_sun(cd, sun_object, saa_object, response_object, geom_object, echan_list):
     """
     Setup for sun as bkg source
@@ -139,7 +140,8 @@ def setup_sun(cd, sun_object, saa_object, response_object, geom_object, echan_li
     Sun.energy_boundaries(sun_object.Ebin_in_edge)
     Sun_Continuum = FitSpectrumSource('Sun', Sun)
 
-    return [Sun_Continuum]
+    return Sun_Continuum
+
 
 def setup_CosmicRays(data, ep, saa_object, echan, index):
     """
