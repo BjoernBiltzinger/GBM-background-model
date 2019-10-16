@@ -263,7 +263,7 @@ else:
         'bounds': bounds_dict['earth_free_bound'][2],
         'gaussian_parameter': gaussian_dict['earth_free_bound'][2]
     }
-    parameter_bounds['earth_albedo_spectrum_fitted_E_break'] = {
+    parameter_bounds['earth_albedo_spectrum_fitted_break_energy'] = {
         'bounds': bounds_dict['earth_free_bound'][3],
         'gaussian_parameter': gaussian_dict['earth_free_bound'][3]
     }
@@ -287,7 +287,7 @@ else:
         'bounds': bounds_dict['cgb_free_bound'][2],
         'gaussian_parameter': gaussian_dict['cgb_free_bound'][2]
     }
-    parameter_bounds['CGB_spectrum_fitted_E_break'] = {
+    parameter_bounds['CGB_spectrum_fitted_break_energy'] = {
         'bounds': bounds_dict['cgb_free_bound'][3],
         'gaussian_parameter': gaussian_dict['cgb_free_bound'][3]
     }
