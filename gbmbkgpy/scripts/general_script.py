@@ -230,16 +230,16 @@ if use_sun:
 # If PS spectrum is fixed only the normalization, otherwise C, index
 for i, ps in enumerate(ps_list):
     if fix_ps[i]:
-        parameter_bounds['norm_point_source-{}'.format(i)] = {
+        parameter_bounds['norm_point_source-{}'.format(ps)] = {
             'bounds': bounds_dict['ps_fixed_bound'][0],
             'gaussian_parameter': gaussian_dict['ps_fixed_bound'][0]
         }
     else:
-        parameter_bounds['ps-{}_spectrum_fitted_C'.format(e)] = {
+        parameter_bounds['ps-{}_spectrum_fitted_C'.format(ps)] = {
             'bounds': bounds_dict['ps_free_bound'][0],
             'gaussian_parameter': gaussian_dict['ps_free_bound'][0]
         }
-        parameter_bounds['ps-{}_spectrum_fitted_index'.format(e)] = {
+        parameter_bounds['ps-{}_spectrum_fitted_index'.format(ps)] = {
             'bounds': bounds_dict['ps_free_bound'][1],
             'gaussian_parameter': gaussian_dict['ps_free_bound'][1]
         }

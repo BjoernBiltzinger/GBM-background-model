@@ -207,7 +207,7 @@ def setup_ps(data, ep, saa_object, response_object, geom_object, echan_list,
 
     for i, ps in enumerate(ep.point_sources.itervalues()):
         if len(free_spectrum) > 0 and free_spectrum[i]:
-            PS_Continuum_dic['{}'.format(ps.name)] = Point_Source_Continuum_Fit_Spectrum('ps-{}_spectrum_fitted'.format(i), E_norm=25.)
+            PS_Continuum_dic['{}'.format(ps.name)] = Point_Source_Continuum_Fit_Spectrum('ps_{}_spectrum_fitted'.format(ps.name), E_norm=25.)
             response_array = ps.ps_response_array
             PS_Continuum_dic['{}'.format(ps.name)].set_response_array(response_array)
             PS_Continuum_dic['{}'.format(ps.name)].set_basis_function_array(data.time_bins[2:-2])
@@ -217,7 +217,7 @@ def setup_ps(data, ep, saa_object, response_object, geom_object, echan_list,
 
             PS_Sources_list.append(FitSpectrumSource('{}'.format(ps.name), PS_Continuum_dic['{}'.format(ps.name)]))
         else:
-            PS_Continuum_dic['{}'.format(ps.name)] = Point_Source_Continuum('norm_point_source-{}'.format(i))
+            PS_Continuum_dic['{}'.format(ps.name)] = Point_Source_Continuum('norm_point_source-{}'.format(ps.name))
             rate_inter = interpolate.interp1d(ps.geometry_times, ps.ps_rate_array.T)
             PS_Continuum_dic['{}'.format(ps.name)].set_function_array(rate_inter(data.time_bins[2:-2]))
             PS_Continuum_dic['{}'.format(ps.name)].set_saa_zero(saa_object.saa_mask[2:-2])
