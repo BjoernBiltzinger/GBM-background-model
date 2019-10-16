@@ -131,14 +131,14 @@ def setup_sun(cd, sun_object, saa_object, response_object, geom_object, echan_li
     """
     Setup for sun as bkg source
     """
-    Sun = Point_Source_Continuum_Fit_Spectrum('Sun')
+    Sun = Point_Source_Continuum_Fit_Spectrum('sun')
     response_array = sun_object.sun_response_array
     Sun.set_response_array(response_array)
     Sun.set_basis_function_array(cd.time_bins[2:-2])
     Sun.set_saa_zero(saa_object.saa_mask[2:-2])
     Sun.set_interpolation_times(sun_object.geometry_times)
     Sun.energy_boundaries(sun_object.Ebin_in_edge)
-    Sun_Continuum = FitSpectrumSource('Sun', Sun)
+    Sun_Continuum = FitSpectrumSource('sun', Sun)
 
     return Sun_Continuum
 
@@ -168,7 +168,7 @@ def setup_CosmicRays(data, ep, saa_object, echan, index):
     mag_con.remove_vertical_movement()
     # precalculate the integration over the time bins
     mag_con.integrate_array(data.time_bins[2:-2])
-    Source_Magnetic_Continuum = ContinuumSource('McIlwain L-parameter_echan_{:d}'.format(echan),
+    Source_Magnetic_Continuum = ContinuumSource('McIlwain_L-parameter_echan_{:d}'.format(echan),
                                                 mag_con, index)
     return [Constant_Continuum, Source_Magnetic_Continuum]
 
@@ -207,7 +207,7 @@ def setup_ps(data, ep, saa_object, response_object, geom_object, echan_list,
 
     for i, ps in enumerate(ep.point_sources.itervalues()):
         if len(free_spectrum) > 0 and free_spectrum[i]:
-            PS_Continuum_dic['{}'.format(ps.name)] = Point_Source_Continuum_Fit_Spectrum('norm_point_source-'+str(i), E_norm=25.)
+            PS_Continuum_dic['{}'.format(ps.name)] = Point_Source_Continuum_Fit_Spectrum('ps-{}_spectrum_fitted'.format(i), E_norm=25.)
             response_array = ps.ps_response_array
             PS_Continuum_dic['{}'.format(ps.name)].set_response_array(response_array)
             PS_Continuum_dic['{}'.format(ps.name)].set_basis_function_array(data.time_bins[2:-2])
@@ -217,7 +217,7 @@ def setup_ps(data, ep, saa_object, response_object, geom_object, echan_list,
 
             PS_Sources_list.append(FitSpectrumSource('{}'.format(ps.name), PS_Continuum_dic['{}'.format(ps.name)]))
         else:
-            PS_Continuum_dic['{}'.format(ps.name)] = Point_Source_Continuum('norm_point_source-'+str(i))
+            PS_Continuum_dic['{}'.format(ps.name)] = Point_Source_Continuum('norm_point_source-{}'.format(i))
             rate_inter = interpolate.interp1d(ps.geometry_times, ps.ps_rate_array.T)
             PS_Continuum_dic['{}'.format(ps.name)].set_function_array(rate_inter(data.time_bins[2:-2]))
             PS_Continuum_dic['{}'.format(ps.name)].set_saa_zero(saa_object.saa_mask[2:-2])

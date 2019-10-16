@@ -207,7 +207,7 @@ for e in echan_list:
 
     if use_CR:
 
-        parameter_bounds['constant_echan'.format(e)] = {
+        parameter_bounds['constant_echan-{}'.format(e)] = {
             'bounds': bounds_dict['cr_bound'][0],
             'gaussian_parameter': gaussian_dict['cr_bound'][0]
         }
@@ -217,11 +217,11 @@ for e in echan_list:
         }
 
 if use_sun:
-    parameter_bounds['Sun_C'] = {
+    parameter_bounds['sun_C'] = {
         'bounds': bounds_dict['sun_bound'][0],
         'gaussian_parameter': gaussian_dict['sun_bound'][0]
     }
-    parameter_bounds['Sun_index'] = {
+    parameter_bounds['sun_index'] = {
         'bounds': bounds_dict['sun_bound'][1],
         'gaussian_parameter': gaussian_dict['sun_bound'][1]
     }
@@ -235,11 +235,11 @@ for i, ps in enumerate(ps_list):
             'gaussian_parameter': gaussian_dict['ps_fixed_bound'][0]
         }
     else:
-        parameter_bounds['PS-{}-Spectrum_fitted_C'.format(e)] = {
+        parameter_bounds['ps-{}_spectrum_fitted_C'.format(e)] = {
             'bounds': bounds_dict['ps_free_bound'][0],
             'gaussian_parameter': gaussian_dict['ps_free_bound'][0]
         }
-        parameter_bounds['PS-{}-Spectrum_fitted_index'.format(e)] = {
+        parameter_bounds['ps-{}_spectrum_fitted_index'.format(e)] = {
             'bounds': bounds_dict['ps_free_bound'][1],
             'gaussian_parameter': gaussian_dict['ps_free_bound'][1]
         }
@@ -251,19 +251,19 @@ if fix_earth:
         'gaussian_parameter': gaussian_dict['earth_fixed_bound'][0]
     }
 else:
-    parameter_bounds['Earth_Albedo-Spectrum_fitted_C'] = {
+    parameter_bounds['earth_albedo_spectrum_fitted_C'] = {
         'bounds': bounds_dict['earth_free_bound'][0],
         'gaussian_parameter': gaussian_dict['earth_free_bound'][0]
     }
-    parameter_bounds['Earth_Albedo-Spectrum_fitted_index1'] = {
+    parameter_bounds['earth_albedo_spectrum_fitted_index1'] = {
         'bounds': bounds_dict['earth_free_bound'][1],
         'gaussian_parameter': gaussian_dict['earth_free_bound'][1]
     }
-    parameter_bounds['Earth_Albedo-Spectrum_fitted_index2'] = {
+    parameter_bounds['earth_albedo_spectrum_fitted_index2'] = {
         'bounds': bounds_dict['earth_free_bound'][2],
         'gaussian_parameter': gaussian_dict['earth_free_bound'][2]
     }
-    parameter_bounds['Earth_Albedo-Spectrum_fitted_E_break'] = {
+    parameter_bounds['earth_albedo_spectrum_fitted_E_break'] = {
         'bounds': bounds_dict['earth_free_bound'][3],
         'gaussian_parameter': gaussian_dict['earth_free_bound'][3]
     }
@@ -275,19 +275,19 @@ if fix_cgb:
         'gaussian_parameter': gaussian_dict['cgb_fixed_bound'][0]
     }
 else:
-    parameter_bounds['Spectrum_fitted_C'] = {
+    parameter_bounds['CGB_spectrum_fitted_C'] = {
         'bounds': bounds_dict['cgb_free_bound'][0],
         'gaussian_parameter': gaussian_dict['cgb_free_bound'][0]
     }
-    parameter_bounds['CGB-Spectrum_fitted_index1'] = {
+    parameter_bounds['CGB_spectrum_fitted_index1'] = {
         'bounds': bounds_dict['cgb_free_bound'][1],
         'gaussian_parameter': gaussian_dict['cgb_free_bound'][1]
     }
-    parameter_bounds['CGB-Spectrum_fitted_index2'] = {
+    parameter_bounds['CGB_spectrum_fitted_index2'] = {
         'bounds': bounds_dict['cgb_free_bound'][2],
         'gaussian_parameter': gaussian_dict['cgb_free_bound'][2]
     }
-    parameter_bounds['CGB-Spectrum_fitted_E_break'] = {
+    parameter_bounds['CGB_spectrum_fitted_E_break'] = {
         'bounds': bounds_dict['cgb_free_bound'][3],
         'gaussian_parameter': gaussian_dict['cgb_free_bound'][3]
     }
