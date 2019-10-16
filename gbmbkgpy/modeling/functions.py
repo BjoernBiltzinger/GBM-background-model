@@ -27,8 +27,8 @@ except:
 class Solar_Flare(Function):
 
     def __init__(self):
-        K = Parameter('K', initial_value=1., min_value=0, max_value=None, delta=0.1, normalization=True)
-        decay_constant = Parameter('decay_constant', initial_value=-0.01, min_value=-1, max_value=0, delta=0.1)
+        K = Parameter('norm_flare', initial_value=1., min_value=0, max_value=None, delta=0.1, normalization=True)
+        decay_constant = Parameter('decay_flare', initial_value=-0.01, min_value=-1, max_value=0, delta=0.1)
 
         super(Solar_Flare, self).__init__(K, decay_constant)
 
@@ -39,8 +39,8 @@ class Solar_Flare(Function):
 class SAA_Decay(Function):
 
     def __init__(self, saa_number, echan):
-        A = Parameter("A-{} echan-{}".format(saa_number, echan), initial_value=1., min_value=0, max_value=None, delta=0.1, normalization=True, prior='log_uniform')
-        saa_decay_constant = Parameter("saa_decay_constant-{} echan-{}".format(saa_number, echan), initial_value=0.01, min_value=0., max_value=1., delta=0.1, prior='log_uniform')
+        A = Parameter("norm_saa-{}_echan-{}".format(saa_number, echan), initial_value=1., min_value=0, max_value=None, delta=0.1, normalization=True, prior='log_uniform')
+        saa_decay_constant = Parameter("decay_saa-{}_echan-{}".format(saa_number, echan), initial_value=0.01, min_value=0., max_value=1., delta=0.1, prior='log_uniform')
 
         super(SAA_Decay, self).__init__(A, saa_decay_constant)
 
@@ -146,9 +146,9 @@ class Point_Source_Continuum(GlobalFunction):
         super(Point_Source_Continuum, self).__init__(name)
 
 
-class offset(ContinuumFunction):
+class Offset(ContinuumFunction):
     def __init__(self, echan):
-        super(offset, self).__init__('constant_echan-' + echan)
+        super(Offset, self).__init__('constant_echan-' + echan)
 
 
 class Magnetic_Continuum_Global(GlobalFunction):
@@ -174,7 +174,6 @@ class Cosmic_Gamma_Ray_Background_Fit_Spectrum(GlobalFunctionSpectrumFit):
 class Point_Source_Continuum_Fit_Spectrum(GlobalFunctionSpectrumFit):
     def __init__(self, name, E_norm=1):
         super(Point_Source_Continuum_Fit_Spectrum, self).__init__(name, spectrum='pl', E_norm=E_norm)
-
 
 class SAA_Decay_Linear(ContinuumFunction):
     def __init__(self, echan):
