@@ -235,11 +235,11 @@ for i, ps in enumerate(ps_list):
             'gaussian_parameter': gaussian_dict['ps_fixed_bound'][0]
         }
     else:
-        parameter_bounds['ps-{}_spectrum_fitted_C'.format(ps)] = {
+        parameter_bounds['ps_{}_spectrum_fitted_C'.format(ps)] = {
             'bounds': bounds_dict['ps_free_bound'][0],
             'gaussian_parameter': gaussian_dict['ps_free_bound'][0]
         }
-        parameter_bounds['ps-{}_spectrum_fitted_index'.format(ps)] = {
+        parameter_bounds['ps_{}_spectrum_fitted_index'.format(ps)] = {
             'bounds': bounds_dict['ps_free_bound'][1],
             'gaussian_parameter': gaussian_dict['ps_free_bound'][1]
         }
