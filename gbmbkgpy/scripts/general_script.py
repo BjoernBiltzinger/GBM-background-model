@@ -26,7 +26,7 @@ import sys
 ### Argparse for passing custom_config file
 import argparse
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser.add_argument('config_file', type=str, default=None, help='Name of the config file located in gbm_data/fits/')
+parser.add_argument('-c', '--config_file', type=str, default=None, help='Name of the config file located in gbm_data/fits/')
 parser.add_argument('-d', '--detector', type=str, default=None, help='Name detector')
 parser.add_argument('-e', '--echan', type=int, default=None, help='Echan number')
 args = parser.parse_args()
