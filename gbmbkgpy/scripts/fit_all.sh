@@ -9,8 +9,8 @@ for det in "${dets[@]}"
 do
     for echan in $(seq 0 7);
     do echo
-        echo "bash -c 'nice -19 mpiexec -n $1 python general_script.py -d $det -e $echan'"
-        bash -c "nice -19 mpiexec -n $1 python general_script.py -d $det -e $echan"
+        echo "bash -c 'nice -19 mpiexec -n $1 python general_script.py -det $det -e $echan'"
+        bash -c "nice -19 mpiexec -n $1 python general_script.py -det $det -e $echan"
     done
 done
 
