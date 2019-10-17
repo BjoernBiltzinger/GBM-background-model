@@ -26,7 +26,9 @@ import sys
 ### Argparse for passing custom_config file
 import argparse
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser.add_argument('config_file', type=str, default=None, help='Name of the config file located in gbm_data/fits/"')
+parser.add_argument('config_file', type=str, default=None, help='Name of the config file located in gbm_data/fits/')
+parser.add_argument('-d', '--detector', type=str, default=None, help='Name detector')
+parser.add_argument('-e', '--echan', type=int, default=None, help='Echan number')
 args = parser.parse_args()
 
 ### Config file directories
@@ -64,17 +66,18 @@ if args.config_file is not None:
     config_custom_path = os.path.join(get_path_of_external_data_dir(), 'fits', args.config_file)
     print_progress('Using custom config file from {}'.format(config_custom_path))
     custom = True
+
+# Import Config file, use the custom config file if it exists, otherwise use default config file
+elif file_existing_and_readable(config_custom_path):
+    sys.path.append(config_custom_dir)
+    from config_custom import *
+    print_progress('Using custom config file from {}'.format(config_custom_path))
+    custom = True
+
 else:
-    # Import Config file, use the custom config file if it exists, otherwise use default config file
-    if file_existing_and_readable(config_custom_path):
-        sys.path.append(config_custom_dir)
-        from config_custom import *
-        print_progress('Using custom config file from {}'.format(config_custom_path))
-        custom = True
-    else:
-        from config_default import *
-        print_progress('Using default config file')
-        custom = False
+    from config_default import *
+    print_progress('Using default config file')
+    custom = False
 
 
 ####################### Setup parameters ###############################
@@ -84,6 +87,12 @@ data_type = general_dict['data_type']
 # List with all echans you want to use
 echan_list = general_dict['echan_list']  # has to be  List! One entry is also possible
 
+
+################# Overwrite with BASH arguments #########################
+if args.detector is not None:
+    detector = args.detector
+if args.echan is not None:
+    echan_list = [args.echan]
 ############################# Data ######################################
 
 # download files with rank=0; all other ranks have to wait!
