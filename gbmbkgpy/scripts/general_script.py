@@ -22,6 +22,14 @@ import os
 from shutil import copyfile
 import sys
 
+
+### Argparse for passing custom_config file
+import argparse
+parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser.add_argument('config_file', type=str, default=None, help='Name of the config file located in gbm_data/fits/"')
+args = parser.parse_args()
+
+### Config file directories
 config_default_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config_default.py')
 config_custom_path = os.path.join(get_path_of_external_data_dir(), 'fits', 'config_custom.py')
 config_custom_dir = os.path.join(get_path_of_external_data_dir(), 'fits')
@@ -47,16 +55,26 @@ def print_progress(text):
         print(text)
 
 
-# Import Config file, use the custom config file if it exists, otherwise use default config file
-if file_existing_and_readable(config_custom_path):
+if args.config_file is not None:
     sys.path.append(config_custom_dir)
-    from config_custom import *
+    module = __import__(args.config_file, globals(), locals(), ['*'])
+    for k in dir(module):
+        locals()[k] = getattr(module, k)
+
+    config_custom_path = os.path.join(get_path_of_external_data_dir(), 'fits', args.config_file)
     print_progress('Using custom config file from {}'.format(config_custom_path))
     custom = True
 else:
-    from config_default import *
-    print_progress('Using default config file')
-    custom = False
+    # Import Config file, use the custom config file if it exists, otherwise use default config file
+    if file_existing_and_readable(config_custom_path):
+        sys.path.append(config_custom_dir)
+        from config_custom import *
+        print_progress('Using custom config file from {}'.format(config_custom_path))
+        custom = True
+    else:
+        from config_default import *
+        print_progress('Using default config file')
+        custom = False
 
 
 ####################### Setup parameters ###############################
