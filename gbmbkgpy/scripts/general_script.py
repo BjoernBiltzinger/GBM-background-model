@@ -26,9 +26,10 @@ import sys
 ### Argparse for passing custom_config file
 import argparse
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser.add_argument('-c', '--config_file', type=str, default=None, help='Name of the config file located in gbm_data/fits/')
-parser.add_argument('-d', '--detector', type=str, default=None, help='Name detector')
-parser.add_argument('-e', '--echan', type=int, default=None, help='Echan number')
+parser.add_argument('-c', '--config_file', type=str, help='Name of the config file located in gbm_data/fits/')
+parser.add_argument('-date', '--date', type=str, help='Date string')
+parser.add_argument('-det', '--detector', type=str, help='Name detector')
+parser.add_argument('-e', '--echan', type=int, help='Echan number')
 args = parser.parse_args()
 
 ### Config file directories
@@ -89,6 +90,8 @@ echan_list = general_dict['echan_list']  # has to be  List! One entry is also po
 
 
 ################# Overwrite with BASH arguments #########################
+if args.date is not None:
+    date = [args.date]
 if args.detector is not None:
     detector = args.detector
 if args.echan is not None:
