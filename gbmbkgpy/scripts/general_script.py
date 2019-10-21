@@ -22,6 +22,17 @@ import os
 from shutil import copyfile
 import sys
 
+
+### Argparse for passing custom_config file
+import argparse
+parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser.add_argument('-c', '--config_file', type=str, help='Name of the config file located in gbm_data/fits/')
+parser.add_argument('-date', '--date', type=str, help='Date string')
+parser.add_argument('-det', '--detector', type=str, help='Name detector')
+parser.add_argument('-e', '--echan', type=int, help='Echan number')
+args = parser.parse_args()
+
+### Config file directories
 config_default_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config_default.py')
 config_custom_path = os.path.join(get_path_of_external_data_dir(), 'fits', 'config_custom.py')
 config_custom_dir = os.path.join(get_path_of_external_data_dir(), 'fits')
@@ -47,12 +58,23 @@ def print_progress(text):
         print(text)
 
 
+if args.config_file is not None:
+    sys.path.append(config_custom_dir)
+    module = __import__(args.config_file, globals(), locals(), ['*'])
+    for k in dir(module):
+        locals()[k] = getattr(module, k)
+
+    config_custom_path = os.path.join(get_path_of_external_data_dir(), 'fits', args.config_file)
+    print_progress('Using custom config file from {}'.format(config_custom_path))
+    custom = True
+
 # Import Config file, use the custom config file if it exists, otherwise use default config file
-if file_existing_and_readable(config_custom_path):
+elif file_existing_and_readable(config_custom_path):
     sys.path.append(config_custom_dir)
     from config_custom import *
     print_progress('Using custom config file from {}'.format(config_custom_path))
     custom = True
+
 else:
     from config_default import *
     print_progress('Using default config file')
@@ -66,6 +88,14 @@ data_type = general_dict['data_type']
 # List with all echans you want to use
 echan_list = general_dict['echan_list']  # has to be  List! One entry is also possible
 
+
+################# Overwrite with BASH arguments #########################
+if args.date is not None:
+    date = [args.date]
+if args.detector is not None:
+    detector = args.detector
+if args.echan is not None:
+    echan_list = [args.echan]
 ############################# Data ######################################
 
 # download files with rank=0; all other ranks have to wait!
