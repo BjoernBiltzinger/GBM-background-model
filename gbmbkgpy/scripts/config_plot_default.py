@@ -18,21 +18,24 @@
 
 
 plot_dict = {
-    'data_path': '',
-    'bin_width': 30,
+    'data_path': 'path_to_data_for_plots_file.hdf5',
+    'bin_width': 5,
     'change_time': True,
+    'xlim': None,
+    'ylim': None,
+    'dpi': 400,
+    'legend_outside': True,
+    'mpl_style': None,
+
     'show_residuals': False,
     'show_data': True,
     'show_sources': True,
+    'show_model': True,
     'show_ppc': True,
-    'show_grb_trigger': True,
-    'times_mark': [],
-    'names_mark': [],
-    'xlim': None,
-    'ylim': None,
-    'legend_outside': False,
-    'dpi': 400,
-    'mpl_style': None,
+    'show_legend': True,
+    'show_occ_region': False,
+    'show_grb_trigger': False,
+
 }
 
 color_dict = {
@@ -41,3 +44,4 @@ color_dict = {
     'data_color': 'k',
     'ppc_colors': ['lightgreen', 'green', 'darkgreen']
 }
+
