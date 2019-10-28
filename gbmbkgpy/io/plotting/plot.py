@@ -5,6 +5,8 @@ from gbmbkgpy.io.plotting.data_residual_plot import ResidualPlot
 from gbmbkgpy.utils.binner import Rebinner
 import h5py
 from gbmbkgpy.utils.progress_bar import progress_bar
+from gbmgeometry import GBMTime
+import astropy.time as astro_time
 
 NO_REBIN = 1E-99
 
@@ -28,7 +30,6 @@ try:
 except:
 
     using_mpi = False
-
 
 
 class Plotter(object):
@@ -234,7 +235,6 @@ class Plotter(object):
                 group_general.create_dataset('day_start_times', data=self._data.day_start_times)
                 group_general.create_dataset('day_stop_times', data=self._data.day_stop_times)
                 group_general.create_dataset('saa_mask', data=self._saa_mask, compression="gzip", compression_opts=9)
-
         
                 for j, index in enumerate(self._echan_list):
                     source_list = self.get_counts_of_sources(self._total_time_bins, index)
@@ -249,7 +249,7 @@ class Plotter(object):
                     
                     group_echan = f1.create_group('Echan {}'.format(echan_list[j]))
 
-                    #group_ppc = group_echan.create_group('PPC data')
+                    # group_ppc = group_echan.create_group('PPC data')
                     
                     group_sources = group_echan.create_group('Sources')
             
@@ -318,7 +318,6 @@ class Plotter(object):
                 counts.append(synth_data.counts[:,echan])
             counts = np.array(counts)
         return counts
-
 
     def _get_list_of_sources(self, time_bins, echan, time_bin_width=1.):
         """
