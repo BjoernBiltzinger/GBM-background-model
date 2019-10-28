@@ -12,7 +12,7 @@ NO_REBIN = 1E-99
 
 
 class ResultPlotGenerator(object):
-    def __init__(self, data_path, plot_config, color_config):
+    def __init__(self, plot_config, color_config):
 
         # Import general settings
         self.data_path = plot_config['data_path']
