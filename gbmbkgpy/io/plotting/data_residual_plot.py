@@ -22,7 +22,7 @@ try:
         size = comm.Get_size()
 
     else:
-
+        rank = 0
         using_mpi = False
 except:
 
@@ -261,7 +261,9 @@ class ResidualPlot(object):
                                          markersize=3,
                                          color=color)
 
-    def add_ppc(self, result_dir=None, model=None, plotter=None, time_bins=None, saa_mask=None, echan=None, q_levels=[0.68], colors=['lightgreen'], bin_width=1E-99, n_params=1, time_ref=0):
+    def add_ppc(self, rebinned_ppc_rates=None, rebinned_time_bins=None, result_dir=None, model=None,
+                plotter=None, time_bins=None, saa_mask=None, echan=None, q_levels=[0.68], colors=['lightgreen'],
+                bin_width=1E-99, n_params=1, time_ref=0):
         """
         Add ppc plot
         :param result_dir: path to result directory
@@ -276,27 +278,38 @@ class ResidualPlot(object):
 
         q_levels.sort(reverse=True)
 
-        # Get Analyze object from results file of Multinest Fit
-        import pymultinest
-        analyzer = pymultinest.analyse.Analyzer(n_params, result_dir)
+        if rebinned_ppc_rates is None or rebinned_time_bins is None:
+            # Get Analyze object from results file of Multinest Fit
+            import pymultinest
+            analyzer = pymultinest.analyse.Analyzer(n_params, result_dir)
 
-        # Make a mask with 300 random True to choose 300 random samples
-        N_samples = 200
-        rates = []
-        a = np.zeros(len(analyzer.get_equal_weighted_posterior()[:, :-1]), dtype=int)
-        a[:N_samples] = 1
-        np.random.shuffle(a)
-        a = a.astype(bool)
+            # Make a mask with 300 random True to choose 300 random samples
+            N_samples = 200
+            rates = []
+            a = np.zeros(len(analyzer.get_equal_weighted_posterior()[:, :-1]), dtype=int)
+            a[:N_samples] = 1
+            np.random.shuffle(a)
+            a = a.astype(bool)
 
-        # For these 300 random samples calculate the corresponding rates for all time bins
-        # with the parameters of this sample
-        if using_mpi:
-            points_per_rank = float(N_samples) / float(size)
-            points_lower_index = int(np.floor(points_per_rank * rank))
-            points_upper_index = int(np.floor(points_per_rank * (rank + 1)))
-            if rank == 0:
-                with progress_bar(len(analyzer.get_equal_weighted_posterior()[:, :-1][a][points_lower_index:points_upper_index]), title='Calculating PPC. This shows the progress of rank 0. All other should be about the same.') as p:
+            # For these 300 random samples calculate the corresponding rates for all time bins
+            # with the parameters of this sample
+            if using_mpi:
+                points_per_rank = float(N_samples) / float(size)
+                points_lower_index = int(np.floor(points_per_rank * rank))
+                points_upper_index = int(np.floor(points_per_rank * (rank + 1)))
+                if rank == 0:
+                    with progress_bar(len(analyzer.get_equal_weighted_posterior()[:, :-1][a][points_lower_index:points_upper_index]), title='Calculating PPC. This shows the progress of rank 0. All other should be about the same.') as p:
 
+                        for i, sample in enumerate(analyzer.get_equal_weighted_posterior()[:, :-1][a][points_lower_index:points_upper_index]):
+                            synth_data = plotter.get_synthetic_data(sample, model)
+                            this_rebinner = Rebinner(synth_data.time_bins - time_ref, bin_width)
+                            rebinned_time_bins = this_rebinner.time_rebinned
+                            rebinned_counts = this_rebinner.rebin(synth_data.counts[:, echan])
+                            rebinned_bin_length = np.diff(rebinned_time_bins, axis=1).T[0]
+                            rates.append(rebinned_counts / rebinned_bin_length)
+                            p.increase()
+
+                else:
                     for i, sample in enumerate(analyzer.get_equal_weighted_posterior()[:, :-1][a][points_lower_index:points_upper_index]):
                         synth_data = plotter.get_synthetic_data(sample, model)
                         this_rebinner = Rebinner(synth_data.time_bins - time_ref, bin_width)
@@ -304,10 +317,20 @@ class ResidualPlot(object):
                         rebinned_counts = this_rebinner.rebin(synth_data.counts[:, echan])
                         rebinned_bin_length = np.diff(rebinned_time_bins, axis=1).T[0]
                         rates.append(rebinned_counts / rebinned_bin_length)
-                        p.increase()
 
+                rates = np.array(rates)
+                print(rates.shape)
+                rates_g = comm.gather(rates, root=0)
+                if rank == 0:
+                    rates_g = np.concatenate(rates_g)
+                rates = comm.bcast(rates_g, root=0)
+                if rank == 0:
+                    for i, level in enumerate(q_levels):
+                        low = np.percentile(rates, 50 - 50 * level, axis=0)[0]
+                        high = np.percentile(rates, 50 + 50 * level, axis=0)[0]
+                        self._data_axis.fill_between(np.mean(rebinned_time_bins, axis=1), low, high, color=colors[i], alpha=0.5)
             else:
-                for i, sample in enumerate(analyzer.get_equal_weighted_posterior()[:, :-1][a][points_lower_index:points_upper_index]):
+                for i, sample in enumerate(analyzer.get_equal_weighted_posterior()[:, :-1][a]):
                     synth_data = plotter.get_synthetic_data(sample, model)
                     this_rebinner = Rebinner(synth_data.time_bins - time_ref, bin_width)
                     rebinned_time_bins = this_rebinner.time_rebinned
@@ -315,32 +338,19 @@ class ResidualPlot(object):
                     rebinned_bin_length = np.diff(rebinned_time_bins, axis=1).T[0]
                     rates.append(rebinned_counts / rebinned_bin_length)
 
-            rates = np.array(rates)
-            print(rates.shape)
-            rates_g = comm.gather(rates, root=0)
-            if rank == 0:
-                rates_g = np.concatenate(rates_g)
-            rates = comm.bcast(rates_g, root=0)
-            if rank == 0:
+                rates = np.array(rates)
+                # Plot the q_level areas around median fit
                 for i, level in enumerate(q_levels):
                     low = np.percentile(rates, 50 - 50 * level, axis=0)[0]
                     high = np.percentile(rates, 50 + 50 * level, axis=0)[0]
                     self._data_axis.fill_between(np.mean(rebinned_time_bins, axis=1), low, high, color=colors[i], alpha=0.5)
-        else:
-            for i, sample in enumerate(analyzer.get_equal_weighted_posterior()[:, :-1][a]):
-                synth_data = plotter.get_synthetic_data(sample, model)
-                this_rebinner = Rebinner(synth_data.time_bins - time_ref, bin_width)
-                rebinned_time_bins = this_rebinner.time_rebinned
-                rebinned_counts = this_rebinner.rebin(synth_data.counts[:, echan])
-                rebinned_bin_length = np.diff(rebinned_time_bins, axis=1).T[0]
-                rates.append(rebinned_counts / rebinned_bin_length)
 
-            rates = np.array(rates)
-            # Plot the q_level areas around median fit 
-            for i, level in enumerate(q_levels):
-                low = np.percentile(rates, 50 - 50 * level, axis=0)[0]
-                high = np.percentile(rates, 50 + 50 * level, axis=0)[0]
-                self._data_axis.fill_between(np.mean(rebinned_time_bins, axis=1), low, high, color=colors[i], alpha=0.5)
+        else:
+            if rank == 0:
+                for i, level in enumerate(q_levels):
+                    low = np.percentile(rebinned_ppc_rates, 50 - 50 * level, axis=0)[0]
+                    high = np.percentile(rebinned_ppc_rates, 50 + 50 * level, axis=0)[0]
+                    self._data_axis.fill_between(rebinned_time_bins, low, high, color=colors[i], zorder=5 - i)
 
         # Set Plot range
         # total_mean_rate = np.mean(np.array(rates))
