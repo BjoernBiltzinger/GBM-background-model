@@ -263,7 +263,7 @@ class ResidualPlot(object):
 
     def add_ppc(self, rebinned_ppc_rates=None, rebinned_time_bin_mean=None, result_dir=None, model=None,
                 plotter=None, time_bins=None, saa_mask=None, echan=None, q_levels=[0.68], colors=['lightgreen'],
-                bin_width=1E-99, n_params=1, time_ref=0):
+                bin_width=1E-99, n_params=1, time_ref=0, progress_bar=None):
         """
         Add ppc plot
         :param result_dir: path to result directory
@@ -350,7 +350,8 @@ class ResidualPlot(object):
                 for i, level in enumerate(q_levels):
                     low = np.percentile(rebinned_ppc_rates, 50 - 50 * level, axis=0)[0]
                     high = np.percentile(rebinned_ppc_rates, 50 + 50 * level, axis=0)[0]
-                    self._data_axis.fill_between(rebinned_time_bin_mean, low, high, color=colors[i], zorder=5 - i)
+                    self._data_axis.fill_between(rebinned_time_bin_mean, low, high, color=colors[i], alpha=0.5)
+                    if progress_bar is not None: progress_bar.increase()
 
         # Set Plot range
         # total_mean_rate = np.mean(np.array(rates))
