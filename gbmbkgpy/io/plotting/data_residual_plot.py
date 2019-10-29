@@ -212,7 +212,7 @@ class ResidualPlot(object):
         for i, source in enumerate(source_list):
             self._data_axis.plot(x, source['data'], color=source['color'], label=source['label'], alpha=.6, zorder=18)
 
-    def add_data(self, x, y, residuals, label, xerr=None, yerr=None, residual_yerr=None, color='r', show_data=True, marker_size=3):
+    def add_data(self, x, y, residuals, label, xerr=None, yerr=None, residual_yerr=None, color='r', alpha=.9,  show_data=True, marker_size=3):
         """
         Add the data for the this model
         :param x: energy of the data
@@ -236,7 +236,7 @@ class ResidualPlot(object):
                                      markersize=marker_size,
                                      linestyle='',
                                      elinewidth=1,
-                                     alpha=.9,
+                                     alpha=alpha,
                                      capsize=0,
                                      label=label,
                                      color=color)

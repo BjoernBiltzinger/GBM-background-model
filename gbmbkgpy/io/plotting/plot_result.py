@@ -40,6 +40,7 @@ class ResultPlotGenerator(object):
         self.source_colors = color_config['source_colors']
         self.ppc_colors = color_config['ppc_colors']
         self.data_color = color_config['data_color']
+        self.data_alpha = color_config['data_alpha']
 
         if plot_config['mpl_style'] is not None:
             plt.style.use(plot_config['mpl_style'])
@@ -166,6 +167,7 @@ class ResultPlotGenerator(object):
                                xerr=None,
                                label='Observed Count Rates',
                                color=self.data_color,
+                               alpha=self.data_alpha,
                                show_data=self.show_data, marker_size=1.5)
 
         if progress_bar is not None: progress_bar.increase()
