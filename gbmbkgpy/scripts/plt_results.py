@@ -1,6 +1,8 @@
 import os
 import sys
 import argparse
+import matplotlib
+matplotlib.use('AGG')
 from gbmbkgpy.io.plotting.plot_result import ResultPlotGenerator
 
 if __name__ == '__main__':
