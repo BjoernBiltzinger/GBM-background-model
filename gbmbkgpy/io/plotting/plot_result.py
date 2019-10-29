@@ -7,6 +7,7 @@ import h5py
 from datetime import datetime
 from gbmgeometry import GBMTime
 import astropy.time as astro_time
+from gbmbkgpy.utils.progress_bar import progress_bar
 
 NO_REBIN = 1E-99
 
@@ -44,7 +45,7 @@ class ResultPlotGenerator(object):
             plt.style.use(plot_config['mpl_style'])
 
         # Save path basis
-        self.save_path_basis = '/'.join(data_path.split('/')[:-1])
+        self.save_path_basis = '/'.join(self.data_path.split('/')[:-1])
 
         self._grb_triggers = {}
         self._occ_region = {}
@@ -60,42 +61,45 @@ class ResultPlotGenerator(object):
         self._total_time_bins = None
 
     def create_plots(self):
-        # Load data and start plotting
-        with h5py.File(self.data_path, 'r') as f:
-            keys = f.keys()
-            det = np.array(f['general']['Detector'])
-            self._dates = np.array(f['general']['Dates'])
-            self._day_start_times = np.array(f['general']['day_start_times'])
-            self._day_stop_times = np.array(f['general']['day_stop_times'])
-            self._saa_mask = np.array(f['general']['saa_mask'])
-            for i, day in enumerate(self._dates):
+        print('Load data and start plotting')
+        with progress_bar(10, title='Create Result plot') as p:
+            with h5py.File(self.data_path, 'r') as f:
+                keys = f.keys()
+                det = np.array(f['general']['Detector'])
+                self._dates = np.array(f['general']['Dates'])
+                self._day_start_times = np.array(f['general']['day_start_times'])
+                self._day_stop_times = np.array(f['general']['day_stop_times'])
+                self._saa_mask = np.array(f['general']['saa_mask'])
+                p.increase()
+                for i, day in enumerate(self._dates):
 
-                for key in keys:
-                    if key == 'general':
-                        pass
-                    else:
-                        echan = key.split(' ')[1]
-                        time_bins_start = np.array(f[key]['time_bins_start'])
-                        time_bins_stop = np.array(f[key]['time_bins_stop'])
-                        self._model_counts = np.array(f[key]['total_model_counts'])
-                        self._observed_counts = np.where(self._saa_mask, np.array(f[key]['observed_counts']), 0)
-                        self._ppc_counts = np.array(f[key]['PPC'])
+                    for key in keys:
+                        if key == 'general':
+                            pass
+                        else:
+                            echan = key.split(' ')[1]
+                            time_bins_start = np.array(f[key]['time_bins_start'])
+                            time_bins_stop = np.array(f[key]['time_bins_stop'])
+                            self._model_counts = np.array(f[key]['total_model_counts'])
+                            self._observed_counts = np.where(self._saa_mask, np.array(f[key]['observed_counts']), 0)
+                            self._ppc_counts = np.array(f[key]['PPC'])
 
-                        self._sources = {}
-                        for key_inter in f[key]['Sources']:
-                            self._sources[key_inter] = np.array(f[key]['Sources'][key_inter])
-                        self._total_time_bins = np.vstack((time_bins_start, time_bins_stop)).T
-                        time_stamp = datetime.now().strftime('%y%m%d_%H%M')
+                            self._sources = {}
+                            for key_inter in f[key]['Sources']:
+                                self._sources[key_inter] = np.array(f[key]['Sources'][key_inter])
+                            self._total_time_bins = np.vstack((time_bins_start, time_bins_stop)).T
+                            time_stamp = datetime.now().strftime('%y%m%d_%H%M')
 
-                        self._create_model_plots(
-                            which_day=i,
-                            savepath='{}/plot_date_{}_det_{}_echan_{}__{}.pdf'.format(self.save_path_basis, day, det, echan, time_stamp),
-                            dpi=self.dpi,
-                        )
+                            self._create_model_plots(
+                                which_day=i,
+                                savepath='{}/plot_date_{}_det_{}_echan_{}__{}.pdf'.format(self.save_path_basis, day, det, echan, time_stamp),
+                                progress_bar=p
+                            )
 
     def _create_model_plots(self,
                             which_day=0,
                             savepath='test.pdf',
+                            progress_bar=None,
                             **kwargs
                             ):
         """
@@ -128,6 +132,8 @@ class ResultPlotGenerator(object):
             self._time_ref = 0
             time_frame = 'MET [s]'
 
+        if progress_bar is not None: progress_bar.increase()
+
         residual_plot = ResidualPlot(show_residuals=self.show_residuals, **kwargs)
 
         this_rebinner = Rebinner((self._total_time_bins - self._time_ref), self.bin_width)
@@ -150,6 +156,8 @@ class ResultPlotGenerator(object):
         residual_errors = None
         self._residuals = significance_calc.known_background()
 
+        if progress_bar is not None: progress_bar.increase()
+
         residual_plot.add_data(np.mean(self._rebinned_time_bins, axis=1),
                                self._rebinned_observed_counts / self._rebinned_time_bin_widths,
                                self._residuals,
@@ -160,11 +168,15 @@ class ResultPlotGenerator(object):
                                color=self.data_color,
                                show_data=self.show_data, marker_size=1.5)
 
+        if progress_bar is not None: progress_bar.increase()
+
         if self.show_model:
-            residual_plot.add_model(self._rebinned_time_bin_mean - self._time_ref,
+            residual_plot.add_model(self._rebinned_time_bin_mean,
                                     self._rebinned_model_counts / self._rebinned_time_bin_widths,
                                     label='Best Fit',
                                     color=self.model_color)
+
+        if progress_bar is not None: progress_bar.increase()
 
         if self.show_sources:
             source_list = []
@@ -194,7 +206,9 @@ class ResultPlotGenerator(object):
                     'color': self.source_colors[i]
                 })
 
-            residual_plot.add_list_of_sources(self._rebinned_time_bin_mean - self._time_ref, source_list)
+            residual_plot.add_list_of_sources(self._rebinned_time_bin_mean, source_list)
+
+        if progress_bar is not None: progress_bar.increase()
 
         if self.show_ppc:
             rebinned_ppc_rates = []
@@ -203,10 +217,12 @@ class ResultPlotGenerator(object):
             rebinned_ppc_rates = np.array(rebinned_ppc_rates)
 
             residual_plot.add_ppc(rebinned_ppc_rates=rebinned_ppc_rates,
-                                  rebinned_time_bins=self._rebinned_time_bins - self._time_ref,
+                                  rebinned_time_bin_mean=self._rebinned_time_bin_mean,
                                   q_levels=[0.68, 0.95, 0.99],
                                   colors=self.ppc_colors,
                                   )
+
+        if progress_bar is not None: progress_bar.increase()
 
         # Add vertical lines for grb triggers
         if self.show_grb_trigger:
@@ -220,6 +236,8 @@ class ResultPlotGenerator(object):
             self.xlim = xlim if self.xlim is None else self.xlim
             self.ylim = ylim if self.ylim is None else self.ylim
 
+        if progress_bar is not None: progress_bar.increase()
+
         final_plot = residual_plot.finalize(xlabel="Time\n(%s)" % time_frame,
                                             ylabel="Count Rate\n(counts s$^{-1}$)",
                                             xscale='linear',
@@ -229,7 +247,11 @@ class ResultPlotGenerator(object):
                                             ylim=self.ylim,
                                             legend_outside=self.legend_outside)
 
+        if progress_bar is not None: progress_bar.increase()
+
         final_plot.savefig(savepath, dpi=self.dpi)
+
+        if progress_bar is not None: progress_bar.increase()
 
     def add_grb_trigger(self, grb_name, trigger_time, time_format='UTC', time_offset=0, color='b'):
         """

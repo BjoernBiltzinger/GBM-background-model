@@ -261,7 +261,7 @@ class ResidualPlot(object):
                                          markersize=3,
                                          color=color)
 
-    def add_ppc(self, rebinned_ppc_rates=None, rebinned_time_bins=None, result_dir=None, model=None,
+    def add_ppc(self, rebinned_ppc_rates=None, rebinned_time_bin_mean=None, result_dir=None, model=None,
                 plotter=None, time_bins=None, saa_mask=None, echan=None, q_levels=[0.68], colors=['lightgreen'],
                 bin_width=1E-99, n_params=1, time_ref=0):
         """
@@ -278,7 +278,7 @@ class ResidualPlot(object):
 
         q_levels.sort(reverse=True)
 
-        if rebinned_ppc_rates is None or rebinned_time_bins is None:
+        if rebinned_ppc_rates is None or rebinned_time_bin_mean is None:
             # Get Analyze object from results file of Multinest Fit
             import pymultinest
             analyzer = pymultinest.analyse.Analyzer(n_params, result_dir)
@@ -350,7 +350,7 @@ class ResidualPlot(object):
                 for i, level in enumerate(q_levels):
                     low = np.percentile(rebinned_ppc_rates, 50 - 50 * level, axis=0)[0]
                     high = np.percentile(rebinned_ppc_rates, 50 + 50 * level, axis=0)[0]
-                    self._data_axis.fill_between(rebinned_time_bins, low, high, color=colors[i], zorder=5 - i)
+                    self._data_axis.fill_between(rebinned_time_bin_mean, low, high, color=colors[i], zorder=5 - i)
 
         # Set Plot range
         # total_mean_rate = np.mean(np.array(rates))
