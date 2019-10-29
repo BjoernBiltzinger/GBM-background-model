@@ -10,9 +10,9 @@ if __name__ == '__main__':
 
     plot_dict = {}
     color_dict = {}
-    config_dir_path = os.path.dirname(args.config_file)
+    config_dir_path = os.path.dirname(args.c)
     sys.path.append(config_dir_path)
-    module = __import__(args.config_file, globals(), locals(), ['*'])
+    module = __import__(args.c, globals(), locals(), ['*'])
     for k in dir(module):
         locals()[k] = getattr(module, k)
 
