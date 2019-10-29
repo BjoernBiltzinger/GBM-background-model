@@ -215,6 +215,7 @@ class ResultPlotGenerator(object):
         if self.show_ppc:
             rebinned_ppc_rates = []
             for j, ppc in enumerate(self._ppc_counts):
+                self._ppc_counts[j][np.where(~self._saa_mask)] = 0.
                 rebinned_ppc_rates.append(this_rebinner.rebin(self._ppc_counts[j][2:-2]) / self._rebinned_time_bin_widths)
             rebinned_ppc_rates = np.array(rebinned_ppc_rates)
 
