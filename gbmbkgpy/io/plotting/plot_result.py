@@ -201,7 +201,7 @@ class ResultPlotGenerator(object):
                 rebinned_source_counts = this_rebinner.rebin(self._sources[key])[0]
 
                 source_list.append({
-                    'data': rebinned_source_counts,
+                    'data': rebinned_source_counts / self._rebinned_time_bin_widths,
                     'label': label,
                     'color': self.source_colors[i]
                 })
