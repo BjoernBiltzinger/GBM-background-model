@@ -63,7 +63,7 @@ class ResultPlotGenerator(object):
 
     def create_plots(self):
         print('Load data and start plotting')
-        with progress_bar(10, title='Create Result plot') as p:
+        with progress_bar(12, title='Create Result plot') as p:
             with h5py.File(self.data_path, 'r') as f:
                 keys = f.keys()
                 det = np.array(f['general']['Detector'])
@@ -222,9 +222,8 @@ class ResultPlotGenerator(object):
                                   rebinned_time_bin_mean=self._rebinned_time_bin_mean,
                                   q_levels=[0.68, 0.95, 0.99],
                                   colors=self.ppc_colors,
+                                  progress_bar=progress_bar
                                   )
-
-        if progress_bar is not None: progress_bar.increase()
 
         # Add vertical lines for grb triggers
         if self.show_grb_trigger:

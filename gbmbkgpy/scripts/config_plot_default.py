@@ -42,6 +42,7 @@ color_dict = {
     'model_color': 'red',
     'source_colors': ['navy', 'magenta', 'cyan', 'salmon', 'saddlebrown', 'gold', 'navy', 'magenta', 'cyan', 'salmon', 'saddlebrown', 'gold'],
     'data_color': 'k',
+    'data_alpha': .8,
     'ppc_colors': ['lightgreen', 'green', 'darkgreen']
 }
 
