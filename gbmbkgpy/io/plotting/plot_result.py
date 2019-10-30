@@ -16,38 +16,42 @@ class ResultPlotGenerator(object):
     def __init__(self, plot_config, component_config, style_config, highlight_config={}):
 
         # Import plot settings
-        self.data_path = plot_config['data_path']
-        self.bin_width = plot_config['bin_width']
-        self.change_time = plot_config['change_time']
-        self.xlim = plot_config['xlim']
-        self.ylim = plot_config['ylim']
-        self.dpi = plot_config['dpi']
-        self.show_legend = plot_config['show_legend']
-        self.legend_outside = plot_config['legend_outside']
+        self.data_path =        plot_config['data_path']
+        self.bin_width =        plot_config.get('bin_width', 10)
+        self.change_time =      plot_config.get('change_time', True)
+        self.xlim =             plot_config.get('xlim', None)
+        self.ylim =             plot_config.get('ylim', None)
+        self.xscale =           plot_config.get('xscale', 'linear')
+        self.yscale =           plot_config.get('yscale', 'linear')
+        self.xlabel =           plot_config.get('xlabel', None)
+        self.ylabel =           plot_config.get('ylabel', None)
+        self.dpi =              plot_config.get('dpi', 400)
+        self.show_legend =      plot_config.get('show_legend', True)
+        self.legend_outside =   plot_config.get('legend_outside', True)
 
         # Import component settings
-        self.show_data = component_config['show_data']
-        self.show_model = component_config['show_model']
-        self.show_ppc = component_config['show_ppc']
-        self.show_residuals = component_config['show_residuals']
+        self.show_data =        component_config.get('show_data', True)
+        self.show_model =       component_config.get('show_model', True)
+        self.show_ppc =         component_config.get('show_ppc', True)
+        self.show_residuals =   component_config.get('show_residuals', False)
 
-        self.show_all_sources = component_config['show_all_sources']
-        self.show_earth = component_config['show_earth']
-        self.show_cgb = component_config['show_cgb']
-        self.show_sun = component_config['show_sun']
-        self.show_saa = component_config['show_saa']
-        self.show_cr = component_config['show_cr']
-        self.show_constant = component_config['show_constant']
-        self.show_crab = component_config['show_crab']
+        self.show_all_sources = component_config.get('show_all_sources', True)
+        self.show_earth =       component_config.get('show_earth', True)
+        self.show_cgb =         component_config.get('show_cgb', True)
+        self.show_sun =         component_config.get('show_sun', True)
+        self.show_saa =         component_config.get('show_saa', True)
+        self.show_cr =          component_config.get('show_cr', True)
+        self.show_constant =    component_config.get('show_constant', True)
+        self.show_crab =        component_config.get('show_crab', True)
 
-        self.show_occ_region = component_config['show_occ_region']
-        self.show_grb_trigger = component_config['show_grb_trigger']
+        self.show_occ_region =  component_config.get('show_occ_region', False)
+        self.show_grb_trigger = component_config.get('show_grb_trigger', False)
 
         # Import style settings
-        self.model_color = style_config['model']
-        self.source_colors = style_config['sources']
-        self.ppc_colors = style_config['ppc']
-        self.data_color = style_config['data']
+        self.model_color =      style_config['model']
+        self.source_colors =    style_config['sources']
+        self.ppc_colors =       style_config['ppc']
+        self.data_color =       style_config['data']
 
         if style_config['mpl_style'] is not None:
             plt.style.use(style_config['mpl_style'])
@@ -310,10 +314,13 @@ class ResultPlotGenerator(object):
 
         p_bar.increase()
 
-        final_plot = residual_plot.finalize(xlabel="Time\n(%s)" % time_frame,
-                                            ylabel="Count Rate\n(counts s$^{-1}$)",
-                                            xscale='linear',
-                                            yscale='linear',
+        xlabel = "{}".format(time_frame) if self.xlabel is None else self.xlabel
+        ylabel = "Count Rate [counts s$^{-1}$]" if self.ylabel is None else self.ylabel
+
+        final_plot = residual_plot.finalize(xlabel=xlabel,
+                                            ylabel=ylabel,
+                                            xscale=self.xscale,
+                                            yscale=self.yscale,
                                             show_legend=self.show_legend,
                                             xlim=self.xlim,
                                             ylim=self.ylim,
