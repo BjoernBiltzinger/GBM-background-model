@@ -13,7 +13,7 @@ NO_REBIN = 1E-99
 
 
 class ResultPlotGenerator(object):
-    def __init__(self, plot_config, component_config, style_config):
+    def __init__(self, plot_config, component_config, style_config, highlight_config={}):
 
         # Import plot settings
         self.data_path = plot_config['data_path']
@@ -57,6 +57,21 @@ class ResultPlotGenerator(object):
 
         self._grb_triggers = {}
         self._occ_region = {}
+
+        if highlight_config != {}:
+            for grb_trigger in highlight_config['grb_trigger']:
+                self.add_grb_trigger(grb_name=grb_trigger['name'],
+                                     trigger_time=grb_trigger['trigger_time'],
+                                     time_format='UTC',
+                                     time_offset=grb_trigger['time_offset'],
+                                     color=grb_trigger.get('color', 'b'))
+
+            for occ_region in highlight_config['occ_region']:
+                self.add_occ_region(occ_name=occ_region['name'],
+                                    time_start=occ_region['time_start'],
+                                    time_stop=occ_region['time_stop'],
+                                    time_format=occ_region.get('time_format', 'UTC'),
+                                    color=occ_region.get('color', 'grey'))
 
         self._dates = None
         self._day_start_times = None

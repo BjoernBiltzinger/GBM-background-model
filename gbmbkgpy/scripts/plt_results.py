@@ -13,6 +13,7 @@ if __name__ == '__main__':
     plot_config = {}
     component_config = {}
     style_config = {}
+    highlight_config = {}
     config_dir_path = os.path.dirname(args.c)
     sys.path.append(config_dir_path)
     module = __import__(args.c, globals(), locals(), ['*'])
@@ -22,9 +23,6 @@ if __name__ == '__main__':
     if plot_config == {} or component_config == {} or style_config == {}:
         raise Exception('You should provide a plot_dict and color_dict in your config file')
 
-    result_plot_generator = ResultPlotGenerator(plot_config, component_config, style_config)
-
-    # result_plot_generator.add_grb_trigger(grb_name, trigger_time, time_format='UTC', time_offset=0, color='b')
-    # result_plot_generator.add_occ_region(occ_name, time_start, time_stop, time_format='UTC', color='grey')
+    result_plot_generator = ResultPlotGenerator(plot_config, component_config, style_config, highlight_config)
 
     result_plot_generator.create_plots()
