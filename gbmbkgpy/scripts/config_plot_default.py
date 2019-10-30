@@ -49,8 +49,8 @@ component_config = {
 
 style_config = {
     'mpl_style':    None,
-    'model':        {'color': 'red',        'alpha': .9},
-    'data':         {'color': 'k',          'alpha': .8},
+    'model':        {'color': 'firebrick',  'alpha': .9},
+    'data':         {'color': 'k',          'alpha': .5},
     'sources': {
         'earth':    {'color': 'navy',       'alpha': .6},
         'cgb':      {'color': 'magenta',    'alpha': .6},
