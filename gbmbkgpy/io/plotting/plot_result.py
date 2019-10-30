@@ -13,9 +13,9 @@ NO_REBIN = 1E-99
 
 
 class ResultPlotGenerator(object):
-    def __init__(self, plot_config, color_config):
+    def __init__(self, plot_config, component_config, style_config):
 
-        # Import general settings
+        # Import plot settings
         self.data_path = plot_config['data_path']
         self.bin_width = plot_config['bin_width']
         self.change_time = plot_config['change_time']
@@ -23,27 +23,35 @@ class ResultPlotGenerator(object):
         self.ylim = plot_config['ylim']
         self.dpi = plot_config['dpi']
         self.mpl_style = plot_config['mpl_style']
+        self.show_legend = plot_config['show_legend']
         self.legend_outside = plot_config['legend_outside']
 
-        # Flags for activate/deactivate
-        self.show_residuals = plot_config['show_residuals']
-        self.show_data = plot_config['show_data']
-        self.show_sources = plot_config['show_sources']
-        self.show_model = plot_config['show_model']
-        self.show_ppc = plot_config['show_ppc']
-        self.show_legend = plot_config['show_legend']
-        self.show_occ_region = plot_config['show_occ_region']
-        self.show_grb_trigger = plot_config['show_grb_trigger']
+        # Import component settings
+        self.show_data = component_config['show_data']
+        self.show_model = component_config['show_model']
+        self.show_ppc = component_config['show_ppc']
+        self.show_residuals = component_config['show_residuals']
 
-        # Color settings
-        self.model_color = color_config['model_color']
-        self.source_colors = color_config['source_colors']
-        self.ppc_colors = color_config['ppc_colors']
-        self.data_color = color_config['data_color']
-        self.data_alpha = color_config['data_alpha']
+        self.show_all_sources = component_config['show_all_sources']
+        self.show_earth = component_config['show_earth']
+        self.show_cgb = component_config['show_cgb']
+        self.show_sun = component_config['show_sun']
+        self.show_saa = component_config['show_saa']
+        self.show_cr = component_config['show_cr']
+        self.show_constant = component_config['show_constant']
+        self.show_crab = component_config['show_crab']
 
-        if plot_config['mpl_style'] is not None:
-            plt.style.use(plot_config['mpl_style'])
+        self.show_occ_region = component_config['show_occ_region']
+        self.show_grb_trigger = component_config['show_grb_trigger']
+
+        # Import style settings
+        self.model_color = style_config['model']
+        self.source_colors = style_config['source']
+        self.ppc_colors = style_config['ppc']
+        self.data_color = style_config['data']
+
+        if style_config['mpl_style'] is not None:
+            plt.style.use(style_config['mpl_style'])
 
         # Save path basis
         self.save_path_basis = '/'.join(self.data_path.split('/')[:-1])
@@ -98,6 +106,7 @@ class ResultPlotGenerator(object):
                                 savepath='{}/plot_date_{}_det_{}_echan_{}__{}.pdf'.format(self.save_path_basis, day, det, echan, time_stamp),
                                 p_bar=p
                             )
+        print('Success!')
 
     def _create_model_plots(self,
                             p_bar,
@@ -168,8 +177,8 @@ class ResultPlotGenerator(object):
                                yerr=None,
                                xerr=None,
                                label='Observed Count Rates',
-                               color=self.data_color,
-                               alpha=self.data_alpha,
+                               color=self.data_color['color'],
+                               alpha=self.data_color['alpha'],
                                show_data=self.show_data, marker_size=1.5)
 
         p_bar.increase()
@@ -178,38 +187,72 @@ class ResultPlotGenerator(object):
             residual_plot.add_model(self._rebinned_time_bin_mean,
                                     self._rebinned_model_counts / self._rebinned_time_bin_widths,
                                     label='Best Fit',
-                                    color=self.model_color)
+                                    color=self.model_color['color'],
+                                    alpha=self.model_color['alpha']
+                                    )
 
         p_bar.increase()
 
-        if self.show_sources:
-            source_list = []
+        source_list = []
+        for i, key in enumerate(self._sources.keys()):
+            if 'L-parameter' in key:
+                label = 'Cosmic Rays'
+                color_key = 'cr'
+                if not self.show_all_sources and not self.show_cr:
+                    continue
 
-            for i, key in enumerate(self._sources.keys()):
-                if 'L-parameter' in key:
-                    label = 'Cosmic Rays'
-                elif 'CGB' in key:
-                    label = 'Cosmic Gamma-Ray Background'
-                elif 'Earth' in key:
-                    label = 'Earth Albedo'
-                elif 'Constant' in key:
-                    label = 'Constant'
-                elif 'CRAB' in key:
-                    label = 'Crab'
-                elif 'sun' in key:
-                    label = 'Sun'
-                elif 'SAA_decays' in key:
-                    label = 'SAA Exits'
-                else:
-                    label = key
-                rebinned_source_counts = this_rebinner.rebin(self._sources[key])[0]
+            elif 'CGB' in key:
+                label = 'Cosmic Gamma-Ray Background'
+                color_key = 'cgb'
+                if not self.show_all_sources and not self.show_cgb:
+                    continue
 
-                source_list.append({
-                    'data': rebinned_source_counts / self._rebinned_time_bin_widths,
-                    'label': label,
-                    'color': self.source_colors[i]
-                })
+            elif 'Earth' in key:
+                label = 'Earth Albedo'
+                color_key = 'earth'
+                if not self.show_all_sources and not self.show_earth:
+                    continue
 
+            elif 'Constant' in key:
+                label = 'Constant'
+                color_key = 'constant'
+                if not self.show_all_sources and not self.show_constant:
+                    continue
+
+            elif 'CRAB' in key:
+                label = 'Crab'
+                color_key = 'crab'
+                if not self.show_all_sources and not self.show_crab:
+                    continue
+
+            elif 'sun' in key:
+                label = 'Sun'
+                color_key = 'sun'
+                if not self.show_all_sources and not self.show_sun:
+                    continue
+
+            elif 'SAA_decays' in key:
+                label = 'SAA Exits'
+                color_key = 'saa'
+                if not self.show_all_sources and not self.show_saa:
+                    continue
+
+            else:
+                label = key
+                color_key = 'default'
+                if not self.show_all_sources:
+                    continue
+
+            rebinned_source_counts = this_rebinner.rebin(self._sources[key])[0]
+
+            source_list.append({
+                'data': rebinned_source_counts / self._rebinned_time_bin_widths,
+                'label': label,
+                'color': self.source_colors[color_key]['color'],
+                'alpha': self.source_colors[color_key]['alpha']
+            })
+
+        if len(source_list) > 0:
             residual_plot.add_list_of_sources(self._rebinned_time_bin_mean, source_list)
 
         p_bar.increase()
@@ -225,7 +268,8 @@ class ResultPlotGenerator(object):
             residual_plot.add_ppc(rebinned_ppc_rates=rebinned_ppc_rates,
                                   rebinned_time_bin_mean=self._rebinned_time_bin_mean,
                                   q_levels=[0.68, 0.95, 0.99],
-                                  colors=self.ppc_colors,
+                                  colors=self.ppc_colors['color'],
+                                  alpha=self.ppc_colors['alpha']
                                   )
 
         # Add vertical lines for grb triggers
@@ -256,7 +300,6 @@ class ResultPlotGenerator(object):
         final_plot.savefig(savepath, dpi=self.dpi)
 
         p_bar.increase()
-        print('Success!')
 
     def add_grb_trigger(self, grb_name, trigger_time, time_format='UTC', time_offset=0, color='b'):
         """

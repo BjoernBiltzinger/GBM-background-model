@@ -177,16 +177,17 @@ class ResidualPlot(object):
                                     xmax=value['met'][1] - time_ref,
                                     color=value['color'], alpha=0.1, label=key)
 
-    def add_model(self, x, y, label, color):
+    def add_model(self, x, y, label, color, alpha=.6):
         """
         Add a model and interpolate it across the time span for the plotting.
+        :param alpha:
         :param x: the evaluation energies
         :param y: the model values
         :param label: the label of the model
         :param color: the color of the model
         :return: None
         """
-        self._data_axis.plot(x, y, label=label, color=color, alpha=.6, zorder=20)
+        self._data_axis.plot(x, y, label=label, color=color, alpha=alpha, zorder=20)
 
     def add_posteriour(self, x, y, color='grey', alpha=0.002):
         """
@@ -210,7 +211,8 @@ class ResidualPlot(object):
          :return: None
          """
         for i, source in enumerate(source_list):
-            self._data_axis.plot(x, source['data'], color=source['color'], label=source['label'], alpha=.6, zorder=18)
+            alpha = source.get('alpha', .6)
+            self._data_axis.plot(x, source['data'], color=source['color'], label=source['label'], alpha=alpha, zorder=18)
 
     def add_data(self, x, y, residuals, label, xerr=None, yerr=None, residual_yerr=None, color='r', alpha=.9,  show_data=True, marker_size=3):
         """
@@ -263,7 +265,7 @@ class ResidualPlot(object):
 
     def add_ppc(self, rebinned_ppc_rates=None, rebinned_time_bin_mean=None, result_dir=None, model=None,
                 plotter=None, time_bins=None, saa_mask=None, echan=None, q_levels=[0.68], colors=['lightgreen'],
-                bin_width=1E-99, n_params=1, time_ref=0):
+                alpha=.5, bin_width=1E-99, n_params=1, time_ref=0):
         """
         Add ppc plot
         :param result_dir: path to result directory
@@ -328,7 +330,7 @@ class ResidualPlot(object):
                     for i, level in enumerate(q_levels):
                         low = np.percentile(rates, 50 - 50 * level, axis=0)[0]
                         high = np.percentile(rates, 50 + 50 * level, axis=0)[0]
-                        self._data_axis.fill_between(np.mean(rebinned_time_bins, axis=1), low, high, color=colors[i], alpha=0.5)
+                        self._data_axis.fill_between(np.mean(rebinned_time_bins, axis=1), low, high, color=colors[i], alpha=alpha)
             else:
                 for i, sample in enumerate(analyzer.get_equal_weighted_posterior()[:, :-1][a]):
                     synth_data = plotter.get_synthetic_data(sample, model)
@@ -343,14 +345,14 @@ class ResidualPlot(object):
                 for i, level in enumerate(q_levels):
                     low = np.percentile(rates, 50 - 50 * level, axis=0)[0]
                     high = np.percentile(rates, 50 + 50 * level, axis=0)[0]
-                    self._data_axis.fill_between(np.mean(rebinned_time_bins, axis=1), low, high, color=colors[i], alpha=0.5)
+                    self._data_axis.fill_between(np.mean(rebinned_time_bins, axis=1), low, high, color=colors[i], alpha=alpha)
 
         else:
             if rank == 0:
                 for i, level in enumerate(q_levels):
                     low = np.percentile(rebinned_ppc_rates, 50 - 50 * level, axis=0)[0]
                     high = np.percentile(rebinned_ppc_rates, 50 + 50 * level, axis=0)[0]
-                    self._data_axis.fill_between(rebinned_time_bin_mean, low, high, color=colors[i], alpha=0.5)
+                    self._data_axis.fill_between(rebinned_time_bin_mean, low, high, color=colors[i], alpha=alpha)
 
         # Set Plot range
         # total_mean_rate = np.mean(np.array(rates))
