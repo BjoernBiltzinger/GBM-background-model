@@ -264,8 +264,8 @@ class ResultPlotGenerator(object):
             source_list.append({
                 'data': rebinned_source_counts / self._rebinned_time_bin_widths,
                 'label': label,
-                'color': self.source_colors[color_key]['color'],
-                'alpha': self.source_colors[color_key]['alpha']
+                'color': self.source_colors[color_key]['color'] if not self.source_colors['use_global'] else None,
+                'alpha': self.source_colors[color_key]['alpha'] if not self.source_colors['use_global'] else None,
             })
 
         if self.source_colors['use_global']:
