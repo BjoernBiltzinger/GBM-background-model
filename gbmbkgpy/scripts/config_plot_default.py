@@ -26,6 +26,8 @@ plot_config = {
     'change_time':      True,
     'xlim':             None,
     'ylim':             None,
+    'xlabel':           None,
+    'ylabel':           None,
     'dpi':              400,
     'show_legend':      True,
     'legend_outside':   True,
