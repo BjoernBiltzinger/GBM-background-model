@@ -17,7 +17,7 @@
 #####################################################################################################
 
 
-plot_settings = {
+plot_config = {
     'data_path':        'path_to_data_for_plots_file.hdf5',
     'bin_width':        5,
     'change_time':      True,
@@ -28,7 +28,7 @@ plot_settings = {
     'legend_outside':   True,
 }
 
-component_settings = {
+component_config = {
     'show_data':        True,
     'show_model':       True,
     'show_residuals':   False,
@@ -47,7 +47,7 @@ component_settings = {
     'show_grb_trigger': False,
 }
 
-style_settings = {
+style_config = {
     'mpl_style':    None,
     'model':        {'color': 'red',        'alpha': .9},
     'data':         {'color': 'k',          'alpha': .8},
@@ -60,7 +60,10 @@ style_settings = {
         'constant': {'color': 'salmon',     'alpha': .6},
         'crab':     {'color': 'cyan',       'alpha': .6},
         'default':  {'color': 'blue',       'alpha': .6},
+        'global':   {'cmap':  'viridis',    'alpha': .6},
+        'use_global': True,
     },
+
     'ppc': {
         'color':    ['lightgreen', 'green', 'darkgreen'],
         'alpha':    0.6

@@ -22,7 +22,6 @@ class ResultPlotGenerator(object):
         self.xlim = plot_config['xlim']
         self.ylim = plot_config['ylim']
         self.dpi = plot_config['dpi']
-        self.mpl_style = plot_config['mpl_style']
         self.show_legend = plot_config['show_legend']
         self.legend_outside = plot_config['legend_outside']
 
@@ -46,7 +45,7 @@ class ResultPlotGenerator(object):
 
         # Import style settings
         self.model_color = style_config['model']
-        self.source_colors = style_config['source']
+        self.source_colors = style_config['sources']
         self.ppc_colors = style_config['ppc']
         self.data_color = style_config['data']
 
@@ -251,6 +250,14 @@ class ResultPlotGenerator(object):
                 'color': self.source_colors[color_key]['color'],
                 'alpha': self.source_colors[color_key]['alpha']
             })
+
+        if self.source_colors['use_global']:
+            cmap = plt.get_cmap(self.source_colors['global']['cmap'])
+            colors = cmap(np.linspace(0, 1, len(source_list)))
+
+            for i, source in enumerate(source_list):
+                source['color'] = colors[i]
+                source['alpha'] = self.source_colors['global']['alpha']
 
         if len(source_list) > 0:
             residual_plot.add_list_of_sources(self._rebinned_time_bin_mean, source_list)
