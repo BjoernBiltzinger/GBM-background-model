@@ -59,19 +59,21 @@ class ResultPlotGenerator(object):
         self._occ_region = {}
 
         if highlight_config != {}:
-            for grb_trigger in highlight_config['grb_trigger']:
-                self.add_grb_trigger(grb_name=grb_trigger['name'],
-                                     trigger_time=grb_trigger['trigger_time'],
-                                     time_format='UTC',
-                                     time_offset=grb_trigger['time_offset'],
-                                     color=grb_trigger.get('color', 'b'))
+            if highlight_config['grb_trigger'] is not None:
+                for grb_trigger in highlight_config['grb_trigger']:
+                    self.add_grb_trigger(grb_name=grb_trigger['name'],
+                                         trigger_time=grb_trigger['trigger_time'],
+                                         time_format='UTC',
+                                         time_offset=grb_trigger['time_offset'],
+                                         color=grb_trigger.get('color', 'b'))
 
-            for occ_region in highlight_config['occ_region']:
-                self.add_occ_region(occ_name=occ_region['name'],
-                                    time_start=occ_region['time_start'],
-                                    time_stop=occ_region['time_stop'],
-                                    time_format=occ_region.get('time_format', 'UTC'),
-                                    color=occ_region.get('color', 'grey'))
+            if highlight_config['occ_region'] is not None:
+                for occ_region in highlight_config['occ_region']:
+                    self.add_occ_region(occ_name=occ_region['name'],
+                                        time_start=occ_region['time_start'],
+                                        time_stop=occ_region['time_stop'],
+                                        time_format=occ_region.get('time_format', 'UTC'),
+                                        color=occ_region.get('color', 'grey'))
 
         self._dates = None
         self._day_start_times = None

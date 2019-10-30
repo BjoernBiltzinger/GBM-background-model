@@ -1,19 +1,22 @@
 ####################################################################################################
-################ Config file for plotting ############### ##########################################
+################ Config file for plotting ##########################################################
 ####################################################################################################
 
 
 ############################### Input for plotting ##################################################
 ### bin_width to bin the data
 ### change_time: from MET to seconds since midnight
-### show residuals?
-### show data?
 ### show grb trigger times? if yes at which time ('20:57:03.000' format) and what name?
-### show ppc?
 ### xlim and ylim (as tuple e.g. (0,100))
 ### legend outside of the plot?
 ### dpi of plot
 ### mpl_style: path to custom style file
+###
+### Optional Highlight config:
+### highlight_config = {
+###    'grb_trigger':  None,
+###    'occ_region':   None
+### }
 #####################################################################################################
 
 
@@ -79,5 +82,12 @@ highlight_config = {
          'color': 'b'
          },
     ],
-    'occ_region':   None
+    'occ_region':   [
+        {'name': 'Earth occultation',
+         'time_start': '2015-01-26T00:00:00.000',
+         'time_stop': '2015-01-26T20:50:00.000',
+         'time_format': 'UTC',
+         'color': 'grey'
+         },
+    ]
 }
