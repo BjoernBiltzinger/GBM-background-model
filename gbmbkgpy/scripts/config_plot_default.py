@@ -69,3 +69,15 @@ style_config = {
         'alpha':    0.6
     },
 }
+
+highlight_config = {
+    'grb_trigger':  [
+        {'name': 'GRB 150126 - KONUS-WIND Trigger',
+         'trigger_time': '2015-01-26T20:51:43.524',
+         'time_format': 'UTC',
+         'time_offset': 0.,
+         'color': 'b'
+         },
+    ],
+    'occ_region':   None
+}
