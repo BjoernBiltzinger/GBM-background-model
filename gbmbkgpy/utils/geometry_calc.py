@@ -86,13 +86,13 @@ class Geometry(object):
         # Calculate Geometry. With or without Mpi support.
         for day_number, day in enumerate(day_list):
             if using_mpi:
-                sun_angle, time, earth_az, earth_zen, earth_position, quaternion, sc_pos, times_lower_bound_index, \
-                times_upper_bound_index = self._one_day_setup_geometery_mpi(day_number)
+                sun_angle, sun_positions, time, earth_az, earth_zen, earth_position, quaternion, sc_pos, times_lower_bound_index, times_upper_bound_index = self._one_day_setup_geometery_mpi(day_number)
             else:
-                sun_angle, time, earth_az, earth_zen, earth_position, quaternion, sc_pos = \
+                sun_angle, sun_positions, time, earth_az, earth_zen, earth_position, quaternion, sc_pos = \
                     self._one_day_setup_geometery_no_mpi(day_number)
             if day_number == 0:
                 self._sun_angle = [sun_angle]
+                self._sun_positions = [sun_positions]
                 self._time = [time]
                 self._earth_az = [earth_az]
                 self._earth_zen = [earth_zen]
@@ -104,6 +104,7 @@ class Geometry(object):
                     self._times_upper_bound_index = np.array([times_upper_bound_index])
             else:
                 self._sun_angle.append(sun_angle)
+                self._sun_positions.append(sun_positions)
                 self._time.append(time)
                 self._earth_az.append(earth_az)
                 self._earth_zen.append(earth_zen)
@@ -114,6 +115,7 @@ class Geometry(object):
                     self._times_lower_bound_index = np.append(self._times_lower_bound_index, times_lower_bound_index)
                     self._times_upper_bound_index = np.append(self._times_upper_bound_index, times_upper_bound_index)
         self._time = np.concatenate(self._time, axis=0)
+        self._sun_positions = np.concatenate(self._sun_positions, axis=0)
         self._sun_angle = np.concatenate(self._sun_angle, axis=0)
         self._earth_az = np.concatenate(self._earth_az, axis=0)
         self._earth_zen = np.concatenate(self._earth_zen, axis=0)
@@ -141,6 +143,14 @@ class Geometry(object):
 
         return self._time
 
+    @property
+    def sun_positions(self):
+        """
+        :return: sun positions as skycoord object in sat frame for all times for which the geometry was calculated
+        """
+
+        return self._sun_positions
+    
     @property
     def sun_angle(self):
         """
@@ -221,6 +231,7 @@ class Geometry(object):
 
         # Init all lists
         sun_angle = []
+        sun_positions = []
         time = []
         earth_az = []  # azimuth angle of earth in sat. frame
         earth_zen = []  # zenith angle of earth in sat. frame
@@ -259,6 +270,7 @@ class Geometry(object):
                                                        time=astro_time.Time(position_interpolator.utc(mean_time)))
 
                     sun_angle.append(det.sun_angle.value)
+                    sun_positions.append(det.sun_position)
                     time.append(mean_time)
                     az, zen = det.earth_az_zen_sat
                     earth_az.append(az)
@@ -280,6 +292,7 @@ class Geometry(object):
                                                    time=astro_time.Time(position_interpolator.utc(mean_time)))
 
                 sun_angle.append(det.sun_angle.value)
+                sun_positions.append(det.sun_position)
                 time.append(mean_time)
                 az, zen = det.earth_az_zen_sat
                 earth_az.append(az)
@@ -291,6 +304,7 @@ class Geometry(object):
 
         # make the list numpy arrays
         sun_angle = np.array(sun_angle)
+        sun_positions = np.array(sun_positions)
         time = np.array(time)
         earth_az = np.array(earth_az)
         earth_zen = np.array(earth_zen)
@@ -302,6 +316,7 @@ class Geometry(object):
         # gather all results in rank=0
         sun_angle_gather = comm.gather(sun_angle, root=0)
         time_gather = comm.gather(time, root=0)
+        sun_positions_gather = comm.gather(sun_positions, root=0)
         earth_az_gather = comm.gather(earth_az, root=0)
         earth_zen_gather = comm.gather(earth_zen, root=0)
         earth_position_gather = comm.gather(earth_position, root=0)
@@ -313,6 +328,7 @@ class Geometry(object):
         if rank == 0:
             sun_angle_gather = np.concatenate(sun_angle_gather)
             time_gather = np.concatenate(time_gather)
+            sun_positions_gather = np.concatenate(sun_positions_gather)
             earth_az_gather = np.concatenate(earth_az_gather)
             earth_zen_gather = np.concatenate(earth_zen_gather)
             earth_position_gather = np.concatenate(earth_position_gather)
@@ -323,6 +339,7 @@ class Geometry(object):
         # broadcast the final arrays again to all ranks
         sun_angle = comm.bcast(sun_angle_gather, root=0)
         time = comm.bcast(time_gather, root=0)
+        sun_positions = comm.bcast(sun_positions_gather, root=0)
         earth_az = comm.bcast(earth_az_gather, root=0)
         earth_zen = comm.bcast(earth_zen_gather, root=0)
         earth_position = comm.bcast(earth_position_gather, root=0)
@@ -332,7 +349,7 @@ class Geometry(object):
 
         # Return everything
 
-        return sun_angle, time, earth_az, earth_zen, earth_position, quaternion, sc_pos, times_lower_bound_index, \
+        return sun_angle, sun_positions, time, earth_az, earth_zen, earth_position, quaternion, sc_pos, times_lower_bound_index, \
                times_upper_bound_index
 
     def _one_day_setup_geometery_no_mpi(self, day_number):
@@ -355,6 +372,7 @@ class Geometry(object):
 
         # Init all lists
         sun_angle = []
+        sun_positions = []
         time = []
         earth_az = []  # azimuth angle of earth in sat. frame
         earth_zen = []  # zenith angle of earth in sat. frame
@@ -375,6 +393,7 @@ class Geometry(object):
                                                    time=astro_time.Time(position_interpolator.utc(mean_time)))
 
                 sun_angle.append(det.sun_angle.value)
+                sun_positions.append(det.sun_position)
                 time.append(mean_time)
                 az, zen = det.earth_az_zen_sat
                 earth_az.append(az)
@@ -389,6 +408,7 @@ class Geometry(object):
         # Make the list numpy arrays
         sun_angle = np.array(sun_angle)
         time = np.array(time)
+        sun_positions = np.array(sun_positions)
         earth_az = np.array(earth_az)
         earth_zen = np.array(earth_zen)
         earth_position = np.array(earth_position)
@@ -398,7 +418,7 @@ class Geometry(object):
 
         # Return everything
 
-        return sun_angle, time, earth_az, earth_zen, earth_position, quaternion, sc_pos
+        return sun_angle, sun_positions, time, earth_az, earth_zen, earth_position, quaternion, sc_pos
 
     def _add_start_stop(self, timelist, start_add, stop_add):
         """
