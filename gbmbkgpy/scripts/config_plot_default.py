@@ -75,7 +75,7 @@ style_config = {
     },
     'legend_kwargs': {
         'loc': 'center left',
-        'bbox_to_anchor': (-0.2, -0.6),
+        'bbox_to_anchor': (-0.3, -0.6),
         'ncol': 2
     }
 }

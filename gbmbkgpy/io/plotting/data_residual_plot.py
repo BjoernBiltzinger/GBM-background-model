@@ -237,7 +237,8 @@ class ResidualPlot(object):
                                     facecolors='none',
                                     edgecolors=color,
                                     alpha=alpha,
-                                    label=label)
+                                    label=label,
+                                    zorder=15)
 
         # if we want to show the residuals
 
