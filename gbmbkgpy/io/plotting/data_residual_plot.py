@@ -236,9 +236,7 @@ class ResidualPlot(object):
                                     linewidths=marker_size / 3,
                                     facecolors='none',
                                     edgecolors=color,
-                                    markersize=marker_size,
                                     alpha=alpha,
-                                    capsize=0,
                                     label=label)
 
         # if we want to show the residuals
