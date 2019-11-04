@@ -73,6 +73,11 @@ style_config = {
         'color':    ['lightgreen', 'green', 'darkgreen'],
         'alpha':    0.6
     },
+    'leged_kwargs': {
+        'loc': 'center left',
+        'bbox_to_anchor': (0, -0.6),
+        'ncol': 3
+    }
 }
 
 highlight_config = {
