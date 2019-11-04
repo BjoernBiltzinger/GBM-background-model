@@ -231,7 +231,7 @@ class ResultPlotGenerator(object):
                     continue
 
             elif 'CGB' in key:
-                label = 'Cosmic Gamma-Ray Background'
+                label = 'CGB'
                 color_key = 'cgb'
                 sort_idx = 2
                 if not self.show_all_sources and not self.show_cgb:
@@ -326,7 +326,7 @@ class ResultPlotGenerator(object):
 
         xticks = []
         xtick_labels = []
-        for xstep in range(int(self.xlim[0] / 3600), int(self.xlim[1]+500 / 3600) + 1, 4):
+        for xstep in range(int(self.xlim[0] / 3600), int((self.xlim[1]+500) / 3600) + 1, 4):
             xticks.append(xstep * 3600)
             xtick_labels.append('%s' % xstep)
 
