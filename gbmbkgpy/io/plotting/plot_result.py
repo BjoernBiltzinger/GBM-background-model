@@ -197,7 +197,7 @@ class ResultPlotGenerator(object):
                                residual_yerr=residual_errors,
                                yerr=None,
                                xerr=None,
-                               label='Observed Count Rates',
+                               label='Obs. Count Rates',
                                color=self.data_color['color'],
                                alpha=self.data_color['alpha'],
                                show_data=self.show_data,
