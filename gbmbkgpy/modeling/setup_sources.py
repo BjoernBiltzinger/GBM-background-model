@@ -1,7 +1,7 @@
 from gbmbkgpy.modeling.source import ContinuumSource, SAASource, GlobalSource, FitSpectrumSource
 
 from gbmbkgpy.modeling.functions import (SAA_Decay, Magnetic_Continuum, Cosmic_Gamma_Ray_Background,
-                                         Point_Source_Continuum, Earth_Albedo_Continuum, offset,
+                                         Point_Source_Continuum, Earth_Albedo_Continuum, Offset,
                                          Earth_Albedo_Continuum_Fit_Spectrum, Cosmic_Gamma_Ray_Background_Fit_Spectrum,
                                          Point_Source_Continuum_Fit_Spectrum)
 
@@ -27,8 +27,8 @@ except:
     using_mpi = False
 
 
-def Setup(data, saa_object, ep, geom_object, echan_list=[], response_object=None, albedo_cgb_object=None, use_SAA=False,
-          use_CR=True, use_Earth=True, use_CGB=True, use_all_ps=False, point_source_list=[], fix_ps=[],
+def Setup(data, saa_object, ep, geom_object, echan_list=[], sun_object=None,response_object=None, albedo_cgb_object=None,
+          use_SAA=False, use_CR=True, use_Earth=True, use_CGB=True, use_all_ps=False, use_sun=True, point_source_list=[], fix_ps=[],
           fix_Earth=False, fix_CGB=False):
     """
     Setup all sources
@@ -63,17 +63,20 @@ def Setup(data, saa_object, ep, geom_object, echan_list=[], response_object=None
     for index, echan in enumerate(echan_list):
 
         if use_SAA:
-            total_sources.append(setup_SAA(data, saa_object, echan, index))
+            total_sources.extend(setup_SAA(data, saa_object, echan, index))
 
         if use_CR:
-            total_sources.append(setup_CosmicRays(data, ep, saa_object, echan, index))
+            total_sources.extend(setup_CosmicRays(data, ep, saa_object, echan, index))
 
+    if use_sun:
+        total_sources.append(setup_sun(data, sun_object, saa_object, response_object, geom_object, echan_list))
+            
     if use_all_ps:
-        total_sources.append(setup_ps(data, ep, saa_object, response_object, geom_object, echan_list,
+        total_sources.extend(setup_ps(data, ep, saa_object, response_object, geom_object, echan_list,
                                       include_point_sources=True, free_spectrum=np.logical_not(fix_ps)))
-
+    
     elif len(point_source_list) != 0:
-        total_sources.append(setup_ps(data, ep, saa_object, response_object, geom_object, echan_list,
+        total_sources.extend(setup_ps(data, ep, saa_object, response_object, geom_object, echan_list,
                                       point_source_list=point_source_list, free_spectrum=np.logical_not(fix_ps)))
 
     if use_Earth:
@@ -92,15 +95,7 @@ def Setup(data, saa_object, ep, geom_object, echan_list=[], response_object=None
         else:
             total_sources.append(setup_cgb_free(data, albedo_cgb_object, saa_object))
 
-    # flatten the source list
-    total_sources_f = []
-    for x in total_sources:
-        if type(x) == list:
-            for y in x:
-                total_sources_f.append(y)
-        else:
-            total_sources_f.append(x)
-    return total_sources_f
+    return total_sources
 
 
 def setup_SAA(data, saa_object, echan, index):
@@ -132,6 +127,22 @@ def setup_SAA(data, saa_object, echan, index):
     return SAA_Decay_list
 
 
+def setup_sun(cd, sun_object, saa_object, response_object, geom_object, echan_list):
+    """
+    Setup for sun as bkg source
+    """
+    Sun = Point_Source_Continuum_Fit_Spectrum('sun')
+    response_array = sun_object.sun_response_array
+    Sun.set_response_array(response_array)
+    Sun.set_basis_function_array(cd.time_bins[2:-2])
+    Sun.set_saa_zero(saa_object.saa_mask[2:-2])
+    Sun.set_interpolation_times(sun_object.geometry_times)
+    Sun.energy_boundaries(sun_object.Ebin_in_edge)
+    Sun_Continuum = FitSpectrumSource('sun', Sun)
+
+    return Sun_Continuum
+
+
 def setup_CosmicRays(data, ep, saa_object, echan, index):
     """
     Setup for CosmicRay source
@@ -143,7 +154,7 @@ def setup_CosmicRays(data, ep, saa_object, echan, index):
     :return: Constant and magnetic continuum source
     """
 
-    Constant = offset(str(echan))
+    Constant = Offset(str(echan))
     Constant.set_function_array(np.ones_like(data.time_bins[2:-2]))
     Constant.set_saa_zero(saa_object.saa_mask[2:-2])
     # precalculate the integration over the time bins
@@ -157,7 +168,7 @@ def setup_CosmicRays(data, ep, saa_object, echan, index):
     mag_con.remove_vertical_movement()
     # precalculate the integration over the time bins
     mag_con.integrate_array(data.time_bins[2:-2])
-    Source_Magnetic_Continuum = ContinuumSource('McIlwain L-parameter_echan_{:d}'.format(echan),
+    Source_Magnetic_Continuum = ContinuumSource('McIlwain_L-parameter_echan_{:d}'.format(echan),
                                                 mag_con, index)
     return [Constant_Continuum, Source_Magnetic_Continuum]
 
@@ -196,7 +207,7 @@ def setup_ps(data, ep, saa_object, response_object, geom_object, echan_list,
 
     for i, ps in enumerate(ep.point_sources.itervalues()):
         if len(free_spectrum) > 0 and free_spectrum[i]:
-            PS_Continuum_dic['{}'.format(ps.name)] = Point_Source_Continuum_Fit_Spectrum(str(i))
+            PS_Continuum_dic['{}'.format(ps.name)] = Point_Source_Continuum_Fit_Spectrum('ps_{}_spectrum_fitted'.format(ps.name), E_norm=25.)
             response_array = ps.ps_response_array
             PS_Continuum_dic['{}'.format(ps.name)].set_response_array(response_array)
             PS_Continuum_dic['{}'.format(ps.name)].set_basis_function_array(data.time_bins[2:-2])
@@ -206,7 +217,7 @@ def setup_ps(data, ep, saa_object, response_object, geom_object, echan_list,
 
             PS_Sources_list.append(FitSpectrumSource('{}'.format(ps.name), PS_Continuum_dic['{}'.format(ps.name)]))
         else:
-            PS_Continuum_dic['{}'.format(ps.name)] = Point_Source_Continuum(str(i))
+            PS_Continuum_dic['{}'.format(ps.name)] = Point_Source_Continuum('norm_point_source-{}'.format(ps.name))
             rate_inter = interpolate.interp1d(ps.geometry_times, ps.ps_rate_array.T)
             PS_Continuum_dic['{}'.format(ps.name)].set_function_array(rate_inter(data.time_bins[2:-2]))
             PS_Continuum_dic['{}'.format(ps.name)].set_saa_zero(saa_object.saa_mask[2:-2])

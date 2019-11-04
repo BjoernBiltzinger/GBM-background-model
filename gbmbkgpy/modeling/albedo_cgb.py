@@ -122,7 +122,7 @@ class Albedo_CGB_free(object):
             # geometry was calculated
             if rank == 0:
                 with progress_bar(len(earth_pos_inter_times),
-                                  title='Calculating the effective response for several times.'
+                                  title='Calculating the effective response for several times. '
                                         'This shows the progress of rank 0. All other should be about the same.') as p:
                     for pos in earth_pos_inter_times:
                         cgb_response_time = np.zeros_like(responses[0])
@@ -183,7 +183,7 @@ class Albedo_CGB_free(object):
             array_earth_response_sum = []
 
             with progress_bar(len(earth_pos_inter_times),
-                              title='Calculating the effective response for several times.'
+                              title='Calculating the effective response for several times. '
                                     'This shows the progress of rank 0. All other should be about the same.') as p:
                 for pos in self._earth_pos_inter_times:
                     cgb_response_time = np.zeros_like(responses[0])
@@ -328,7 +328,7 @@ class Albedo_CGB_fixed(object):
             # geometry was calculated
             if rank == 0:
                 with progress_bar(len(earth_pos_inter_times),
-                                  title='Calculating the effective response for several times.'
+                                  title='Calculating the effective response for several times. '
                                         'This shows the progress of rank 0. All other should be about the same.') as p:
                     for pos in earth_pos_inter_times:
                         cgb_response_time = np.zeros_like(responses[0])
@@ -387,7 +387,7 @@ class Albedo_CGB_fixed(object):
             array_earth_response_sum = []
 
             with progress_bar(len(earth_pos_inter_times),
-                              title='Calculating the effective response for several times.'
+                              title='Calculating the effective response for several times. '
                                     'This shows the progress of rank 0. All other should be about the same.') as p:
                 for pos in self._earth_pos_inter_times:
                     cgb_response_time = np.zeros_like(responses[0])

@@ -14,13 +14,26 @@ from gbmbkgpy.minimizer.multinest_minimizer import MultiNestFit
 from gbmbkgpy.io.plotting.plot import Plotter
 from gbmbkgpy.modeling.setup_sources import Setup
 from gbmbkgpy.modeling.albedo_cgb import Albedo_CGB_fixed, Albedo_CGB_free
-from gbmbkgpy.io.package_data import get_path_of_external_data_dir
+from gbmbkgpy.io.package_data import get_path_of_external_data_dir                                                               
+from gbmbkgpy.modeling.sun import Sun
 from gbmbkgpy.io.file_utils import file_existing_and_readable
 
 import os
 from shutil import copyfile
 import sys
 
+
+### Argparse for passing custom_config file
+import argparse
+parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser.add_argument('-c', '--config_file', type=str, help='Name of the config file located in gbm_data/fits/')
+parser.add_argument('-date', '--date', type=str, help='Date string')
+parser.add_argument('-det', '--detector', type=str, help='Name detector')
+parser.add_argument('-e', '--echan', type=int, help='Echan number')
+args = parser.parse_args()
+
+### Config file directories
+config_default_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config_default.py')
 config_custom_path = os.path.join(get_path_of_external_data_dir(), 'fits', 'config_custom.py')
 config_custom_dir = os.path.join(get_path_of_external_data_dir(), 'fits')
 
@@ -44,12 +57,24 @@ def print_progress(text):
     if rank == 0:
         print(text)
 
+
+if args.config_file is not None:
+    sys.path.append(config_custom_dir)
+    module = __import__(args.config_file, globals(), locals(), ['*'])
+    for k in dir(module):
+        locals()[k] = getattr(module, k)
+
+    config_custom_path = os.path.join(get_path_of_external_data_dir(), 'fits', args.config_file)
+    print_progress('Using custom config file from {}'.format(config_custom_path))
+    custom = True
+
 # Import Config file, use the custom config file if it exists, otherwise use default config file
-if file_existing_and_readable(config_custom_path):
+elif file_existing_and_readable(config_custom_path):
     sys.path.append(config_custom_dir)
     from config_custom import *
     print_progress('Using custom config file from {}'.format(config_custom_path))
     custom = True
+
 else:
     from config_default import *
     print_progress('Using default config file')
@@ -63,6 +88,14 @@ data_type = general_dict['data_type']
 # List with all echans you want to use
 echan_list = general_dict['echan_list']  # has to be  List! One entry is also possible
 
+
+################# Overwrite with BASH arguments #########################
+if args.date is not None:
+    date = [args.date]
+if args.detector is not None:
+    detector = args.detector
+if args.echan is not None:
+    echan_list = [args.echan]
 ############################# Data ######################################
 
 # download files with rank=0; all other ranks have to wait!
@@ -148,6 +181,8 @@ fix_ps = setup_dict['fix_ps']
 fix_earth = setup_dict['fix_earth']
 # Fix the spectrum of the CGB?
 fix_cgb = setup_dict['fix_cgb']
+# Use Sun?
+use_sun = setup_dict['use_sun']
 
 assert (fix_earth and fix_cgb) or (not fix_earth and not fix_cgb), 'At the moment albeod and cgb spectrum have to be either both fixed or both free'
 
@@ -157,11 +192,13 @@ if fix_earth:
 else:
     albedo_cgb_obj = Albedo_CGB_free(resp, geom)
 
+sun_obj = Sun(resp, geom, echan_list)
+    
 print_progress('Create Source list...')
 
-source_list = Setup(data, saa_calc, ep, geom, echan_list=echan_list, response_object=resp, albedo_cgb_object=albedo_cgb_obj,
-                    use_SAA=use_SAA, use_CR=use_CR, use_Earth=use_Earth, use_CGB=use_CGB, point_source_list=ps_list,
-                    fix_ps=fix_ps, fix_Earth=fix_earth, fix_CGB=fix_cgb)
+source_list = Setup(data, saa_calc, ep, geom, sun_object=sun_obj, echan_list=echan_list, response_object=resp,
+                    albedo_cgb_object=albedo_cgb_obj, use_SAA=use_SAA, use_CR=use_CR, use_Earth=use_Earth, use_CGB=use_CGB,
+                    point_source_list=ps_list, fix_ps=fix_ps, fix_Earth=fix_earth, fix_CGB=fix_cgb, use_sun=use_sun)
 
 print_progress('Done')
 
@@ -173,112 +210,122 @@ print_progress('Done')
 ##################### Prior bounds #############################
 
 ######## Define bounds for all sources ###############
-
-# SAA: Amplitude and decay constant
-saa_bounds = bounds_dict['saa_bound']
-
-# CR: Constant and McIlwain normalization
-cr_bounds = bounds_dict['cr_bound']
-
-# Amplitude of PS spectrum
-ps_fixed_bound = bounds_dict['ps_fixed_bound']
-ps_free_bound = bounds_dict['ps_free_bound']
-# If earth spectrum is fixed only the normalization, otherwise C, index1, index2 and E_break
-if fix_earth:
-    earth_bound = bounds_dict['earth_fixed_bound']
-else:
-    earth_bound = bounds_dict['earth_free_bound']
-
-# If cgb spectrum is fixed only the normalization, otherwise C, index1, index2 and E_break
-if fix_cgb:
-    cgb_bound = bounds_dict['cgb_fixed_bound']
-else:
-    cgb_bound = bounds_dict['cgb_free_bound']
-
 ######## Define gaussian parameter for all sources ###############
 
-# SAA: Amplitude and decay constant
-saa_gaussian = gaussian_dict['saa_bound']
-
-# CR: Constant and McIlwain normalization
-cr_gaussian = gaussian_dict['cr_bound']
-
-# Amplitude of PS spectrum
-ps_fixed_gaussian = gaussian_dict['ps_fixed_bound']
-ps_free_gaussian = gaussian_dict['ps_free_bound']
-# If earth spectrum is fixed only the normalization, otherwise C, index1, index2 and E_break
-if fix_earth:
-    earth_gaussian = gaussian_dict['earth_fixed_bound']
-else:
-    earth_gaussian = gaussian_dict['earth_free_bound']
-
-# If cgb spectrum is fixed only the normalization, otherwise C, index1, index2 and E_break
-if fix_cgb:
-    cgb_gaussian = gaussian_dict['cgb_fixed_bound']
-else:
-    cgb_gaussian = gaussian_dict['cgb_free_bound']
-
-#######################################
-
-parameter_bounds = []
+parameter_bounds = {}
 
 # Echan individual sources
-for i in echan_list:
+for e in echan_list:
+
     if use_SAA:
-        for j in range(saa_calc.num_saa):
-            parameter_bounds.append(saa_bounds)
 
         # If fitting only one day add additional 'SAA' decay to account for leftover excitation
         if len(date) == 1:
-            parameter_bounds.append(saa_bounds)
+            offset = 1
+        else:
+            offset = 0
+
+        for saa_nr in range(saa_calc.num_saa + offset):
+            parameter_bounds['norm_saa-{}_echan-{}'.format(saa_nr, e)] = {
+                'bounds': bounds_dict['saa_bound'][0],
+                'gaussian_parameter': gaussian_dict['saa_bound'][0]
+            }
+            parameter_bounds['decay_saa-{}_echan-{}'.format(saa_nr, e)] = {
+                'bounds': bounds_dict['saa_bound'][1],
+                'gaussian_parameter': gaussian_dict['saa_bound'][1]
+            }
 
     if use_CR:
-        parameter_bounds.append(cr_bounds)
+
+        parameter_bounds['constant_echan-{}'.format(e)] = {
+            'bounds': bounds_dict['cr_bound'][0],
+            'gaussian_parameter': gaussian_dict['cr_bound'][0]
+        }
+        parameter_bounds['norm_magnetic_echan-{}'.format(e)] = {
+            'bounds': bounds_dict['cr_bound'][1],
+            'gaussian_parameter': gaussian_dict['cr_bound'][1]
+        }
+
+if use_sun:
+    parameter_bounds['sun_C'] = {
+        'bounds': bounds_dict['sun_bound'][0],
+        'gaussian_parameter': gaussian_dict['sun_bound'][0]
+    }
+    parameter_bounds['sun_index'] = {
+        'bounds': bounds_dict['sun_bound'][1],
+        'gaussian_parameter': gaussian_dict['sun_bound'][1]
+    }
 # Global sources for all echans
+
+# If PS spectrum is fixed only the normalization, otherwise C, index
 for i, ps in enumerate(ps_list):
     if fix_ps[i]:
-        parameter_bounds.append(ps_fixed_bound)
+        parameter_bounds['norm_point_source-{}'.format(ps)] = {
+            'bounds': bounds_dict['ps_fixed_bound'][0],
+            'gaussian_parameter': gaussian_dict['ps_fixed_bound'][0]
+        }
     else:
-        parameter_bounds.append(ps_free_bound)
+        parameter_bounds['ps_{}_spectrum_fitted_C'.format(ps)] = {
+            'bounds': bounds_dict['ps_free_bound'][0],
+            'gaussian_parameter': gaussian_dict['ps_free_bound'][0]
+        }
+        parameter_bounds['ps_{}_spectrum_fitted_index'.format(ps)] = {
+            'bounds': bounds_dict['ps_free_bound'][1],
+            'gaussian_parameter': gaussian_dict['ps_free_bound'][1]
+        }
 
-parameter_bounds.append(earth_bound)
-parameter_bounds.append(cgb_bound)
+# If earth spectrum is fixed only the normalization, otherwise C, index1, index2 and E_break
+if fix_earth:
+    parameter_bounds['norm_earth_albedo'] = {
+        'bounds': bounds_dict['earth_fixed_bound'][0],
+        'gaussian_parameter': gaussian_dict['earth_fixed_bound'][0]
+    }
+else:
+    parameter_bounds['earth_albedo_spectrum_fitted_C'] = {
+        'bounds': bounds_dict['earth_free_bound'][0],
+        'gaussian_parameter': gaussian_dict['earth_free_bound'][0]
+    }
+    parameter_bounds['earth_albedo_spectrum_fitted_index1'] = {
+        'bounds': bounds_dict['earth_free_bound'][1],
+        'gaussian_parameter': gaussian_dict['earth_free_bound'][1]
+    }
+    parameter_bounds['earth_albedo_spectrum_fitted_index2'] = {
+        'bounds': bounds_dict['earth_free_bound'][2],
+        'gaussian_parameter': gaussian_dict['earth_free_bound'][2]
+    }
+    parameter_bounds['earth_albedo_spectrum_fitted_break_energy'] = {
+        'bounds': bounds_dict['earth_free_bound'][3],
+        'gaussian_parameter': gaussian_dict['earth_free_bound'][3]
+    }
 
-# Concatenate this
-parameter_bounds = np.concatenate(parameter_bounds)
+# If cgb spectrum is fixed only the normalization, otherwise C, index1, index2 and E_break
+if fix_cgb:
+    parameter_bounds['norm_cgb'] = {
+        'bounds': bounds_dict['cgb_fixed_bound'][0],
+        'gaussian_parameter': gaussian_dict['cgb_fixed_bound'][0]
+    }
+else:
+    parameter_bounds['CGB_spectrum_fitted_C'] = {
+        'bounds': bounds_dict['cgb_free_bound'][0],
+        'gaussian_parameter': gaussian_dict['cgb_free_bound'][0]
+    }
+    parameter_bounds['CGB_spectrum_fitted_index1'] = {
+        'bounds': bounds_dict['cgb_free_bound'][1],
+        'gaussian_parameter': gaussian_dict['cgb_free_bound'][1]
+    }
+    parameter_bounds['CGB_spectrum_fitted_index2'] = {
+        'bounds': bounds_dict['cgb_free_bound'][2],
+        'gaussian_parameter': gaussian_dict['cgb_free_bound'][2]
+    }
+    parameter_bounds['CGB_spectrum_fitted_break_energy'] = {
+        'bounds': bounds_dict['cgb_free_bound'][3],
+        'gaussian_parameter': gaussian_dict['cgb_free_bound'][3]
+    }
 
 # Add bounds to the parameters for multinest
 model.set_parameter_bounds(parameter_bounds)
 
-gaussian_parameter_bounds = []
 
-# Echan individual sources
-for i in echan_list:
-    if use_SAA:
-        for j in range(saa_calc.num_saa):
-            gaussian_parameter_bounds.append(saa_gaussian)
-
-        # If fitting only one day add additional 'SAA' decay to account for leftover excitation
-        if len(date) == 1:
-            gaussian_parameter_bounds.append(saa_gaussian)
-
-    if use_CR:
-        gaussian_parameter_bounds.append(cr_gaussian)
-# Global sources for all echans
-for i, ps in enumerate(ps_list):
-    if fix_ps[i]:
-        gaussian_parameter_bounds.append(ps_fixed_gaussian)
-    else:
-        gaussian_parameter_bounds.append(ps_free_gaussian)
-
-gaussian_parameter_bounds.append(earth_gaussian)
-gaussian_parameter_bounds.append(cgb_gaussian)
-
-# Concatenate this
-gaussian_parameter_bounds = np.concatenate(gaussian_parameter_bounds)
-
-# Add bounds to the parameters for multinest
-model.set_parameter_gaussian(gaussian_parameter_bounds)
 ################################## Backgroundlike Class #################################
 
 # Class that calcualtes the likelihood
@@ -363,7 +410,7 @@ plotter._save_plotting_data(output_dir + 'data_for_plots.hdf5', output_dir, echa
 if custom:
     copyfile(config_custom_path, output_dir + 'used_config.py')
 else:
-    copyfile(config_default + '.py', output_dir + 'used_config.py')
+    copyfile(config_default_path, output_dir + 'used_config.py')
 print_progress('Done')
 # Print the duration of the script
 print('Whole calculation took: {}'.format(datetime.now() - start))
