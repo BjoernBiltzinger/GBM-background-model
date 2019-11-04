@@ -30,7 +30,7 @@ plot_config = {
     'ylabel':           None,
     'dpi':              400,
     'show_legend':      True,
-    'legend_outside':   True,
+    'legend_outside':   False,
 }
 
 component_config = {
@@ -53,30 +53,30 @@ component_config = {
 }
 
 style_config = {
-    'mpl_style':    None,
-    'model':        {'color': 'firebrick',  'alpha': .9},
-    'data':         {'color': 'k',          'alpha': .5},
+    'mpl_style':    'aa.mplstyle',
+    'model':        {'color': 'firebrick',                      'alpha': .9},
+    'data':         {'color': 'k',                              'alpha': .5},
     'sources': {
-        'earth':    {'color': 'navy',       'alpha': .6},
-        'cgb':      {'color': 'magenta',    'alpha': .6},
-        'sun':      {'color': 'gold',       'alpha': .6},
-        'saa':      {'color': 'saddlebrown','alpha': .6},
-        'cr':       {'color': 'magenta',    'alpha': .6},
-        'constant': {'color': 'salmon',     'alpha': .6},
-        'crab':     {'color': 'cyan',       'alpha': .6},
-        'default':  {'color': 'blue',       'alpha': .6},
-        'global':   {'cmap':  'viridis',    'alpha': .6},
-        'use_global': True,
+        'cr':       {'color': [0.267004, 0.004874, 0.329415],   'alpha': .6},
+        'earth':    {'color': [0.267968, 0.223549, 0.512008],   'alpha': .6},
+        'cgb':      {'color': [0.190631, 0.407061, 0.556089],   'alpha': .6},
+        'constant': {'color': [0.127568, 0.566949, 0.550556],   'alpha': .6},
+        'saa':      {'color': [0.20803,  0.718701, 0.472873],   'alpha': .6},
+        'crab':     {'color': [0.565498, 0.84243,  0.262877],   'alpha': .6},
+        'sun':      {'color': [0.993248, 0.906157, 0.143936],   'alpha': .6},
+        'default':  {'color': 'blue',                           'alpha': .6},
+        'global':   {'cmap':  'viridis',                        'alpha': .6},
+        'use_global': False,
     },
 
     'ppc': {
         'color':    ['lightgreen', 'green', 'darkgreen'],
         'alpha':    0.6
     },
-    'leged_kwargs': {
+    'legend_kwargs': {
         'loc': 'center left',
-        'bbox_to_anchor': (0, -0.6),
-        'ncol': 3
+        'bbox_to_anchor': (-0.2, -0.6),
+        'ncol': 2
     }
 }
 
