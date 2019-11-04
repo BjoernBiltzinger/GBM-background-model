@@ -219,48 +219,56 @@ class ResultPlotGenerator(object):
             if 'L-parameter' in key:
                 label = 'Cosmic Rays'
                 color_key = 'cr'
+                sort_idx = 0
                 if not self.show_all_sources and not self.show_cr:
-                    continue
-
-            elif 'CGB' in key:
-                label = 'Cosmic Gamma-Ray Background'
-                color_key = 'cgb'
-                if not self.show_all_sources and not self.show_cgb:
                     continue
 
             elif 'Earth' in key:
                 label = 'Earth Albedo'
                 color_key = 'earth'
+                sort_idx = 1
                 if not self.show_all_sources and not self.show_earth:
+                    continue
+
+            elif 'CGB' in key:
+                label = 'Cosmic Gamma-Ray Background'
+                color_key = 'cgb'
+                sort_idx = 2
+                if not self.show_all_sources and not self.show_cgb:
                     continue
 
             elif 'Constant' in key:
                 label = 'Constant'
                 color_key = 'constant'
+                sort_idx = 3
                 if not self.show_all_sources and not self.show_constant:
+                    continue
+
+            elif 'SAA_decays' in key:
+                label = 'SAA Exits'
+                color_key = 'saa'
+                sort_idx = 4
+                if not self.show_all_sources and not self.show_saa:
                     continue
 
             elif 'CRAB' in key:
                 label = 'Crab'
                 color_key = 'crab'
+                sort_idx = 5
                 if not self.show_all_sources and not self.show_crab:
                     continue
 
             elif 'sun' in key:
                 label = 'Sun'
                 color_key = 'sun'
+                sort_idx = 6
                 if not self.show_all_sources and not self.show_sun:
-                    continue
-
-            elif 'SAA_decays' in key:
-                label = 'SAA Exits'
-                color_key = 'saa'
-                if not self.show_all_sources and not self.show_saa:
                     continue
 
             else:
                 label = key
                 color_key = 'default'
+                sort_idx = i + len(self._sources.keys())
                 if not self.show_all_sources:
                     continue
 
@@ -271,7 +279,10 @@ class ResultPlotGenerator(object):
                 'label': label,
                 'color': self.source_colors[color_key]['color'] if not self.source_colors['use_global'] else None,
                 'alpha': self.source_colors[color_key]['alpha'] if not self.source_colors['use_global'] else None,
+                'sort_idx': sort_idx
             })
+
+        source_list = sorted(source_list, key=lambda src: src['sort_idx'])
 
         if self.source_colors['use_global']:
             cmap = plt.get_cmap(self.source_colors['global']['cmap'])
@@ -315,9 +326,9 @@ class ResultPlotGenerator(object):
 
         xticks = []
         xtick_labels = []
-        for xstep in range(int(self.xlim[0] / 3600), int(self.xlim[1] / 3600), 4):
+        for xstep in range(int(self.xlim[0] / 3600), int(self.xlim[1]+500 / 3600) + 1, 4):
             xticks.append(xstep * 3600)
-            xtick_labels.append('%sh' % xstep)
+            xtick_labels.append('%s' % xstep)
 
         p_bar.increase()
 
