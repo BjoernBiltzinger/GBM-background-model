@@ -230,18 +230,16 @@ class ResidualPlot(object):
         # if we want to show the data
 
         if show_data:
-            self._data_axis.errorbar(x,
-                                     y,
-                                     yerr=yerr,
-                                     xerr=xerr,
-                                     fmt='.',
-                                     markersize=marker_size,
-                                     linestyle='',
-                                     elinewidth=1,
-                                     alpha=alpha,
-                                     capsize=0,
-                                     label=label,
-                                     color=color)
+            self._data_axis.scatter(x,
+                                    y,
+                                    s=marker_size,
+                                    linewidths=marker_size / 3,
+                                    facecolors='none',
+                                    edgecolors=color,
+                                    markersize=marker_size,
+                                    alpha=alpha,
+                                    capsize=0,
+                                    label=label)
 
         # if we want to show the residuals
 
@@ -359,7 +357,8 @@ class ResidualPlot(object):
         # self._data_axis.set_ylim((0,3*total_mean_rate))
         # self._data_axis.set_xlim((70000, 80000))
 
-    def finalize(self, xlabel='x', ylabel='y', xscale='log', yscale='log', show_legend=True, invert_y=False, xlim=None, ylim=None, legend_outside=False):
+    def finalize(self, xlabel='x', ylabel='y', xscale='log', yscale='log', xticks=None, xtick_labels=None, show_legend=True,
+                 invert_y=False, xlim=None, ylim=None, legend_outside=False, legend_kwargs=None):
         """
         :param xlabel:
         :param ylabel:
@@ -383,6 +382,11 @@ class ResidualPlot(object):
 
             self._data_axis.set_yscale(yscale)
 
+        if xticks is not None:
+            assert len(xticks) == len(xtick_labels)
+            self._data_axis.set_xticks(xticks)
+            self._data_axis.set_xticklabels(xtick_labels)
+
         if self._show_residuals:
 
             self._residual_axis.set_xscale(xscale)
@@ -397,7 +401,6 @@ class ResidualPlot(object):
                 self._residual_axis.set_ylabel("Residuals\n(fraction of model)")
             else:
                 self._residual_axis.set_ylabel("Residuals\n($\sigma$)")
-
 
         else:
 
@@ -414,14 +417,19 @@ class ResidualPlot(object):
 
         if invert_y:
             self._data_axis.set_ylim(self._data_axis.get_ylim()[::-1])
-        if xlim != None:
+        if xlim is not None:
             self._data_axis.set_xlim(xlim)
-        if ylim != None:
+        if ylim is not None:
             self._data_axis.set_ylim(ylim)
+
         if legend_outside:
             box = self._data_axis.get_position()
             self._data_axis.set_position([box.x0, box.y0, box.width * 0.8, box.height])
             self._data_axis.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+
+        if legend_kwargs is not None:
+            self._data_axis.legend(**legend_kwargs)
+
         # self._data_axis.set_yscale('log')
         # self._data_axis.set_ylim(bottom=1)
         return self._fig

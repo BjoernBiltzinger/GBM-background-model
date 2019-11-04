@@ -52,6 +52,7 @@ class ResultPlotGenerator(object):
         self.source_colors =    style_config['sources']
         self.ppc_colors =       style_config['ppc']
         self.data_color =       style_config['data']
+        self.legend_kwargs =    style_config.get('legend_kwargs', None)
 
         if style_config['mpl_style'] is not None:
             plt.style.use(style_config['mpl_style'])
@@ -159,7 +160,7 @@ class ResultPlotGenerator(object):
         if self.change_time and which_day is not None:
             assert which_day < len(self._dates), 'Use a valid date...'
             self._time_ref = self._day_start_times[which_day]
-            time_frame = 'Time since midnight [s]'
+            time_frame = 'Time since midnight [h]'
         else:
             self._time_ref = 0
             time_frame = 'MET [s]'
@@ -312,6 +313,12 @@ class ResultPlotGenerator(object):
             self.xlim = xlim if self.xlim is None else self.xlim
             self.ylim = ylim if self.ylim is None else self.ylim
 
+        xticks = []
+        xtick_labels = []
+        for xstep in range(int(self.xlim[0] / 3600), int(self.xlim[1] / 3600), 4):
+            xticks.append(xstep * 3600)
+            xtick_labels.append('%sh' % xstep)
+
         p_bar.increase()
 
         xlabel = "{}".format(time_frame) if self.xlabel is None else self.xlabel
@@ -321,10 +328,13 @@ class ResultPlotGenerator(object):
                                             ylabel=ylabel,
                                             xscale=self.xscale,
                                             yscale=self.yscale,
+                                            xticks=xticks,
+                                            xtick_labels=xtick_labels,
                                             show_legend=self.show_legend,
                                             xlim=self.xlim,
                                             ylim=self.ylim,
-                                            legend_outside=self.legend_outside)
+                                            legend_outside=self.legend_outside,
+                                            legend_kwargs=self.legend_kwargs)
 
         p_bar.increase()
 
