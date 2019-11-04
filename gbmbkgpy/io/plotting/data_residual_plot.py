@@ -214,7 +214,7 @@ class ResidualPlot(object):
             alpha = source.get('alpha', .6)
             self._data_axis.plot(x, source['data'], color=source['color'], label=source['label'], alpha=alpha, zorder=18)
 
-    def add_data(self, x, y, residuals, label, xerr=None, yerr=None, residual_yerr=None, color='r', alpha=.9,  show_data=True, marker_size=3):
+    def add_data(self, x, y, residuals, label, xerr=None, yerr=None, residual_yerr=None, color='r', alpha=.9,  show_data=True, marker_size=3, line_width=1):
         """
         Add the data for the this model
         :param x: energy of the data
@@ -233,7 +233,7 @@ class ResidualPlot(object):
             self._data_axis.scatter(x,
                                     y,
                                     s=marker_size,
-                                    linewidths=marker_size / 3,
+                                    linewidths=line_width,
                                     facecolors='none',
                                     edgecolors=color,
                                     alpha=alpha,

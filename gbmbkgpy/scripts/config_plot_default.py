@@ -55,7 +55,7 @@ component_config = {
 style_config = {
     'mpl_style':    'aa.mplstyle',
     'model':        {'color': 'firebrick',                      'alpha': .9},
-    'data':         {'color': 'k',                              'alpha': .3},
+    'data':         {'color': 'k',                              'alpha': .3, 'marker_size': 1, 'line_width': 0.1},
     'sources': {
         'cr':       {'color': [0.267004, 0.004874, 0.329415],   'alpha': .6},
         'earth':    {'color': [0.267968, 0.223549, 0.512008],   'alpha': .6},

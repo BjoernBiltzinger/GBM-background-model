@@ -200,7 +200,9 @@ class ResultPlotGenerator(object):
                                label='Observed Count Rates',
                                color=self.data_color['color'],
                                alpha=self.data_color['alpha'],
-                               show_data=self.show_data, marker_size=1.5)
+                               show_data=self.show_data,
+                               marker_size=self.data_color['marker_size'],
+                               line_width=self.data_color['line_width'])
 
         p_bar.increase()
 
