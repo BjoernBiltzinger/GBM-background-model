@@ -109,13 +109,13 @@ class ResultPlotGenerator(object):
                         echan = key.split(' ')[1]
                         time_bins_start = np.array(f[key]['time_bins_start'])
                         time_bins_stop = np.array(f[key]['time_bins_stop'])
-                        self._model_counts = np.array(f[key]['total_model_counts'])
-                        self._observed_counts = np.where(self._saa_mask, np.array(f[key]['observed_counts']), 0)
+                        self._model_counts = self._set_saa_zero(np.array(f[key]['total_model_counts']))
+                        self._observed_counts = self._set_saa_zero(np.array(f[key]['observed_counts']))
                         self._ppc_counts = np.array(f[key]['PPC'])
 
                         self._sources = {}
                         for key_inter in f[key]['Sources']:
-                            self._sources[key_inter] = np.array(f[key]['Sources'][key_inter])
+                            self._sources[key_inter] = self._set_saa_zero(np.array(f[key]['Sources'][key_inter]))
                         self._total_time_bins = np.vstack((time_bins_start, time_bins_stop)).T
                         time_stamp = datetime.now().strftime('%y%m%d_%H%M')
 
@@ -128,6 +128,10 @@ class ResultPlotGenerator(object):
                                 p_bar=p
                             )
         print('Success!')
+
+    def _set_saa_zero(self, vector):
+        vector[np.where(~self._saa_mask)] = 0.
+        return vector
 
     def _create_model_plots(self,
                             p_bar,
@@ -191,7 +195,7 @@ class ResultPlotGenerator(object):
 
         p_bar.increase()
 
-        residual_plot.add_data(np.mean(self._rebinned_time_bins, axis=1),
+        residual_plot.add_data(self._rebinned_time_bin_mean,
                                self._rebinned_observed_counts / self._rebinned_time_bin_widths,
                                self._residuals,
                                residual_yerr=residual_errors,
@@ -302,7 +306,7 @@ class ResultPlotGenerator(object):
         if self.show_ppc:
             rebinned_ppc_rates = []
             for j, ppc in enumerate(self._ppc_counts):
-                self._ppc_counts[j][np.where(~self._saa_mask)] = 0.
+                self._set_saa_zero(self._ppc_counts[j])
                 rebinned_ppc_rates.append(this_rebinner.rebin(self._ppc_counts[j][2:-2]) / self._rebinned_time_bin_widths)
                 p_bar.increase()
             rebinned_ppc_rates = np.array(rebinned_ppc_rates)
