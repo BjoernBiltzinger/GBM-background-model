@@ -173,7 +173,7 @@ class ResultPlotGenerator(object):
 
         residual_plot = ResidualPlot(show_residuals=self.show_residuals, **kwargs)
 
-        this_rebinner = Rebinner((self._total_time_bins - self._time_ref), self.bin_width)
+        this_rebinner = Rebinner((self._total_time_bins - self._time_ref), self.bin_width, self._saa_mask)
 
         self._rebinned_observed_counts, = this_rebinner.rebin(self._observed_counts)
 

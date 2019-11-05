@@ -81,6 +81,10 @@ class Rebinner(object):
 
                     bin_open = False
 
+                    # Add next bin to SAA idx if it is in SAA
+                    if not mask[stop_index]:
+                        self._saa_idx.append(len(self._stops) - 1)
+
         # At the end of the loop, see if we left a bin open, if we did, close it
         if bin_open:
             self._stops.append(len(vector_to_rebin_on) - 1)
