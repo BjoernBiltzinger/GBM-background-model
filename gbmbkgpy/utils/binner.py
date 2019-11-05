@@ -154,10 +154,12 @@ class Rebinner(object):
             if abs((np.sum(rebinned_vector) + 1e-100) / (np.sum(vector_a[self._mask]) + 1e-100) - 1) > 1e-4:
                 print ("The sum of rebinned counts is not equal to the sum of unbinned counts!!!")
 
+            rebinned_vector = np.array(rebinned_vector)
+
             # Set last bin before and first bin after SAA to zero for plotting (this gets rid of glitches when plotting count-rates)
             rebinned_vector[np.where(~self._rebinned_saa_mask)] = 0.
 
-            rebinned_vectors.append(np.array(rebinned_vector))
+            rebinned_vectors.append(rebinned_vector)
 
         return rebinned_vectors
 
