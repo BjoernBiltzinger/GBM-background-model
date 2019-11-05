@@ -27,6 +27,8 @@ class ResultPlotGenerator(object):
         self.ylabel =           plot_config.get('ylabel', None)
         self.dpi =              plot_config.get('dpi', 400)
         self.show_legend =      plot_config.get('show_legend', True)
+        self.show_title =       plot_config.get('show_title', True)
+        self.axis_title =       plot_config.get('axis_title', None)
         self.legend_outside =   plot_config.get('legend_outside', True)
 
         # Import component settings
@@ -80,22 +82,27 @@ class ResultPlotGenerator(object):
                                         time_format=occ_region.get('time_format', 'UTC'),
                                         color=occ_region.get('color', 'grey'))
 
-        self._dates = None
+        self._det =             None
+        self._dates =           None
         self._day_start_times = None
-        self._day_stop_times = None
-        self._saa_mask = None
-        self._model_counts = None
+        self._day_stop_times =  None
+        self._saa_mask =        None
+        self._model_counts =    None
         self._observed_counts = None
-        self._ppc_counts = None
-        self._sources = None
+        self._ppc_counts =      None
+        self._sources =         None
         self._total_time_bins = None
+        self._echan =           None
+        self._time_bins_start = None
+        self._time_bins_stop =  None
+        self._time_stamp =      None
 
     def create_plots(self):
         print('Load data and start plotting')
 
         with h5py.File(self.data_path, 'r') as f:
             keys = f.keys()
-            det = np.array(f['general']['Detector'])
+            self._det = np.array(f['general']['Detector'])
             self._dates = np.array(f['general']['Dates'])
             self._day_start_times = np.array(f['general']['day_start_times'])
             self._day_stop_times = np.array(f['general']['day_stop_times'])
@@ -106,9 +113,9 @@ class ResultPlotGenerator(object):
                     if key == 'general':
                         pass
                     else:
-                        echan = key.split(' ')[1]
-                        time_bins_start = np.array(f[key]['time_bins_start'])
-                        time_bins_stop = np.array(f[key]['time_bins_stop'])
+                        self._echan = key.split(' ')[1]
+                        self._time_bins_start = np.array(f[key]['time_bins_start'])
+                        self._time_bins_stop = np.array(f[key]['time_bins_stop'])
                         self._model_counts = self._set_saa_zero(np.array(f[key]['total_model_counts']))
                         self._observed_counts = self._set_saa_zero(np.array(f[key]['observed_counts']))
                         self._ppc_counts = np.array(f[key]['PPC'])
@@ -116,15 +123,15 @@ class ResultPlotGenerator(object):
                         self._sources = {}
                         for key_inter in f[key]['Sources']:
                             self._sources[key_inter] = self._set_saa_zero(np.array(f[key]['Sources'][key_inter]))
-                        self._total_time_bins = np.vstack((time_bins_start, time_bins_stop)).T
-                        time_stamp = datetime.now().strftime('%y%m%d_%H%M')
+                        self._total_time_bins = np.vstack((self._time_bins_start, self._time_bins_stop)).T
+                        self._time_stamp = datetime.now().strftime('%y%m%d_%H%M')
 
                         total_steps = 12 if self.show_ppc is False else 12 + len(self._ppc_counts)
 
                         with progress_bar(total_steps, title='Create Result plot') as p:
                             self._create_model_plots(
                                 which_day=i,
-                                savepath='{}/plot_date_{}_det_{}_echan_{}__{}.pdf'.format(self.save_path_basis, day, det, echan, time_stamp),
+                                savepath='{}/plot_date_{}_det_{}_echan_{}__{}.pdf'.format(self.save_path_basis, day, self._det, self._echan, self._time_stamp),
                                 p_bar=p
                             )
         print('Success!')
@@ -335,7 +342,7 @@ class ResultPlotGenerator(object):
 
         xticks = []
         xtick_labels = []
-        for xstep in range(int(self.xlim[0] / 3600), int((self.xlim[1]+500) / 3600) + 1, 4):
+        for xstep in range(int(self.xlim[0] / 3600), int((self.xlim[1] + 500) / 3600) + 1, 4):
             xticks.append(xstep * 3600)
             xtick_labels.append('%s' % xstep)
 
@@ -343,6 +350,10 @@ class ResultPlotGenerator(object):
 
         xlabel = "{}".format(time_frame) if self.xlabel is None else self.xlabel
         ylabel = "Count Rate [counts s$^{-1}$]" if self.ylabel is None else self.ylabel
+
+        axis_title = "Background fit det: {} date: {} energy: {}".format(self._det,
+                                                                         self._dates[which_day],
+                                                                         self._get_echan_str(self._echan)) if self.axis_title is None else self.axis_title
 
         final_plot = residual_plot.finalize(xlabel=xlabel,
                                             ylabel=ylabel,
@@ -354,7 +365,9 @@ class ResultPlotGenerator(object):
                                             xlim=self.xlim,
                                             ylim=self.ylim,
                                             legend_outside=self.legend_outside,
-                                            legend_kwargs=self.legend_kwargs)
+                                            legend_kwargs=self.legend_kwargs,
+                                            axis_title=axis_title,
+                                            show_title=self.show_title)
 
         p_bar.increase()
 
@@ -457,3 +470,18 @@ class ResultPlotGenerator(object):
         ylim = (0, high_lim)
 
         return xlim, ylim
+
+    def _get_echan_str(self, echan):
+        # TODO: Add information for CSPEC
+        echan_dict = {
+            0: '4 keV - 12 keV',
+            1: '12 keV - 27 keV',
+            2: '27 keV - 50 keV',
+            3: '50 keV - 102 keV',
+            4: '102 keV - 295 keV',
+            5: '295 keV - 540 keV',
+            6: '540 keV - 985 keV',
+            7: '985 keV - 2 MeV',
+        }
+
+        return echan_dict[echan]
