@@ -8,7 +8,7 @@ from gbmbkgpy.io.plotting.plot_result import ResultPlotGenerator
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('-c', type=str, help='Path of the config file')
+    parser.add_argument('-c', '--config', type=str, help='Path of the config file')
     parser.add_argument('--data_path', type=str, help='Path of the data file')
     args = parser.parse_args()
 
@@ -16,9 +16,16 @@ if __name__ == '__main__':
     component_config = {}
     style_config = {}
     highlight_config = {}
-    config_dir_path = os.path.dirname(args.c)
+
+    if args.c is not None:
+        config_path = args.c
+    else:
+        config_path = 'config_plot_default'
+
+    config_dir_path = os.path.dirname(config_path)
+
     sys.path.append(config_dir_path)
-    module = __import__(args.c, globals(), locals(), ['*'])
+    module = __import__(config_path, globals(), locals(), ['*'])
     for k in dir(module):
         locals()[k] = getattr(module, k)
 
