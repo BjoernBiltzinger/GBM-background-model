@@ -367,16 +367,16 @@ class ResidualPlot(object):
         :return:
         """
 
-        if show_legend:
-            self._data_axis.legend(fontsize='x-small', loc=0)
+        if show_legend and legend_kwargs is not None:
+            self._data_axis.legend(**legend_kwargs)
 
-        elif show_legend and legend_outside and legend_kwargs is None:
+        elif show_legend and legend_outside:
             box = self._data_axis.get_position()
             self._data_axis.set_position([box.x0, box.y0, box.width * 0.8, box.height])
             self._data_axis.legend(loc='center left', bbox_to_anchor=(1, 0.5))
 
-        elif show_legend and legend_kwargs is not None:
-            self._data_axis.legend(**legend_kwargs)
+        elif show_legend:
+            self._data_axis.legend(fontsize='x-small', loc=0)
 
         self._data_axis.set_ylabel(ylabel)
 
