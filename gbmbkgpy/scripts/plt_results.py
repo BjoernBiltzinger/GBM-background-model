@@ -17,8 +17,8 @@ if __name__ == '__main__':
     style_config = {}
     highlight_config = {}
 
-    if args.c is not None:
-        config_path = args.c
+    if args.config is not None:
+        config_path = args.config
     else:
         config_path = 'config_plot_default'
 
