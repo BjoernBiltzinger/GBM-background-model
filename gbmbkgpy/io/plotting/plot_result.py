@@ -206,7 +206,7 @@ class ResultPlotGenerator(object):
                                alpha=self.data_color['alpha'],
                                show_data=self.show_data,
                                marker_size=self.data_color['marker_size'],
-                               line_width=self.data_color['line_width'])
+                               linewidth=self.data_color['linewidth'])
 
         p_bar.increase()
 
@@ -215,7 +215,8 @@ class ResultPlotGenerator(object):
                                     self._rebinned_model_counts / self._rebinned_time_bin_widths,
                                     label='Best Fit',
                                     color=self.model_color['color'],
-                                    alpha=self.model_color['alpha']
+                                    alpha=self.model_color['alpha'],
+                                    linewidth=self.model_color['linewidth'],
                                     )
 
         p_bar.increase()
@@ -285,6 +286,7 @@ class ResultPlotGenerator(object):
                 'label': label,
                 'color': self.source_colors[color_key]['color'] if not self.source_colors['use_global'] else None,
                 'alpha': self.source_colors[color_key]['alpha'] if not self.source_colors['use_global'] else None,
+                'linewidth': self.source_colors[color_key]['linewidth'] if not self.source_colors['linewidth'] else None,
                 'sort_idx': sort_idx
             })
 
@@ -297,6 +299,7 @@ class ResultPlotGenerator(object):
             for i, source in enumerate(source_list):
                 source['color'] = colors[i]
                 source['alpha'] = self.source_colors['global']['alpha']
+                source['linewidth'] = self.source_colors['global']['linewidth']
 
         if len(source_list) > 0:
             residual_plot.add_list_of_sources(self._rebinned_time_bin_mean, source_list)

@@ -177,7 +177,7 @@ class ResidualPlot(object):
                                     xmax=value['met'][1] - time_ref,
                                     color=value['color'], alpha=0.1, label=key)
 
-    def add_model(self, x, y, label, color, alpha=.6):
+    def add_model(self, x, y, label, color, alpha=.6, linewidth=2):
         """
         Add a model and interpolate it across the time span for the plotting.
         :param alpha:
@@ -187,7 +187,7 @@ class ResidualPlot(object):
         :param color: the color of the model
         :return: None
         """
-        self._data_axis.plot(x, y, label=label, color=color, alpha=alpha, zorder=20)
+        self._data_axis.plot(x, y, label=label, color=color, alpha=alpha, zorder=20, linewidth=linewidth)
 
     def add_posteriour(self, x, y, color='grey', alpha=0.002):
         """
@@ -212,9 +212,10 @@ class ResidualPlot(object):
          """
         for i, source in enumerate(source_list):
             alpha = source.get('alpha', .6)
-            self._data_axis.plot(x, source['data'], color=source['color'], label=source['label'], alpha=alpha, zorder=18)
+            linewidth = source.get('linewidth', 2)
+            self._data_axis.plot(x, source['data'], color=source['color'], label=source['label'], alpha=alpha, zorder=18, linewidth=linewidth)
 
-    def add_data(self, x, y, residuals, label, xerr=None, yerr=None, residual_yerr=None, color='r', alpha=.9,  show_data=True, marker_size=3, line_width=1):
+    def add_data(self, x, y, residuals, label, xerr=None, yerr=None, residual_yerr=None, color='r', alpha=.9,  show_data=True, marker_size=3, linewidth=1):
         """
         Add the data for the this model
         :param x: energy of the data
@@ -233,7 +234,7 @@ class ResidualPlot(object):
             self._data_axis.scatter(x,
                                     y,
                                     s=marker_size,
-                                    linewidths=line_width,
+                                    linewidths=linewidth,
                                     facecolors='none',
                                     edgecolors=color,
                                     alpha=alpha,
