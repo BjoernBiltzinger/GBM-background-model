@@ -286,7 +286,7 @@ class ResultPlotGenerator(object):
                 'label': label,
                 'color': self.source_colors[color_key]['color'] if not self.source_colors['use_global'] else None,
                 'alpha': self.source_colors[color_key]['alpha'] if not self.source_colors['use_global'] else None,
-                'linewidth': self.source_colors[color_key]['linewidth'] if not self.source_colors['linewidth'] else None,
+                'linewidth': self.source_colors[color_key]['linewidth'] if not self.source_colors['use_global'] else None,
                 'sort_idx': sort_idx
             })
 
