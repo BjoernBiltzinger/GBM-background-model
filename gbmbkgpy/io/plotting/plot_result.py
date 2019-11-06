@@ -228,7 +228,7 @@ class ResultPlotGenerator(object):
 
         p_bar.increase()
 
-        source_list = []
+        src_list = []
         for i, key in enumerate(self._sources.keys()):
             if 'L-parameter' in key:
                 label = 'Cosmic Rays'
@@ -288,7 +288,7 @@ class ResultPlotGenerator(object):
 
             rebinned_source_counts = this_rebinner.rebin(self._sources[key])[0]
 
-            source_list.append({
+            src_list.append({
                 'data': rebinned_source_counts / self._rebinned_time_bin_widths,
                 'label': label,
                 'color': self.source_colors[color_key]['color'] if not self.source_colors['use_global'] else None,
@@ -297,19 +297,19 @@ class ResultPlotGenerator(object):
                 'sort_idx': sort_idx
             })
 
-        source_list = sorted(source_list, key=lambda src: src['sort_idx'])
+        self._source_list = sorted(src_list, key=lambda src: src['sort_idx'])
 
         if self.source_colors['use_global']:
             cmap = plt.get_cmap(self.source_colors['global']['cmap'])
-            colors = cmap(np.linspace(0, 1, len(source_list)))
+            colors = cmap(np.linspace(0, 1, len(self._source_list)))
 
-            for i, source in enumerate(source_list):
+            for i, source in enumerate(self._source_list):
                 source['color'] = colors[i]
                 source['alpha'] = self.source_colors['global']['alpha']
                 source['linewidth'] = self.source_colors['global']['linewidth']
 
-        if len(source_list) > 0:
-            residual_plot.add_list_of_sources(self._rebinned_time_bin_mean, source_list)
+        if len(self._source_list) > 0:
+            residual_plot.add_list_of_sources(self._rebinned_time_bin_mean, self._source_list)
 
         p_bar.increase()
 
@@ -465,8 +465,17 @@ class ResultPlotGenerator(object):
         time_bins_intervals.append((start, time_bins_masked2[-1, 0]))
         xlim = time_bins_intervals[0]
 
-        obs_rates_masked2 = obs_counts_masked[zero_counts_mask] / np.diff(time_bins_masked2, axis=1)[0]
-        high_lim = 1.5 * np.percentile(obs_rates_masked2, 99)
+        if self.show_data or self.show_model:
+            obs_rates_masked2 = obs_counts_masked[zero_counts_mask] / np.diff(time_bins_masked2, axis=1)[0]
+            high_lim = 1.5 * np.percentile(obs_rates_masked2, 99)
+        else:
+            high_lim = 0.
+            for source in self._source_list:
+                source_rates_masked = source['data'][zero_counts_mask]
+                h_lim = 1.5 * np.percentile(source_rates_masked, 99)
+
+                high_lim = h_lim if h_lim > high_lim else high_lim
+
         ylim = (0, high_lim)
 
         return xlim, ylim
@@ -474,14 +483,14 @@ class ResultPlotGenerator(object):
     def _get_echan_str(self, echan):
         # TODO: Add information for CSPEC
         echan_dict = {
-            0: '4 keV - 12 keV',
-            1: '12 keV - 27 keV',
-            2: '27 keV - 50 keV',
-            3: '50 keV - 102 keV',
-            4: '102 keV - 295 keV',
-            5: '295 keV - 540 keV',
-            6: '540 keV - 985 keV',
-            7: '985 keV - 2 MeV',
+            '0': '4 keV - 12 keV',
+            '1': '12 keV - 27 keV',
+            '2': '27 keV - 50 keV',
+            '3': '50 keV - 102 keV',
+            '4': '102 keV - 295 keV',
+            '5': '295 keV - 540 keV',
+            '6': '540 keV - 985 keV',
+            '7': '985 keV - 2 MeV',
         }
 
-        return echan_dict[echan]
+        return echan_dict[str(echan)]
