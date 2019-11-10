@@ -50,10 +50,10 @@ class ResultPlotGenerator(object):
         self.show_grb_trigger = component_config.get('show_grb_trigger', False)
 
         # Import style settings
-        self.model_color =      style_config['model']
-        self.source_colors =    style_config['sources']
-        self.ppc_colors =       style_config['ppc']
-        self.data_color =       style_config['data']
+        self.model_styles =      style_config['model']
+        self.source_styles =    style_config['sources']
+        self.ppc_styles =       style_config['ppc']
+        self.data_styles =       style_config['data']
         self.legend_kwargs =    style_config.get('legend_kwargs', None)
 
         if style_config['mpl_style'] is not None:
@@ -210,23 +210,23 @@ class ResultPlotGenerator(object):
                                residual_yerr=residual_errors,
                                yerr=None,
                                xerr=None,
-                               label='Obs. Count Rates',
-                               color=self.data_color.get('color', 'black'),
-                               alpha=self.data_color.get('alpha', 0.6),
+                               label='Obs. Count Rates' if self.data_styles.get('show_label', True) else None,
+                               color=self.data_styles.get('color', 'black'),
+                               alpha=self.data_styles.get('alpha', 0.6),
                                show_data=self.show_data,
-                               marker_size=self.data_color.get('marker_size', 0.5),
-                               linewidth=self.data_color.get('linewidth', 0.2),
-                               elinewidth=self.data_color.get('elinewidth', 0.5)
+                               marker_size=self.data_styles.get('marker_size', 0.5),
+                               linewidth=self.data_styles.get('linewidth', 0.2),
+                               elinewidth=self.data_styles.get('elinewidth', 0.5)
                                )
         p_bar.increase()
 
         if self.show_model:
             residual_plot.add_model(self._rebinned_time_bin_mean,
                                     self._rebinned_model_counts / self._rebinned_time_bin_widths,
-                                    label='Best Fit',
-                                    color=self.model_color.get('color', 'red'),
-                                    alpha=self.model_color.get('alpha', 0.9),
-                                    linewidth=self.model_color.get('linewidth', 0.8),
+                                    label='Best Fit' if self.model_styles.get('show_label', True) else None,
+                                    color=self.model_styles.get('color', 'red'),
+                                    alpha=self.model_styles.get('alpha', 0.9),
+                                    linewidth=self.model_styles.get('linewidth', 0.8),
                                     )
 
         p_bar.increase()
@@ -235,56 +235,56 @@ class ResultPlotGenerator(object):
         for i, key in enumerate(self._sources.keys()):
             if 'L-parameter' in key:
                 label = 'Cosmic Rays'
-                color_key = 'cr'
+                style_key = 'cr'
                 sort_idx = 0
                 if not self.show_all_sources and not self.show_cr:
                     continue
 
             elif 'Earth' in key:
                 label = 'Earth Albedo'
-                color_key = 'earth'
+                style_key = 'earth'
                 sort_idx = 1
                 if not self.show_all_sources and not self.show_earth:
                     continue
 
             elif 'CGB' in key:
                 label = 'CGB'
-                color_key = 'cgb'
+                style_key = 'cgb'
                 sort_idx = 2
                 if not self.show_all_sources and not self.show_cgb:
                     continue
 
             elif 'Constant' in key:
                 label = 'Constant'
-                color_key = 'constant'
+                style_key = 'constant'
                 sort_idx = 3
                 if not self.show_all_sources and not self.show_constant:
                     continue
 
             elif 'SAA_decays' in key:
                 label = 'SAA Exits'
-                color_key = 'saa'
+                style_key = 'saa'
                 sort_idx = 4
                 if not self.show_all_sources and not self.show_saa:
                     continue
 
             elif 'CRAB' in key:
                 label = 'Crab'
-                color_key = 'crab'
+                style_key = 'crab'
                 sort_idx = 5
                 if not self.show_all_sources and not self.show_crab:
                     continue
 
             elif 'sun' in key:
                 label = 'Sun'
-                color_key = 'sun'
+                style_key = 'sun'
                 sort_idx = 6
                 if not self.show_all_sources and not self.show_sun:
                     continue
 
             else:
                 label = key
-                color_key = 'default'
+                style_key = 'default'
                 sort_idx = i + len(self._sources.keys())
                 if not self.show_all_sources:
                     continue
@@ -293,23 +293,24 @@ class ResultPlotGenerator(object):
 
             src_list.append({
                 'data': rebinned_source_counts / self._rebinned_time_bin_widths,
-                'label': label,
-                'color': self.source_colors[color_key]['color'] if not self.source_colors['use_global'] else None,
-                'alpha': self.source_colors[color_key]['alpha'] if not self.source_colors['use_global'] else None,
-                'linewidth': self.source_colors[color_key]['linewidth'] if not self.source_colors['use_global'] else None,
+                'label': label if self.source_styles[style_key].get('show_label', True) or self.source_styles['use_global'] else None,
+                'color': self.source_styles[style_key]['color'] if not self.source_styles['use_global'] else None,
+                'alpha': self.source_styles[style_key]['alpha'] if not self.source_styles['use_global'] else None,
+                'linewidth': self.source_styles[style_key]['linewidth'] if not self.source_styles['use_global'] else None,
                 'sort_idx': sort_idx
             })
 
         self._source_list = sorted(src_list, key=lambda src: src['sort_idx'])
 
-        if self.source_colors['use_global']:
-            cmap = plt.get_cmap(self.source_colors['global']['cmap'])
+        if self.source_styles['use_global']:
+            cmap = plt.get_cmap(self.source_styles['global']['cmap'])
             colors = cmap(np.linspace(0, 1, len(self._source_list)))
 
             for i, source in enumerate(self._source_list):
                 source['color'] = colors[i]
-                source['alpha'] = self.source_colors['global']['alpha']
-                source['linewidth'] = self.source_colors['global']['linewidth']
+                source['alpha'] = self.source_styles['global']['alpha']
+                source['linewidth'] = self.source_styles['global']['linewidth']
+                source['label'] = source['label'] if self.source_styles['global']['show_label'] else None
 
         if len(self._source_list) > 0:
             residual_plot.add_list_of_sources(self._rebinned_time_bin_mean, self._source_list)
@@ -327,8 +328,8 @@ class ResultPlotGenerator(object):
             residual_plot.add_ppc(rebinned_ppc_rates=rebinned_ppc_rates,
                                   rebinned_time_bin_mean=self._rebinned_time_bin_mean,
                                   q_levels=[0.68, 0.95, 0.99],
-                                  colors=self.ppc_colors['color'],
-                                  alpha=self.ppc_colors['alpha']
+                                  colors=self.ppc_styles['color'],
+                                  alpha=self.ppc_styles['alpha']
                                   )
 
         # Add vertical lines for grb triggers
