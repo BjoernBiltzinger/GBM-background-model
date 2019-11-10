@@ -162,7 +162,7 @@ class ResidualPlot(object):
         """
 
         for key, value in grb_triggers.iteritems():
-            self._data_axis.axvline(x=value['met'] - time_ref, color=value['color'], alpha=0.3, label=key)
+            self._data_axis.axvline(x=value['met'] - time_ref, color=value.get('color', 'b'), alpha=value.get('alpha', 0.3), label=key)
 
     def add_occ_region(self, occ_region, time_ref):
         """
@@ -175,7 +175,7 @@ class ResidualPlot(object):
         for key, value in occ_region.iteritems():
             self._data_axis.axvspan(xmin=value['met'][0] - time_ref,
                                     xmax=value['met'][1] - time_ref,
-                                    color=value['color'], alpha=0.1, label=key)
+                                    color=value.get('color', 'grey'), alpha=value.get('alpha', 0.1), label=key)
 
     def add_model(self, x, y, label, color, alpha=.6, linewidth=2):
         """
@@ -215,7 +215,7 @@ class ResidualPlot(object):
             linewidth = source.get('linewidth', 2)
             self._data_axis.plot(x, source['data'], color=source['color'], label=source['label'], alpha=alpha, zorder=18, linewidth=linewidth)
 
-    def add_data(self, x, y, residuals, label, xerr=None, yerr=None, residual_yerr=None, color='r', alpha=.9,  show_data=True, marker_size=3, linewidth=1):
+    def add_data(self, x, y, residuals, label, xerr=None, yerr=None, residual_yerr=None, color='r', alpha=.9,  show_data=True, marker_size=3, linewidth=1, elinewidth=1):
         """
         Add the data for the this model
         :param x: energy of the data
@@ -257,9 +257,10 @@ class ResidualPlot(object):
                                          yerr=residual_yerr,
                                          capsize=0,
                                          fmt='.',
-                                         elinewidth=1,
-                                         markersize=3,
-                                         color=color)
+                                         elinewidth=elinewidth,
+                                         markersize=marker_size,
+                                         color=color,
+                                         alpha=alpha)
 
     def add_ppc(self, rebinned_ppc_rates=None, rebinned_time_bin_mean=None, result_dir=None, model=None,
                 plotter=None, time_bins=None, saa_mask=None, echan=None, q_levels=[0.68], colors=['lightgreen'],
