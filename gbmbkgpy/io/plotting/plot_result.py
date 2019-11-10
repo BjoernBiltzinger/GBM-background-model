@@ -72,16 +72,18 @@ class ResultPlotGenerator(object):
                                          trigger_time=grb_trigger['trigger_time'],
                                          time_format='UTC',
                                          time_offset=grb_trigger['time_offset'],
-                                         color=grb_trigger.get('color', 'b'))
-
+                                         color=grb_trigger.get('color', 'b'),
+                                         alpha=grb_trigger.get('alpha', 0.3)
+                                         )
             if highlight_config['occ_region'] is not None:
                 for occ_region in highlight_config['occ_region']:
                     self.add_occ_region(occ_name=occ_region['name'],
                                         time_start=occ_region['time_start'],
                                         time_stop=occ_region['time_stop'],
                                         time_format=occ_region.get('time_format', 'UTC'),
-                                        color=occ_region.get('color', 'grey'))
-
+                                        color=occ_region.get('color', 'grey'),
+                                        alpha=occ_region.get('alpha', 0.1)
+                                        )
         self._det =             None
         self._dates =           None
         self._day_start_times = None
@@ -209,26 +211,27 @@ class ResultPlotGenerator(object):
                                yerr=None,
                                xerr=None,
                                label='Obs. Count Rates',
-                               color=self.data_color['color'],
-                               alpha=self.data_color['alpha'],
+                               color=self.data_color.get('color', 'black'),
+                               alpha=self.data_color.get('alpha', 0.6),
                                show_data=self.show_data,
-                               marker_size=self.data_color['marker_size'],
-                               linewidth=self.data_color['linewidth'])
-
+                               marker_size=self.data_color.get('marker_size', 0.5),
+                               linewidth=self.data_color.get('linewidth', 0.2),
+                               elinewidth=self.data_color.get('elinewidth', 0.5)
+                               )
         p_bar.increase()
 
         if self.show_model:
             residual_plot.add_model(self._rebinned_time_bin_mean,
                                     self._rebinned_model_counts / self._rebinned_time_bin_widths,
                                     label='Best Fit',
-                                    color=self.model_color['color'],
-                                    alpha=self.model_color['alpha'],
-                                    linewidth=self.model_color['linewidth'],
+                                    color=self.model_color.get('color', 'red'),
+                                    alpha=self.model_color.get('alpha', 0.9),
+                                    linewidth=self.model_color.get('linewidth', 0.8),
                                     )
 
         p_bar.increase()
 
-        source_list = []
+        src_list = []
         for i, key in enumerate(self._sources.keys()):
             if 'L-parameter' in key:
                 label = 'Cosmic Rays'
@@ -288,7 +291,7 @@ class ResultPlotGenerator(object):
 
             rebinned_source_counts = this_rebinner.rebin(self._sources[key])[0]
 
-            source_list.append({
+            src_list.append({
                 'data': rebinned_source_counts / self._rebinned_time_bin_widths,
                 'label': label,
                 'color': self.source_colors[color_key]['color'] if not self.source_colors['use_global'] else None,
@@ -297,19 +300,19 @@ class ResultPlotGenerator(object):
                 'sort_idx': sort_idx
             })
 
-        source_list = sorted(source_list, key=lambda src: src['sort_idx'])
+        self._source_list = sorted(src_list, key=lambda src: src['sort_idx'])
 
         if self.source_colors['use_global']:
             cmap = plt.get_cmap(self.source_colors['global']['cmap'])
-            colors = cmap(np.linspace(0, 1, len(source_list)))
+            colors = cmap(np.linspace(0, 1, len(self._source_list)))
 
-            for i, source in enumerate(source_list):
+            for i, source in enumerate(self._source_list):
                 source['color'] = colors[i]
                 source['alpha'] = self.source_colors['global']['alpha']
                 source['linewidth'] = self.source_colors['global']['linewidth']
 
-        if len(source_list) > 0:
-            residual_plot.add_list_of_sources(self._rebinned_time_bin_mean, source_list)
+        if len(self._source_list) > 0:
+            residual_plot.add_list_of_sources(self._rebinned_time_bin_mean, self._source_list)
 
         p_bar.increase()
 
@@ -351,9 +354,9 @@ class ResultPlotGenerator(object):
         xlabel = "{}".format(time_frame) if self.xlabel is None else self.xlabel
         ylabel = "Count Rate [counts s$^{-1}$]" if self.ylabel is None else self.ylabel
 
-        axis_title = "Background fit det: {} date: {} energy: {}".format(self._det,
-                                                                         self._dates[which_day],
-                                                                         self._get_echan_str(self._echan)) if self.axis_title is None else self.axis_title
+        axis_title = "Detector: {} Date: {} Energy: {}".format(self._det,
+                                                               self._dates[which_day],
+                                                               self._get_echan_str(self._echan)) if self.axis_title is None else self.axis_title
 
         final_plot = residual_plot.finalize(xlabel=xlabel,
                                             ylabel=ylabel,
@@ -375,7 +378,7 @@ class ResultPlotGenerator(object):
 
         p_bar.increase()
 
-    def add_grb_trigger(self, grb_name, trigger_time, time_format='UTC', time_offset=0, color='b'):
+    def add_grb_trigger(self, grb_name, trigger_time, time_format='UTC', time_offset=0, color='b', alpha=0.3):
         """
         Add a GRB Trigger to plot a vertical line
         The grb is added to a dictionary with the name as key and the time (met) and the color as values in a subdict
@@ -398,9 +401,9 @@ class ResultPlotGenerator(object):
         else:
             raise Exception('Not supported time format, please use MET or UTC')
 
-        self._grb_triggers[grb_name] = {'met': met, 'color': color}
+        self._grb_triggers[grb_name] = {'met': met, 'color': color, 'alpha':alpha}
 
-    def add_occ_region(self, occ_name, time_start, time_stop, time_format='UTC', color='grey'):
+    def add_occ_region(self, occ_name, time_start, time_stop, time_format='UTC', color='grey', alpha=0.1):
         """
 
         :param time_format:
@@ -423,7 +426,7 @@ class ResultPlotGenerator(object):
         else:
             raise Exception('Not supported time format, please use MET or UTC')
 
-        self._occ_region[occ_name] = {'met': (met_start, met_stop), 'color': color}
+        self._occ_region[occ_name] = {'met': (met_start, met_stop), 'color': color, 'alpha':alpha}
 
     def _calc_limits(self, which_day):
         min_time = self._day_start_times[which_day] - self._time_ref
@@ -465,23 +468,31 @@ class ResultPlotGenerator(object):
         time_bins_intervals.append((start, time_bins_masked2[-1, 0]))
         xlim = time_bins_intervals[0]
 
-        obs_rates_masked2 = obs_counts_masked[zero_counts_mask] / np.diff(time_bins_masked2, axis=1)[0]
-        high_lim = 1.5 * np.percentile(obs_rates_masked2, 99)
+        if self.show_data or self.show_model:
+            obs_rates_masked2 = obs_counts_masked[zero_counts_mask] / np.diff(time_bins_masked2, axis=1)[0]
+            high_lim = 1.5 * np.percentile(obs_rates_masked2, 99)
+        else:
+            high_lim = 0.
+            for source in self._source_list:
+                source_rates_masked = source['data'][zero_counts_mask]
+                h_lim = 1.5 * np.percentile(source_rates_masked, 99)
+                
+                high_lim = h_lim if h_lim > high_lim else high_lim
+        
         ylim = (0, high_lim)
-
         return xlim, ylim
 
     def _get_echan_str(self, echan):
         # TODO: Add information for CSPEC
         echan_dict = {
-            0: '4 keV - 12 keV',
-            1: '12 keV - 27 keV',
-            2: '27 keV - 50 keV',
-            3: '50 keV - 102 keV',
-            4: '102 keV - 295 keV',
-            5: '295 keV - 540 keV',
-            6: '540 keV - 985 keV',
-            7: '985 keV - 2 MeV',
+            '0': '4 keV - 12 keV',
+            '1': '12 keV - 27 keV',
+            '2': '27 keV - 50 keV',
+            '3': '50 keV - 102 keV',
+            '4': '102 keV - 295 keV',
+            '5': '295 keV - 540 keV',
+            '6': '540 keV - 985 keV',
+            '7': '985 keV - 2 MeV',
         }
 
-        return echan_dict[echan]
+        return echan_dict[str(echan)]
