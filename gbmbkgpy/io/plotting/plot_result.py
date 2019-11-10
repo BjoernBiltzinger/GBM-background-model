@@ -476,7 +476,6 @@ class ResultPlotGenerator(object):
             for source in self._source_list:
                 source_rates_masked = source['data'][zero_counts_mask]
                 h_lim = 1.5 * np.percentile(source_rates_masked, 99)
-                
                 high_lim = h_lim if h_lim > high_lim else high_lim
         
         ylim = (0, high_lim)

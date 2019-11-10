@@ -31,6 +31,8 @@ plot_config = {
     'dpi':              400,
     'show_legend':      True,
     'legend_outside':   False,
+    'show_title':       True,
+    'axis_title':       None,
 }
 
 component_config = {
