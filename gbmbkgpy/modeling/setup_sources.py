@@ -28,8 +28,8 @@ except:
 
 
 def Setup(data, saa_object, ep, geom_object, echan_list=[], sun_object=None,response_object=None, albedo_cgb_object=None,
-          use_SAA=False, use_Constant=True, use_CR=True, use_Earth=True, use_CGB=True, use_all_ps=False, use_sun=True, point_source_list=[], fix_ps=[],
-          fix_Earth=False, fix_CGB=False, nr_saa_decays=1):
+          use_saa=False, use_constant=True, use_cr=True, use_earth=True, use_cgb=True, use_all_ps=False, use_sun=True, point_source_list=[], fix_ps=[],
+          fix_earth=False, fix_cgb=False, nr_saa_decays=1):
     """
     Setup all sources
     :param fix_ps:
@@ -53,8 +53,8 @@ def Setup(data, saa_object, ep, geom_object, echan_list=[], sun_object=None,resp
 
     assert len(echan_list) > 0, 'Please give at least one echan'
 
-    assert type(use_SAA) == bool and type(use_CR) == bool and type(use_Earth) == bool and type(use_CGB) == bool and \
-           type(fix_Earth) == bool and type(fix_CGB) == bool and type(use_all_ps) == bool, 'Please only use True or False here.'
+    assert type(use_saa) == bool and type(use_cr) == bool and type(use_earth) == bool and type(use_cgb) == bool and \
+           type(fix_earth) == bool and type(fix_cgb) == bool and type(use_all_ps) == bool, 'Please only use True or False here.'
 
     total_sources = []
 
@@ -62,13 +62,13 @@ def Setup(data, saa_object, ep, geom_object, echan_list=[], sun_object=None,resp
 
     for index, echan in enumerate(echan_list):
 
-        if use_SAA:
+        if use_saa:
             total_sources.extend(setup_SAA(data, saa_object, echan, index, nr_saa_decays))
 
-        if use_Constant:
+        if use_constant:
             total_sources.append(setup_Constant(data, saa_object, echan, index))
 
-        if use_CR:
+        if use_cr:
             total_sources.append(setup_CosmicRays(data, ep, saa_object, echan, index))
 
     if use_sun:
@@ -82,17 +82,17 @@ def Setup(data, saa_object, ep, geom_object, echan_list=[], sun_object=None,resp
         total_sources.extend(setup_ps(data, ep, saa_object, response_object, geom_object, echan_list,
                                       point_source_list=point_source_list, free_spectrum=np.logical_not(fix_ps)))
 
-    if use_Earth:
+    if use_earth:
 
-        if fix_Earth:
+        if fix_earth:
             total_sources.append(setup_earth_fix(data, albedo_cgb_object, saa_object))
 
         else:
             total_sources.append(setup_earth_free(data, albedo_cgb_object, saa_object))
 
-    if use_CGB:
+    if use_cgb:
 
-        if fix_CGB:
+        if fix_cgb:
             total_sources.append(setup_cgb_fix(data, albedo_cgb_object, saa_object))
 
         else:
