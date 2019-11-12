@@ -38,8 +38,7 @@ class SAA_calc(object):
         assert type(short_time_intervals) == bool, 'short_time_intervals must be a bool but is {}'.format(short_time_intervals)
 
         self._time_bins = data_object.time_bins
-        self._build_masks(bins_to_add, time_after_SAA, short_time_intervals)
-        self._nr_decays = nr_decays
+        self._build_masks(bins_to_add, time_after_SAA, short_time_intervals, nr_decays=nr_decays)
 
     @property
     def saa_mask(self):
@@ -71,7 +70,7 @@ class SAA_calc(object):
         """
         return self._saa_exit_time_bins[:, 1]
 
-    def _build_masks(self, bins_to_add, time_after_SAA, short_time_intervals):
+    def _build_masks(self, bins_to_add, time_after_SAA, short_time_intervals, nr_decays):
         """
         Calculates masks that cover the SAAs and some time bins before and after the SAAs
         :params bins_to_add: number of bins to add to mask before and after time bin
@@ -108,7 +107,7 @@ class SAA_calc(object):
 
         self._saa_exit_time_bins = self._time_bins[saa_exit_idx]
 
-        for i in range(1, self._nr_decays):
+        for i in range(1, nr_decays):
             self._saa_exit_time_bins = np.append(self._saa_exit_time_bins, self._time_bins[saa_exit_idx], axis=0)
 
         self._num_saa = len(self._saa_exit_time_bins)
