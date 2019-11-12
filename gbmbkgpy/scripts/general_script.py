@@ -138,6 +138,7 @@ print_progress('Done')
 time_after_SAA = saa_dict['time_after_SAA']
 # Want to use separated time intervals that are shorter than 1000 seconds?
 short_time_intervals = saa_dict['short_time_intervals']
+nr_decays = saa_dict['nr_decays']
 ################################
 
 # Build the SAA object
@@ -145,7 +146,7 @@ if time_after_SAA is not None:
     print_progress('Precalculate SAA times and SAA mask. {} seconds after every SAA exit are excluded from fit...')
 else:
     print_progress('Precalculate SAA times and SAA mask...')
-saa_calc = SAA_calc(data, time_after_SAA=time_after_SAA, short_time_intervals=short_time_intervals)
+saa_calc = SAA_calc(data, time_after_SAA=time_after_SAA, short_time_intervals=short_time_intervals, nr_decays=nr_decays)
 print_progress('Done')
 
 ################### Geometry precalculation ##################
@@ -198,7 +199,7 @@ print_progress('Create Source list...')
 
 source_list = Setup(data, saa_calc, ep, geom, sun_object=sun_obj, echan_list=echan_list, response_object=resp,
                     albedo_cgb_object=albedo_cgb_obj, use_SAA=use_SAA, use_CR=use_CR, use_Earth=use_Earth, use_CGB=use_CGB,
-                    point_source_list=ps_list, fix_ps=fix_ps, fix_Earth=fix_earth, fix_CGB=fix_cgb, use_sun=use_sun)
+                    point_source_list=ps_list, fix_ps=fix_ps, fix_Earth=fix_earth, fix_CGB=fix_cgb, use_sun=use_sun, nr_saa_decays=nr_decays)
 
 print_progress('Done')
 
@@ -221,7 +222,7 @@ for e in echan_list:
 
         # If fitting only one day add additional 'SAA' decay to account for leftover excitation
         if len(date) == 1:
-            offset = 1
+            offset = nr_decays
         else:
             offset = 0
 

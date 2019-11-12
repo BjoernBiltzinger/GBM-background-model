@@ -18,7 +18,8 @@ response_dict = {'Ngrid': 40000}
 ####### Input for SAA mask precaluclation (time to exclude after SAA, delete short time intervals? ##
 
 saa_dict = {'time_after_SAA': 5000,
-            'short_time_intervals': False}
+            'short_time_intervals': False,
+            'nr_decays': 1}
 
 ###### Input for geometry calculation (n time bins per day to calculate the geometry ################
 

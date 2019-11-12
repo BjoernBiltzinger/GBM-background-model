@@ -29,7 +29,7 @@ except:
 
 def Setup(data, saa_object, ep, geom_object, echan_list=[], sun_object=None,response_object=None, albedo_cgb_object=None,
           use_SAA=False, use_CR=True, use_Earth=True, use_CGB=True, use_all_ps=False, use_sun=True, point_source_list=[], fix_ps=[],
-          fix_Earth=False, fix_CGB=False):
+          fix_Earth=False, fix_CGB=False, nr_saa_decays=1):
     """
     Setup all sources
     :param fix_ps:
@@ -63,7 +63,7 @@ def Setup(data, saa_object, ep, geom_object, echan_list=[], sun_object=None,resp
     for index, echan in enumerate(echan_list):
 
         if use_SAA:
-            total_sources.extend(setup_SAA(data, saa_object, echan, index))
+            total_sources.extend(setup_SAA(data, saa_object, echan, index, nr_saa_decays))
 
         if use_CR:
             total_sources.extend(setup_CosmicRays(data, ep, saa_object, echan, index))
@@ -98,9 +98,10 @@ def Setup(data, saa_object, ep, geom_object, echan_list=[], sun_object=None,resp
     return total_sources
 
 
-def setup_SAA(data, saa_object, echan, index):
+def setup_SAA(data, saa_object, echan, index, nr_decays=1):
     """
     Setup for SAA sources
+    :param nr_decays: Number of decays that should be fittet to each SAA Exit
     :param index:
     :param saa_object: SAA precalculation object
     :param echan: energy channel
@@ -112,8 +113,13 @@ def setup_SAA(data, saa_object, echan, index):
     SAA_Decay_list = []
     saa_n = 0
     # Add 'SAA' decay at start of the day if fitting only one day to account for leftover excitation
-    day_start = np.array(data.day_met) if len(data.day_met) <= 1 else []
-    start_times = np.append(day_start, saa_object.saa_exit_times)
+
+    day_start = []
+    if len(data.day_met) <= 1:
+        for i in range(nr_decays):
+            day_start.append(data.day_met)
+
+    start_times = np.append(np.array(day_start), saa_object.saa_exit_times)
 
     for time in start_times:
         saa_dec = SAA_Decay(str(saa_n), str(echan))
