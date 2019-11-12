@@ -17,7 +17,7 @@ response_dict = {'Ngrid': 40000}
 
 ####### Input for SAA mask precaluclation (time to exclude after SAA, delete short time intervals? ##
 
-saa_dict = {'time_after_SAA': 5000,
+saa_dict = {'time_after_saa': 5000,
             'short_time_intervals': False,
             'nr_decays': 1}
 
@@ -27,11 +27,11 @@ geom_dict = {'n_bins_to_calculate': 800}
 
 ##### Input for source Setup (use CR, use Earth, use CGB, point source list, fix earth, fix cgb #####
 
-setup_dict = {'use_SAA': False,
+setup_dict = {'use_saa': False,
               'use_Constant': True,
-              'use_CR': True,
-              'use_Earth': True,
-              'use_CGB': True,
+              'use_cr': True,
+              'use_earth': True,
+              'use_cgb': True,
               'ps_list': ['CRAB'],
               'fix_ps': [False],
               'fix_earth': False,
