@@ -275,53 +275,56 @@ for i, ps in enumerate(ps_list):
             'gaussian_parameter': gaussian_dict['ps_free_bound'][1]
         }
 
-# If earth spectrum is fixed only the normalization, otherwise C, index1, index2 and E_break
-if fix_earth:
-    parameter_bounds['norm_earth_albedo'] = {
-        'bounds': bounds_dict['earth_fixed_bound'][0],
-        'gaussian_parameter': gaussian_dict['earth_fixed_bound'][0]
-    }
-else:
-    parameter_bounds['earth_albedo_spectrum_fitted_C'] = {
-        'bounds': bounds_dict['earth_free_bound'][0],
-        'gaussian_parameter': gaussian_dict['earth_free_bound'][0]
-    }
-    parameter_bounds['earth_albedo_spectrum_fitted_index1'] = {
-        'bounds': bounds_dict['earth_free_bound'][1],
-        'gaussian_parameter': gaussian_dict['earth_free_bound'][1]
-    }
-    parameter_bounds['earth_albedo_spectrum_fitted_index2'] = {
-        'bounds': bounds_dict['earth_free_bound'][2],
-        'gaussian_parameter': gaussian_dict['earth_free_bound'][2]
-    }
-    parameter_bounds['earth_albedo_spectrum_fitted_break_energy'] = {
-        'bounds': bounds_dict['earth_free_bound'][3],
-        'gaussian_parameter': gaussian_dict['earth_free_bound'][3]
-    }
 
-# If cgb spectrum is fixed only the normalization, otherwise C, index1, index2 and E_break
-if fix_cgb:
-    parameter_bounds['norm_cgb'] = {
-        'bounds': bounds_dict['cgb_fixed_bound'][0],
-        'gaussian_parameter': gaussian_dict['cgb_fixed_bound'][0]
-    }
-else:
-    parameter_bounds['CGB_spectrum_fitted_C'] = {
-        'bounds': bounds_dict['cgb_free_bound'][0],
-        'gaussian_parameter': gaussian_dict['cgb_free_bound'][0]
-    }
-    parameter_bounds['CGB_spectrum_fitted_index1'] = {
-        'bounds': bounds_dict['cgb_free_bound'][1],
-        'gaussian_parameter': gaussian_dict['cgb_free_bound'][1]
-    }
-    parameter_bounds['CGB_spectrum_fitted_index2'] = {
-        'bounds': bounds_dict['cgb_free_bound'][2],
-        'gaussian_parameter': gaussian_dict['cgb_free_bound'][2]
-    }
-    parameter_bounds['CGB_spectrum_fitted_break_energy'] = {
-        'bounds': bounds_dict['cgb_free_bound'][3],
-        'gaussian_parameter': gaussian_dict['cgb_free_bound'][3]
-    }
+if use_Earth:
+    # If earth spectrum is fixed only the normalization, otherwise C, index1, index2 and E_break
+    if fix_earth:
+        parameter_bounds['norm_earth_albedo'] = {
+            'bounds': bounds_dict['earth_fixed_bound'][0],
+            'gaussian_parameter': gaussian_dict['earth_fixed_bound'][0]
+        }
+    else:
+        parameter_bounds['earth_albedo_spectrum_fitted_C'] = {
+            'bounds': bounds_dict['earth_free_bound'][0],
+            'gaussian_parameter': gaussian_dict['earth_free_bound'][0]
+        }
+        parameter_bounds['earth_albedo_spectrum_fitted_index1'] = {
+            'bounds': bounds_dict['earth_free_bound'][1],
+            'gaussian_parameter': gaussian_dict['earth_free_bound'][1]
+        }
+        parameter_bounds['earth_albedo_spectrum_fitted_index2'] = {
+            'bounds': bounds_dict['earth_free_bound'][2],
+            'gaussian_parameter': gaussian_dict['earth_free_bound'][2]
+        }
+        parameter_bounds['earth_albedo_spectrum_fitted_break_energy'] = {
+            'bounds': bounds_dict['earth_free_bound'][3],
+            'gaussian_parameter': gaussian_dict['earth_free_bound'][3]
+        }
+
+if use_CGB:
+    # If cgb spectrum is fixed only the normalization, otherwise C, index1, index2 and E_break
+    if fix_cgb:
+        parameter_bounds['norm_cgb'] = {
+            'bounds': bounds_dict['cgb_fixed_bound'][0],
+            'gaussian_parameter': gaussian_dict['cgb_fixed_bound'][0]
+        }
+    else:
+        parameter_bounds['CGB_spectrum_fitted_C'] = {
+            'bounds': bounds_dict['cgb_free_bound'][0],
+            'gaussian_parameter': gaussian_dict['cgb_free_bound'][0]
+        }
+        parameter_bounds['CGB_spectrum_fitted_index1'] = {
+            'bounds': bounds_dict['cgb_free_bound'][1],
+            'gaussian_parameter': gaussian_dict['cgb_free_bound'][1]
+        }
+        parameter_bounds['CGB_spectrum_fitted_index2'] = {
+            'bounds': bounds_dict['cgb_free_bound'][2],
+            'gaussian_parameter': gaussian_dict['cgb_free_bound'][2]
+        }
+        parameter_bounds['CGB_spectrum_fitted_break_energy'] = {
+            'bounds': bounds_dict['cgb_free_bound'][3],
+            'gaussian_parameter': gaussian_dict['cgb_free_bound'][3]
+        }
 
 # Add bounds to the parameters for multinest
 model.set_parameter_bounds(parameter_bounds)
