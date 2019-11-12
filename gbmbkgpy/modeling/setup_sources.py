@@ -28,7 +28,7 @@ except:
 
 
 def Setup(data, saa_object, ep, geom_object, echan_list=[], sun_object=None,response_object=None, albedo_cgb_object=None,
-          use_SAA=False, use_CR=True, use_Earth=True, use_CGB=True, use_all_ps=False, use_sun=True, point_source_list=[], fix_ps=[],
+          use_SAA=False, use_Constant=True, use_CR=True, use_Earth=True, use_CGB=True, use_all_ps=False, use_sun=True, point_source_list=[], fix_ps=[],
           fix_Earth=False, fix_CGB=False, nr_saa_decays=1):
     """
     Setup all sources
@@ -65,8 +65,11 @@ def Setup(data, saa_object, ep, geom_object, echan_list=[], sun_object=None,resp
         if use_SAA:
             total_sources.extend(setup_SAA(data, saa_object, echan, index, nr_saa_decays))
 
+        if use_Constant:
+            total_sources.append(setup_Constant(data, saa_object, echan, index))
+
         if use_CR:
-            total_sources.extend(setup_CosmicRays(data, ep, saa_object, echan, index))
+            total_sources.append(setup_CosmicRays(data, ep, saa_object, echan, index))
 
     if use_sun:
         total_sources.append(setup_sun(data, sun_object, saa_object, response_object, geom_object, echan_list))
@@ -149,6 +152,25 @@ def setup_sun(cd, sun_object, saa_object, response_object, geom_object, echan_li
     return Sun_Continuum
 
 
+def setup_Constant(data, saa_object, echan, index):
+    """
+    Setup for the Constant source
+    :param index:
+    :param saa_object:
+    :param ep: external prob object
+    :param echan: energy channel
+    :param data: Data object
+    :return: Constant and magnetic continuum source
+    """
+    Constant = Offset(str(echan))
+    Constant.set_function_array(np.ones_like(data.time_bins[2:-2]))
+    Constant.set_saa_zero(saa_object.saa_mask[2:-2])
+    # precalculate the integration over the time bins
+    Constant.integrate_array(data.time_bins[2:-2])
+    Constant_Continuum = ContinuumSource('Constant_echan_{:d}'.format(echan), Constant, index)
+    return Constant_Continuum
+
+
 def setup_CosmicRays(data, ep, saa_object, echan, index):
     """
     Setup for CosmicRay source
@@ -159,14 +181,6 @@ def setup_CosmicRays(data, ep, saa_object, echan, index):
     :param data: Data object
     :return: Constant and magnetic continuum source
     """
-
-    Constant = Offset(str(echan))
-    Constant.set_function_array(np.ones_like(data.time_bins[2:-2]))
-    Constant.set_saa_zero(saa_object.saa_mask[2:-2])
-    # precalculate the integration over the time bins
-    Constant.integrate_array(data.time_bins[2:-2])
-    Constant_Continuum = ContinuumSource('Constant_echan_{:d}'.format(echan), Constant, index)
-
     # Magnetic Continuum Source
     mag_con = Magnetic_Continuum(str(echan))
     mag_con.set_function_array(ep.mc_l((data.time_bins[2:-2])))
@@ -176,7 +190,7 @@ def setup_CosmicRays(data, ep, saa_object, echan, index):
     mag_con.integrate_array(data.time_bins[2:-2])
     Source_Magnetic_Continuum = ContinuumSource('McIlwain_L-parameter_echan_{:d}'.format(echan),
                                                 mag_con, index)
-    return [Constant_Continuum, Source_Magnetic_Continuum]
+    return Source_Magnetic_Continuum
 
 
 def setup_ps(data, ep, saa_object, response_object, geom_object, echan_list,

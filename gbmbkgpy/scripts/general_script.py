@@ -168,6 +168,8 @@ print_progress('Done')
 
 # Use SAA?
 use_SAA = setup_dict['use_SAA']
+# Use Constant source?
+use_Constant = setup_dict['use_Constant']
 # Use CosmicRay source?
 use_CR = setup_dict['use_CR']
 # Use EarthAlbedo source?
@@ -198,7 +200,7 @@ sun_obj = Sun(resp, geom, echan_list)
 print_progress('Create Source list...')
 
 source_list = Setup(data, saa_calc, ep, geom, sun_object=sun_obj, echan_list=echan_list, response_object=resp,
-                    albedo_cgb_object=albedo_cgb_obj, use_SAA=use_SAA, use_CR=use_CR, use_Earth=use_Earth, use_CGB=use_CGB,
+                    albedo_cgb_object=albedo_cgb_obj, use_SAA=use_SAA, use_Constant=use_Constant, use_CR=use_CR, use_Earth=use_Earth, use_CGB=use_CGB,
                     point_source_list=ps_list, fix_ps=fix_ps, fix_Earth=fix_earth, fix_CGB=fix_cgb, use_sun=use_sun, nr_saa_decays=nr_decays)
 
 print_progress('Done')
@@ -236,12 +238,13 @@ for e in echan_list:
                 'gaussian_parameter': gaussian_dict['saa_bound'][1]
             }
 
-    if use_CR:
-
+    if use_Constant:
         parameter_bounds['constant_echan-{}'.format(e)] = {
             'bounds': bounds_dict['cr_bound'][0],
             'gaussian_parameter': gaussian_dict['cr_bound'][0]
         }
+
+    if use_CR:
         parameter_bounds['norm_magnetic_echan-{}'.format(e)] = {
             'bounds': bounds_dict['cr_bound'][1],
             'gaussian_parameter': gaussian_dict['cr_bound'][1]
