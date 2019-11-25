@@ -144,7 +144,7 @@ def setup_sun(cd, sun_object, saa_object, response_object, geom_object, echan_li
     return Sun_Continuum
 
 
-def setup_CosmicRays(data, ep, saa_object, echan, index):
+def setup_CosmicRays(data, ep, saa_object, echan, index, bgo_cr_approximation):
     """
     Setup for CosmicRay source
     :param index:
@@ -173,18 +173,18 @@ def setup_CosmicRays(data, ep, saa_object, echan, index):
                                                     mag_con, index)
         return [Constant_Continuum, Source_Magnetic_Continuum]
     else:
-        Constant = offset(str(echan))
-        Constant.set_function_array(np.ones_like(cd.time_bins[2:-2]))
+        Constant = Offset(str(echan))
+        Constant.set_function_array(np.ones_like(data.time_bins[2:-2]))
         Constant.set_saa_zero(saa_object.saa_mask[2:-2])
         # precalculate the integration over the time bins
-        Constant.integrate_array(cd.time_bins[2:-2])
+        Constant.integrate_array(data.time_bins[2:-2])
         Constant_Continuum = ContinuumSource('Constant_echan_{:d}'.format(echan), Constant, index)
         
         mag_con = Magnetic_Continuum(str(echan))
-        mag_con.set_function_array(ep.bgo_cr_approximation((cd.time_bins[2:-2])))
+        mag_con.set_function_array(ep.bgo_cr_approximation((data.time_bins[2:-2])))
         mag_con.remove_vertical_movement()
         mag_con.set_saa_zero(saa_object.saa_mask[2:-2])
-        mag_con.integrate_array(cd.time_bins[2:-2])
+        mag_con.integrate_array(data.time_bins[2:-2])
         Source_Magnetic_Continuum = ContinuumSource('McIlwain L-parameter_echan_{:d}'.format(echan),
                                                     mag_con, index)
         return [Constant_Continuum, Source_Magnetic_Continuum]
