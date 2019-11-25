@@ -12,6 +12,10 @@ from gbmbkgpy.io.package_data import get_path_of_data_file, get_path_of_external
 from gbmbkgpy.modeling.point_source import PointSrc_fixed, PointSrc_free
 import csv
 
+from gbmbkgpy.io.downloading import download_files
+from gbmbkgpy.io.package_data import get_path_of_external_data_dir
+from gbmbkgpy.utils.binner import Rebinner
+
 try:
 
     # see if we have mpi and/or are upalsing parallel
@@ -60,6 +64,7 @@ class ExternalProps(object):
                     self._lat_time = np.append(self._lat_time, lat_time)
                     self._lat_geo = np.append(self._lat_geo, lat_geo)
                     self._lon_geo = np.append(self._lon_geo, lon_geo)
+            self._mc_l_interp = interpolate.interp1d(self._lat_time, self._mc_l)
         else:
             for i, date in enumerate(day_list):
                 times, rates = self._bgo_cr_approximation(date, det)
@@ -71,8 +76,6 @@ class ExternalProps(object):
                     self._times = np.append(self._times, times)
             self._bgo_rate_interp = interpolate.interp1d(self._times, self._rates)
                 
-        self._mc_l_interp = interpolate.interp1d(self._lat_time, self._mc_l)
-
     def build_point_sources(self, rsp, geom, echan_list, free_spectrum=[]):
         """
         Build all PS saved in the txt file
