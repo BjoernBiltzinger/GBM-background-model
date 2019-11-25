@@ -35,7 +35,7 @@ except:
 
 class ExternalProps(object):
 
-    def __init__(self, day_list):
+    def __init__(self, day_list, det=None, bgo_cr_approximation=False):
         """
         Build the external properties for a given day
         :param day_list: [YYMMDD, YYMMDD,]
@@ -45,22 +45,32 @@ class ExternalProps(object):
 
         # Global list which weeks where already added to the lat data (to prevent double entries later)
         self._weeks = np.array([])
-
-        for i, date in enumerate(day_list):
-            mc_l, mc_b, lat_time, lat_geo, lon_geo = self._one_day_build_lat_spacecraft(date)
-            if i == 0:
-                self._mc_l = mc_l
-                self._mc_b = mc_b
-                self._lat_time = lat_time
-                self._lat_geo = lat_geo
-                self._lon_geo = lon_geo
-            else:
-                self._mc_l = np.append(self._mc_l, mc_l)
-                self._mc_b = np.append(self._mc_b, mc_b)
-                self._lat_time = np.append(self._lat_time, lat_time)
-                self._lat_geo = np.append(self._lat_geo, lat_geo)
-                self._lon_geo = np.append(self._lon_geo, lon_geo)
-
+        if not bgo_cr_approximation:
+            for i, date in enumerate(day_list):
+                mc_l, mc_b, lat_time, lat_geo, lon_geo = self._one_day_build_lat_spacecraft(date)
+                if i == 0:
+                    self._mc_l = mc_l
+                    self._mc_b = mc_b
+                    self._lat_time = lat_time
+                    self._lat_geo = lat_geo
+                    self._lon_geo = lon_geo
+                else:
+                    self._mc_l = np.append(self._mc_l, mc_l)
+                    self._mc_b = np.append(self._mc_b, mc_b)
+                    self._lat_time = np.append(self._lat_time, lat_time)
+                    self._lat_geo = np.append(self._lat_geo, lat_geo)
+                    self._lon_geo = np.append(self._lon_geo, lon_geo)
+        else:
+            for i, date in enumerate(day_list):
+                times, rates = self._bgo_cr_approximation(date, det)
+                if i==0:
+                    self._times = times
+                    self._rates = rates
+                else:
+                    self._rates = np.append(self._rates, rates)
+                    self._times = np.append(self._times, times)
+            self._bgo_rate_interp = interpolate.interp1d(self._times, self._rates)
+                
         self._mc_l_interp = interpolate.interp1d(self._lat_time, self._mc_l)
 
     def build_point_sources(self, rsp, geom, echan_list, free_spectrum=[]):
@@ -90,6 +100,10 @@ class ExternalProps(object):
         self._geom = geom
         self._build_some_source(source_list, echan_list, free_spectrum=free_spectrum)
 
+    def bgo_cr_approximation(self, met):
+
+        return self._bgo_rate_interp(met)
+        
     def mc_l(self, met):
         """
         Get MC L for a given MET
@@ -483,3 +497,59 @@ class ExternalProps(object):
         mask = timestamp_zero[timestamp_index]
 
         return mask
+
+    def _bgo_cr_approximation(self, date, det):
+        """
+        Function that gets the count rate of the 85-105th energy channel of the BGO
+        of the correct side and uses this as function proportional to the CR influence in
+        the NaI energy channels. Makes no sense when SAA is included!
+        :param date: Date 
+        :param det: NaI detector
+        """
+        side_0 = ['n0','n1','n2','n3','n4','n5']
+        side_1 = ['n6','n7','n8','n9','na','nb']
+
+        if det in side_0:
+            bgo_det = 'b0'
+        elif det in side_1:
+            bgo_det = 'b1'
+        else:
+            raise AssertionError('Use a valid NaI det name to use this function.')
+
+        
+        data_type='cspec'
+        echans = np.arange(85,105,1)
+        
+        if using_mpi:
+            if rank==0:
+                download_files(data_type, bgo_det, date)
+            comm.barrier()
+        else:
+            download_files(data_type, bgo_det, date)
+            
+        datafile_name = 'glg_{0}_{1}_{2}_v00.pha'.format(data_type, bgo_det, date)
+        datafile_path = os.path.join(get_path_of_external_data_dir(), data_type, date, datafile_name)
+
+        with fits.open(datafile_path) as f:
+            counts = f['SPECTRUM'].data['COUNTS'][:,echans[0]]
+            for echan in echans[1:]:
+                counts += f['SPECTRUM'].data['COUNTS'][:,echan]
+            bin_start = f['SPECTRUM'].data['TIME']
+            bin_stop = f['SPECTRUM'].data['ENDTIME']
+
+        total_time_bins = np.vstack((bin_start, bin_stop)).T
+        min_bin_width = 200
+
+        this_rebinner = Rebinner(total_time_bins, min_bin_width)
+        rebinned_time_bins = this_rebinner.time_rebinned
+        rebinned_counts, = this_rebinner.rebin(counts)
+
+        rates = rebinned_counts/(rebinned_time_bins[:,1]-rebinned_time_bins[:,0])
+        
+        # Add first time and last time with corresponding rate to rate_list
+
+        rates = np.concatenate((rates[:1], rates, rates[-1:]))
+
+        times = np.concatenate((bin_start[:1], np.mean(rebinned_time_bins, axis=1), bin_stop[-1:]))
+
+        return times, rates
