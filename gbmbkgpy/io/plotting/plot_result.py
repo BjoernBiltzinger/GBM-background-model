@@ -174,7 +174,8 @@ class ResultPlotGenerator(object):
         :return:
         """
 
-        assert self.time_since_midnight and self.time_t0 is not None, 'You selected time since midnight and passed a t0, you should choose one...'
+        if self.time_since_midnight and self.time_t0 is not None:
+            raise ValueError('You selected time since midnight and passed a t0, you should choose one...')
 
         # Change time reference to seconds since beginning of the day
         if self.time_since_midnight and which_day is not None:
