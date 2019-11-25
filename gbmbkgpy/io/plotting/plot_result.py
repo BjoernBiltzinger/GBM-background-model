@@ -21,6 +21,7 @@ class ResultPlotGenerator(object):
         self.change_time =          plot_config.get('change_time', True)
         self.time_since_midnight =  plot_config.get('time_since_midnight', True)
         self.time_format =          plot_config.get('time_format', 'h')
+        self.time_t0 =              plot_config.get('time_t0', None)
         self.xlim =                 plot_config.get('xlim', None)
         self.ylim =                 plot_config.get('ylim', None)
         self.xscale =               plot_config.get('xscale', 'linear')
@@ -75,7 +76,9 @@ class ResultPlotGenerator(object):
                                          time_format='UTC',
                                          time_offset=grb_trigger['time_offset'],
                                          color=grb_trigger.get('color', 'b'),
-                                         alpha=grb_trigger.get('alpha', 0.3)
+                                         alpha=grb_trigger.get('alpha', 0.3),
+                                         linestyle=grb_trigger.get('linestyle', '-'),
+                                         linewidth=grb_trigger.get('linewidth', 0.8)
                                          )
             if highlight_config['occ_region'] is not None:
                 for occ_region in highlight_config['occ_region']:
@@ -171,11 +174,22 @@ class ResultPlotGenerator(object):
         :return:
         """
 
+        assert self.time_since_midnight and self.time_t0 is not None, 'You selected time since midnight and passed a t0, you should choose one...'
+
         # Change time reference to seconds since beginning of the day
         if self.time_since_midnight and which_day is not None:
             assert which_day < len(self._dates), 'Use a valid date...'
             self._time_ref = self._day_start_times[which_day]
             time_frame = 'Time since midnight [{}]'.format(self.time_format)
+
+        elif self.time_t0 is not None:
+
+            day_at = astro_time.Time("%s(UTC)" % self.time_t0)
+
+            self._time_ref = GBMTime(day_at).met
+
+            time_frame = 't-t$_0$ [{}]'.format(self.time_format)
+
         else:
             self._time_ref = 0
             time_frame = 'MET [s]'
@@ -388,7 +402,7 @@ class ResultPlotGenerator(object):
 
         p_bar.increase()
 
-    def add_grb_trigger(self, grb_name, trigger_time, time_format='UTC', time_offset=0, color='b', alpha=0.3):
+    def add_grb_trigger(self, grb_name, trigger_time, time_format='UTC', time_offset=0, color='b', alpha=0.3, linestyle='-', linewidth=1):
         """
         Add a GRB Trigger to plot a vertical line
         The grb is added to a dictionary with the name as key and the time (met) and the color as values in a subdict
@@ -411,7 +425,7 @@ class ResultPlotGenerator(object):
         else:
             raise Exception('Not supported time format, please use MET or UTC')
 
-        self._grb_triggers[grb_name] = {'met': met, 'color': color, 'alpha':alpha}
+        self._grb_triggers[grb_name] = {'met': met, 'color': color, 'alpha': alpha, 'linestyle': linestyle, 'linewidth': linewidth}
 
     def add_occ_region(self, occ_name, time_start, time_stop, time_format='UTC', color='grey', alpha=0.1):
         """
@@ -436,7 +450,7 @@ class ResultPlotGenerator(object):
         else:
             raise Exception('Not supported time format, please use MET or UTC')
 
-        self._occ_region[occ_name] = {'met': (met_start, met_stop), 'color': color, 'alpha':alpha}
+        self._occ_region[occ_name] = {'met': (met_start, met_stop), 'color': color, 'alpha': alpha}
 
     def _calc_limits(self, which_day):
         min_time = self._day_start_times[which_day] - self._time_ref
