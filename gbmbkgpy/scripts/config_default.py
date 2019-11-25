@@ -36,7 +36,8 @@ setup_dict = {'use_saa': False,
               'fix_ps': [False],
               'fix_earth': False,
               'fix_cgb': False,
-              'use_sun': True}
+              'use_sun': True,
+              'bgo_cr_approximation': False}
 
 ################################ Bounds for the different sources ###################################
 ####### SAA: Amplitude and decay constant, CR: Constant and McIlwain normalization ##################
