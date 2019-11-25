@@ -250,7 +250,7 @@ class ResultPlotGenerator(object):
 
         src_list = []
         for i, key in enumerate(self._sources.keys()):
-            if 'L-parameter' in key:
+            if 'L-parameter' in key or 'BGO_CR_Approx' in key:
                 label = 'Cosmic Rays'
                 style_key = 'cr'
                 sort_idx = 0
