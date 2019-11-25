@@ -19,8 +19,8 @@ class ResultPlotGenerator(object):
         self.data_path =            plot_config['data_path']
         self.bin_width =            plot_config.get('bin_width', 10)
         self.change_time =          plot_config.get('change_time', True)
-        self.time_since_midnight =  plot_config['time_since_midnight', True]
-        self.time_format =          plot_config['time_format',  'h']
+        self.time_since_midnight =  plot_config.get('time_since_midnight', True)
+        self.time_format =          plot_config.get('time_format', 'h')
         self.xlim =                 plot_config.get('xlim', None)
         self.ylim =                 plot_config.get('ylim', None)
         self.xscale =               plot_config.get('xscale', 'linear')
