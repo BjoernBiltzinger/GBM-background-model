@@ -29,7 +29,7 @@ except:
 
 def Setup(data, saa_object, ep, geom_object, echan_list=[], sun_object=None,response_object=None, albedo_cgb_object=None,
           use_SAA=False, use_CR=True, use_Earth=True, use_CGB=True, use_all_ps=False, use_sun=True, point_source_list=[], fix_ps=[],
-          fix_Earth=False, fix_CGB=False):
+          fix_Earth=False, fix_CGB=False, bgo_cr_approximation=False,):
     """
     Setup all sources
     :param fix_ps:
@@ -48,6 +48,7 @@ def Setup(data, saa_object, ep, geom_object, echan_list=[], sun_object=None,resp
     :param point_source_list: PS to use
     :param fix_Earth: fix earth spectrum?
     :param fix_CGB: fix cgb spectrum?
+    :param bgo_cr_approximation: Use bgo cr approximation
     :return:
     """
 
@@ -66,7 +67,7 @@ def Setup(data, saa_object, ep, geom_object, echan_list=[], sun_object=None,resp
             total_sources.extend(setup_SAA(data, saa_object, echan, index))
 
         if use_CR:
-            total_sources.extend(setup_CosmicRays(data, ep, saa_object, echan, index))
+            total_sources.extend(setup_CosmicRays(data, ep, saa_object, echan, index, bgo_cr_approximation))
 
     if use_sun:
         total_sources.append(setup_sun(data, sun_object, saa_object, response_object, geom_object, echan_list))
@@ -153,25 +154,40 @@ def setup_CosmicRays(data, ep, saa_object, echan, index):
     :param data: Data object
     :return: Constant and magnetic continuum source
     """
+    if not bgo_cr_approximation:
+        Constant = Offset(str(echan))
+        Constant.set_function_array(np.ones_like(data.time_bins[2:-2]))
+        Constant.set_saa_zero(saa_object.saa_mask[2:-2])
+        # precalculate the integration over the time bins
+        Constant.integrate_array(data.time_bins[2:-2])
+        Constant_Continuum = ContinuumSource('Constant_echan_{:d}'.format(echan), Constant, index)
 
-    Constant = Offset(str(echan))
-    Constant.set_function_array(np.ones_like(data.time_bins[2:-2]))
-    Constant.set_saa_zero(saa_object.saa_mask[2:-2])
-    # precalculate the integration over the time bins
-    Constant.integrate_array(data.time_bins[2:-2])
-    Constant_Continuum = ContinuumSource('Constant_echan_{:d}'.format(echan), Constant, index)
-
-    # Magnetic Continuum Source
-    mag_con = Magnetic_Continuum(str(echan))
-    mag_con.set_function_array(ep.mc_l((data.time_bins[2:-2])))
-    mag_con.set_saa_zero(saa_object.saa_mask[2:-2])
-    mag_con.remove_vertical_movement()
-    # precalculate the integration over the time bins
-    mag_con.integrate_array(data.time_bins[2:-2])
-    Source_Magnetic_Continuum = ContinuumSource('McIlwain_L-parameter_echan_{:d}'.format(echan),
-                                                mag_con, index)
-    return [Constant_Continuum, Source_Magnetic_Continuum]
-
+        # Magnetic Continuum Source
+        mag_con = Magnetic_Continuum(str(echan))
+        mag_con.set_function_array(ep.mc_l((data.time_bins[2:-2])))
+        mag_con.set_saa_zero(saa_object.saa_mask[2:-2])
+        mag_con.remove_vertical_movement()
+        # precalculate the integration over the time bins
+        mag_con.integrate_array(data.time_bins[2:-2])
+        Source_Magnetic_Continuum = ContinuumSource('McIlwain_L-parameter_echan_{:d}'.format(echan),
+                                                    mag_con, index)
+        return [Constant_Continuum, Source_Magnetic_Continuum]
+    else:
+        Constant = offset(str(echan))
+        Constant.set_function_array(np.ones_like(cd.time_bins[2:-2]))
+        Constant.set_saa_zero(saa_object.saa_mask[2:-2])
+        # precalculate the integration over the time bins
+        Constant.integrate_array(cd.time_bins[2:-2])
+        Constant_Continuum = ContinuumSource('Constant_echan_{:d}'.format(echan), Constant, index)
+        
+        mag_con = Magnetic_Continuum(str(echan))
+        mag_con.set_function_array(ep.bgo_cr_approximation((cd.time_bins[2:-2])))
+        mag_con.remove_vertical_movement()
+        mag_con.set_saa_zero(saa_object.saa_mask[2:-2])
+        mag_con.integrate_array(cd.time_bins[2:-2])
+        Source_Magnetic_Continuum = ContinuumSource('McIlwain L-parameter_echan_{:d}'.format(echan),
+                                                    mag_con, index)
+        return [Constant_Continuum, Source_Magnetic_Continuum]
 
 def setup_ps(data, ep, saa_object, response_object, geom_object, echan_list,
              include_point_sources=False, point_source_list=[], free_spectrum=[]):
