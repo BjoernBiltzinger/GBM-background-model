@@ -114,9 +114,12 @@ print_progress('Prepare data...')
 data = Data(date, detector, data_type, echan_list)
 print_progress('Done')
 
+# BGO CR Approximation?
+bgo_cr_approximation = setup_dict['bgo_cr_approximation']
+
 # Create external properties object (for McIlwain L-parameter)
 print_progress('Download and prepare external properties...')
-ep = ExternalProps(date)
+ep = ExternalProps(date, det=detector, bgo_cr_approximation=bgo_cr_approximation)
 print_progress('Done')
 
 ############################# Model ########################################
@@ -198,7 +201,8 @@ print_progress('Create Source list...')
 
 source_list = Setup(data, saa_calc, ep, geom, sun_object=sun_obj, echan_list=echan_list, response_object=resp,
                     albedo_cgb_object=albedo_cgb_obj, use_SAA=use_SAA, use_CR=use_CR, use_Earth=use_Earth, use_CGB=use_CGB,
-                    point_source_list=ps_list, fix_ps=fix_ps, fix_Earth=fix_earth, fix_CGB=fix_cgb, use_sun=use_sun)
+                    point_source_list=ps_list, fix_ps=fix_ps, fix_Earth=fix_earth, fix_CGB=fix_cgb, use_sun=use_sun,
+                    bgo_cr_approximation=bgo_cr_approximation)
 
 print_progress('Done')
 
