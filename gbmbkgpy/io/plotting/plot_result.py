@@ -16,38 +16,40 @@ class ResultPlotGenerator(object):
     def __init__(self, plot_config, component_config, style_config, highlight_config={}):
 
         # Import plot settings
-        self.data_path =        plot_config['data_path']
-        self.bin_width =        plot_config.get('bin_width', 10)
-        self.change_time =      plot_config.get('change_time', True)
-        self.xlim =             plot_config.get('xlim', None)
-        self.ylim =             plot_config.get('ylim', None)
-        self.xscale =           plot_config.get('xscale', 'linear')
-        self.yscale =           plot_config.get('yscale', 'linear')
-        self.xlabel =           plot_config.get('xlabel', None)
-        self.ylabel =           plot_config.get('ylabel', None)
-        self.dpi =              plot_config.get('dpi', 400)
-        self.show_legend =      plot_config.get('show_legend', True)
-        self.show_title =       plot_config.get('show_title', True)
-        self.axis_title =       plot_config.get('axis_title', None)
-        self.legend_outside =   plot_config.get('legend_outside', True)
+        self.data_path =            plot_config['data_path']
+        self.bin_width =            plot_config.get('bin_width', 10)
+        self.change_time =          plot_config.get('change_time', True)
+        self.time_since_midnight =  plot_config['time_since_midnight', True]
+        self.time_format =          plot_config['time_format',  'h']
+        self.xlim =                 plot_config.get('xlim', None)
+        self.ylim =                 plot_config.get('ylim', None)
+        self.xscale =               plot_config.get('xscale', 'linear')
+        self.yscale =               plot_config.get('yscale', 'linear')
+        self.xlabel =               plot_config.get('xlabel', None)
+        self.ylabel =               plot_config.get('ylabel', None)
+        self.dpi =                  plot_config.get('dpi', 400)
+        self.show_legend =          plot_config.get('show_legend', True)
+        self.show_title =           plot_config.get('show_title', True)
+        self.axis_title =           plot_config.get('axis_title', None)
+        self.legend_outside =       plot_config.get('legend_outside', True)
 
         # Import component settings
-        self.show_data =        component_config.get('show_data', True)
-        self.show_model =       component_config.get('show_model', True)
-        self.show_ppc =         component_config.get('show_ppc', True)
-        self.show_residuals =   component_config.get('show_residuals', False)
+        self.show_data =            component_config.get('show_data', True)
+        self.show_model =           component_config.get('show_model', True)
+        self.show_ppc =             component_config.get('show_ppc', True)
+        self.show_residuals =       component_config.get('show_residuals', False)
 
-        self.show_all_sources = component_config.get('show_all_sources', True)
-        self.show_earth =       component_config.get('show_earth', True)
-        self.show_cgb =         component_config.get('show_cgb', True)
-        self.show_sun =         component_config.get('show_sun', True)
-        self.show_saa =         component_config.get('show_saa', True)
-        self.show_cr =          component_config.get('show_cr', True)
-        self.show_constant =    component_config.get('show_constant', True)
-        self.show_crab =        component_config.get('show_crab', True)
+        self.show_all_sources =     component_config.get('show_all_sources', True)
+        self.show_earth =           component_config.get('show_earth', True)
+        self.show_cgb =             component_config.get('show_cgb', True)
+        self.show_sun =             component_config.get('show_sun', True)
+        self.show_saa =             component_config.get('show_saa', True)
+        self.show_cr =              component_config.get('show_cr', True)
+        self.show_constant =        component_config.get('show_constant', True)
+        self.show_crab =            component_config.get('show_crab', True)
 
-        self.show_occ_region =  component_config.get('show_occ_region', False)
-        self.show_grb_trigger = component_config.get('show_grb_trigger', False)
+        self.show_occ_region =      component_config.get('show_occ_region', False)
+        self.show_grb_trigger =     component_config.get('show_grb_trigger', False)
 
         # Import style settings
         self.model_styles =      style_config['model']
@@ -170,10 +172,10 @@ class ResultPlotGenerator(object):
         """
 
         # Change time reference to seconds since beginning of the day
-        if self.change_time and which_day is not None:
+        if self.time_since_midnight and which_day is not None:
             assert which_day < len(self._dates), 'Use a valid date...'
             self._time_ref = self._day_start_times[which_day]
-            time_frame = 'Time since midnight [h]'
+            time_frame = 'Time since midnight [{}]'.format(self.time_format)
         else:
             self._time_ref = 0
             time_frame = 'MET [s]'
@@ -344,11 +346,18 @@ class ResultPlotGenerator(object):
             self.xlim = xlim if self.xlim is None else self.xlim
             self.ylim = ylim if self.ylim is None else self.ylim
 
-        xticks = []
-        xtick_labels = []
-        for xstep in range(int(self.xlim[0] / 3600), int((self.xlim[1] + 500) / 3600) + 1, 4):
-            xticks.append(xstep * 3600)
-            xtick_labels.append('%s' % xstep)
+        if self.time_format == 'h':
+            xticks = []
+            xtick_labels = []
+            for xstep in range(int(self.xlim[0] / 3600), int((self.xlim[1] + 500) / 3600) + 1, 4):
+                xticks.append(xstep * 3600)
+                xtick_labels.append('%s' % xstep)
+
+        elif self.time_format == 's':
+            xticks = None
+            xtick_labels = None
+        else:
+            raise NotImplementedError("Please provide a valid time format: ['h', 's']")
 
         p_bar.increase()
 

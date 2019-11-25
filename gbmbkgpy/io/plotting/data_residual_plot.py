@@ -394,11 +394,6 @@ class ResidualPlot(object):
 
             self._data_axis.set_yscale(yscale)
 
-        if xticks is not None:
-            assert len(xticks) == len(xtick_labels)
-            self._data_axis.set_xticks(xticks)
-            self._data_axis.set_xticklabels(xtick_labels)
-
         if self._show_residuals:
 
             self._residual_axis.set_xscale(xscale)
@@ -414,9 +409,19 @@ class ResidualPlot(object):
             else:
                 self._residual_axis.set_ylabel("Residuals\n($\sigma$)")
 
+            if xticks is not None:
+                assert len(xticks) == len(xtick_labels)
+                self._residual_axis.set_xticks(xticks)
+                self._residual_axis.set_xticklabels(xtick_labels)
+
         else:
 
             self._data_axis.set_xlabel(xlabel)
+
+            if xticks is not None:
+                assert len(xticks) == len(xtick_labels)
+                self._data_axis.set_xticks(xticks)
+                self._data_axis.set_xticklabels(xtick_labels)
 
             # This takes care of making space for all labels around the figure
 
