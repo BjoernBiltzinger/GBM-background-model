@@ -116,7 +116,7 @@ print_progress('Done')
 
 # Create external properties object (for McIlwain L-parameter)
 print_progress('Download and prepare external properties...')
-ep = ExternalProps(date)
+ep = ExternalProps(date, det=detector, bgo_cr_approximation=setup_dict['bgo_cr_approximation'])
 print_progress('Done')
 
 ############################# Model ########################################
@@ -178,25 +178,27 @@ sun_obj = Sun(resp, geom, echan_list)
     
 print_progress('Create Source list...')
 
-source_list = Setup(data=               data,
-                    saa_object=         saa_calc,
-                    ep=                 ep,
-                    geom_object=        geom,
-                    sun_object=         sun_obj,
-                    echan_list=         echan_list,
-                    response_object=    resp,
-                    albedo_cgb_object=  albedo_cgb_obj,
-                    use_saa=            setup_dict['use_saa'],
-                    use_constant=       setup_dict['use_constant'],
-                    use_cr=             setup_dict['use_cr'],
-                    use_earth=          setup_dict['use_earth'],
-                    use_cgb=            setup_dict['use_cgb'],
-                    point_source_list=  setup_dict['ps_list'],
-                    fix_ps=             setup_dict['fix_ps'],
-                    fix_earth=          setup_dict['fix_earth'],
-                    fix_cgb=            setup_dict['fix_cgb'],
-                    use_sun=            setup_dict['use_sun'],
-                    nr_saa_decays=      saa_dict['nr_decays'])
+source_list = Setup(data=                   data,
+                    saa_object=             saa_calc,
+                    ep=                     ep,
+                    geom_object=            geom,
+                    sun_object=             sun_obj,
+                    echan_list=             echan_list,
+                    response_object=        resp,
+                    albedo_cgb_object=      albedo_cgb_obj,
+                    use_saa=                setup_dict['use_saa'],
+                    use_constant=           setup_dict['use_constant'],
+                    use_cr=                 setup_dict['use_cr'],
+                    use_earth=              setup_dict['use_earth'],
+                    use_cgb=                setup_dict['use_cgb'],
+                    point_source_list=      setup_dict['ps_list'],
+                    fix_ps=                 setup_dict['fix_ps'],
+                    fix_earth=              setup_dict['fix_earth'],
+                    fix_cgb=                setup_dict['fix_cgb'],
+                    use_sun=                setup_dict['use_sun'],
+                    nr_saa_decays=          saa_dict['nr_decays'],
+                    bgo_cr_approximation=   setup_dict['bgo_cr_approximation'])
+
 
 print_progress('Done')
 
