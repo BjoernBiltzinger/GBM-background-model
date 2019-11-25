@@ -58,7 +58,7 @@ class Data(object):
 
         self._data_type = data_type
         self._det = detector
-        self._day_list = map(str, sorted(map(int, date)))
+        self._day_list = sorted(date)
         self._echan_list = echan_list
         if self._data_type == 'ctime':
             self._echan_mask = np.zeros(8, dtype=bool)
