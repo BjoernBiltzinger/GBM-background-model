@@ -64,7 +64,7 @@ if args.config_file is not None:
     for k in dir(module):
         locals()[k] = getattr(module, k)
 
-    config_custom_path = os.path.join(get_path_of_external_data_dir(), 'fits', args.config_file)
+    config_custom_path = os.path.join(get_path_of_external_data_dir(), 'fits', args.config_file + '.py')
     print_progress('Using custom config file from {}'.format(config_custom_path))
     custom = True
 
