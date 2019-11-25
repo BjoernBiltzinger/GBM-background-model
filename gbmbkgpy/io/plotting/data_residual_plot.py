@@ -162,7 +162,8 @@ class ResidualPlot(object):
         """
 
         for key, value in grb_triggers.iteritems():
-            self._data_axis.axvline(x=value['met'] - time_ref, color=value.get('color', 'b'), alpha=value.get('alpha', 0.3), label=key)
+            self._data_axis.axvline(x=value['met'] - time_ref, color=value.get('color', 'b'), linestyle=value.get('linestyle', '-'),
+                                    linewidth=value.get('linewidth', 1), alpha=value.get('alpha', 0.3), label=key)
 
     def add_occ_region(self, occ_region, time_ref):
         """

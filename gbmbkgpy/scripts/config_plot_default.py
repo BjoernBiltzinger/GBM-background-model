@@ -25,6 +25,7 @@ plot_config = {
     'bin_width':            5,
     'time_since_midnight':  True,
     'time_format':          'h',
+    'time_t0':              None,
     'xlim':                 None,
     'ylim':                 None,
     'xlabel':               None,
@@ -89,7 +90,9 @@ highlight_config = {
          'trigger_time': '2015-01-26T20:51:43.524',
          'time_format': 'UTC',
          'time_offset': 0.,
-         'color': 'b'
+         'color': 'b',
+         'linestyle': '-',
+         'linewidth': 0.8
          },
     ],
     'occ_region':   [
