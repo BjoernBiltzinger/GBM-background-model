@@ -233,7 +233,8 @@ class ResultPlotGenerator(object):
                                show_data=self.show_data,
                                marker_size=self.data_styles.get('marker_size', 0.5),
                                linewidth=self.data_styles.get('linewidth', 0.2),
-                               elinewidth=self.data_styles.get('elinewidth', 0.5)
+                               elinewidth=self.data_styles.get('elinewidth', 0.5),
+                               rasterized=self.data_styles.get('rasterized', False)
                                )
         p_bar.increase()
 

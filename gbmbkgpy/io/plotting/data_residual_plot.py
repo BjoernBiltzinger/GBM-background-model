@@ -216,7 +216,7 @@ class ResidualPlot(object):
             linewidth = source.get('linewidth', 2)
             self._data_axis.plot(x, source['data'], color=source['color'], label=source['label'], alpha=alpha, zorder=18, linewidth=linewidth)
 
-    def add_data(self, x, y, residuals, label, xerr=None, yerr=None, residual_yerr=None, color='r', alpha=.9,  show_data=True, marker_size=3, linewidth=1, elinewidth=1):
+    def add_data(self, x, y, residuals, label, xerr=None, yerr=None, residual_yerr=None, color='r', alpha=.9,  show_data=True, marker_size=3, linewidth=1, elinewidth=1, rasterized=False):
         """
         Add the data for the this model
         :param x: energy of the data
@@ -240,7 +240,8 @@ class ResidualPlot(object):
                                     edgecolors=color,
                                     alpha=alpha,
                                     label=label,
-                                    zorder=15)
+                                    zorder=15,
+                                    rasterized=rasterized)
 
         # if we want to show the residuals
 
@@ -261,7 +262,8 @@ class ResidualPlot(object):
                                          elinewidth=elinewidth,
                                          markersize=marker_size,
                                          color=color,
-                                         alpha=alpha)
+                                         alpha=alpha,
+                                         rasterized=rasterized)
 
     def add_ppc(self, rebinned_ppc_rates=None, rebinned_time_bin_mean=None, result_dir=None, model=None,
                 plotter=None, time_bins=None, saa_mask=None, echan=None, q_levels=[0.68], colors=['lightgreen'],
