@@ -30,7 +30,7 @@ plot_config = {
     'ylim':                 None,
     'xlabel':               None,
     'ylabel':               None,
-    'dpi':                  400,
+    'dpi':                  600,
     'show_legend':          True,
     'legend_outside':       False,
     'show_title':           True,
@@ -58,8 +58,9 @@ component_config = {
 
 style_config = {
     'mpl_style':    'aa.mplstyle',
-    'model':        {'color': 'firebrick',                      'alpha': .8, 'linewidth': 0.6, 'show_label': True},
-    'data':         {'color': 'k',                              'alpha': .5, 'linewidth': 0.1, 'marker_size': 1, 'elinewidth': 0.2, 'show_label': True},
+    'model':        {'color': 'red',                            'alpha': .8, 'linewidth': 0.6, 'show_label': True},
+    'data':         {'color': 'k',                              'alpha': .4, 'linewidth': 0.08, 'marker_size': 1, 'elinewidth': 0.2, 'show_label': True, 'rasterized': True},
+
     'sources': {
         'cr':       {'color': [0.267004, 0.004874, 0.329415],   'alpha': .6, 'linewidth': 0.8, 'show_label': True},
         'earth':    {'color': [0.267968, 0.223549, 0.512008],   'alpha': .6, 'linewidth': 0.8, 'show_label': True},
