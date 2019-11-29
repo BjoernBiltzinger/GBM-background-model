@@ -68,14 +68,15 @@ class ExternalProps(object):
         else:
             for i, date in enumerate(day_list):
                 times, rates = self._bgo_cr_approximation(date, det)
-                if i==0:
-                    self._times = times
-                    self._rates = rates
+                if i == 0:
+                    self._bgo_times = times
+                    self._bgo_rates = rates
                 else:
-                    self._rates = np.append(self._rates, rates)
-                    self._times = np.append(self._times, times)
-            self._bgo_rate_interp = interpolate.interp1d(self._times, self._rates)
-                
+                    self._bgo_rates = np.append(self._bgo_rates, rates)
+                    self._bgo_times = np.append(self._bgo_times, times)
+            # self._bgo_rate_interp = interpolate.interp1d(self._bgo_times, self._bgo_rates)
+            self._bgo_rate_interp = interpolate.UnivariateSpline(self._bgo_times, self._bgo_rates, s=1000, k=3)
+
     def build_point_sources(self, rsp, geom, echan_list, free_spectrum=[]):
         """
         Build all PS saved in the txt file
@@ -519,12 +520,11 @@ class ExternalProps(object):
         else:
             raise AssertionError('Use a valid NaI det name to use this function.')
 
-        
-        data_type='cspec'
-        echans = np.arange(85,105,1)
+        data_type = 'cspec'
+        echans = np.arange(85, 105, 1)
         
         if using_mpi:
-            if rank==0:
+            if rank == 0:
                 download_files(data_type, bgo_det, date)
             comm.barrier()
         else:
@@ -541,7 +541,7 @@ class ExternalProps(object):
             bin_stop = f['SPECTRUM'].data['ENDTIME']
 
         total_time_bins = np.vstack((bin_start, bin_stop)).T
-        min_bin_width = 200
+        min_bin_width = 100
 
         this_rebinner = Rebinner(total_time_bins, min_bin_width)
         rebinned_time_bins = this_rebinner.time_rebinned
