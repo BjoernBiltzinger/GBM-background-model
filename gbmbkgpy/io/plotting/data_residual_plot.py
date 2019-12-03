@@ -362,7 +362,8 @@ class ResidualPlot(object):
         # self._data_axis.set_xlim((70000, 80000))
 
     def finalize(self, xlabel='x', ylabel='y', xscale='log', yscale='log', xticks=None, xtick_labels=None, show_legend=True,
-                 invert_y=False, xlim=None, ylim=None, legend_outside=False, legend_kwargs=None, axis_title=None, show_title=False):
+                 invert_y=False, xlim=None, ylim=None, legend_outside=False, legend_kwargs=None, axis_title=None, show_title=False,
+                 residual_ylim=None):
         """
         :param xlabel:
         :param ylabel:

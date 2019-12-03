@@ -28,6 +28,7 @@ plot_config = {
     'time_t0':              None,
     'xlim':                 None,
     'ylim':                 None,
+    'residual_ylim':        None,
     'xlabel':               None,
     'ylabel':               None,
     'dpi':                  600,

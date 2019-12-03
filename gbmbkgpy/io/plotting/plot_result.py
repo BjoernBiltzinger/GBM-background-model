@@ -16,6 +16,7 @@ class ResultPlotGenerator(object):
     def __init__(self, plot_config, component_config, style_config, highlight_config={}):
 
         # Import plot settings
+
         self.data_path =            plot_config['data_path']
         self.bin_width =            plot_config.get('bin_width', 10)
         self.change_time =          plot_config.get('change_time', True)
@@ -24,6 +25,7 @@ class ResultPlotGenerator(object):
         self.time_t0 =              plot_config.get('time_t0', None)
         self.xlim =                 plot_config.get('xlim', None)
         self.ylim =                 plot_config.get('ylim', None)
+        self.residual_ylim = plot_config.get('residual_ylim', None)
         self.xscale =               plot_config.get('xscale', 'linear')
         self.yscale =               plot_config.get('yscale', 'linear')
         self.xlabel =               plot_config.get('xlabel', None)
@@ -250,7 +252,7 @@ class ResultPlotGenerator(object):
         p_bar.increase()
 
         src_list = []
-        for i, key in enumerate(self._sources.keys()):
+        for i, (key, value) in enumerate(self._sources.items()):
             if 'L-parameter' in key or 'BGO_CR_Approx' in key:
                 label = 'Cosmic Rays'
                 style_key = 'cr'
@@ -303,7 +305,7 @@ class ResultPlotGenerator(object):
             else:
                 label = key
                 style_key = 'default'
-                sort_idx = i + len(self._sources.keys())
+                sort_idx = i + len(self._sources.items())
                 if not self.show_all_sources:
                     continue
 
@@ -393,6 +395,7 @@ class ResultPlotGenerator(object):
                                             show_legend=self.show_legend,
                                             xlim=self.xlim,
                                             ylim=self.ylim,
+                                            residual_ylim=self.residual_ylim,
                                             legend_outside=self.legend_outside,
                                             legend_kwargs=self.legend_kwargs,
                                             axis_title=axis_title,
