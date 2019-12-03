@@ -27,9 +27,9 @@ except:
     using_mpi = False
 
 
-def Setup(data, saa_object, ep, geom_object, echan_list=[], sun_object=None,response_object=None, albedo_cgb_object=None,
-          use_SAA=False, use_CR=True, use_Earth=True, use_CGB=True, use_all_ps=False, use_sun=True, point_source_list=[], fix_ps=[],
-          fix_Earth=False, fix_CGB=False):
+def Setup(data, saa_object, ep, geom_object, echan_list=[], sun_object=None, response_object=None, albedo_cgb_object=None,
+          use_saa=False, use_constant=True, use_cr=True, use_earth=True, use_cgb=True, use_all_ps=False, use_sun=True, point_source_list=[], fix_ps=[],
+          fix_earth=False, fix_cgb=False, nr_saa_decays=1, bgo_cr_approximation=False):
     """
     Setup all sources
     :param fix_ps:
@@ -48,13 +48,14 @@ def Setup(data, saa_object, ep, geom_object, echan_list=[], sun_object=None,resp
     :param point_source_list: PS to use
     :param fix_Earth: fix earth spectrum?
     :param fix_CGB: fix cgb spectrum?
+    :param bgo_cr_approximation: Use bgo cr approximation
     :return:
     """
 
     assert len(echan_list) > 0, 'Please give at least one echan'
 
-    assert type(use_SAA) == bool and type(use_CR) == bool and type(use_Earth) == bool and type(use_CGB) == bool and \
-           type(fix_Earth) == bool and type(fix_CGB) == bool and type(use_all_ps) == bool, 'Please only use True or False here.'
+    assert type(use_saa) == bool and type(use_cr) == bool and type(use_earth) == bool and type(use_cgb) == bool and \
+           type(fix_earth) == bool and type(fix_cgb) == bool and type(use_all_ps) == bool, 'Please only use True or False here.'
 
     total_sources = []
 
@@ -62,34 +63,37 @@ def Setup(data, saa_object, ep, geom_object, echan_list=[], sun_object=None,resp
 
     for index, echan in enumerate(echan_list):
 
-        if use_SAA:
-            total_sources.extend(setup_SAA(data, saa_object, echan, index))
+        if use_saa:
+            total_sources.extend(setup_SAA(data, saa_object, echan, index, nr_saa_decays))
 
-        if use_CR:
-            total_sources.extend(setup_CosmicRays(data, ep, saa_object, echan, index))
+        if use_constant:
+            total_sources.append(setup_Constant(data, saa_object, echan, index))
+
+        if use_cr:
+            total_sources.append(setup_CosmicRays(data, ep, saa_object, echan, index, bgo_cr_approximation))
 
     if use_sun:
         total_sources.append(setup_sun(data, sun_object, saa_object, response_object, geom_object, echan_list))
-            
+
     if use_all_ps:
         total_sources.extend(setup_ps(data, ep, saa_object, response_object, geom_object, echan_list,
                                       include_point_sources=True, free_spectrum=np.logical_not(fix_ps)))
-    
+
     elif len(point_source_list) != 0:
         total_sources.extend(setup_ps(data, ep, saa_object, response_object, geom_object, echan_list,
                                       point_source_list=point_source_list, free_spectrum=np.logical_not(fix_ps)))
 
-    if use_Earth:
+    if use_earth:
 
-        if fix_Earth:
+        if fix_earth:
             total_sources.append(setup_earth_fix(data, albedo_cgb_object, saa_object))
 
         else:
             total_sources.append(setup_earth_free(data, albedo_cgb_object, saa_object))
 
-    if use_CGB:
+    if use_cgb:
 
-        if fix_CGB:
+        if fix_cgb:
             total_sources.append(setup_cgb_fix(data, albedo_cgb_object, saa_object))
 
         else:
@@ -98,9 +102,10 @@ def Setup(data, saa_object, ep, geom_object, echan_list=[], sun_object=None,resp
     return total_sources
 
 
-def setup_SAA(data, saa_object, echan, index):
+def setup_SAA(data, saa_object, echan, index, nr_decays=1):
     """
     Setup for SAA sources
+    :param nr_decays: Number of decays that should be fittet to each SAA Exit
     :param index:
     :param saa_object: SAA precalculation object
     :param echan: energy channel
@@ -112,8 +117,13 @@ def setup_SAA(data, saa_object, echan, index):
     SAA_Decay_list = []
     saa_n = 0
     # Add 'SAA' decay at start of the day if fitting only one day to account for leftover excitation
-    day_start = np.array(data.day_met) if len(data.day_met) <= 1 else []
-    start_times = np.append(day_start, saa_object.saa_exit_times)
+
+    day_start = []
+    if len(data.day_met) <= 1:
+        for i in range(nr_decays):
+            day_start.append(data.day_met)
+
+    start_times = np.append(np.array(day_start), saa_object.saa_exit_times)
 
     for time in start_times:
         saa_dec = SAA_Decay(str(saa_n), str(echan))
@@ -143,7 +153,17 @@ def setup_sun(cd, sun_object, saa_object, response_object, geom_object, echan_li
     return Sun_Continuum
 
 
-def setup_CosmicRays(data, ep, saa_object, echan, index):
+def setup_Constant(data, saa_object, echan, index):
+    Constant = Offset(str(echan))
+    Constant.set_function_array(np.ones_like(data.time_bins[2:-2]))
+    Constant.set_saa_zero(saa_object.saa_mask[2:-2])
+    # precalculate the integration over the time bins
+    Constant.integrate_array(data.time_bins[2:-2])
+    Constant_Continuum = ContinuumSource('Constant_echan_{:d}'.format(echan), Constant, index)
+    return Constant_Continuum
+
+
+def setup_CosmicRays(data, ep, saa_object, echan, index, bgo_cr_approximation):
     """
     Setup for CosmicRay source
     :param index:
@@ -154,23 +174,26 @@ def setup_CosmicRays(data, ep, saa_object, echan, index):
     :return: Constant and magnetic continuum source
     """
 
-    Constant = Offset(str(echan))
-    Constant.set_function_array(np.ones_like(data.time_bins[2:-2]))
-    Constant.set_saa_zero(saa_object.saa_mask[2:-2])
-    # precalculate the integration over the time bins
-    Constant.integrate_array(data.time_bins[2:-2])
-    Constant_Continuum = ContinuumSource('Constant_echan_{:d}'.format(echan), Constant, index)
-
-    # Magnetic Continuum Source
-    mag_con = Magnetic_Continuum(str(echan))
-    mag_con.set_function_array(ep.mc_l((data.time_bins[2:-2])))
-    mag_con.set_saa_zero(saa_object.saa_mask[2:-2])
-    mag_con.remove_vertical_movement()
-    # precalculate the integration over the time bins
-    mag_con.integrate_array(data.time_bins[2:-2])
-    Source_Magnetic_Continuum = ContinuumSource('McIlwain_L-parameter_echan_{:d}'.format(echan),
-                                                mag_con, index)
-    return [Constant_Continuum, Source_Magnetic_Continuum]
+    if bgo_cr_approximation:
+        mag_con = Magnetic_Continuum(str(echan))
+        mag_con.set_function_array(ep.bgo_cr_approximation((data.time_bins[2:-2])))
+        mag_con.remove_vertical_movement()
+        mag_con.set_saa_zero(saa_object.saa_mask[2:-2])
+        mag_con.integrate_array(data.time_bins[2:-2])
+        Source_Magnetic_Continuum = ContinuumSource('BGO_CR_Approx_echan_{:d}'.format(echan),
+                                                    mag_con, index)
+        return Source_Magnetic_Continuum
+    else:
+        # Magnetic Continuum Source
+        mag_con = Magnetic_Continuum(str(echan))
+        mag_con.set_function_array(ep.mc_l((data.time_bins[2:-2])))
+        mag_con.set_saa_zero(saa_object.saa_mask[2:-2])
+        mag_con.remove_vertical_movement()
+        # precalculate the integration over the time bins
+        mag_con.integrate_array(data.time_bins[2:-2])
+        Source_Magnetic_Continuum = ContinuumSource('McIlwain_L-parameter_echan_{:d}'.format(echan),
+                                                    mag_con, index)
+        return Source_Magnetic_Continuum
 
 
 def setup_ps(data, ep, saa_object, response_object, geom_object, echan_list,
