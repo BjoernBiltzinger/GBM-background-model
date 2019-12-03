@@ -64,7 +64,7 @@ if args.config_file is not None:
     for k in dir(module):
         locals()[k] = getattr(module, k)
 
-    config_custom_path = os.path.join(get_path_of_external_data_dir(), 'fits', args.config_file)
+    config_custom_path = os.path.join(get_path_of_external_data_dir(), 'fits', args.config_file + '.py')
     print_progress('Using custom config file from {}'.format(config_custom_path))
     custom = True
 
@@ -116,7 +116,7 @@ print_progress('Done')
 
 # Create external properties object (for McIlwain L-parameter)
 print_progress('Download and prepare external properties...')
-ep = ExternalProps(date)
+ep = ExternalProps(date, det=detector, bgo_cr_approximation=setup_dict['bgo_cr_approximation'])
 print_progress('Done')
 
 ############################# Model ########################################
@@ -135,9 +135,10 @@ print_progress('Done')
 ######### SAA options ###########
 # Use time after SAA? If no give the time which should be deleted after every SAA in s. If use_SAA=False no SAA sources
 # are build
-time_after_SAA = saa_dict['time_after_SAA']
+time_after_SAA = saa_dict['time_after_saa']
 # Want to use separated time intervals that are shorter than 1000 seconds?
 short_time_intervals = saa_dict['short_time_intervals']
+nr_decays = saa_dict['nr_decays']
 ################################
 
 # Build the SAA object
@@ -145,7 +146,7 @@ if time_after_SAA is not None:
     print_progress('Precalculate SAA times and SAA mask. {} seconds after every SAA exit are excluded from fit...')
 else:
     print_progress('Precalculate SAA times and SAA mask...')
-saa_calc = SAA_calc(data, time_after_SAA=time_after_SAA, short_time_intervals=short_time_intervals)
+saa_calc = SAA_calc(data, time_after_SAA=time_after_SAA, short_time_intervals=short_time_intervals, nr_decays=nr_decays)
 print_progress('Done')
 
 ################### Geometry precalculation ##################
@@ -164,30 +165,11 @@ print_progress('Done')
 # Create all individual sources and add them to a list
 
 ########## Setup options ###########
-
-# Use SAA?
-use_SAA = setup_dict['use_SAA']
-# Use CosmicRay source?
-use_CR = setup_dict['use_CR']
-# Use EarthAlbedo source?
-use_Earth = setup_dict['use_Earth']
-# Use CGB source?
-use_CGB = setup_dict['use_CGB']
-# Which PS should be included (given as list of names)
-ps_list = setup_dict['ps_list']
-# Which of these PS should have a free pl spectrum?
-fix_ps = setup_dict['fix_ps']
-# Fix the spectrum of the earth albedo?
-fix_earth = setup_dict['fix_earth']
-# Fix the spectrum of the CGB?
-fix_cgb = setup_dict['fix_cgb']
-# Use Sun?
-use_sun = setup_dict['use_sun']
-
-assert (fix_earth and fix_cgb) or (not fix_earth and not fix_cgb), 'At the moment albeod and cgb spectrum have to be either both fixed or both free'
+assert (setup_dict['fix_earth'] and setup_dict['fix_cgb']) or (not setup_dict['fix_earth'] and not setup_dict['fix_cgb']),\
+    'At the moment albeod and cgb spectrum have to be either both fixed or both free'
 
 ########### Albedo-CGB Object ###########
-if fix_earth:
+if setup_dict['fix_earth']:
     albedo_cgb_obj = Albedo_CGB_fixed(resp, geom)
 else:
     albedo_cgb_obj = Albedo_CGB_free(resp, geom)
@@ -196,9 +178,27 @@ sun_obj = Sun(resp, geom, echan_list)
     
 print_progress('Create Source list...')
 
-source_list = Setup(data, saa_calc, ep, geom, sun_object=sun_obj, echan_list=echan_list, response_object=resp,
-                    albedo_cgb_object=albedo_cgb_obj, use_SAA=use_SAA, use_CR=use_CR, use_Earth=use_Earth, use_CGB=use_CGB,
-                    point_source_list=ps_list, fix_ps=fix_ps, fix_Earth=fix_earth, fix_CGB=fix_cgb, use_sun=use_sun)
+source_list = Setup(data=                   data,
+                    saa_object=             saa_calc,
+                    ep=                     ep,
+                    geom_object=            geom,
+                    sun_object=             sun_obj,
+                    echan_list=             echan_list,
+                    response_object=        resp,
+                    albedo_cgb_object=      albedo_cgb_obj,
+                    use_saa=                setup_dict['use_saa'],
+                    use_constant=           setup_dict['use_constant'],
+                    use_cr=                 setup_dict['use_cr'],
+                    use_earth=              setup_dict['use_earth'],
+                    use_cgb=                setup_dict['use_cgb'],
+                    point_source_list=      setup_dict['ps_list'],
+                    fix_ps=                 setup_dict['fix_ps'],
+                    fix_earth=              setup_dict['fix_earth'],
+                    fix_cgb=                setup_dict['fix_cgb'],
+                    use_sun=                setup_dict['use_sun'],
+                    nr_saa_decays=          saa_dict['nr_decays'],
+                    bgo_cr_approximation=   setup_dict['bgo_cr_approximation'])
+
 
 print_progress('Done')
 
@@ -217,11 +217,11 @@ parameter_bounds = {}
 # Echan individual sources
 for e in echan_list:
 
-    if use_SAA:
+    if setup_dict['use_saa']:
 
         # If fitting only one day add additional 'SAA' decay to account for leftover excitation
         if len(date) == 1:
-            offset = 1
+            offset = saa_dict['nr_decays']
         else:
             offset = 0
 
@@ -235,18 +235,19 @@ for e in echan_list:
                 'gaussian_parameter': gaussian_dict['saa_bound'][1]
             }
 
-    if use_CR:
-
+    if setup_dict['use_constant']:
         parameter_bounds['constant_echan-{}'.format(e)] = {
             'bounds': bounds_dict['cr_bound'][0],
             'gaussian_parameter': gaussian_dict['cr_bound'][0]
         }
+
+    if setup_dict['use_cr']:
         parameter_bounds['norm_magnetic_echan-{}'.format(e)] = {
             'bounds': bounds_dict['cr_bound'][1],
             'gaussian_parameter': gaussian_dict['cr_bound'][1]
         }
 
-if use_sun:
+if setup_dict['use_sun']:
     parameter_bounds['sun_C'] = {
         'bounds': bounds_dict['sun_bound'][0],
         'gaussian_parameter': gaussian_dict['sun_bound'][0]
@@ -258,8 +259,8 @@ if use_sun:
 # Global sources for all echans
 
 # If PS spectrum is fixed only the normalization, otherwise C, index
-for i, ps in enumerate(ps_list):
-    if fix_ps[i]:
+for i, ps in enumerate(setup_dict['ps_list']):
+    if setup_dict['fix_ps'][i]:
         parameter_bounds['norm_point_source-{}'.format(ps)] = {
             'bounds': bounds_dict['ps_fixed_bound'][0],
             'gaussian_parameter': gaussian_dict['ps_fixed_bound'][0]
@@ -274,53 +275,56 @@ for i, ps in enumerate(ps_list):
             'gaussian_parameter': gaussian_dict['ps_free_bound'][1]
         }
 
-# If earth spectrum is fixed only the normalization, otherwise C, index1, index2 and E_break
-if fix_earth:
-    parameter_bounds['norm_earth_albedo'] = {
-        'bounds': bounds_dict['earth_fixed_bound'][0],
-        'gaussian_parameter': gaussian_dict['earth_fixed_bound'][0]
-    }
-else:
-    parameter_bounds['earth_albedo_spectrum_fitted_C'] = {
-        'bounds': bounds_dict['earth_free_bound'][0],
-        'gaussian_parameter': gaussian_dict['earth_free_bound'][0]
-    }
-    parameter_bounds['earth_albedo_spectrum_fitted_index1'] = {
-        'bounds': bounds_dict['earth_free_bound'][1],
-        'gaussian_parameter': gaussian_dict['earth_free_bound'][1]
-    }
-    parameter_bounds['earth_albedo_spectrum_fitted_index2'] = {
-        'bounds': bounds_dict['earth_free_bound'][2],
-        'gaussian_parameter': gaussian_dict['earth_free_bound'][2]
-    }
-    parameter_bounds['earth_albedo_spectrum_fitted_break_energy'] = {
-        'bounds': bounds_dict['earth_free_bound'][3],
-        'gaussian_parameter': gaussian_dict['earth_free_bound'][3]
-    }
 
-# If cgb spectrum is fixed only the normalization, otherwise C, index1, index2 and E_break
-if fix_cgb:
-    parameter_bounds['norm_cgb'] = {
-        'bounds': bounds_dict['cgb_fixed_bound'][0],
-        'gaussian_parameter': gaussian_dict['cgb_fixed_bound'][0]
-    }
-else:
-    parameter_bounds['CGB_spectrum_fitted_C'] = {
-        'bounds': bounds_dict['cgb_free_bound'][0],
-        'gaussian_parameter': gaussian_dict['cgb_free_bound'][0]
-    }
-    parameter_bounds['CGB_spectrum_fitted_index1'] = {
-        'bounds': bounds_dict['cgb_free_bound'][1],
-        'gaussian_parameter': gaussian_dict['cgb_free_bound'][1]
-    }
-    parameter_bounds['CGB_spectrum_fitted_index2'] = {
-        'bounds': bounds_dict['cgb_free_bound'][2],
-        'gaussian_parameter': gaussian_dict['cgb_free_bound'][2]
-    }
-    parameter_bounds['CGB_spectrum_fitted_break_energy'] = {
-        'bounds': bounds_dict['cgb_free_bound'][3],
-        'gaussian_parameter': gaussian_dict['cgb_free_bound'][3]
-    }
+if setup_dict['use_earth']:
+    # If earth spectrum is fixed only the normalization, otherwise C, index1, index2 and E_break
+    if setup_dict['fix_earth']:
+        parameter_bounds['norm_earth_albedo'] = {
+            'bounds': bounds_dict['earth_fixed_bound'][0],
+            'gaussian_parameter': gaussian_dict['earth_fixed_bound'][0]
+        }
+    else:
+        parameter_bounds['earth_albedo_spectrum_fitted_C'] = {
+            'bounds': bounds_dict['earth_free_bound'][0],
+            'gaussian_parameter': gaussian_dict['earth_free_bound'][0]
+        }
+        parameter_bounds['earth_albedo_spectrum_fitted_index1'] = {
+            'bounds': bounds_dict['earth_free_bound'][1],
+            'gaussian_parameter': gaussian_dict['earth_free_bound'][1]
+        }
+        parameter_bounds['earth_albedo_spectrum_fitted_index2'] = {
+            'bounds': bounds_dict['earth_free_bound'][2],
+            'gaussian_parameter': gaussian_dict['earth_free_bound'][2]
+        }
+        parameter_bounds['earth_albedo_spectrum_fitted_break_energy'] = {
+            'bounds': bounds_dict['earth_free_bound'][3],
+            'gaussian_parameter': gaussian_dict['earth_free_bound'][3]
+        }
+
+if setup_dict['use_cgb']:
+    # If cgb spectrum is fixed only the normalization, otherwise C, index1, index2 and E_break
+    if setup_dict['fix_cgb']:
+        parameter_bounds['norm_cgb'] = {
+            'bounds': bounds_dict['cgb_fixed_bound'][0],
+            'gaussian_parameter': gaussian_dict['cgb_fixed_bound'][0]
+        }
+    else:
+        parameter_bounds['CGB_spectrum_fitted_C'] = {
+            'bounds': bounds_dict['cgb_free_bound'][0],
+            'gaussian_parameter': gaussian_dict['cgb_free_bound'][0]
+        }
+        parameter_bounds['CGB_spectrum_fitted_index1'] = {
+            'bounds': bounds_dict['cgb_free_bound'][1],
+            'gaussian_parameter': gaussian_dict['cgb_free_bound'][1]
+        }
+        parameter_bounds['CGB_spectrum_fitted_index2'] = {
+            'bounds': bounds_dict['cgb_free_bound'][2],
+            'gaussian_parameter': gaussian_dict['cgb_free_bound'][2]
+        }
+        parameter_bounds['CGB_spectrum_fitted_break_energy'] = {
+            'bounds': bounds_dict['cgb_free_bound'][3],
+            'gaussian_parameter': gaussian_dict['cgb_free_bound'][3]
+        }
 
 # Add bounds to the parameters for multinest
 model.set_parameter_bounds(parameter_bounds)

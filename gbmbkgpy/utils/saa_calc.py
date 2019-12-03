@@ -22,7 +22,7 @@ except:
 
 
 class SAA_calc(object):
-    def __init__(self, data_object, bins_to_add=8, time_after_SAA=5000, short_time_intervals=False):
+    def __init__(self, data_object, bins_to_add=8, time_after_SAA=5000, short_time_intervals=False, nr_decays=1):
         """
         Initalize the SAA calculation that calculates the start and stop times of the SAAs and builds
         masks. 
@@ -38,7 +38,7 @@ class SAA_calc(object):
         assert type(short_time_intervals) == bool, 'short_time_intervals must be a bool but is {}'.format(short_time_intervals)
 
         self._time_bins = data_object.time_bins
-        self._build_masks(bins_to_add, time_after_SAA, short_time_intervals)
+        self._build_masks(bins_to_add, time_after_SAA, short_time_intervals, nr_decays=nr_decays)
 
     @property
     def saa_mask(self):
@@ -70,7 +70,7 @@ class SAA_calc(object):
         """
         return self._saa_exit_time_bins[:, 1]
 
-    def _build_masks(self, bins_to_add, time_after_SAA, short_time_intervals):
+    def _build_masks(self, bins_to_add, time_after_SAA, short_time_intervals, nr_decays):
         """
         Calculates masks that cover the SAAs and some time bins before and after the SAAs
         :params bins_to_add: number of bins to add to mask before and after time bin
@@ -90,7 +90,6 @@ class SAA_calc(object):
 
         # Build slices, that have as first entry start of SAA and as second end of SAA
         slice_idx = np.array(self.slice_disjoint(idx))
-        self._num_saa = len(slice_idx)
 
         # Add bins_to_add before and after SAAs
         slice_idx[:, 0][np.where(slice_idx[:, 0] >= bins_to_add)] = \
@@ -107,6 +106,11 @@ class SAA_calc(object):
             saa_exit_idx = slice_idx[:, 1]
 
         self._saa_exit_time_bins = self._time_bins[saa_exit_idx]
+
+        for i in range(1, nr_decays):
+            self._saa_exit_time_bins = np.append(self._saa_exit_time_bins, self._time_bins[saa_exit_idx], axis=0)
+
+        self._num_saa = len(self._saa_exit_time_bins)
 
         # make a saa mask from the slices:
         self._saa_mask = np.ones(len(self._time_bins), bool)

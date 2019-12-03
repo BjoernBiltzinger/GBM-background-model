@@ -31,7 +31,7 @@ except:
 
     using_mpi = False
 
-valid_det_names = ['n0', 'n1', 'n2', 'n3', 'n4', 'n5', 'n6', 'n7', 'n8', 'n9', 'na', 'nb']
+valid_det_names = ['n0', 'n1', 'n2', 'n3', 'n4', 'n5', 'n6', 'n7', 'n8', 'n9', 'na', 'nb', 'b0', 'b1']
 
 
 class Data(object):
@@ -58,7 +58,7 @@ class Data(object):
 
         self._data_type = data_type
         self._det = detector
-        self._day_list = map(str, sorted(map(int, date)))
+        self._day_list = sorted(date)
         self._echan_list = echan_list
         if self._data_type == 'ctime':
             self._echan_mask = np.zeros(8, dtype=bool)

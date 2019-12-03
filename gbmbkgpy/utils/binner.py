@@ -24,6 +24,7 @@ class Rebinner(object):
         self._stops = []
         self._starts = []
         self._grouping = []
+        self._saa_idx = []
 
         sum_bin_width = 0.
         bin_open = False
@@ -46,8 +47,10 @@ class Rebinner(object):
                     sum_bin_width = 0.
                     bin_open = False
 
-            else:
+                    # add the first bin including a SAA passage to the SAA index
+                    self._saa_idx.append(len(self._stops) - 1)
 
+            else:
                 # This element is included by the mask
 
                 this_bin_width = bin[1] - bin[0]
@@ -58,6 +61,10 @@ class Rebinner(object):
 
                     self._starts.append(index)
                     sum_bin_width = 0.
+
+                    # Add the first bin after SAA exit to SAA idx
+                    if index > 0 and not mask[index - 1]:
+                        self._saa_idx.append(len(self._starts) - 1)
 
                 # Add the current bin width to the sum_bin_with
                 sum_bin_width += this_bin_width
@@ -74,6 +81,10 @@ class Rebinner(object):
 
                     bin_open = False
 
+                    # Add next bin to SAA idx if it is in SAA
+                    if not mask[stop_index]:
+                        self._saa_idx.append(len(self._stops) - 1)
+
         # At the end of the loop, see if we left a bin open, if we did, close it
         if bin_open:
             self._stops.append(len(vector_to_rebin_on) - 1)
@@ -88,6 +99,10 @@ class Rebinner(object):
         self._time_rebinned = np.array(zip(vector_to_rebin_on[self._starts, 0], vector_to_rebin_on[self._stops, 0]))
         # Set stop time of last bin to correct value
         self._time_rebinned[-1][1] = vector_to_rebin_on[self._stops[-1]][1]
+
+        rebinned_saa_mask = np.ones_like(self._starts)
+        rebinned_saa_mask.put(self._saa_idx, 0)
+        self._rebinned_saa_mask = np.array(rebinned_saa_mask, bool)
 
     @property
     def n_bins(self):
@@ -143,7 +158,12 @@ class Rebinner(object):
             if abs((np.sum(rebinned_vector) + 1e-100) / (np.sum(vector_a[self._mask]) + 1e-100) - 1) > 1e-4:
                 print ("The sum of rebinned counts is not equal to the sum of unbinned counts!!!")
 
-            rebinned_vectors.append(np.array(rebinned_vector))
+            rebinned_vector = np.array(rebinned_vector)
+
+            # Set last bin before and first bin after SAA to zero for plotting (this gets rid of glitches when plotting count-rates)
+            rebinned_vector[np.where(~self._rebinned_saa_mask)] = 0.
+
+            rebinned_vectors.append(rebinned_vector)
 
         return rebinned_vectors
 
