@@ -33,12 +33,11 @@ except:
     using_mpi = False
 
 valid_det_names = ['n0', 'n1', 'n2', 'n3', 'n4', 'n5', 'n6', 'n7', 'n8', 'n9', 'na', 'nb', 'b0', 'b1']
-NO_REBIN = 1E-99
 
 
 class Data(object):
 
-    def __init__(self, date, detector, data_type, echan_list, min_bin_width=NO_REBIN):
+    def __init__(self, date, detector, data_type, echan_list):
         """
         Initalize the ContinousData Class, which contains the information about the time bins 
         and counts of the data.
@@ -73,23 +72,27 @@ class Data(object):
 
         self._build_arrays()
 
-        if min_bin_width != NO_REBIN:
-            self._rebinn_data(min_bin_width)
-            self._rebinned = True
-        else:
-            self._rebinned = False
+        self._rebinned = False
+        self._data_rebinner = None
+        self._rebinned_counts = None
+        self._rebinned_time_bins = None
+        self._rebinned_saa_mask = None
 
-    def _rebinn_data(self, min_bin_width):
+    def rebinn_data(self, min_bin_width, saa_mask):
         """
         Rebins the time bins to a min bin width
         :param min_bin_width:
         :return:
         """
-        self._data_rebinner = Rebinner(self._time_bins, min_bin_width)
+        self._rebinned = True
+
+        self._data_rebinner = Rebinner(self._time_bins, min_bin_width, mask=saa_mask)
 
         self._rebinned_counts, = self._data_rebinner.rebin(self._counts)
 
         self._rebinned_time_bins = self._data_rebinner.time_rebinned
+
+        self._rebinned_saa_mask = self._data_rebinner.rebinned_saa_mask
 
     @property
     def counts(self):
@@ -112,6 +115,13 @@ class Data(object):
             return self._rebinned_time_bins
         else:
             return self._time_bins
+
+    @property
+    def rebinned_saa_mask(self):
+        if self._rebinned:
+            return self._rebinned_saa_mask
+        else:
+            raise Exception('Data is unbinned, the saa mask has to be obtained from the SAA_calc object')
 
     @property
     def det(self):

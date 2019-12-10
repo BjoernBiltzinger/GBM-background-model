@@ -118,6 +118,11 @@ class Rebinner(object):
 
         return self._time_rebinned
 
+    @property
+    def rebinned_saa_mask(self):
+
+        return self._rebinned_saa_mask
+
     def rebin(self, *vectors):
         """
         Rebin the given vectores and return them as a list

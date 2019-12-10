@@ -39,13 +39,22 @@ class SAA_calc(object):
 
         self._time_bins = data_object.time_bins
         self._build_masks(bins_to_add, time_after_SAA, short_time_intervals, nr_decays=nr_decays)
+        self._rebinned = False
+        self._rebinned_saa_mask = None
 
     @property
     def saa_mask(self):
         """
         Returns SAA mask
         """
-        return self._saa_mask
+        if self._rebinned:
+            return self._rebinned_saa_mask
+        else:
+            return self._saa_mask
+
+    def set_rebinned_saa_mask(self, rebinned_saa_mask):
+        self._rebinned = True
+        self._rebinned_saa_mask = rebinned_saa_mask
 
     @property
     def times_bins(self):

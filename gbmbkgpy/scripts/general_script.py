@@ -49,6 +49,7 @@ size = comm.Get_size()
 
 start = datetime.now()
 
+NO_REBIN = 1E-99
 
 def print_progress(text):
     """
@@ -87,7 +88,7 @@ detector = general_dict['detector']
 data_type = general_dict['data_type']
 # List with all echans you want to use
 echan_list = general_dict['echan_list']  # has to be  List! One entry is also possible
-min_bin_width = general_dict.get('min_bin_width', 1e-99)
+min_bin_width = general_dict.get('min_bin_width', NO_REBIN)
 
 ################# Overwrite with BASH arguments #########################
 if args.date is not None:
@@ -111,24 +112,9 @@ print_progress('Done')
 # Create the data object for the wanted day and detector
 
 print_progress('Prepare data...')
-data = Data(date, detector, data_type, echan_list, min_bin_width)
+data = Data(date, detector, data_type, echan_list)
 print_progress('Done')
 
-# Create external properties object (for McIlwain L-parameter)
-print_progress('Download and prepare external properties...')
-ep = ExternalProps(date, det=detector, bgo_cr_approximation=setup_dict['bgo_cr_approximation'])
-print_progress('Done')
-
-############################# Model ########################################
-
-################## Response precalculation ################
-
-# Create a Response precalculation object, that precalculates the responses on a spherical grid arount the detector.
-# These calculations use the full DRM's and thus include sat. scattering and partial loss of energy by the photons.
-Ngrid = response_dict['Ngrid']
-print_progress('Precalculate responses for {} points on sphere around detector...'.format(Ngrid))
-resp = Response_Precalculation(detector, date, echan_list, Ngrid=Ngrid, data_type=data_type)
-print_progress('Done')
 
 ################## SAA precalculation ######################
 
@@ -147,6 +133,27 @@ if time_after_SAA is not None:
 else:
     print_progress('Precalculate SAA times and SAA mask...')
 saa_calc = SAA_calc(data, time_after_SAA=time_after_SAA, short_time_intervals=short_time_intervals, nr_decays=nr_decays)
+print_progress('Done')
+
+if min_bin_width > NO_REBIN:
+    data.rebinn_data(min_bin_width, saa_calc.saa_mask)
+    saa_calc.set_rebinned_saa_mask(data.rebinned_saa_mask)
+
+
+# Create external properties object (for McIlwain L-parameter)
+print_progress('Download and prepare external properties...')
+ep = ExternalProps(date, det=detector, bgo_cr_approximation=setup_dict['bgo_cr_approximation'])
+print_progress('Done')
+
+############################# Model ########################################
+
+################## Response precalculation ################
+
+# Create a Response precalculation object, that precalculates the responses on a spherical grid arount the detector.
+# These calculations use the full DRM's and thus include sat. scattering and partial loss of energy by the photons.
+Ngrid = response_dict['Ngrid']
+print_progress('Precalculate responses for {} points on sphere around detector...'.format(Ngrid))
+resp = Response_Precalculation(detector, date, echan_list, Ngrid=Ngrid, data_type=data_type)
 print_progress('Done')
 
 ################### Geometry precalculation ##################
