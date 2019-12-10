@@ -87,7 +87,7 @@ detector = general_dict['detector']
 data_type = general_dict['data_type']
 # List with all echans you want to use
 echan_list = general_dict['echan_list']  # has to be  List! One entry is also possible
-
+min_bin_width = general_dict.get('min_bin_width', 1e-99)
 
 ################# Overwrite with BASH arguments #########################
 if args.date is not None:
@@ -111,7 +111,7 @@ print_progress('Done')
 # Create the data object for the wanted day and detector
 
 print_progress('Prepare data...')
-data = Data(date, detector, data_type, echan_list)
+data = Data(date, detector, data_type, echan_list, min_bin_width)
 print_progress('Done')
 
 # Create external properties object (for McIlwain L-parameter)
