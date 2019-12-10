@@ -88,7 +88,13 @@ class Data(object):
 
         self._data_rebinner = Rebinner(self._time_bins, min_bin_width, mask=saa_mask)
 
-        self._rebinned_counts, = self._data_rebinner.rebin(self._counts)
+        for i, echan in enumerate(self._echan_list):
+            if i == 0:
+                count_array = self._data_rebinner.rebin(self._counts[:, i])[0]
+            else:
+                count_array = np.append(count_array, self._data_rebinner.rebin(self._counts[:, i])[0], axis=0)
+
+        self._rebinned_counts = count_array
 
         self._rebinned_time_bins = self._data_rebinner.time_rebinned
 
