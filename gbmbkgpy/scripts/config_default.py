@@ -7,9 +7,10 @@
 ################## General Input (Days, Detector, Data Type, Energy Channels) #######################
 
 general_dict = {'dates': ['160310', '160311'],
-               'detector': 'nb',
-               'data_type': 'cspec',
-               'echan_list': [5]}
+                'detector': 'nb',
+                'data_type': 'cspec',
+                'echan_list': [5],
+                'min_bin_width': 1E-99}
 
 ################# Input for response precalculation (how many grid poits?) ##########################
 

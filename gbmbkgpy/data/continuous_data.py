@@ -10,6 +10,7 @@ import numpy as np
 import os
 from gbmbkgpy.io.package_data import get_path_of_external_data_dir
 from gbmgeometry import GBMTime
+from gbmbkgpy.utils.binner import Rebinner
 
 try:
 
@@ -32,11 +33,12 @@ except:
     using_mpi = False
 
 valid_det_names = ['n0', 'n1', 'n2', 'n3', 'n4', 'n5', 'n6', 'n7', 'n8', 'n9', 'na', 'nb', 'b0', 'b1']
+NO_REBIN = 1E-99
 
 
 class Data(object):
 
-    def __init__(self, date, detector, data_type, echan_list):
+    def __init__(self, date, detector, data_type, echan_list, min_bin_width=NO_REBIN):
         """
         Initalize the ContinousData Class, which contains the information about the time bins 
         and counts of the data.
@@ -71,13 +73,34 @@ class Data(object):
 
         self._build_arrays()
 
+        if min_bin_width != NO_REBIN:
+            self._rebinn_data(min_bin_width)
+            self._rebinned = True
+        else:
+            self._rebinned = False
+
+    def _rebinn_data(self, min_bin_width):
+        """
+        Rebins the time bins to a min bin width
+        :param min_bin_width:
+        :return:
+        """
+        self._data_rebinner = Rebinner(self._time_bins, min_bin_width)
+
+        self._rebinned_counts, = self._data_rebinner.rebin(self._counts)
+
+        self._rebinned_time_bins = self._data_rebinner.time_rebinned
+
     @property
     def counts(self):
         """
         Returns the count information of all time bins
         :return:
         """
-        return self._counts
+        if self._rebinned:
+            return self._rebinned_counts
+        else:
+            return self._counts
 
     @property
     def time_bins(self):
@@ -85,7 +108,10 @@ class Data(object):
         Returns the time bin information of all time bins
         :return:
         """
-        return self._time_bins
+        if self._rebinned:
+            return self._rebinned_time_bins
+        else:
+            return self._time_bins
 
     @property
     def det(self):
@@ -152,12 +178,26 @@ class Data(object):
         return self._det[-1]
 
     @property
+    def time_bin_width(self):
+        """
+        Returns width of the time bins
+        :return:
+        """
+        if self._rebinned:
+            return np.diff(self._rebinned_time_bins, axis=1)[:, 0]
+        else:
+            return np.diff(self._time_bins, axis=1)[:, 0]
+
+    @property
     def mean_time(self):
         """
         Returns mean time of the time bins
         :return:
         """
-        return np.mean(self._time_bins, axis=1)
+        if self._rebinned:
+            return np.mean(self._rebinned_time_bins, axis=1)
+        else:
+            return np.mean(self._time_bins, axis=1)
 
     def _build_arrays(self):
         """
