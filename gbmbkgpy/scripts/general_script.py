@@ -129,7 +129,7 @@ nr_decays = saa_dict['nr_decays']
 
 # Build the SAA object
 if time_after_SAA is not None:
-    print_progress('Precalculate SAA times and SAA mask. {} seconds after every SAA exit are excluded from fit...')
+    print_progress('Precalculate SAA times and SAA mask. {} seconds after every SAA exit are excluded from fit...'.format(time_after_SAA))
 else:
     print_progress('Precalculate SAA times and SAA mask...')
 saa_calc = SAA_calc(data, time_after_SAA=time_after_SAA, short_time_intervals=short_time_intervals, nr_decays=nr_decays)
