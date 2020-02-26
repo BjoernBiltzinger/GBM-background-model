@@ -364,18 +364,9 @@ class MultiNestFit(object):
 
         return prior
 
-    def analyze_result(self, output_dir=None, save_files=True):
+    def analyze_result(self, output_dir=None):
         if output_dir is None:
             output_dir = self.output_dir
-
-        if save_files:
-            # Save parameter names
-            param_index = []
-            for i, parameter in enumerate(self._likelihood._parameters.values()):
-                param_index.append(parameter.name)
-
-            self._param_names = param_index
-            json.dump(self._param_names, open(output_dir + 'params.json', 'w'))
 
         ## Use PyMULTINEST analyzer to gather parameter info
         multinest_analyzer = pymultinest.analyse.Analyzer(n_params=self._n_dim,
@@ -402,15 +393,10 @@ class MultiNestFit(object):
 
         # set parameters to best fit values
         self._likelihood.set_free_parameters(self.best_fit_values)
-
-        if save_files:
-            np.save(os.path.join(output_dir, 'best_fit_values.npy'), self.best_fit_values)
         return self.best_fit_values, self.minimum
 
     def comp_covariance_matrix(self):
         self.cov_matrix = compute_covariance_matrix(self._likelihood.cov_call, self.best_fit_values)
-
-        np.save(os.path.join(self.output_dir, 'cov_matrix.npy'), self.cov_matrix)
 
     def plot_marginals(self, true_params=None):
         """
