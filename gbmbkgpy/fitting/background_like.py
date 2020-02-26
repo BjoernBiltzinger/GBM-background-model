@@ -230,6 +230,13 @@ class BackgroundLike(object):
 
         self._sources_fit_spectrum = self._model.fit_spectrum_sources.values()
 
+    def _build_cov_call(self):
+
+        def cov_call(*parameters):
+            return self.__call__(parameters)
+
+        self.cov_call = cov_call
+
     def __call__(self, parameters):
         """
         
