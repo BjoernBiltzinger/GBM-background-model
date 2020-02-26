@@ -32,7 +32,7 @@ except:
     using_mpi = False
 
 
-class DataExport(object):
+class DataExporter(object):
     def __init__(self, data, model, saa_object, echan_list, best_fit_values, covariance_matrix):
 
         self._data = data
@@ -76,7 +76,7 @@ class DataExport(object):
         self._fit_rebinner = None
         self._grb_mask_calculated = False
 
-    def save_data(self, path, result_dir, echan_list, save_ppc=True):
+    def save_data(self, path, result_dir, save_ppc=True):
         """
         Function to save the data needed to create the plots.
         """
@@ -109,7 +109,7 @@ class DataExport(object):
 
                     observed_counts = self._total_counts_all_echan[:, index]
 
-                    group_echan = f1.create_group('Echan {}'.format(echan_list[j]))
+                    group_echan = f1.create_group('Echan {}'.format(self._echan_list[j]))
 
                     # group_ppc = group_echan.create_group('PPC data')
 
