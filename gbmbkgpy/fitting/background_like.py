@@ -62,6 +62,7 @@ class BackgroundLike(object):
         self._grb_mask_calculated = False
 
         self._get_sources_fit_spectrum()
+        self._build_cov_call()
 
     def _create_rebinner_before_fit(self, min_bin_width):
         """
