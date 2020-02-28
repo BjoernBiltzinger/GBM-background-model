@@ -362,12 +362,14 @@ mn_fit = MultiNestFit(background_like, model.parameters)
 # Fit with multinest and define the number of live points one wants to use
 mn_fit.minimize_multinest(n_live_points=num_live_points, const_efficiency_mode=const_efficiency_mode)
 
+# Analyze result
+mn_fit.analyze_result()
+
 # Plot Marginals
 mn_fit.plot_marginals()
 
 # Multinest Output dir
 output_dir = mn_fit.output_dir
-
 
 ################################# Data Export #############################################
 
