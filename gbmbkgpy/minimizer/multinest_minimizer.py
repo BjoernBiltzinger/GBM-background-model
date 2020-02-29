@@ -364,11 +364,16 @@ class MultiNestFit(object):
 
         return prior
 
-    def analyze_result(self, output_dir=None, save_files=True):
+    def analyze_result(self, output_dir=None):
+        """
+        Analyze result of multinest fit, when a output directory of an old fit is passed the params.json
+        will not be overwritten.
+        :param output_dir:
+        :return:
+        """
         if output_dir is None:
             output_dir = self.output_dir
 
-        if save_files:
             # Save parameter names
             param_index = []
             for i, parameter in enumerate(self._likelihood._parameters.values()):
@@ -402,9 +407,6 @@ class MultiNestFit(object):
 
         # set parameters to best fit values
         self._likelihood.set_free_parameters(self.best_fit_values)
-
-        if save_files:
-            np.save(os.path.join(output_dir, 'best_fit_values.npy'), self.best_fit_values)
         return self.best_fit_values, self.minimum
 
     def comp_covariance_matrix(self):
