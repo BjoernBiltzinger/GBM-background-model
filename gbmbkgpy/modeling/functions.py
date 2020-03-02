@@ -143,10 +143,10 @@ class Transient(Function):
         :return:
         """
 
-        self._idx_start = self._time_bins[:, 0] < t_start
+        self._idx_start = self._time_bins[:, 0] - self._time_bins[0, 0] < t_start
 
-        tb_start = self._time_bins[:, 0][~self._idx_start]
-        tb_stop = self._time_bins[:, 1][~self._idx_start]
+        tb_start = (self._time_bins[:, 0] - self._time_bins[0, 0])[~self._idx_start]
+        tb_stop = (self._time_bins[:, 1] - self._time_bins[0, 0])[~self._idx_start]
 
         out = np.zeros_like(self._time_bins[:, 0])
 
