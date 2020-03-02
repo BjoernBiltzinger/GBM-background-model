@@ -252,6 +252,9 @@ class MultiNestFit(object):
             self.analyze_result()
             self.comp_covariance_matrix()
 
+        self.cov_matrix = comm.bcast(self.cov_matrix, root=0)
+        self.best_fit_values = comm.bcast(self.best_fit_values, root=0)
+
     def minimize_mininest(self, loglike=None, prior=None, n_dim=None, min_num_live_points=400,
                           chain_name=None, resume=False, quiet=False, verbose=False, **kwargs):
 
