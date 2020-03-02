@@ -210,8 +210,11 @@ source_list = Setup(data=                   data,
                     bgo_cr_approximation=   setup_dict['bgo_cr_approximation'])
 
 for index, ech in enumerate(echan_list):
+    transient = Transient(1, ech)
+    transient.set_time_bins(data.time_bins[2:-2])
+
     source_list.append(
-        TransientSource('transient_1 echan_{}'.format(ech), Transient(1, ech), index))
+        TransientSource('transient_1 echan_{}'.format(ech), transient, index))
 
 print_progress('Done')
 
