@@ -1,5 +1,5 @@
 import collections
-from source import CONTINUUM_SOURCE, POINT_SOURCE, FLARE_SOURCE, SAA_SOURCE, GLOBAL_SOURCE, FIT_SPECTRUM_SOURCE
+from source import CONTINUUM_SOURCE, POINT_SOURCE, FLARE_SOURCE, SAA_SOURCE, GLOBAL_SOURCE, FIT_SPECTRUM_SOURCE, TRANSIENT_SOURCE
 import numpy as np
 
 
@@ -21,6 +21,8 @@ class Model(object):
         self._global_sources = collections.OrderedDict()
 
         self._fit_spectrum_sources = collections.OrderedDict()
+
+        self._transient_sources = collections.OrderedDict()
 
         for source in sources:
             self._add_source(source)
@@ -166,6 +168,9 @@ class Model(object):
         if source.source_type == FIT_SPECTRUM_SOURCE:
             self._fit_spectrum_sources[source.name] = source
 
+        if source.source_type == TRANSIENT_SOURCE:
+            self._transient_sources[source.name] = source
+
     def set_initial_SAA_amplitudes(self, norm_array):
         """
         Sets the initial normalization of the saa_sources
@@ -223,6 +228,11 @@ class Model(object):
         return self._fit_spectrum_sources
 
     @property
+    def transient_sources(self):
+
+        return self._transient_sources
+
+    @property
     def saa_sources(self):
 
         return self._saa_sources
@@ -246,6 +256,11 @@ class Model(object):
     def n_saa_sources(self):
 
         return len(self._saa_sources)
+
+    @property
+    def n_transient(self):
+
+        return len(self._transient_sources)
 
     def get_continuum_counts(self, id, time_bins, saa_mask, echan):
         """
@@ -380,6 +395,28 @@ class Model(object):
 
         return source_counts
 
+    def get_transient_counts(self, time_bins, saa_mask, echan):
+        """
+
+        :param echan:
+        :param saa_mask:
+        :param time_bins:
+        :param id:
+        :return:
+        """
+        source_counts = np.zeros(len(time_bins))
+
+        for i, transient in enumerate(self._transient_sources):
+            if self._transient_sources.values()[i].echan == echan:
+                source_counts += self._transient_sources.values()[i].get_counts(time_bins, echan)
+
+        # The SAA sections will be set to zero if a saa_mask is provided
+        if saa_mask is not None:
+            assert len(time_bins) == len(saa_mask), "The time_bins and saa_mask should be of equal length"
+            source_counts[np.where(~saa_mask)] = 0.
+
+        return source_counts
+
     def add_SAA_regions(self, *regions):
         """
         Add SAA temporal regions which cause the model to be set to zero
@@ -430,6 +467,10 @@ class Model(object):
 
         for fit_spectrum_source in self._fit_spectrum_sources.values():
             total_counts += fit_spectrum_source.get_counts(time_bins, echan, bin_mask)
+
+        for transient in self._transient_sources.values():
+            total_counts += transient.get_counts(time_bins, echan, bin_mask)
+
         # The SAA sections will be set to zero if a saa_mask is provided
         if saa_mask is not None:
             assert len(time_bins) == len(saa_mask), "The time_bins and saa_mask should be of equal length"
