@@ -33,8 +33,8 @@ class DataExporter(object):
 
         self._data = data
         self._model = model  # type: Model
-        self._echan_list = echan_list
-        self._echan_idx = np.arange(len(echan_list))
+        self._echan_names = echan_list
+        self._echan_list = np.arange(len(echan_list))
         self._best_fit_values = best_fit_values
         self._covariance_matrix = covariance_matrix
 
@@ -113,7 +113,7 @@ class DataExporter(object):
                 group_general.create_dataset('model_counts', data=model_counts, compression="gzip", compression_opts=9)
                 group_general.create_dataset('stat_err', data=stat_err, compression="gzip", compression_opts=9)
 
-                for j, index in enumerate(self._echan_idx):
+                for j, index in enumerate(self._echan_list):
                     source_list = self.get_counts_of_sources(self._total_time_bins, index)
 
                     model_counts = self._model.get_counts(self._total_time_bins, index, saa_mask=self._saa_mask)
@@ -122,7 +122,7 @@ class DataExporter(object):
 
                     observed_counts = self._total_counts_all_echan[:, index]
 
-                    group_echan = f1.create_group('Echan {}'.format(self._echan_list[j]))
+                    group_echan = f1.create_group('Echan {}'.format(self._echan_names[j]))
 
                     # group_ppc = group_echan.create_group('PPC data')
 
@@ -249,7 +249,7 @@ class DataExporter(object):
         for i, parameter in enumerate(synth_model.free_parameters.itervalues()):
             parameter.value = synth_parameters[i]
 
-        for echan in self._echan_idx:
+        for echan in self._echan_list:
             synth_data.counts[:, echan][2:-2] = np.random.poisson(synth_model.get_counts(synth_data.time_bins[2:-2], echan))
 
         return synth_data
@@ -261,16 +261,16 @@ class PHAExporter(DataExporter):
         super(PHAExporter, self).__init__(*args, **kwargs)
 
     def save_pha(self, path, result_dir):
-        model_counts = np.zeros((len(self._total_time_bin_widths), len(self._echan_list)))
+        model_counts = np.zeros((len(self._total_time_bin_widths), len(self._echan_names)))
         stat_err = np.zeros_like(model_counts)
 
         # Get the model counts
-        for echan in self._echan_list:
+        for echan in self._echan_names:
             model_counts[:, echan] = self._model.get_counts(self._total_time_bins, echan, saa_mask=self._saa_mask)
         model_rates = model_counts / self._total_time_bin_widths
 
         # Get the statistical error from the posterior samples
-        for echan in self._echan_list:
+        for echan in self._echan_names:
             counts = self._ppc_data(result_dir, echan)
             rates = counts / self._total_time_bin_widths
 
@@ -281,10 +281,10 @@ class PHAExporter(DataExporter):
 
         spectrum = SPECTRUM(tstart=self._total_time_bins[:, 1],
                             telapse=self._total_time_bin_widths,
-                            channel=self._echan_list,
+                            channel=self._echan_names,
                             rate=model_rates,
                             quality=np.zeros_like(model_rates, dtype=int),
-                            grouping=np.ones_like(self._echan_list),
+                            grouping=np.ones_like(self._echan_names),
                             exposure=self._total_time_bin_widths,
                             backscale=None,
                             respfile=None,
