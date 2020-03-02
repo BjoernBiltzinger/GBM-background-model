@@ -209,9 +209,9 @@ source_list = Setup(data=                   data,
                     nr_saa_decays=          saa_dict['nr_decays'],
                     bgo_cr_approximation=   setup_dict['bgo_cr_approximation'])
 
-for ech in echan_list:
+for index, ech in enumerate(echan_list):
     source_list.append(
-        TransientSource('transient_1 echan_{}'.format(ech), Transient(1, ech)))
+        TransientSource('transient_1 echan_{}'.format(ech), Transient(1, ech)), index)
 
 print_progress('Done')
 
