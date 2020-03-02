@@ -74,13 +74,12 @@ class DataExporter(object):
         """
         Function to save the data needed to create the plots.
         """
-        model_counts = np.zeros((self._total_time_bin_widths, self._echan_list))
+        model_counts = np.zeros((len(self._total_time_bin_widths), len(self._echan_list)))
         stat_err = np.zeros_like(model_counts)
 
         # Get the model counts
         for echan in self._echan_list:
             model_counts[:, echan] = self._model.get_counts(self._total_time_bins, echan, saa_mask=self._saa_mask)
-        model_rates = model_counts / self._total_time_bin_widths
 
         # Get the statistical error from the posterior samples
         for echan in self._echan_list:
@@ -262,7 +261,7 @@ class PHAExporter(DataExporter):
         super(PHAExporter, self).__init__(*args, **kwargs)
 
     def save_pha(self, path, result_dir):
-        model_counts = np.zeros((self._total_time_bin_widths, self._echan_list))
+        model_counts = np.zeros((len(self._total_time_bin_widths), len(self._echan_list)))
         stat_err = np.zeros_like(model_counts)
 
         # Get the model counts
