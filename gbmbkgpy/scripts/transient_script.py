@@ -211,7 +211,7 @@ source_list = Setup(data=                   data,
 
 for index, ech in enumerate(echan_list):
     source_list.append(
-        TransientSource('transient_1 echan_{}'.format(ech), Transient(1, ech)), index)
+        TransientSource('transient_1 echan_{}'.format(ech), Transient(1, ech), index))
 
 print_progress('Done')
 
