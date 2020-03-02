@@ -1,15 +1,11 @@
 import numpy as np
 import copy
-from gbmbkgpy.utils.statistics.stats_tools import Significance
-from gbmbkgpy.io.plotting.data_residual_plot import ResidualPlot
-from gbmbkgpy.utils.binner import Rebinner
+
+from gbmbkgpy.utils.pha import SPECTRUM
 import h5py
 from gbmbkgpy.utils.progress_bar import progress_bar
-from gbmgeometry import GBMTime
-import astropy.time as astro_time
 
 NO_REBIN = 1E-99
-
 
 try:
 
@@ -37,7 +33,8 @@ class DataExporter(object):
 
         self._data = data
         self._model = model  # type: Model
-        self._echan_list = np.arange(len(echan_list))  # list of all echans which should be fitted
+        self._echan_list = echan_list
+        self._echan_idx = np.arange(len(echan_list))
         self._best_fit_values = best_fit_values
         self._covariance_matrix = covariance_matrix
 
@@ -57,17 +54,14 @@ class DataExporter(object):
         self._total_time_bins = data.time_bins[2:-2]
         self._total_time_bin_widths = np.diff(self._total_time_bins, axis=1)[:, 0]
 
-        # Get the SAA and GRB mask:
+        # Get the SAA mask:
         self._saa_mask = saa_object.saa_mask[2:-2]
-        self._grb_mask = np.ones(len(self._total_time_bins), dtype=bool)  # np.full(len(self._total_time_bins), True)
-        # An entry in the total mask is False when one of the two masks is False
-        self._total_mask = ~ np.logical_xor(self._saa_mask, self._grb_mask)
 
         # Get the valid time bins by including the total_mask
-        self._time_bins = self._total_time_bins[self._total_mask]
+        self._time_bins = self._total_time_bins[self._saa_mask]
 
         # Extract the counts from the data object. should be same size as time bins. For all echans together
-        self._counts_all_echan = data.counts[2:-2][self._total_mask]
+        self._counts_all_echan = data.counts[2:-2][self._saa_mask]
         self._total_counts_all_echan = data.counts[2:-2]
 
         self._total_scale_factor = 1.
@@ -80,10 +74,28 @@ class DataExporter(object):
         """
         Function to save the data needed to create the plots.
         """
+        model_counts = np.zeros((self._total_time_bin_widths, self._echan_list))
+        stat_err = np.zeros_like(model_counts)
+
+        # Get the model counts
+        for echan in self._echan_list:
+            model_counts[:, echan] = self._model.get_counts(self._total_time_bins, echan, saa_mask=self._saa_mask)
+        model_rates = model_counts / self._total_time_bin_widths
+
+        # Get the statistical error from the posterior samples
+        for echan in self._echan_list:
+            counts = self._ppc_data(result_dir, echan)
+            rates = counts / self._total_time_bin_widths
+
+            low = np.percentile(rates, 50 - 50 * 0.68, axis=0)[0]
+            high = np.percentile(rates, 50 + 50 * 0.68, axis=0)[0]
+
+            stat_err[:, echan] = high - low
+
         if save_ppc:
             ppc_counts_all = []
             for index in self._echan_list:
-                ppc_counts_all.append(self.ppc_data(result_dir, index))
+                ppc_counts_all.append(self._ppc_data(result_dir, index))
 
         if rank == 0:
             with h5py.File(path, "w") as f1:
@@ -99,8 +111,10 @@ class DataExporter(object):
                 group_general.create_dataset('best_fit_values', data=self._best_fit_values, compression="gzip", compression_opts=9)
                 group_general.create_dataset('covariance_matrix', data=self._covariance_matrix, compression="gzip", compression_opts=9)
                 group_general.create_dataset('param_names', data=self._param_names, compression="gzip", compression_opts=9)
+                group_general.create_dataset('model_counts', data=model_counts, compression="gzip", compression_opts=9)
+                group_general.create_dataset('stat_err', data=stat_err, compression="gzip", compression_opts=9)
 
-                for j, index in enumerate(self._echan_list):
+                for j, index in enumerate(self._echan_idx):
                     source_list = self.get_counts_of_sources(self._total_time_bins, index)
 
                     model_counts = self._model.get_counts(self._total_time_bins, index, saa_mask=self._saa_mask)
@@ -236,7 +250,51 @@ class DataExporter(object):
         for i, parameter in enumerate(synth_model.free_parameters.itervalues()):
             parameter.value = synth_parameters[i]
 
-        for echan in self._echan_list:
+        for echan in self._echan_idx:
             synth_data.counts[:, echan][2:-2] = np.random.poisson(synth_model.get_counts(synth_data.time_bins[2:-2], echan))
 
         return synth_data
+
+
+class PHAExporter(DataExporter):
+
+    def __init__(self, *args, **kwargs):
+        super(PHAExporter, self).__init__(*args, **kwargs)
+
+    def save_pha(self, path, result_dir):
+        model_counts = np.zeros((self._total_time_bin_widths, self._echan_list))
+        stat_err = np.zeros_like(model_counts)
+
+        # Get the model counts
+        for echan in self._echan_list:
+            model_counts[:, echan] = self._model.get_counts(self._total_time_bins, echan, saa_mask=self._saa_mask)
+        model_rates = model_counts / self._total_time_bin_widths
+
+        # Get the statistical error from the posterior samples
+        for echan in self._echan_list:
+            counts = self._ppc_data(result_dir, echan)
+            rates = counts / self._total_time_bin_widths
+
+            low = np.percentile(rates, 50 - 50 * 0.68, axis=0)[0]
+            high = np.percentile(rates, 50 + 50 * 0.68, axis=0)[0]
+
+            stat_err[:, echan] = high - low
+
+        spectrum = SPECTRUM(tstart=self._total_time_bins[:, 1],
+                            telapse=self._total_time_bin_widths,
+                            channel=self._echan_list,
+                            rate=model_rates,
+                            quality=np.zeros_like(model_rates, dtype=int),
+                            grouping=np.ones_like(self._echan_list),
+                            exposure=self._total_time_bin_widths,
+                            backscale=None,
+                            respfile=None,
+                            ancrfile=None,
+                            back_file=None,
+                            sys_err=None,
+                            stat_err=stat_err,
+                            is_poisson=False)
+
+        spectrum.hdu.dump(path)
+
+
