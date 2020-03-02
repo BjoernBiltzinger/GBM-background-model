@@ -412,8 +412,6 @@ class MultiNestFit(object):
     def comp_covariance_matrix(self):
         self.cov_matrix = compute_covariance_matrix(self._likelihood.cov_call, self.best_fit_values)
 
-        np.save(os.path.join(self.output_dir, 'cov_matrix.npy'), self.cov_matrix)
-
     def plot_marginals(self, true_params=None):
         """
         Script that does default visualizations (marginal plots, 1-d and 2-d).

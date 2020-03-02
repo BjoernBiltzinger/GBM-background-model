@@ -380,7 +380,7 @@ data_exporter = DataExporter(data=data,
                              best_fit_values=mn_fit.best_fit_values,
                              covariance_matrix=mn_fit.cov_matrix)
 
-data_exporter.save_data(output_dir + 'data_of_fit.hdf5', output_dir, save_ppc=False)
+data_exporter.save_data(output_dir + 'data_of_fit.hdf5', output_dir, save_ppc=True)
 
 ################################# Plotting ################################################
 
