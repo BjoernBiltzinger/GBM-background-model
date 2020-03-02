@@ -1,4 +1,4 @@
-FLARE_SOURCE, CONTINUUM_SOURCE, POINT_SOURCE, SAA_SOURCE, GLOBAL_SOURCE, FIT_SPECTRUM_SOURCE = 'flare_source', 'continuum_source', 'point_source', 'saa_source', 'global_source', 'fit_spectrum_source'
+FLARE_SOURCE, CONTINUUM_SOURCE, POINT_SOURCE, SAA_SOURCE, GLOBAL_SOURCE, FIT_SPECTRUM_SOURCE, TRANSIENT_SOURCE = 'flare_source', 'continuum_source', 'point_source', 'saa_source', 'global_source', 'fit_spectrum_source', 'transient_source'
 from scipy import integrate
 import numpy as np
 
@@ -10,7 +10,7 @@ class Source(object):
         self._shape = shape
         self._index = index
 
-        assert source_type in [POINT_SOURCE, CONTINUUM_SOURCE, FLARE_SOURCE, SAA_SOURCE, GLOBAL_SOURCE, FIT_SPECTRUM_SOURCE], 'improper source'
+        assert source_type in [POINT_SOURCE, CONTINUUM_SOURCE, FLARE_SOURCE, SAA_SOURCE, GLOBAL_SOURCE, FIT_SPECTRUM_SOURCE, TRANSIENT_SOURCE], 'improper source'
 
     def __call__(self):
         return self._shape()
@@ -70,6 +70,11 @@ class PointSource(Source):
 class SAASource(Source):
     def __init__(self, name, saa_shape, index):
         super(SAASource, self).__init__(name, SAA_SOURCE, saa_shape, index)
+
+
+class TransientSource(Source):
+    def __init__(self, name, transient_shape, index):
+        super(TransientSource, self).__init__(name, TRANSIENT_SOURCE, transient_shape, index)
 
 
 class GlobalSource(Source):

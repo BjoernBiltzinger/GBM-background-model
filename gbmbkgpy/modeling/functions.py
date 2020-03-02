@@ -119,6 +119,42 @@ class GRB(Function):
         return out
 
 
+class Transient(Function):
+
+    def __init__(self, transient_number, echan):
+        A = Parameter("norm_transient-{}_echan-{}".format(transient_number, echan), initial_value=1., min_value=0, max_value=None, delta=0.1, normalization=True, prior='log_uniform')
+        t_start = Parameter("t_start-{}_echan-{}".format(transient_number, echan), initial_value=1., min_value=0, max_value=None, delta=0.1, prior='log_uniform')
+        t_rise = Parameter("t_rise-{}_echan-{}".format(transient_number, echan), initial_value=0.01, min_value=0., max_value=1., delta=0.1, prior='log_uniform')
+        t_decay = Parameter("t_decay-{}_echan-{}".format(transient_number, echan), initial_value=0.01, min_value=0., max_value=1., delta=0.1, prior='log_uniform')
+
+        super(Transient, self).__init__(A, t_start, t_rise, t_decay)
+
+    def set_time_bins(self, time_bins):
+        self._time_bins = time_bins
+
+    def _evaluate(self, A, t_start, t_rise, t_decay, echan=None):
+        """
+        Calculates the exponential decay for the SAA exit
+        The the values are calculated for the start and stop times of the bins with the analytic solution of the integral
+        for a function A*exp(-saa_decay_constant*(t-t0)) which is -A/saa_decay_constant *
+        (exp(-saa_decay_constant*(tend_bin-to) - exp(-saa_decay_constant*(tstart_bin-to))
+        :param A:
+        :param saa_decay_constant:
+        :return:
+        """
+
+        self._idx_start = self._time_bins[:, 0] < t_start
+
+        tb_start = self._time_bins[:, 0][~self._idx_start]
+        tb_stop = self._time_bins[:, 1][~self._idx_start]
+
+        out = np.zeros_like(self._time_bins[:, 0])
+
+        out[~self._idx_start] = ne.evaluate("A * exp(2*sqrt(t_rise/t_decay)) * ( exp(-t_rise/(tb_stop  - t_start) - (tb_stop -t_start)/t_decay) * (t_rise/(tb_stop -t_start)**2 - 1/t_decay)"
+                                                                           + " - exp(-t_rise/(tb_start - t_start) - (tb_start-t_start)/t_decay) * (t_rise/(tb_start-t_start)**2 - 1/t_decay) )")
+        return out
+
+
 # The continuums
 
 class Cosmic_Gamma_Ray_Background(GlobalFunction):
