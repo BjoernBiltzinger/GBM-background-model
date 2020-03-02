@@ -134,7 +134,7 @@ class Model(object):
 
         parameters = collections.OrderedDict()
 
-        for sources in [self._continuum_sources, self._flare_sources, self._point_sources, self._saa_sources, self._global_sources, self._fit_spectrum_sources]:
+        for sources in [self._continuum_sources, self._flare_sources, self._point_sources, self._saa_sources, self._global_sources, self._fit_spectrum_sources, self._transient_sources]:
 
             for source in sources.itervalues():
 
@@ -285,7 +285,7 @@ class Model(object):
         :return: sources, echan of sources, number so parameters per source
         """
 
-        source_list = [self._continuum_sources, self._flare_sources, self._point_sources, self._saa_sources, self._global_sources, self._fit_spectrum_sources]
+        source_list = [self._continuum_sources, self._flare_sources, self._point_sources, self._saa_sources, self._global_sources, self._fit_spectrum_sources, self._transient_sources]
         echan = np.array([])
         num_params = np.array([])
         for sources in source_list:
