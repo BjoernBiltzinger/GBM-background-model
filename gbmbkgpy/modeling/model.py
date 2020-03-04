@@ -46,7 +46,7 @@ class Model(object):
 
         free_parameters_dictionary = collections.OrderedDict()
 
-        for parameter_name, parameter in self._parameters.iteritems():
+        for parameter_name, parameter in self._parameters.items():
 
             if parameter.free:
                 free_parameters_dictionary[parameter_name] = parameter
@@ -59,7 +59,7 @@ class Model(object):
         :param new_parameters:
         :return:
         """
-        for i, parameter in enumerate(self.free_parameters.itervalues()):
+        for i, parameter in enumerate(self.free_parameters.values()):
             parameter.value = new_parameters[i]
 
     def set_parameter_bounds(self, param_dict):
@@ -87,7 +87,7 @@ class Model(object):
 
         normalization_parameters_dictionary = collections.OrderedDict()
 
-        for parameter_name, parameter in self._parameters.iteritems():
+        for parameter_name, parameter in self._parameters.items():
 
             if parameter.normalization:
                 normalization_parameters_dictionary[parameter_name] = parameter
@@ -109,7 +109,7 @@ class Model(object):
 
         normalization_parameters_dictionary = collections.OrderedDict()
 
-        for parameter_name, parameter in self._parameters.iteritems():
+        for parameter_name, parameter in self._parameters.items():
 
             if not parameter.normalization:
                 normalization_parameters_dictionary[parameter_name] = parameter
@@ -136,9 +136,9 @@ class Model(object):
 
         for sources in [self._continuum_sources, self._flare_sources, self._point_sources, self._saa_sources, self._global_sources, self._fit_spectrum_sources, self._transient_sources]:
 
-            for source in sources.itervalues():
+            for source in sources.values():
 
-                for parameter_name, parameter in source.parameters.iteritems():
+                for parameter_name, parameter in source.parameters.items():
                     parameters[parameter_name] = parameter
 
         self._parameters = parameters
@@ -177,7 +177,7 @@ class Model(object):
         :param norm_array:
         :return:
         """
-        for i, saa_source in enumerate(self._saa_sources.itervalues()):
+        for i, saa_source in enumerate(self._saa_sources.values()):
             saa_source.parameters['A-%s' % i].value = norm_array[i]
 
     def set_initial_continuum_amplitudes(self, norm_array):
@@ -186,9 +186,9 @@ class Model(object):
         :param norm_array:
         :return:
         """
-        for i, continuum_source in enumerate(self._continuum_sources.itervalues()):
+        for i, continuum_source in enumerate(self._continuum_sources.values()):
 
-            for j, parameter in enumerate(continuum_source.parameters.itervalues()):
+            for j, parameter in enumerate(continuum_source.parameters.values()):
                 parameter.value = norm_array[i]
 
     def set_initial_global_amplitudes(self, norm_array):
@@ -197,9 +197,9 @@ class Model(object):
         :param norm_array:
         :return:
         """
-        for i, global_source in enumerate(self._global_sources.itervalues()):
+        for i, global_source in enumerate(self._global_sources.values()):
 
-            for j, parameter in enumerate(global_source.parameters.itervalues()):
+            for j, parameter in enumerate(global_source.parameters.values()):
                 parameter.value = norm_array[i]
 
     @property
@@ -290,10 +290,10 @@ class Model(object):
         num_params = np.array([])
         for sources in source_list:
 
-            for source in sources.itervalues():
+            for source in sources.values():
                 echan = np.append(echan, source.echan)
                 num_para = 0
-                for parameter_name, parameter in source.parameters.iteritems():
+                for parameter_name, parameter in source.parameters.items():
                     num_para += 1
                 num_params = np.append(num_params, num_para)
 

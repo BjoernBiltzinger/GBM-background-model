@@ -417,7 +417,7 @@ class Plotter(object):
         if synth_model == None:
             synth_model = copy.deepcopy(self._model)
 
-        for i, parameter in enumerate(synth_model.free_parameters.itervalues()):
+        for i, parameter in enumerate(synth_model.free_parameters.values()):
             parameter.value = synth_parameters[i]
 
         for echan in self._echan_list:

@@ -2,6 +2,7 @@ import warnings as custom_warnings
 import inspect
 import functools
 
+
 # Monkeypatch the print of warning so we can customize them
 
 def my_format_warning(message, category, *args):
@@ -10,40 +11,37 @@ def my_format_warning(message, category, *args):
     :return:
     """
 
-    if message.message.find("may indicate binary incompatibility") >= 0:
+    # if message.message.find("may indicate binary incompatibility") >= 0:
 
-        return ''
+    #     return ''
 
     return "\nWARNING %s: %s\n\n" % (category.__name__, message)
 
 
 custom_warnings.formatwarning = my_format_warning
 
+
 class NegativeBackground(RuntimeError):
     pass
+
 
 class TriggerDoesNotExist(RuntimeError):
     pass
 
 
-
 class ForbiddenRegionOfParameterSpace(RuntimeWarning):
-
     pass
 
 
 class CppInterfaceNotAvailable(ImportWarning):
-
     pass
 
 
 class CannotImportPlugin(ImportWarning):
-
     pass
 
 
 class LikelihoodIsInfinite(RuntimeWarning):
-
     pass
 
 
@@ -54,6 +52,7 @@ class FitFailed(RuntimeError):
 class ConfigurationFileCorrupt(RuntimeWarning):
     pass
 
+
 class deprecated(object):
     def __init__(self, reason):
         if inspect.isclass(reason) or inspect.isfunction(reason):
@@ -63,7 +62,7 @@ class deprecated(object):
     def __call__(self, cls_or_func):
         if inspect.isfunction(cls_or_func):
             if hasattr(cls_or_func, 'func_code'):
-                _code = cls_or_func.func_code
+                _code = cls_or_func.__code__
             else:
                 _code = cls_or_func.__code__
             fmt = "Call to deprecated function or method {name} ({reason})."
