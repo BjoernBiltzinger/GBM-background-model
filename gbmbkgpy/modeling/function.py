@@ -21,7 +21,7 @@ class Function(object):
 
         self._parameter_dict = parameter_dict
 
-        for key, value in self._parameter_dict.iteritems():
+        for key, value in self._parameter_dict.items():
             self.__dict__[key] = value
 
     @property
@@ -31,7 +31,7 @@ class Function(object):
         :return:
         """
 
-        return [par.value for par in self._parameter_dict.itervalues()]
+        return [par.value for par in self._parameter_dict.values()]
 
     def __call__(self, echan):
         """

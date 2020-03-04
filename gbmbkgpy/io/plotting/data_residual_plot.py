@@ -160,7 +160,7 @@ class ResidualPlot(object):
         :return:
         """
 
-        for key, value in grb_triggers.iteritems():
+        for key, value in grb_triggers.items():
             self._data_axis.axvline(x=value['met'] - time_ref, color=value.get('color', 'b'), linestyle=value.get('linestyle', '-'),
                                     linewidth=value.get('linewidth', 1), alpha=value.get('alpha', 0.3), label=key)
 
@@ -172,7 +172,7 @@ class ResidualPlot(object):
         :return:
         """
 
-        for key, value in occ_region.iteritems():
+        for key, value in occ_region.items():
             self._data_axis.axvspan(xmin=value['met'][0] - time_ref,
                                     xmax=value['met'][1] - time_ref,
                                     color=value.get('color', 'grey'), alpha=value.get('alpha', 0.1), label=key)

@@ -112,7 +112,7 @@ class Minimizer(object):
 
         data['fit-result'] = {'param-names': [], 'param-values': []}
 
-        for i, parameter in enumerate(self._likelihood._parameters.itervalues()):
+        for i, parameter in enumerate(self._likelihood._parameters.values()):
             data['fit-result']['param-names'].append(parameter.name)
             data['fit-result']['param-values'].append(parameter.value)
 
@@ -148,7 +148,7 @@ class Minimizer(object):
         self._fit_params['parameter'] = []
         self._fit_params[label] = []
 
-        for i, parameter in enumerate(self._likelihood._parameters.itervalues()):
+        for i, parameter in enumerate(self._likelihood._parameters.values()):
             self._fit_params['parameter'].append(parameter.name)
             self._fit_params[label].append(parameter.value)
 
@@ -161,7 +161,7 @@ class Minimizer(object):
         param_index = []
         self._fitted_params[label] = []
 
-        for i, parameter in enumerate(self._likelihood._parameters.itervalues()):
+        for i, parameter in enumerate(self._likelihood._parameters.values()):
             param_index.append(parameter.name)
             self._fitted_params[label].append(parameter.value)
 
