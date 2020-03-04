@@ -32,7 +32,12 @@ setup(
         'matplotlib',
         'astropy',
         'scipy',
-        'gbm_drm_gen'
+        'gbm_drm_gen',
+        'gbmgeometry',
+        'astromodels',
+        'spherical_geometry',
+        'healpy',
+        'numdifftools',
     ]
 
 )
