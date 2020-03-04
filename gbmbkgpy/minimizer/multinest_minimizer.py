@@ -74,6 +74,9 @@ class MultiNestFit(object):
 
         self._n_dim = len(self._likelihood._free_parameters)
 
+        self.cov_matrix = None
+        self.best_fit_values = None
+
         if using_mpi:
             if rank == 0:
                 current_time = datetime.now()

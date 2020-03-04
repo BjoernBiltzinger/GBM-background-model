@@ -83,11 +83,10 @@ class DataExporter(object):
 
         # Get the statistical error from the posterior samples
         for echan in self._echan_list:
-            counts = self._ppc_data(result_dir, echan)
-            rates = counts / self._total_time_bin_widths
+            counts = self._ppc_data(result_dir, echan)[:, 2:-2]
 
-            low = np.percentile(rates, 50 - 50 * 0.68, axis=0)[0]
-            high = np.percentile(rates, 50 + 50 * 0.68, axis=0)[0]
+            low = np.percentile(counts, 50 - 50 * 0.68, axis=0)[0]
+            high = np.percentile(counts, 50 + 50 * 0.68, axis=0)[0]
 
             stat_err[:, echan] = high - low
 
@@ -271,7 +270,7 @@ class PHAExporter(DataExporter):
 
         # Get the statistical error from the posterior samples
         for echan in self._echan_names:
-            counts = self._ppc_data(result_dir, echan)
+            counts = self._ppc_data(result_dir, echan)[:, 2:-2]
             rates = counts / self._total_time_bin_widths
 
             low = np.percentile(rates, 50 - 50 * 0.68, axis=0)[0]

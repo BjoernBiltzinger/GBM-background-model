@@ -15,7 +15,7 @@ try:
     from mpi4py import MPI
 
     if MPI.COMM_WORLD.Get_size() > 1:  # need parallel capabilities
-        using_mpi = True  ###################33
+        using_mpi = True
 
         comm = MPI.COMM_WORLD
         rank = comm.Get_rank()
@@ -49,7 +49,7 @@ class Geometry(object):
         self._n_bins_to_calculate_per_day = n_bins_to_calculate_per_day
         self._day_start_times = data.day_start_times
         self._day_stop_times = data.day_stop_times
-        self._day_list = map(str, sorted(map(int, day_list)))
+        self._day_list = sorted(day_list)  # map(str, sorted(map(int, day_list)))
 
         # Check if poshist file exists, if not download it and save the paths for all days in an array
         self._pos_hist = np.array([])
