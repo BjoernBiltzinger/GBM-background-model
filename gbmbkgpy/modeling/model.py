@@ -270,8 +270,8 @@ class Model(object):
         :return: 
         """
         source_counts = np.zeros(len(time_bins))
-        if self._continuum_sources.values()[id].echan == echan:
-            source_counts = self._continuum_sources.values()[id].get_counts(time_bins, echan)
+        if list(self._continuum_sources.values())[id].echan == echan:
+            source_counts = list(self._continuum_sources.values())[id].get_counts(time_bins, echan)
 
         # The SAA sections will be set to zero if a saa_mask is provided
         if saa_mask is not None:
@@ -308,7 +308,7 @@ class Model(object):
         :param time_bins:
         :return:
         """
-        source_counts = self._global_sources.values()[id].get_counts(time_bins, echan)
+        source_counts = list(self._global_sources.values())[id].get_counts(time_bins, echan)
 
         # The SAA sections will be set to zero if a saa_mask is provided
         if saa_mask is not None:
@@ -326,7 +326,7 @@ class Model(object):
         :param time_bins:
         :return:
         """
-        source_counts = self._fit_spectrum_sources.values()[id].get_counts(time_bins, echan)  # The SAA sections will be set to zero if a saa_mask is provided
+        source_counts = list(self._fit_spectrum_sources.values())[id].get_counts(time_bins, echan)  # The SAA sections will be set to zero if a saa_mask is provided
         if saa_mask is not None:
             assert len(time_bins) == len(saa_mask), "The time_bins and saa_mask should be of equal length"
             source_counts[np.where(~saa_mask)] = 0.
@@ -343,8 +343,8 @@ class Model(object):
         :return: 
         """
         source_counts = np.zeros(len(time_bins))
-        if self._flare_sources.values()[id].echan == echan:
-            source_counts = self._flare_sources.values()[id].get_counts(time_bins)
+        if list(self._flare_sources.values())[id].echan == echan:
+            source_counts = list(self._flare_sources).values()[id].get_counts(time_bins)
 
         # The SAA sections will be set to zero if a saa_mask is provided
         if saa_mask is not None:
@@ -364,8 +364,8 @@ class Model(object):
         """
         source_counts = np.zeros(len(time_bins))
         for i, point_source in enumerate(self._point_sources):
-            if self._point_sources.values()[i].echan == echan:
-                source_counts += self._point_sources.values()[i].get_counts(time_bins, echan)
+            if list(self._point_sources.values())[i].echan == echan:
+                source_counts += list(self._point_sources.values())[i].get_counts(time_bins, echan)
 
         # The SAA sections will be set to zero if a saa_mask is provided
         if saa_mask is not None:
@@ -385,8 +385,8 @@ class Model(object):
         source_counts = np.zeros(len(time_bins))
 
         for i, saa in enumerate(self._saa_sources):
-            if self._saa_sources.values()[i].echan == echan:
-                source_counts += self._saa_sources.values()[i].get_counts(time_bins, echan)
+            if list(self._saa_sources.values())[i].echan == echan:
+                source_counts += list(self._saa_sources.values())[i].get_counts(time_bins, echan)
 
         # The SAA sections will be set to zero if a saa_mask is provided
         if saa_mask is not None:
@@ -407,8 +407,8 @@ class Model(object):
         source_counts = np.zeros(len(time_bins))
 
         for i, transient in enumerate(self._transient_sources):
-            if self._transient_sources.values()[i].echan == echan:
-                source_counts += self._transient_sources.values()[i].get_counts(time_bins, echan)
+            if list(self._transient_sources.values())[i].echan == echan:
+                source_counts += list(self._transient_sources.values())[i].get_counts(time_bins, echan)
 
         # The SAA sections will be set to zero if a saa_mask is provided
         if saa_mask is not None:
