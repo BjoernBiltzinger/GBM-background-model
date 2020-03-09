@@ -96,7 +96,11 @@ class Rebinner(object):
 
         self._rebinned_vector_idx = np.array(zip(self._starts, self._stops))
 
-        self._time_rebinned = np.array(zip(vector_to_rebin_on[self._starts, 0], vector_to_rebin_on[self._stops, 0]))
+        self._time_rebinned = np.stack((vector_to_rebin_on[self._starts, 0], vector_to_rebin_on[self._stops, 0]), axis=-1)
+
+        self._starts = np.array(self._starts)
+        self._stops = np.array(self._stops)
+
         # Set stop time of last bin to correct value
         self._time_rebinned[-1][1] = vector_to_rebin_on[self._stops[-1]][1]
 
