@@ -38,6 +38,7 @@ setup(
         'spherical_geometry',
         'healpy',
         'numdifftools',
+        'numexpr'
     ]
 
 )
