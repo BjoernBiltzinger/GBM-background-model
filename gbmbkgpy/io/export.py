@@ -187,41 +187,41 @@ class DataExporter(object):
         """
         import pymultinest
         analyzer = pymultinest.analyse.Analyzer(1, result_dir)
+        mn_posteriour_samples = analyzer.get_equal_weighted_posterior()[:, :-1]
 
-        # Make a mask with 300 random True to choose 300 random samples
-        N_samples = 500
-        rates = []
         counts = []
-        a = np.zeros(len(analyzer.get_equal_weighted_posterior()[:, :-1]), dtype=int)
+
+        # Make a mask with 500 random True to choose N_samples random samples,
+        # if multinest returns less then 500 posterior samples use next smaller *00
+        N_samples = 500 if len(mn_posteriour_samples) > 500 else int(len(mn_posteriour_samples) / 100) * 100
+
+        a = np.zeros(len(mn_posteriour_samples), dtype=int)
         a[:N_samples] = 1
         np.random.shuffle(a)
         a = a.astype(bool)
 
-        # For these 300 random samples calculate the corresponding rates for all time bins
+        # For these N_samples random samples calculate the corresponding rates for all time bins
         # with the parameters of this sample
         if using_mpi:
             points_per_rank = float(N_samples) / float(size)
             points_lower_index = int(np.floor(points_per_rank * rank))
             points_upper_index = int(np.floor(points_per_rank * (rank + 1)))
             if rank == 0:
-                with progress_bar(len(analyzer.get_equal_weighted_posterior()[:, :-1][a]
-                                      [points_lower_index:points_upper_index]),
+                with progress_bar(len(mn_posteriour_samples[a][points_lower_index:points_upper_index]),
                                   title='Calculating PPC for echan {}'.format(echan)) as p:
 
-                    for i, sample in enumerate(analyzer.get_equal_weighted_posterior()[:, :-1][a]
-                                               [points_lower_index:points_upper_index]):
+                    for i, sample in enumerate(mn_posteriour_samples[a][points_lower_index:points_upper_index]):
                         synth_data = self.get_synthetic_data(sample)
                         counts.append(synth_data.counts[:, echan])
                         p.increase()
 
             else:
-                for i, sample in enumerate(analyzer.get_equal_weighted_posterior()[:, :-1][a]
-                                           [points_lower_index:points_upper_index]):
+                for i, sample in enumerate(mn_posteriour_samples[a][points_lower_index:points_upper_index]):
                     synth_data = self.get_synthetic_data(sample)
                     counts.append(synth_data.counts[:, echan])
             counts = np.array(counts)
-            comm.Barrier()
             counts_g = comm.gather(counts, root=0)
+
             if rank == 0:
                 counts_g = np.concatenate(counts_g, axis=0)
             counts = comm.bcast(counts_g, root=0)
