@@ -153,7 +153,7 @@ class BackgroundLike(object):
 
     def fix_parameters(self, parameter_names):
         """
-        Fixe the parameters to their value
+        Fix the parameters to their value
         :param parameter_names:
         :return:
         """

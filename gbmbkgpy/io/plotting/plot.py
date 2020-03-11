@@ -308,6 +308,7 @@ class Plotter(object):
                     counts.append(synth_data.counts[:,echan])
                     
             counts = np.array(counts)
+            comm.Barrier()
             counts_g = comm.gather(counts, root=0)
             if rank == 0:
                 counts_g = np.concatenate(counts_g)

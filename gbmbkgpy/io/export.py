@@ -101,14 +101,14 @@ class DataExporter(object):
                 group_general = f1.create_group('general')
 
                 group_general.create_dataset('Detector', data=self._data.det)
-                group_general.create_dataset('Dates', data=self._data.day)
+                group_general.create_dataset('Dates', data=np.string_(self._data.day))
                 group_general.create_dataset('day_start_times', data=self._data.day_start_times)
                 group_general.create_dataset('day_stop_times', data=self._data.day_stop_times)
                 group_general.create_dataset('saa_mask', data=self._saa_mask, compression="gzip", compression_opts=9)
 
                 group_general.create_dataset('best_fit_values', data=self._best_fit_values, compression="gzip", compression_opts=9)
                 group_general.create_dataset('covariance_matrix', data=self._covariance_matrix, compression="gzip", compression_opts=9)
-                group_general.create_dataset('param_names', data=self._param_names, compression="gzip", compression_opts=9)
+                group_general.create_dataset('param_names', data=np.string_(self._param_names))
                 group_general.create_dataset('model_counts', data=model_counts, compression="gzip", compression_opts=9)
                 group_general.create_dataset('stat_err', data=stat_err, compression="gzip", compression_opts=9)
 
@@ -219,11 +219,11 @@ class DataExporter(object):
                                            [points_lower_index:points_upper_index]):
                     synth_data = self.get_synthetic_data(sample)
                     counts.append(synth_data.counts[:, echan])
-
             counts = np.array(counts)
+            comm.Barrier()
             counts_g = comm.gather(counts, root=0)
             if rank == 0:
-                counts_g = np.concatenate(counts_g)
+                counts_g = np.concatenate(counts_g, axis=0)
             counts = comm.bcast(counts_g, root=0)
         else:
             for i, sample in enumerate(analyzer.get_equal_weighted_posterior()[:, :-1][a]):
