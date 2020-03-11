@@ -15,18 +15,6 @@ from gbmbkgpy.utils.statistics.stats_tools import compute_covariance_matrix
 
 try:
 
-    from mininest.integrator import ReactiveNestedSampler
-
-except:
-
-    has_mininest = False
-
-else:
-
-    has_mininest = True
-
-try:
-
     import pymultinest
 
 except:
@@ -76,80 +64,17 @@ class MultiNestFit(object):
 
         self.cov_matrix = None
         self.best_fit_values = None
+        self._sampler = None
 
         if using_mpi:
             if rank == 0:
-                current_time = datetime.now()
-                fits_path = os.path.join(get_path_of_external_data_dir(), 'fits/')
-                multinest_out_dir = os.path.join(get_path_of_external_data_dir(), 'fits', 'mn_out/')
-                if len(self._echan_list) == 1:
-                    date_det_echan_dir = '{}_{}_{:d}/'.format(self._day, self._det, self._echan_list[0])
-                else:
-                    date_det_echan_dir = '{}_{}_{:d}_ech_{:d}_to_{:d}/'.format(self._day, self._det,
-                                                                               len(self._echan_list),
-                                                                               self._echan_list[0],
-                                                                               self._echan_list[-1])
-                time_dir = current_time.strftime("%m-%d_%H-%M") + '/'
-
-                self.output_dir = os.path.join(multinest_out_dir, date_det_echan_dir, time_dir)
-
-                if not os.access(self.output_dir, os.F_OK):
-
-                    # create directory if it doesn't exist
-                    if not os.access(fits_path, os.F_OK):
-                        print("Making New Directory")
-                        os.mkdir(fits_path)
-
-                    # Create multinest_out if not existend
-                    if not os.access(multinest_out_dir, os.F_OK):
-                        print("Making New Directory")
-                        os.mkdir(multinest_out_dir)
-
-                    # Create date_det_echan_dir if not existend
-                    if not os.access(os.path.join(multinest_out_dir, date_det_echan_dir), os.F_OK):
-                        print("Making New Directory")
-                        os.mkdir(os.path.join(multinest_out_dir, date_det_echan_dir))
-
-                    print("Making New Directory")
-                    os.mkdir(self.output_dir)
+                self.output_dir = self._create_output_dir()
             else:
                 self.output_dir = None
 
             self.output_dir = comm.bcast(self.output_dir, root=0)
         else:
-            current_time = datetime.now()
-            fits_path = os.path.join(get_path_of_external_data_dir(), 'fits/')
-            multinest_out_dir = os.path.join(get_path_of_external_data_dir(), 'fits', 'mn_out/')
-            if len(self._echan_list) == 1:
-                date_det_echan_dir = '{}_{}_{:d}/'.format(self._day, self._det, self._echan_list[0])
-            else:
-                date_det_echan_dir = '{}_{}_{:d}_ech_{:d}_to_{:d}/'.format(self._day, self._det,
-                                                                           len(self._echan_list),
-                                                                           self._echan_list[0],
-                                                                           self._echan_list[-1])
-            time_dir = 'fit_' + current_time.strftime("%m-%d_%H-%M") + '/'
-
-            self.output_dir = os.path.join(multinest_out_dir, date_det_echan_dir, time_dir)
-
-            if not os.access(self.output_dir, os.F_OK):
-
-                # create directory if it doesn't exist
-                if not os.access(fits_path, os.F_OK):
-                    print("Making New Directory")
-                    os.mkdir(fits_path)
-
-                # Create multinest_out if not existend
-                if not os.access(multinest_out_dir, os.F_OK):
-                    print("Making New Directory")
-                    os.mkdir(multinest_out_dir)
-
-                # Create date_det_echan_dir if not existend
-                if not os.access(os.path.join(multinest_out_dir, date_det_echan_dir), os.F_OK):
-                    print("Making New Directory")
-                    os.mkdir(os.path.join(multinest_out_dir, date_det_echan_dir))
-
-                print("Making New Directory")
-                os.mkdir(self.output_dir)
+            self.output_dir = self._create_output_dir()
 
         # We need to wrap the function, because multinest maximizes instead of minimizing
         def func_wrapper(values, ndim, nparams):
@@ -157,6 +82,93 @@ class MultiNestFit(object):
             values_list = [values[i] for i in range(ndim)]
             return self._likelihood(values_list) * (-1)
 
+        # First build a uniform prior for each parameters
+        self._build_priors()
+
+        # declare local likelihood_wrapper object:
+        self._loglike = func_wrapper
+
+    @property
+    def output_directory(self):
+        return self.output_dir
+
+    @property
+    def samples(self):
+
+        return self._samples
+
+    def minimize_multinest(self, loglike=None, prior=None, n_dim=None, n_live_points=400, const_efficiency_mode=False):
+
+        assert has_pymultinest, 'You need to have pymultinest installed to use this function'
+
+        if loglike is None:
+            loglike = self._loglike
+
+        if prior is None:
+            prior = self._construct_multinest_prior()
+
+        if n_dim is None:
+            n_dim = self._n_dim
+
+        # Run PyMultiNest
+
+        sampler = pymultinest.run(loglike,
+                                  prior,
+                                  n_dim,
+                                  n_dim,
+                                  n_live_points=n_live_points,
+                                  outputfiles_basename=self.output_dir,
+                                  multimodal=True,  # True was default
+                                  resume=True,
+                                  verbose=True,  # False was default
+                                  importance_nested_sampling=False,
+                                  const_efficiency_mode=const_efficiency_mode)  # False was default
+        # Store the sample for further use (if needed)
+        self._sampler = sampler
+
+        # if using mpi only analyze in rank=0
+        if using_mpi:
+            if rank == 0:
+                self.analyze_result()
+                self.comp_covariance_matrix()
+        else:
+            self.analyze_result()
+            self.comp_covariance_matrix()
+
+        self.cov_matrix = comm.bcast(self.cov_matrix, root=0)
+        self.best_fit_values = comm.bcast(self.best_fit_values, root=0)
+
+    def _construct_multinest_prior(self):
+        """
+        pymultinest becomes confused with the self pointer. We therefore ceate callbacks
+        that pymultinest can understand.
+
+        Here, we construct the prior.
+        """
+
+        def prior(params, ndim, nparams):
+
+            for i, (parameter_name, parameter) in enumerate(self.parameters.items()):
+
+                try:
+
+                    params[i] = self._param_priors[parameter_name].from_unit_cube(params[i])
+
+                except AttributeError:
+
+                    raise RuntimeError("The prior you are trying to use for parameter %s is "
+                                       "not compatible with multinest" % parameter_name)
+
+                    # Give a test run to the prior to check that it is working. If it crashes while multinest is going
+
+        # it will not stop multinest from running and generate thousands of exceptions (argh!)
+        n_dim = len(self.parameters.items())
+
+        _ = prior([0.5] * n_dim, n_dim, [])
+
+        return prior
+
+    def _build_priors(self):
         # First build a uniform prior for each parameters
         self._param_priors = collections.OrderedDict()
 
@@ -210,166 +222,6 @@ class MultiNestFit(object):
                     # Can only use a uniform prior
                     self._param_priors[parameter_name] = Uniform_prior(lower_bound=min_value, upper_bound=max_value)
 
-        # declare local likelihood_wrapper object:
-        self._loglike = func_wrapper
-
-    @property
-    def output_directory(self):
-        return self.output_dir
-
-    def minimize_multinest(self, loglike=None, prior=None, n_dim=None, n_live_points=400, const_efficiency_mode=False):
-
-        assert has_pymultinest, 'You need to have pymultinest installed to use this function'
-
-        if loglike is None:
-            loglike = self._loglike
-
-        if prior is None:
-            prior = self._construct_multinest_prior()
-
-        if n_dim is None:
-            n_dim = self._n_dim
-
-        # Run PyMultiNest
-
-        sampler = pymultinest.run(loglike,
-                                  prior,
-                                  n_dim,
-                                  n_dim,
-                                  n_live_points=n_live_points,
-                                  outputfiles_basename=self.output_dir,
-                                  multimodal=True,  # True was default
-                                  resume=True,
-                                  verbose=True,  # False was default
-                                  importance_nested_sampling=False,
-                                  const_efficiency_mode=const_efficiency_mode)  # False was default
-        # Store the sample for further use (if needed)
-        self._sampler = sampler
-
-        # if using mpi only analyze in rank=0
-        if using_mpi:
-            if rank == 0:
-                self.analyze_result()
-                self.comp_covariance_matrix()
-        else:
-            self.analyze_result()
-            self.comp_covariance_matrix()
-
-        self.cov_matrix = comm.bcast(self.cov_matrix, root=0)
-        self.best_fit_values = comm.bcast(self.best_fit_values, root=0)
-
-    def minimize_mininest(self, loglike=None, prior=None, n_dim=None, min_num_live_points=400,
-                          chain_name=None, resume=False, quiet=False, verbose=False, **kwargs):
-
-        assert has_mininest, 'You need to have mininest installed to use this function'
-
-        if loglike is None:
-            loglike = self._loglike
-
-        if prior is None:
-            prior = self._construct_mininest_prior()
-
-        if n_dim is None:
-            n_dim = self._n_dim
-
-        if chain_name is None:
-            chain_name = self.output_dir
-        # Run PyMultiNest
-
-        min_ess = kwargs.pop('min_ess', 400)
-        frac_remain = kwargs.pop('frac_remain', 0.01)
-        dlogz = kwargs.pop('dlogz', 0.5)
-        max_iter = kwargs.pop('max_iter', 0.)
-        dKL = kwargs.pop('dKL', 0.5)
-
-        if not verbose:
-            kwargs['viz_callback'] = False
-
-        sampler = ReactiveNestedSampler(
-            loglike=loglike,
-            transform=prior,
-            log_dir=chain_name,
-            min_num_live_points=min_num_live_points,
-            append_run_num=not resume,
-            show_status=verbose,
-            param_names=self.parameters.keys(),
-            draw_multiple=False,
-            **kwargs)
-
-        sampler.run(dlogz=dlogz,
-                    max_iters=max_iter if max_iter > 0 else None,
-                    min_ess=min_ess,
-                    frac_remain=frac_remain,
-                    dKL=dKL
-                    )
-
-        # Store the sample for further use (if needed)
-        self._sampler = sampler
-
-        # if using mpi only analyze in rank=0
-        if using_mpi:
-            if rank == 0:
-                best_fit_values, minimum = self.analyze_result()
-        else:
-            best_fit_values, minimum = self.analyze_result()
-
-    def _construct_multinest_prior(self):
-        """
-        pymultinest becomes confused with the self pointer. We therefore ceate callbacks
-        that pymultinest can understand.
-
-        Here, we construct the prior.
-        """
-
-        def prior(params, ndim, nparams):
-
-            for i, (parameter_name, parameter) in enumerate(self.parameters.items()):
-
-                try:
-
-                    params[i] = self._param_priors[parameter_name].from_unit_cube(params[i])
-
-                except AttributeError:
-
-                    raise RuntimeError("The prior you are trying to use for parameter %s is "
-                                       "not compatible with multinest" % parameter_name)
-
-                    # Give a test run to the prior to check that it is working. If it crashes while multinest is going
-
-        # it will not stop multinest from running and generate thousands of exceptions (argh!)
-        n_dim = len(self.parameters.items())
-
-        _ = prior([0.5] * n_dim, n_dim, [])
-
-        return prior
-
-    def _construct_mininest_prior(self):
-        """
-        pymultinest becomes confused with the self pointer. We therefore ceate callbacks
-        that pymultinest can understand.
-
-        Here, we construct the prior.
-        """
-        ndim = len(self.parameters.items())
-
-        def prior(params):
-
-            out = np.zeros((len(params), ndim))
-
-            for i, (parameter_name, parameter) in enumerate(self.parameters.items()):
-
-                try:
-
-                    out[:, i] = parameter.prior.from_unit_cube(params[:, i])
-
-                except AttributeError:
-
-                    raise RuntimeError("The prior you are trying to use for parameter %s is "
-                                       "not compatible with multinest" % parameter_name)
-            return out
-
-        return prior
-
     def analyze_result(self, output_dir=None):
         """
         Analyze result of multinest fit, when a output directory of an old fit is passed the params.json
@@ -417,6 +269,43 @@ class MultiNestFit(object):
 
     def comp_covariance_matrix(self):
         self.cov_matrix = compute_covariance_matrix(self._likelihood.cov_call, self.best_fit_values)
+
+    def _create_output_dir(self):
+        current_time = datetime.now()
+        fits_path = os.path.join(get_path_of_external_data_dir(), 'fits/')
+        multinest_out_dir = os.path.join(get_path_of_external_data_dir(), 'fits', 'mn_out/')
+        if len(self._echan_list) == 1:
+            date_det_echan_dir = '{}_{}_{:d}/'.format(self._day, self._det, self._echan_list[0])
+        else:
+            date_det_echan_dir = '{}_{}_{:d}_ech_{:d}_to_{:d}/'.format(self._day, self._det,
+                                                                       len(self._echan_list),
+                                                                       self._echan_list[0],
+                                                                       self._echan_list[-1])
+        time_dir = current_time.strftime("%m-%d_%H-%M") + '/'
+
+        output_dir = os.path.join(multinest_out_dir, date_det_echan_dir, time_dir)
+
+        if not os.access(output_dir, os.F_OK):
+
+            # create directory if it doesn't exist
+            if not os.access(fits_path, os.F_OK):
+                print("Making New Directory")
+                os.mkdir(fits_path)
+
+            # Create multinest_out if not existend
+            if not os.access(multinest_out_dir, os.F_OK):
+                print("Making New Directory")
+                os.mkdir(multinest_out_dir)
+
+            # Create date_det_echan_dir if not existend
+            if not os.access(os.path.join(multinest_out_dir, date_det_echan_dir), os.F_OK):
+                print("Making New Directory")
+                os.mkdir(os.path.join(multinest_out_dir, date_det_echan_dir))
+
+            print("Making New Directory")
+            os.mkdir(output_dir)
+
+        return output_dir
 
     def plot_marginals(self, true_params=None):
         """
@@ -690,8 +579,3 @@ class MultiNestFit(object):
                     plt.savefig(pp, format='pdf', bbox_inches='tight')
                     # plt.close()
                 pp.close()
-
-    @property
-    def samples(self):
-
-        return self._samples
