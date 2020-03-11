@@ -97,14 +97,16 @@ class DataExporter(object):
 
         if rank == 0:
             with h5py.File(path, "w") as f1:
-
                 group_general = f1.create_group('general')
 
-                group_general.create_dataset('Detector', data=self._data.det)
-                group_general.create_dataset('Dates', data=np.string_(self._data.day))
+                group_general.create_dataset('detector', data=self._data.det)
+                group_general.create_dataset('dates', data=np.string_(self._data.day))
+                group_general.create_dataset('echans', data=self._echan_names)
                 group_general.create_dataset('day_start_times', data=self._data.day_start_times)
                 group_general.create_dataset('day_stop_times', data=self._data.day_stop_times)
                 group_general.create_dataset('saa_mask', data=self._saa_mask, compression="gzip", compression_opts=9)
+                group_general.create_dataset('time_bins_start', data=self._total_time_bins[:, 0], compression="gzip", compression_opts=9)
+                group_general.create_dataset('time_bins_stop', data=self._total_time_bins[:, 1], compression="gzip", compression_opts=9)
 
                 group_general.create_dataset('best_fit_values', data=self._best_fit_values, compression="gzip", compression_opts=9)
                 group_general.create_dataset('covariance_matrix', data=self._covariance_matrix, compression="gzip", compression_opts=9)
@@ -114,23 +116,14 @@ class DataExporter(object):
 
                 for j, index in enumerate(self._echan_list):
                     source_list = self.get_counts_of_sources(self._total_time_bins, index)
-
                     model_counts = self._model.get_counts(self._total_time_bins, index, saa_mask=self._saa_mask)
-
-                    time_bins = self._total_time_bins
-
                     observed_counts = self._total_counts_all_echan[:, index]
 
-                    group_echan = f1.create_group('Echan {}'.format(self._echan_names[j]))
-
-                    # group_ppc = group_echan.create_group('PPC data')
-
-                    group_sources = group_echan.create_group('Sources')
-
-                    group_echan.create_dataset('time_bins_start', data=time_bins[:, 0], compression="gzip", compression_opts=9)
-                    group_echan.create_dataset('time_bins_stop', data=time_bins[:, 1], compression="gzip", compression_opts=9)
+                    group_echan = f1.create_group('echan {}'.format(self._echan_names[j]))
                     group_echan.create_dataset('total_model_counts', data=model_counts, compression="gzip", compression_opts=9)
                     group_echan.create_dataset('observed_counts', data=observed_counts, compression="gzip", compression_opts=9)
+
+                    group_sources = group_echan.create_group('Sources')
                     for source in source_list:
                         group_sources.create_dataset(source['label'], data=source['data'], compression="gzip", compression_opts=9)
 
@@ -239,7 +232,6 @@ class DataExporter(object):
         :param synth_parameters:
         :return:
         """
-
         synth_data = copy.deepcopy(self._data)
 
         if synth_model == None:
@@ -296,3 +288,67 @@ class PHAExporter(DataExporter):
         spectrum.hdu.dump(path)
 
 
+class PHACombiner(object):
+
+    def __init__(self, result_file_list):
+        self._det = None
+        self._dates = None
+        self._total_time_bins = None
+        self._total_time_bin_widths = None
+        self._model_counts = None
+        self._model_rates = None
+        self._stat_err = None
+        self._echan_names = []
+
+        self._load_result_file(result_file_list)
+
+    def _load_result_file(self, result_file_list):
+        for i, file in enumerate(result_file_list):
+            with h5py.File(file, 'r') as f:
+                det = np.array(f['general']['Detector'])
+                dates = np.array(f['general']['Dates'])
+                echans = np.array(f['general']['echans'])
+                time_bins_start = np.array(f['general']['time_bins_start'])
+                time_bins_stop = np.array(f['general']['time_bins_stop'])
+
+                model_counts = np.array(f['general']['model_counts'])
+                stat_err = np.array(f['general']['stat_err'])
+
+            if i == 0:
+                self._det = det
+                self._dates = dates
+                self._total_time_bins = np.vstack((time_bins_start, time_bins_stop)).T
+                self._total_time_bin_widths = np.diff(self._total_time_bins, axis=1)[:, 0]
+                self._model_counts = np.zeros((len(time_bins_stop), 8))
+                self._model_rates = np.zeros((len(time_bins_stop), 8))
+                self._stat_err = np.zeros_like(self._model_counts)
+            else:
+                assert self._det == det
+                assert self._dates == dates
+                assert self._total_time_bins == np.vstack((time_bins_start, time_bins_stop)).T
+
+            for index, echan in enumerate(echans):
+                assert echan not in self._echan_names, '{} already loaded, you have to resolve the conflict by hand'.format(echan)
+
+                self._echan_names.append(echan)
+                self._model_counts[:, echan] = model_counts[:, index]
+                self._model_rates[:, echan] = model_counts[:, index] / self._total_time_bin_widths
+                self._stat_err[:, echan] = stat_err[:, index]
+
+    def save_pha(self, path):
+        spectrum = SPECTRUM(tstart=self._total_time_bins[:, 1],
+                            telapse=self._total_time_bin_widths,
+                            channel=self._echan_names,
+                            rate=self._model_rates,
+                            quality=np.zeros_like(self._model_rates, dtype=int),
+                            grouping=np.ones_like(self._echan_names),
+                            exposure=self._total_time_bin_widths,
+                            backscale=None,
+                            respfile=None,
+                            ancrfile=None,
+                            back_file=None,
+                            sys_err=None,
+                            stat_err=self._stat_err,
+                            is_poisson=False)
+
+        spectrum.hdu.dump(path)
