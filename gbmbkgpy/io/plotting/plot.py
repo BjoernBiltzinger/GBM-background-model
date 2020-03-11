@@ -10,7 +10,6 @@ import astropy.time as astro_time
 
 NO_REBIN = 1E-99
 
-
 try:
 
     # see if we have mpi and/or are upalsing parallel
@@ -225,9 +224,9 @@ class Plotter(object):
         ppc_counts_all = []
         for index in self._echan_list:
             ppc_counts_all.append(self.ppc_data(result_dir, index))
-        if rank==0:
+        if rank == 0:
             with h5py.File(path, "w") as f1:
-            
+
                 group_general = f1.create_group('general')
 
                 group_general.create_dataset('Detector', data=self._data.det)
@@ -235,26 +234,26 @@ class Plotter(object):
                 group_general.create_dataset('day_start_times', data=self._data.day_start_times)
                 group_general.create_dataset('day_stop_times', data=self._data.day_stop_times)
                 group_general.create_dataset('saa_mask', data=self._saa_mask, compression="gzip", compression_opts=9)
-        
+
                 for j, index in enumerate(self._echan_list):
                     source_list = self.get_counts_of_sources(self._total_time_bins, index)
-                
+
                     model_counts = self._model.get_counts(self._total_time_bins, index, saa_mask=self._saa_mask)
-            
+
                     time_bins = self._total_time_bins
 
                     ppc_counts = ppc_counts_all[j]
 
                     observed_counts = self._total_counts_all_echan[:, index]
-                    
+
                     group_echan = f1.create_group('Echan {}'.format(echan_list[j]))
 
                     # group_ppc = group_echan.create_group('PPC data')
-                    
+
                     group_sources = group_echan.create_group('Sources')
-            
-                    group_echan.create_dataset('time_bins_start', data=time_bins[:,0], compression="gzip", compression_opts=9)
-                    group_echan.create_dataset('time_bins_stop', data=time_bins[:,1], compression="gzip", compression_opts=9)
+
+                    group_echan.create_dataset('time_bins_start', data=time_bins[:, 0], compression="gzip", compression_opts=9)
+                    group_echan.create_dataset('time_bins_stop', data=time_bins[:, 1], compression="gzip", compression_opts=9)
                     group_echan.create_dataset('total_model_counts', data=model_counts, compression="gzip", compression_opts=9)
                     group_echan.create_dataset('observed_counts', data=observed_counts, compression="gzip", compression_opts=9)
                     for source in source_list:
@@ -274,12 +273,15 @@ class Plotter(object):
         """
         import pymultinest
         analyzer = pymultinest.analyse.Analyzer(1, result_dir)
+        mn_posteriour_samples = analyzer.get_equal_weighted_posterior()[:, :-1]
 
-        # Make a mask with 300 random True to choose 300 random samples
-        N_samples = 500
-        rates = []
         counts = []
-        a = np.zeros(len(analyzer.get_equal_weighted_posterior()[:, :-1]), dtype=int)
+
+        # Make a mask with 500 random True to choose N_samples random samples,
+        # if multinest returns less then 500 posterior samples use next smaller *00
+        N_samples = 500 if len(mn_posteriour_samples) > 500 else int(len(mn_posteriour_samples) / 100) * 100
+
+        a = np.zeros(len(mn_posteriour_samples), dtype=int)
         a[:N_samples] = 1
         np.random.shuffle(a)
         a = a.astype(bool)
@@ -290,33 +292,29 @@ class Plotter(object):
             points_per_rank = float(N_samples) / float(size)
             points_lower_index = int(np.floor(points_per_rank * rank))
             points_upper_index = int(np.floor(points_per_rank * (rank + 1)))
-            if rank==0:
-                with progress_bar(len(analyzer.get_equal_weighted_posterior()[:, :-1][a]
-                                      [points_lower_index:points_upper_index]),
+            if rank == 0:
+                with progress_bar(len(mn_posteriour_samples[a][points_lower_index:points_upper_index]),
                                   title='Calculating PPC for echan {}'.format(echan)) as p:
 
-                    for i, sample in enumerate(analyzer.get_equal_weighted_posterior()[:, :-1][a]
-                                               [points_lower_index:points_upper_index]):
+                    for i, sample in enumerate(mn_posteriour_samples[a][points_lower_index:points_upper_index]):
                         synth_data = self.get_synthetic_data(sample)
-                        counts.append(synth_data.counts[:,echan])
+                        counts.append(synth_data.counts[:, echan])
                         p.increase()
-                        
+
             else:
-                for i, sample in enumerate(analyzer.get_equal_weighted_posterior()[:,:-1][a]
-                                           [points_lower_index:points_upper_index]):
+                for i, sample in enumerate(mn_posteriour_samples[a][points_lower_index:points_upper_index]):
                     synth_data = self.get_synthetic_data(sample)
-                    counts.append(synth_data.counts[:,echan])
-                    
+                    counts.append(synth_data.counts[:, echan])
             counts = np.array(counts)
-            comm.Barrier()
             counts_g = comm.gather(counts, root=0)
+
             if rank == 0:
                 counts_g = np.concatenate(counts_g)
             counts = comm.bcast(counts_g, root=0)
         else:
-            for i, sample in enumerate(analyzer.get_equal_weighted_posterior()[:,:-1][a]):
+            for i, sample in enumerate(analyzer.get_equal_weighted_posterior()[:, :-1][a]):
                 synth_data = self.get_synthetic_data(sample)
-                counts.append(synth_data.counts[:,echan])
+                counts.append(synth_data.counts[:, echan])
             counts = np.array(counts)
         return counts
 
