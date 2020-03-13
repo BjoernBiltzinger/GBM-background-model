@@ -1,7 +1,7 @@
 import numpy as np
 import copy
 
-from gbmbkgpy.utils.pha import SPECTRUM
+from gbmbkgpy.utils.pha import SPECTRUM, PHAII
 import h5py
 from gbmbkgpy.utils.progress_bar import progress_bar
 
@@ -325,7 +325,7 @@ class PHACombiner(object):
             else:
                 assert self._det == det
                 assert self._dates == dates
-                assert self._total_time_bins == np.vstack((time_bins_start, time_bins_stop)).T
+                assert np.array_equal(self._total_time_bins, np.vstack((time_bins_start, time_bins_stop)).T)
 
             for index, echan in enumerate(echans):
                 assert echan not in self._echan_names, '{} already loaded, you have to resolve the conflict by hand'.format(echan)
@@ -336,19 +336,21 @@ class PHACombiner(object):
                 self._stat_err[:, echan] = stat_err[:, index]
 
     def save_pha(self, path):
-        spectrum = SPECTRUM(tstart=self._total_time_bins[:, 1],
-                            telapse=self._total_time_bin_widths,
-                            channel=self._echan_names,
-                            rate=self._model_rates,
-                            quality=np.zeros_like(self._model_rates, dtype=int),
-                            grouping=np.ones_like(self._echan_names),
-                            exposure=self._total_time_bin_widths,
-                            backscale=None,
-                            respfile=None,
-                            ancrfile=None,
-                            back_file=None,
-                            sys_err=None,
-                            stat_err=self._stat_err,
-                            is_poisson=False)
+        spectrum = PHAII(instrument_name='GBM_NAI_0{}'.format(self._det),
+                         telescope_name='GLAST',
+                         tstart=self._total_time_bins[:, 1],
+                         telapse=self._total_time_bin_widths,
+                         channel=self._echan_names,
+                         rate=self._model_rates,
+                         quality=np.zeros_like(self._model_rates, dtype=int),
+                         grouping=np.ones_like(self._echan_names),
+                         exposure=self._total_time_bin_widths,
+                         backscale=None,
+                         respfile=None,
+                         ancrfile=None,
+                         back_file=None,
+                         sys_err=None,
+                         stat_err=self._stat_err,
+                         is_poisson=False)
 
-        spectrum.hdu.dump(path)
+        spectrum.writeto(path)

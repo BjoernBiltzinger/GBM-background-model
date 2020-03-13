@@ -229,7 +229,7 @@ class FITSExtension(object):
 
         self._hdu = fits.BinTableHDU.from_columns(fits.ColDefs(fits_columns), header=header)
 
-        # update the header to indicate that the file was created by 3ML
+        # update the header to indicate that the file was created by gbmbkgpy
         self._hdu.header.set('CREATOR', "gbmbkgpy v.%s" % (pkg_resources.get_distribution("gbmbkgpy").version),
              "(J. Michael Burgess, jburgess@mpe.mpg.de)")
 
