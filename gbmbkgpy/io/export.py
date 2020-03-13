@@ -305,8 +305,8 @@ class PHACombiner(object):
     def _load_result_file(self, result_file_list):
         for i, file in enumerate(result_file_list):
             with h5py.File(file, 'r') as f:
-                det = np.array(f['general']['Detector'])
-                dates = np.array(f['general']['Dates'])
+                det = np.array(f['general']['detector'])
+                dates = np.array(f['general']['dates'])
                 echans = np.array(f['general']['echans'])
                 time_bins_start = np.array(f['general']['time_bins_start'])
                 time_bins_stop = np.array(f['general']['time_bins_stop'])
