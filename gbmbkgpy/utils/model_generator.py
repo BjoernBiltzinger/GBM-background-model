@@ -53,7 +53,7 @@ class BackgroundModelGenerator(object):
 
     def from_config_file(self, config_yml):
         with open(config_yml) as f:
-            config = yaml.safe_load(f)
+            config = yaml.load(f)
 
         self.from_config_dict(config)
 
@@ -62,7 +62,7 @@ class BackgroundModelGenerator(object):
         self._config = config
 
 
-        self._download_data(config)
+        self._download_data(config)  # TODO: Check if this is still necessary or if build in method from continuous data is sufficient
 
 
         self._instantiate_data_class(config)
