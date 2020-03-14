@@ -28,7 +28,6 @@ def print_progress(text):
         print(text)
 
 
-
 ############## Argparse for parsing bash arguments ################
 import argparse
 
@@ -95,6 +94,9 @@ output_dir = minimizer.output_dir
 
 
 ################# Data Export ######################################
+if config['export']['save_cov_matrix']:
+    minimizer.comp_covariance_matrix()
+
 data_exporter = DataExporter(
     data=              model_generator.data,
     model=             model_generator.model,
@@ -108,7 +110,12 @@ result_file_name = "fit_result_{}_n{}_e{}.hdf5".format(config['general']['dates'
                                                        config['general']['detector'],
                                                        config['general']['echan_list'])
 
-data_exporter.save_data(os.path.join(output_dir, result_file_name), output_dir, save_ppc=True)
+data_exporter.save_data(
+    os.path.join(output_dir, result_file_name),
+    output_dir,
+    save_ppc=config['export']['save_ppc'],
+    save_unbinned=config['export']['save_unbinned']
+)
 
 
 ################## Plotting ########################################

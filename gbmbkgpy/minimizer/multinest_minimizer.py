@@ -52,16 +52,16 @@ class MultiNestFit(object):
     def __init__(self, likelihood, parameters):
 
         self._likelihood = likelihood
+        self.parameters = parameters
 
         self._day_list = self._likelihood._data.day
         self._day = ''
+
         for d in self._day_list:
             self._day = d  # TODO change this; set maximum characters for multinestpath higher
+
         self._det = self._likelihood._data._det
-
         self._echan_list = self._likelihood._echan_list
-        self.parameters = parameters
-
         self._n_dim = len(self._likelihood._free_parameters)
 
         self.cov_matrix = None
@@ -132,12 +132,9 @@ class MultiNestFit(object):
         if using_mpi:
             if rank == 0:
                 self.analyze_result()
-                self.comp_covariance_matrix()
         else:
             self.analyze_result()
-            self.comp_covariance_matrix()
 
-        self.cov_matrix = comm.bcast(self.cov_matrix, root=0)
         self.best_fit_values = comm.bcast(self.best_fit_values, root=0)
 
     def _construct_multinest_prior(self):
@@ -270,7 +267,13 @@ class MultiNestFit(object):
         return self.best_fit_values, self.minimum
 
     def comp_covariance_matrix(self):
-        self.cov_matrix = compute_covariance_matrix(self._likelihood.cov_call, self.best_fit_values)
+        if using_mpi:
+            if rank == 1:
+                self.cov_matrix = compute_covariance_matrix(self._likelihood.cov_call, self.best_fit_values)
+
+            self.cov_matrix = comm.bcast(self.cov_matrix, root=0)
+        else:
+            self.cov_matrix = compute_covariance_matrix(self._likelihood.cov_call, self.best_fit_values)
 
     def _create_output_dir(self):
         current_time = datetime.now()
