@@ -101,14 +101,11 @@ class BackgroundModelGenerator(object):
         if rank == 0:
             for d in config['general']['dates']:
                 download_files(
-                    config['general']['detector'],
                     config['general']['data_type'],
+                    config['general']['detector'],
                     d
                 )
-            wait = True
-        else:
-            wait = None
-        wait = comm.bcast(wait, root=0)
+        comm.barrier()
         print_progress('Done')
 
 
