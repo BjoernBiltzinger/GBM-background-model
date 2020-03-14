@@ -32,7 +32,9 @@ class DataExporter(object):
     def __init__(self, data, model, saa_object, echan_list, best_fit_values, covariance_matrix):
 
         self._data = data
-        self._model = model  # type: Model
+        self._model = model
+        self._saa_object = saa_object
+
         self._echan_names = echan_list
         self._echan_list = np.arange(len(echan_list))
         self._best_fit_values = best_fit_values
@@ -50,30 +52,18 @@ class DataExporter(object):
         for i, parameter in enumerate(self._parameters.values()):
             self._param_names.append(parameter.name)
 
-        # The data object should return all the time bins that are valid... i.e. non-zero
-        self._total_time_bins = data.time_bins[2:-2]
-        self._total_time_bin_widths = np.diff(self._total_time_bins, axis=1)[:, 0]
-
-        # Get the SAA mask:
-        self._saa_mask = saa_object.saa_mask[2:-2]
-
-        # Get the valid time bins by including the total_mask
-        self._time_bins = self._total_time_bins[self._saa_mask]
-
-        # Extract the counts from the data object. should be same size as time bins. For all echans together
-        self._counts_all_echan = data.counts[2:-2][self._saa_mask]
-        self._total_counts_all_echan = data.counts[2:-2]
-
         self._total_scale_factor = 1.
         self._rebinner = None
         self._fit_rebinned = False
         self._fit_rebinner = None
         self._grb_mask_calculated = False
 
-    def save_data(self, path, result_dir, save_ppc=True):
+    def save_data(self, path, result_dir, save_ppc=True, save_unbinned=True):
         """
         Function to save the data needed to create the plots.
         """
+        self.get_data(save_unbinned)
+
         model_counts = np.zeros((len(self._total_time_bin_widths), len(self._echan_list)))
         stat_err = np.zeros_like(model_counts)
 
@@ -130,6 +120,19 @@ class DataExporter(object):
                     if save_ppc:
                         ppc_counts = ppc_counts_all[j]
                         group_echan.create_dataset('PPC', data=ppc_counts, compression="gzip", compression_opts=9)
+
+    def get_data(self, unbinned=True):
+        # Set rebinned flag to false to save unbinned data
+        if unbinned:
+            self._data._rebinned = False
+            self._saa_object._rebinned = False
+
+        self._total_time_bins = self._data.time_bins[2:-2]
+        self._total_time_bin_widths = np.diff(self._total_time_bins, axis=1)[:, 0]
+        self._total_counts_all_echan = self._data.counts[2:-2]
+
+        # Get the SAA mask:
+        self._saa_mask = self._saa_object.saa_mask[2:-2]
 
     def get_counts_of_sources(self, time_bins, echan):
         """
@@ -251,7 +254,9 @@ class PHAExporter(DataExporter):
     def __init__(self, *args, **kwargs):
         super(PHAExporter, self).__init__(*args, **kwargs)
 
-    def save_pha(self, path, result_dir):
+    def save_pha(self, path, result_dir, save_unbinned=True):
+        self.get_data(save_unbinned)
+
         model_counts = np.zeros((len(self._total_time_bin_widths), len(self._echan_names)))
         stat_err = np.zeros_like(model_counts)
 
