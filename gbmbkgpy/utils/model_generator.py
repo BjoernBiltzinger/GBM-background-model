@@ -99,7 +99,7 @@ class BackgroundModelGenerator(object):
         # download files with rank=0; all other ranks have to wait!
         print_progress('Download data...')
         if rank == 0:
-            for d in config['general']['dates'],:
+            for d in config['general']['dates']:
                 download_files(
                     config['general']['detector'],
                     config['general']['data_type'],
