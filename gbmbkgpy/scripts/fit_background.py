@@ -50,7 +50,7 @@ else:
 
 # Load the config.yml
 with open(config_file) as f:
-    config = yaml.safe_load(f)
+    config = yaml.load(f)
 
 
 ############# Overwrite config with BASH arguments ################
@@ -94,6 +94,14 @@ output_dir = minimizer.output_dir
 
 
 ################# Data Export ######################################
+if config['export']['save_unbinned']:
+    config['general']['min_bin_width'] = 1E-99
+    model_generator = BackgroundModelGenerator()
+    model_generator.from_config_dict(config)
+
+    model_generator.likelihood.set_free_parameters(minimizer.best_fit_values)
+
+
 if config['export']['save_cov_matrix']:
     minimizer.comp_covariance_matrix()
 
@@ -106,15 +114,14 @@ data_exporter = DataExporter(
     covariance_matrix= minimizer.cov_matrix
 )
 
-result_file_name = "fit_result_{}_n{}_e{}.hdf5".format(config['general']['dates'],
+result_file_name = "fit_result_{}_{}_e{}.hdf5".format(config['general']['dates'],
                                                        config['general']['detector'],
                                                        config['general']['echan_list'])
 
 data_exporter.save_data(
     os.path.join(output_dir, result_file_name),
     output_dir,
-    save_ppc=config['export']['save_ppc'],
-    save_unbinned=config['export']['save_unbinned']
+    save_ppc=config['export']['save_ppc']
 )
 
 

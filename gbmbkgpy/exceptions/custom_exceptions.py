@@ -5,7 +5,7 @@ import functools
 
 # Monkeypatch the print of warning so we can customize them
 
-def my_format_warning(message, category, *args):
+def my_format_warning(message, category, *args, **kwargs):
     """
     Override the default showwarning to customize the appearance of warnings
     :return:
