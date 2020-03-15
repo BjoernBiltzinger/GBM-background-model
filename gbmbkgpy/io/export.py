@@ -40,7 +40,7 @@ class DataExporter(object):
         self._best_fit_values = best_fit_values
         self._covariance_matrix = covariance_matrix
 
-        self._name = "Count rate detector %s" % data._det
+        self._name = "Count rate detector %s" % data.det
 
         # The MET start time of the first used day
         self._day_met = data.day_met[0]
@@ -160,12 +160,7 @@ class DataExporter(object):
         """
         Add ppc plot
         :param result_dir: path to result directory
-        :param model: Model object
-        :param time_bin: Time bins where to compute ppc steps
-        :param saa_mask: Mask which time bins are set to zero
         :param echan: Which echan
-        :param q_levels: At which levels the ppc should be plotted
-        :param colors: colors for the different q_level
         """
         import pymultinest
         analyzer = pymultinest.analyse.Analyzer(1, result_dir)
