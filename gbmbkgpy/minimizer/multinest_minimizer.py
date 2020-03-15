@@ -67,6 +67,10 @@ class MultiNestFit(object):
         self.cov_matrix = None
         self.best_fit_values = None
         self._sampler = None
+        self._param_names = None
+        self.minimum = None
+        self._samples =  None
+        self.multinest_data =  None
 
         if using_mpi:
             if rank == 0:
@@ -231,11 +235,7 @@ class MultiNestFit(object):
             output_dir = self.output_dir
 
             # Save parameter names
-            param_index = []
-            for i, parameter in enumerate(self._likelihood._parameters.values()):
-                param_index.append(parameter.name)
-
-            self._param_names = param_index
+            self._param_names = [parameter.name for parameter in self.parameters.values()]
             json.dump(self._param_names, open(output_dir + 'params.json', 'w'))
 
         ## Use PyMULTINEST analyzer to gather parameter info
@@ -246,13 +246,9 @@ class MultiNestFit(object):
         func_values = multinest_analyzer.get_equal_weighted_posterior()[:, -1]
 
         # Get the samples from the sampler
-
         _raw_samples = multinest_analyzer.get_equal_weighted_posterior()[:, :-1]
-        # print(_raw_samples)
-        # print(_raw_samples[0])
 
         # Find the minimum of the function (i.e. the maximum of func_wrapper)
-
         idx = func_values.argmax()
 
         self.best_fit_values = _raw_samples[idx]
