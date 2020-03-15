@@ -101,9 +101,9 @@ class BackgroundModelGenerator(object):
         if rank == 0:
             for d in config['general']['dates']:
                 download_files(
-                    config['general']['data_type'],
-                    config['general']['detector'],
-                    d
+                    data_type=config['general']['data_type'],
+                    det=config['general']['detector'],
+                    day=d
                 )
         comm.barrier()
         print_progress('Done')
@@ -112,10 +112,10 @@ class BackgroundModelGenerator(object):
     def _instantiate_data_class(self, config):
         print_progress('Prepare data...')
         self._data = Data(
-            config['general']['dates'],
-            config['general']['detector'],
-            config['general']['data_type'],
-            config['general']['echan_list']
+            date= config['general']['dates'],
+            detector=config['general']['detector'],
+            data_type=config['general']['data_type'],
+            echan_list=config['general']['echan_list']
         )
         print_progress('Done')
 
@@ -128,7 +128,7 @@ class BackgroundModelGenerator(object):
             print_progress('Precalculate SAA times and SAA mask...')
 
         self._saa_calc = SAA_calc(
-            self._data,
+            data=self._data,
             time_after_SAA=config['saa']['time_after_saa'],
             short_time_intervals=config['saa']['short_time_intervals'],
             nr_decays=config['saa']['nr_decays'],
@@ -147,7 +147,7 @@ class BackgroundModelGenerator(object):
         print_progress('Download and prepare external properties...')
 
         self._ep = ExternalProps(
-            config['general']['dates'],
+            day_list=config['general']['dates'],
             det=config['general']['detector'],
             bgo_cr_approximation=config['setup']['bgo_cr_approximation']
         )
@@ -161,9 +161,9 @@ class BackgroundModelGenerator(object):
         print_progress('Precalculate responses for {} points on sphere around detector...'.format(config['response']['Ngrid']))
 
         self._resp = Response_Precalculation(
-            config['general']['detector'],
-            config['general']['dates'],
-            config['general']['echan_list'],
+            det=config['general']['detector'],
+            day=config['general']['dates'],
+            echan_list=config['general']['echan_list'],
             Ngrid=config['response']['Ngrid'],
             data_type=config['general']['data_type']
         )
@@ -175,10 +175,10 @@ class BackgroundModelGenerator(object):
         print_progress('Precalculate geometry for {} times during the day...'.format(config['geometry']['n_bins_to_calculate']))
 
         self._geom = Geometry(
-            self._data,
-            config['general']['detector'],
-            config['general']['dates'],
-            config['geometry']['n_bins_to_calculate'],
+            data=self._data,
+            det=config['general']['detector'],
+            day_list= config['general']['dates'],
+            n_bins_to_calculate_per_day= config['geometry']['n_bins_to_calculate'],
         )
 
         print_progress('Done')
@@ -353,10 +353,10 @@ class BackgroundModelGenerator(object):
         # Class that calcualtes the likelihood
         print_progress('Create BackgroundLike class that conects model and data...')
         self._background_like = BackgroundLike(
-            self._data,
-            self._model,
-            self._saa_calc,
-            config['general']['echan_list']
+            data=self._data,
+            model=self._model,
+            saa_object=self._saa_calc,
+            echan_list=config['general']['echan_list']
         )
         print_progress('Done')
 

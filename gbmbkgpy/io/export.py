@@ -45,13 +45,6 @@ class DataExporter(object):
         # The MET start time of the first used day
         self._day_met = data.day_met[0]
 
-        self._free_parameters = self._model.free_parameters
-        self._parameters = self._model.parameters
-
-        self._param_names = []
-        for i, parameter in enumerate(self._parameters.values()):
-            self._param_names.append(parameter.name)
-
         self._total_time_bins = self._data.time_bins[2:-2]
         self._total_time_bin_widths = np.diff(self._total_time_bins, axis=1)[:, 0]
         self._total_counts_all_echan = self._data.counts[2:-2]
@@ -63,7 +56,7 @@ class DataExporter(object):
         self._fit_rebinner = None
         self._grb_mask_calculated = False
 
-    def save_data(self, path, result_dir, save_ppc=True):
+    def save_data(self, file_path, result_dir, save_ppc=True):
         """
         Function to save the data needed to create the plots.
         """
@@ -89,7 +82,7 @@ class DataExporter(object):
                 ppc_counts_all.append(self._ppc_data(result_dir, index))
 
         if rank == 0:
-            with h5py.File(path, "w") as f1:
+            with h5py.File(file_path, "w") as f1:
                 group_general = f1.create_group('general')
 
                 group_general.create_dataset('detector', data=self._data.det)
@@ -102,10 +95,12 @@ class DataExporter(object):
                 group_general.create_dataset('time_bins_stop', data=self._total_time_bins[:, 1], compression="gzip", compression_opts=9)
 
                 group_general.create_dataset('best_fit_values', data=self._best_fit_values, compression="gzip", compression_opts=9)
-                group_general.create_dataset('covariance_matrix', data=self._covariance_matrix, compression="gzip", compression_opts=9)
-                group_general.create_dataset('param_names', data=np.string_(self._param_names))
+                group_general.create_dataset('param_names', data=np.string_(self._model.param_names))
                 group_general.create_dataset('model_counts', data=model_counts, compression="gzip", compression_opts=9)
                 group_general.create_dataset('stat_err', data=stat_err, compression="gzip", compression_opts=9)
+
+                if self._covariance_matrix is not None:
+                    group_general.create_dataset('covariance_matrix', data=self._covariance_matrix, compression="gzip", compression_opts=9)
 
                 for j, index in enumerate(self._echan_list):
                     source_list = self.get_counts_of_sources(self._total_time_bins, index)

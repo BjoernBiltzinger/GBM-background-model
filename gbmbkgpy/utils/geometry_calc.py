@@ -44,6 +44,7 @@ class Geometry(object):
         assert type(n_bins_to_calculate_per_day) == int, 'Type of n_bins_to_calculate has to be int but is {}'.format(type(n_bins_to_calculate_per_day))
 
         # Save everything
+        self._data = data
         self.mean_time = data.mean_time
         self._det = det
         self._n_bins_to_calculate_per_day = n_bins_to_calculate_per_day

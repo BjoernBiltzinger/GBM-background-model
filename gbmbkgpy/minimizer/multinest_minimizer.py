@@ -189,7 +189,6 @@ class MultiNestFit(object):
             if prior_type is not None:
                 if prior_type == 'uniform':
                     self._param_priors[parameter_name] = Uniform_prior(lower_bound=min_value, upper_bound=max_value)
-
                 elif prior_type == 'log_uniform':
                     self._param_priors[parameter_name] = Log_uniform_prior(lower_bound=min_value, upper_bound=max_value)
                 elif prior_type == 'gaussian':
