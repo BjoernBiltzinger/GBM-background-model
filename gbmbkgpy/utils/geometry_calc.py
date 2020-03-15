@@ -52,26 +52,30 @@ class Geometry(object):
         self._day_stop_times = data.day_stop_times
         self._day_list = sorted(day_list)  # map(str, sorted(map(int, day_list)))
 
-        # Check if poshist file exists, if not download it and save the paths for all days in an array
-        self._pos_hist = np.array([])
-        for day in day_list:
-            poshistfile_name = 'glg_{0}_all_{1}_v00.fit'.format('poshist', day)
-            poshistfile_path = os.path.join(get_path_of_external_data_dir(), 'poshist', poshistfile_name)
+        if self._data.data_type == 'trigdat':
+            self._pos_hist = np.array([self._data.trigdata_path])
 
-            # If using MPI only rank=0 downloads the data, all other have to wait
-            if using_mpi:
-                if rank == 0:
+        else:
+            # Check if poshist file exists, if not download it and save the paths for all days in an array
+            self._pos_hist = np.array([])
+            for day in day_list:
+                poshistfile_name = 'glg_{0}_all_{1}_v00.fit'.format('poshist', day)
+                poshistfile_path = os.path.join(get_path_of_external_data_dir(), 'poshist', poshistfile_name)
+
+                # If using MPI only rank=0 downloads the data, all other have to wait
+                if using_mpi:
+                    if rank == 0:
+                        if not file_existing_and_readable(poshistfile_path):
+                            download_data_file(day, 'poshist')
+                    comm.Barrier()
+                else:
                     if not file_existing_and_readable(poshistfile_path):
                         download_data_file(day, 'poshist')
-                comm.Barrier()
-            else:
-                if not file_existing_and_readable(poshistfile_path):
-                    download_data_file(day, 'poshist')
 
-            # Save poshistfile_path for later usage
-            self._pos_hist = np.append(self._pos_hist, poshistfile_path)
-        for pos in self._pos_hist:
-            assert file_existing_and_readable(pos), '{} does not exist'.format(pos)
+                # Save poshistfile_path for later usage
+                self._pos_hist = np.append(self._pos_hist, poshistfile_path)
+            for pos in self._pos_hist:
+                assert file_existing_and_readable(pos), '{} does not exist'.format(pos)
 
         # Number of bins to skip, to equally distribute the n_bins_to_calculate times over the day
         n_skip = int(np.ceil(len(self.mean_time) / (self._n_bins_to_calculate_per_day * len(day_list))))
@@ -228,8 +232,12 @@ class Geometry(object):
 
         assert using_mpi, 'You need MPI to use this function, please use _setup_geometery_no_mpi if you do not have MPI'
 
-        # Create the PositionInterpolator object with the infos from the poshist file
-        position_interpolator = PositionInterpolator(poshist=self._pos_hist[day_number])
+        if self._data.data_type == 'trigdat':
+            # Create the PositionInterpolator object with the infos from the trigdat file
+            position_interpolator = PositionInterpolator(trigdat=self._pos_hist[day_number])
+        else:
+            # Create the PositionInterpolator object with the infos from the poshist file
+            position_interpolator = PositionInterpolator(poshist=self._pos_hist[day_number])
 
         # Init all lists
         sun_angle = []
@@ -360,8 +368,12 @@ class Geometry(object):
         """
         assert not using_mpi, 'This function is only available if you are not using mpi!'
 
-        # Create the PositionInterpolator object with the infos from the poshist file
-        position_interpolator = PositionInterpolator(poshist=self._pos_hist[day_number])
+        if self._data.data_type == 'trigdat':
+            # Create the PositionInterpolator object with the infos from the trigdat file
+            position_interpolator = PositionInterpolator(trigdat=self._pos_hist[day_number])
+        else:
+            # Create the PositionInterpolator object with the infos from the poshist file
+            position_interpolator = PositionInterpolator(poshist=self._pos_hist[day_number])
 
         # Get the times for which the geometry should be calculated for this day (Build a mask that masks all time bins
         # outside the start and stop day of this time bin
