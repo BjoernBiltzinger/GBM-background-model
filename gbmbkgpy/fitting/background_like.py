@@ -32,7 +32,7 @@ class BackgroundLike(object):
         self._model = model  # type: Model
         self._echan_list = np.arange(len(echan_list))  # list of index of all echans which should be fitted
 
-        self._name = "Count rate detector %s" % self._data._det
+        self._name = "Count rate detector %s" % self._data.det
         # The MET start time of the day
 
         self._free_parameters = self._model.free_parameters
@@ -174,8 +174,7 @@ class BackgroundLike(object):
             if not parameter_exits:
                 print ("Parameter does not exist in parameter list")
 
-        # update the free parameter list
-        self._free_parameters = self._model.free_parameters
+        self.update_free_parameters()
 
     def unfix_parameters(self, parameter_names):
         """
@@ -200,7 +199,13 @@ class BackgroundLike(object):
             if parameter_exits == False:
                 print ("Parameter does not exist in parameter list")
 
-        # update the free parameter list
+        self.update_free_parameters()
+
+    def update_free_parameters(self):
+        """
+        Update the free parameter list
+        :return:
+        """
         self._free_parameters = self._model.free_parameters
 
     @property
@@ -392,3 +397,16 @@ class BackgroundLike(object):
         self.set_free_parameters(fit_result)
 
         print("Fits file was successfully loaded and the free parameters set")
+
+
+    @property
+    def det(self):
+        return self._data.det
+
+    @property
+    def echan_list(self):
+        return self._echan_list
+
+    @property
+    def data(self):
+        return self._data
