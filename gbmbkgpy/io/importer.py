@@ -9,7 +9,6 @@ from gbmbkgpy.utils.progress_bar import progress_bar
 NO_REBIN = 1E-99
 
 try:
-
     # see if we have mpi and/or are upalsing parallel
 
     from mpi4py import MPI
@@ -33,21 +32,8 @@ class FitImporter(object):
     """
     This will be used to import a saved background fit for further analysis or trigger detection
     """
-    def __init__(self, config_yml, fit_result_hdf5):
-        self._det = None
-        self._dates = None
-        self._day_start_times = None
-        self._day_stop_times = None
-        self._time_bins_start = None
-        self._time_bins_stop = None
-        self._saa_mask = None
-        self._best_fit_values = None
-        self._covariance_matrix = None
-        self._param_names = None
-        self._model_counts = None
-        self._stat_err = None
-
-        self._instantiate_model(config_yml)
+    def __init__(self, config, fit_result_hdf5):
+        self._instantiate_model(config)
         self._load_result_file(fit_result_hdf5)
 
     def _load_result_file(self, fit_result_hdf5):
@@ -72,13 +58,17 @@ class FitImporter(object):
             best_fit_values = comm.bcast(best_fit_values, root=0)
 
         self.likelihood.set_free_parameters(best_fit_values)
+        self._best_fit_values = best_fit_values
 
         print('Successfully loaded result file!')
 
-    def _instantiate_model(self, config_yml):
+    def _instantiate_model(self, config):
         self._model_generator = BackgroundModelGenerator()
 
-        self._model_generator.from_config_file(config_yml)
+        if isinstance(config, dict):
+            self._model_generator.from_config_dict(config)
+        else:
+            self._model_generator.from_config_file(config)
 
     @property
     def data(self):
@@ -99,3 +89,7 @@ class FitImporter(object):
     @property
     def saa_calc(self):
         return self._model_generator.saa_calc
+
+    @property
+    def best_fit_values(self):
+        return self._best_fit_values

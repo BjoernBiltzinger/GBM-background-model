@@ -70,7 +70,7 @@ model_generator.from_config_dict(config)
 if config['fit']['method'] == 'multinest':
     minimizer = MultiNestFit(
         likelihood=model_generator.likelihood,
-        parameters=model_generator.model.parameters
+        parameters=model_generator.model.free_parameters
     )
 
     # Fit with multinest and define the number of live points one wants to use

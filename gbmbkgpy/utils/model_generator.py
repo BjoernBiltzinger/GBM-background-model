@@ -105,7 +105,8 @@ class BackgroundModelGenerator(object):
                     det=config['general']['detector'],
                     day=d
                 )
-        comm.barrier()
+        if using_mpi:
+            comm.barrier()
         print_progress('Done')
 
 
