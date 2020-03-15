@@ -44,15 +44,15 @@ setup:
 ####### Point source: Amplitude, Earth/CGB fixec: Amplitude, Earth/CGB free: Amplitude, #############
 ############################ index1, index2 and break energy#########################################
 bounds:
-  saa_bound:          [[1, 1e4],    [1e-5, 1e-1]]
-  cr_bound:           [[1e-1, 1e2], [0.1, 1e2]]
-  earth_fixed_bound:  [[1e-3, 1]]
-  cgb_fixed_bound:    [[1e-2, 0.5]]
-  earth_free_bound:   [[1e-3, 1],   [-8, -3],   [1.1, 1.9], [20, 40]]
-  cgb_free_bound:     [[0.01, 0.5], [0.5, 1.7], [2.2, 3.1], [27, 40]]
-  ps_fixed_bound:     [[1e-4, 1]]
-  ps_free_bound:      [[1e-4, 1],   [1.5, 2.5]]
-  sun_bound:          [[1e-2, 1e2], [0.5,4]]
+  saa_bound:          [[1, 1.0e+4],      [1.0e-5, 1.0e-1]]
+  cr_bound:           [[1.0e-1, 1.0e+2], [0.1, 1.0e+2]]
+  earth_fixed_bound:  [[1.0e-3, 1]]
+  cgb_fixed_bound:    [[1.0e-2, 0.5]]
+  earth_free_bound:   [[1.0e-3, 1],      [-8, -3],   [1.1, 1.9], [20, 40]]
+  cgb_free_bound:     [[0.01, 0.5],      [0.5, 1.7], [2.2, 3.1], [27, 40]]
+  ps_fixed_bound:     [[1.0e-4, 1]]
+  ps_free_bound:      [[1.0e-4, 1],      [1.5, 2.5]]
+  sun_bound:          [[1.0e-2, 1.0e+2], [0.5,4]]
 
 gaussian_bounds:
   saa_bound:          [[null, null], [null, null]]
