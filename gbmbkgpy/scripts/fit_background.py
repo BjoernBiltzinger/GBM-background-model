@@ -41,12 +41,10 @@ args = parser.parse_args()
 if args.config_file is not None:
     config_file = args.config_file
     print_progress('Using custom config file from {}'.format(args.config_file))
-    custom = True
 
 else:
     config_file = 'config_default.yml'
     print_progress('Using default config file')
-    custom = False
 
 # Load the config.yml
 with open(config_file) as f:
@@ -71,8 +69,8 @@ model_generator.from_config_dict(config)
 ############### Instantiate Minimizer #############################
 if config['fit']['method'] == 'multinest':
     minimizer = MultiNestFit(
-        model_generator.likelihood,
-        model_generator.model.parameters
+        likelihood=model_generator.likelihood,
+        parameters=model_generator.model.parameters
     )
 
     # Fit with multinest and define the number of live points one wants to use
@@ -115,12 +113,12 @@ data_exporter = DataExporter(
 )
 
 result_file_name = "fit_result_{}_{}_e{}.hdf5".format(config['general']['dates'],
-                                                       config['general']['detector'],
-                                                       config['general']['echan_list'])
+                                                      config['general']['detector'],
+                                                      config['general']['echan_list'])
 
 data_exporter.save_data(
-    os.path.join(output_dir, result_file_name),
-    output_dir,
+    file_path=os.path.join(output_dir, result_file_name),
+    result_dir=output_dir,
     save_ppc=config['export']['save_ppc']
 )
 
@@ -130,10 +128,10 @@ print_progress('Create Plotter object...')
 
 # Create Plotter object that creates the plots
 plotter = Plotter(
-    model_generator.data,
-    model_generator.model,
-    model_generator.saa_calc,
-    config['general']['echan_list']
+    data=model_generator.data,
+    model=model_generator.model,
+    saa_object=model_generator.saa_calc,
+    echan_list=config['general']['echan_list']
 )
 print_progress('Done')
 
@@ -142,7 +140,7 @@ for index, echan in enumerate(config['general']['echan_list']):
     print_progress('Create Plots for echan {} ...'.format(echan))
 
     residual_plot = plotter.display_model(
-        index,
+        index=              index,
         min_bin_width=      config['plot']['bin_width'],
         show_residuals=     config['plot']['show_residuals'],
         show_data=          config['plot']['show_data'],
