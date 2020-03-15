@@ -236,7 +236,9 @@ class MultiNestFit(object):
 
             # Save parameter names
             self._param_names = [parameter.name for parameter in self.parameters.values()]
-            json.dump(self._param_names, open(output_dir + 'params.json', 'w'))
+
+            if rank == 0:
+                json.dump(self._param_names, open(output_dir + 'params.json', 'w'))
 
         ## Use PyMULTINEST analyzer to gather parameter info
         multinest_analyzer = pymultinest.analyse.Analyzer(n_params=self._n_dim,
@@ -263,7 +265,7 @@ class MultiNestFit(object):
 
     def comp_covariance_matrix(self):
         if using_mpi:
-            if rank == 1:
+            if rank == 0:
                 self.cov_matrix = compute_covariance_matrix(self._likelihood.cov_call, self.best_fit_values)
 
             self.cov_matrix = comm.bcast(self.cov_matrix, root=0)
