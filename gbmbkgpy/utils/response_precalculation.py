@@ -35,7 +35,7 @@ class Response_Precalculation(object):
     like the earth or the CGB
     """
 
-    def __init__(self, det, day, echan_list, Ngrid=40000, Ebin_edge_incoming=None, data_type='ctime'):
+    def __init__(self, det, day, echan_list, Ngrid=40000, Ebin_edge_incoming=None, data_type='ctime', trigger=None):
         """
         initialize the grid around the detector and set the values for the Ebins of incoming and detected photons
         :param det: which detector is used
@@ -47,10 +47,11 @@ class Response_Precalculation(object):
         assert det in valid_det_names, 'Invalid det name. Must be one of these {} but is {}.'.format(valid_det_names, det)
         assert type(day[0]) == str and len(day[0]) == 6, 'Day must be a string of the format YYMMDD, but is {}'.format(day)
         assert type(Ngrid) == int, 'Ngrid has to be an integer, but is a {}.'.format(type(Ngrid))
-        if Ebin_edge_incoming != None:
+
+        if Ebin_edge_incoming is not None:
             assert type(Ebin_edge_incoming) == np.ndarray, 'Invalid type for mean_time. Must be an array but is {}.'.format(type(Ebin_edge_incoming))
 
-        assert data_type == 'ctime' or data_type == 'cspec', 'Please use a valid data_type (ctime or cspec). Your input is {}.'.format(data_type)
+        assert data_type == 'ctime' or data_type == 'cspec 'or data_type == 'trigdat', 'Please use a valid data_type (ctime, cspec or trigdat). Your input is {}.'.format(data_type)
 
         if data_type == 'ctime':
             assert type(echan_list) and max(echan_list) <= 7 and min(echan_list) >= 0 \
@@ -62,13 +63,20 @@ class Response_Precalculation(object):
                    and all(isinstance(x, int) for x in echan_list), 'Echan_list variable must be a list and can only ' \
                                                                     'have integer entries between 0 and 7'
 
+        if data_type == 'trigdat':
+            assert type(echan_list) and max(echan_list) <= 7 and min(echan_list) >= 0 \
+                   and all(isinstance(x, int) for x in echan_list), 'Echan_list variable must be a list and can only ' \
+                                                                    'have integer entries between 0 and 7'
+            assert trigger is not None, 'If you use trigdat data you have to provide a trigger.'
+
+
         self._data_type = data_type
 
         # If no values for Ngrid or Ebin_incoming are given we use the standard values
 
         self._Ngrid = Ngrid
 
-        if Ebin_edge_incoming == None:
+        if Ebin_edge_incoming is None:
             # Incoming spectrum between ~3 and ~5000 keV in 300 bins
             self._Ebin_in_edge = np.array(np.logspace(0.5, 3.7, 301), dtype=np.float32)
         else:
@@ -76,8 +84,14 @@ class Response_Precalculation(object):
             self._Ebin_in_edge = Ebin_edge_incoming
 
         # Read in the datafile to get the energy boundaries
-        datafile_name = 'glg_{0}_{1}_{2}_v00.pha'.format(data_type, det, day[0])
-        datafile_path = os.path.join(get_path_of_external_data_dir(), data_type, day[0], datafile_name)
+        if data_type == 'trigdat':
+            year = '20%s' % trigger[:2]
+            datafile_name = 'glg_{0}_all_bn{1}_v00.pha'.format(data_type, trigger)
+            datafile_path = os.path.join(get_path_of_external_data_dir(), data_type, year, datafile_name)
+        else:
+            datafile_name = 'glg_{0}_{1}_{2}_v00.pha'.format(data_type, det, day[0])
+            datafile_path = os.path.join(get_path_of_external_data_dir(), data_type, day[0], datafile_name)
+
         with fits.open(datafile_path) as f:
             edge_start = f['EBOUNDS'].data['E_MIN']
             edge_stop = f['EBOUNDS'].data['E_MAX']
@@ -103,7 +117,7 @@ class Response_Precalculation(object):
                 self._det = 13
 
         self._echan_list = echan_list
-        if self._data_type == 'ctime':
+        if self._data_type == 'ctime' or self._data_type == 'trigdat':
             self._echan_mask = np.zeros(8, dtype=bool)
             for e in echan_list:
                 self._echan_mask[e] = True
@@ -193,7 +207,7 @@ class Response_Precalculation(object):
             # Therefore we have to separate the calculation and broadcasting in several runs of smaller arrays
 
             # If Ngrid is smaller than 5000 or we are using ctime data everything is fine and mpi works in a single run
-            if self._Ngrid <= 5000 or self._data_type == 'ctime':
+            if self._Ngrid <= 5000 or self._data_type == 'ctime' or self._data_type == 'trigdat':
 
                 points_per_rank = float(self._Ngrid) / float(size)
                 points_lower_index = int(np.floor(points_per_rank * rank))
