@@ -64,6 +64,8 @@ class FitImporter(object):
             assert det == self.data.det, 'Detector in fit result file is inconsistent with detector in config.yml'
             assert np.array_equal(dates, self.data.day), 'Dates in fit result file is inconsistent with  dates in config.yml'
             assert np.array_equal(param_names, self.model.parameter_names), 'The parameters in the result files do not match the parameters of the model'
+        else:
+            best_fit_values = None
 
         if using_mpi:
             comm.Barrier()

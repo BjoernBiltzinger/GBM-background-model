@@ -69,8 +69,8 @@ class Model(object):
         :return:
         """
         for param_name, bound_dict in param_dict.items():
-            self._parameters[param_name].bounds = bound_dict['bounds']
-            self._parameters[param_name].gaussian_parameter = bound_dict['gaussian_parameter']
+            self.parameters[param_name].bounds = bound_dict['bounds']
+            self.parameters[param_name].gaussian_parameter = bound_dict['gaussian_parameter']
 
     @property
     def normalization_parameters(self):
