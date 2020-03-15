@@ -95,7 +95,7 @@ class DataExporter(object):
                 group_general.create_dataset('time_bins_stop', data=self._total_time_bins[:, 1], compression="gzip", compression_opts=9)
 
                 group_general.create_dataset('best_fit_values', data=self._best_fit_values, compression="gzip", compression_opts=9)
-                group_general.create_dataset('param_names', data=np.string_(self._model.param_names))
+                group_general.create_dataset('param_names', data=np.string_(self._model.parameter_names))
                 group_general.create_dataset('model_counts', data=model_counts, compression="gzip", compression_opts=9)
                 group_general.create_dataset('stat_err', data=stat_err, compression="gzip", compression_opts=9)
 
