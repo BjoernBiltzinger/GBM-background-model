@@ -49,10 +49,10 @@ except:
 
 
 class MultiNestFit(object):
-    def __init__(self, likelihood, free_parameters):
+    def __init__(self, likelihood, parameters):
 
         self._likelihood = likelihood
-        self.parameters = free_parameters
+        self.parameters = parameters
 
         self._day_list = self._likelihood.data.day
         self._day = ''
@@ -132,10 +132,10 @@ class MultiNestFit(object):
         if using_mpi:
             if rank == 0:
                 self.analyze_result()
+
+            self.best_fit_values = comm.bcast(self.best_fit_values, root=0)
         else:
             self.analyze_result()
-
-        self.best_fit_values = comm.bcast(self.best_fit_values, root=0)
 
     def _construct_multinest_prior(self):
         """
