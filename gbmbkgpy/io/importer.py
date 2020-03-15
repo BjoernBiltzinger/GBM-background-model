@@ -51,14 +51,14 @@ class FitImporter(object):
         self._load_result_file(fit_result_hdf5)
 
     def _load_result_file(self, fit_result_hdf5):
-        print('Load data and start plotting')
+        print('Load result file')
 
         if rank == 0:
             with h5py.File(fit_result_hdf5, 'r') as f:
                 det =                 np.array(f['general']['detector'])
-                dates =               np.array(f['general']['dates'])
+                dates =               [d.decode() for d in f['general']['dates']]
+                param_names =         [n.decode() for n in f['general']['param_names']]
                 best_fit_values =     np.array(f['general']['best_fit_values'])
-                param_names =         np.array(f['general']['param_names'])
                 stat_err =            np.array(f['general']['stat_err'])
 
             assert det == self.data.det, 'Detector in fit result file is inconsistent with detector in config.yml'
