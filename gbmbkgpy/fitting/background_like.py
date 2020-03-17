@@ -28,7 +28,7 @@ class BackgroundLike(object):
         :param echan_list:
         """
 
-        self._data = data  # type: ContinuousData
+        self._data = data  # type: Data
         self._model = model  # type: Model
         self._echan_list = np.arange(len(echan_list))  # list of index of all echans which should be fitted
 
@@ -93,21 +93,6 @@ class BackgroundLike(object):
         for echan in self._echan_list:
             self._rebinned_model_counts_fitting_all_echan.append(self._fit_rebinner.rebin(self.model_counts(echan))[0])
         self._rebinned_model_counts_fitting_all_echan = np.array(self._rebinned_model_counts_fitting_all_echan)
-
-    def _evaluate_model(self, echan):
-        """
-        Loops over time bins and extracts the model counts and returns this array
-        :return: 
-        """
-
-        model_counts = self._model.get_counts(self._time_bins, echan, bin_mask=self._total_mask)
-
-        if self._fit_rebinned:
-            index = int(np.argwhere(self._echan_list == echan))
-            return self._rebinned_model_counts_fitting_all_echan[index]
-
-        else:
-            return model_counts
 
     def _set_free_parameters(self, new_parameters):
         """
@@ -281,30 +266,26 @@ class BackgroundLike(object):
             d_times_logM = self._rebinned_observed_counts_fitting_all_echan[index] * logM
 
         else:
-
             counts = self._counts_all_echan[:, echan]
             d_times_logM = ne.evaluate("counts*logM")
 
         log_likelihood = ne.evaluate("sum(M - d_times_logM)")
         return log_likelihood
 
-    def _fix_precision(self, v):
+    def _evaluate_model(self, echan):
         """
-        Round extremely small number inside v to the smallest usable
-        number of the type corresponding to v. This is to avoid warnings
-        and errors like underflows or overflows in math operations.
-
-
-        :param v:
+        Loops over time bins and extracts the model counts and returns this array
         :return:
         """
 
-        tiny = np.float64(np.finfo(v[0]).tiny)
-        zero_mask = (np.abs(v) <= tiny)
-        if (len(zero_mask.nonzero()[0]) > 0):
-            v[zero_mask] = np.sign(v[zero_mask]) * tiny
+        model_counts = self._model.get_counts(self._time_bins, echan, bin_mask=self._total_mask)
 
-        return v, tiny
+        if self._fit_rebinned:
+            index = int(np.argwhere(self._echan_list == echan))
+            return self._rebinned_model_counts_fitting_all_echan[index]
+
+        else:
+            return model_counts
 
     def _evaluate_logM(self, M):
         # Evaluate the logarithm with protection for negative or small
@@ -326,6 +307,24 @@ class BackgroundLike(object):
             logM = ne.evaluate("log(M)")
 
         return logM
+
+    def _fix_precision(self, v):
+        """
+        Round extremely small number inside v to the smallest usable
+        number of the type corresponding to v. This is to avoid warnings
+        and errors like underflows or overflows in math operations.
+
+
+        :param v:
+        :return:
+        """
+
+        tiny = np.float64(np.finfo(v[0]).tiny)
+        zero_mask = (np.abs(v) <= tiny)
+        if (len(zero_mask.nonzero()[0]) > 0):
+            v[zero_mask] = np.sign(v[zero_mask]) * tiny
+
+        return v, tiny
 
     def set_grb_mask(self, *intervals):
         """
