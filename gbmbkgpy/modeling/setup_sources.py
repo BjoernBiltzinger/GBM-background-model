@@ -28,26 +28,31 @@ except:
 
 
 def Setup(data, saa_object, ep, geom_object, echan_list=[], sun_object=None, response_object=None, albedo_cgb_object=None,
-          use_saa=False, use_constant=True, use_cr=True, use_earth=True, use_cgb=True, use_all_ps=False, use_sun=True, point_source_list=[], fix_ps=[],
-          fix_earth=False, fix_cgb=False, nr_saa_decays=1, bgo_cr_approximation=False):
+          use_saa=False, use_constant=True, use_cr=True, use_earth=True, use_cgb=True, use_sun=True, use_all_ps=False, point_source_list=[], fix_ps=[],
+          fix_earth=False, fix_cgb=False, nr_saa_decays=1, decay_at_day_start=True, bgo_cr_approximation=False):
     """
     Setup all sources
-    :param fix_ps:
     :param data: Data object
     :param saa_object: saa precaculation object
     :param ep: external prob object
     :param geom_object: geometry precalculation object
     :param echan_list: list of all echans which should be used
+    :param sun_object:
     :param response_object: response precalculation object
     :param albedo_cgb_object: albedo_cgb precalculation object
-    :param use_SAA: use saa?
-    :param use_CR: use cr?
-    :param use_Earth: use earth?
-    :param use_CGB: use cgb?
+    :param use_saa: use saa?
+    :param use_constant:
+    :param use_cr: use cr?
+    :param use_earth: use earth?
+    :param use_cgb: fix cgb spectrum?
+    :param use_sun:
     :param use_all_ps: use all ps?
     :param point_source_list: PS to use
-    :param fix_Earth: fix earth spectrum?
-    :param fix_CGB: fix cgb spectrum?
+    :param fix_ps:
+    :param fix_earth: fix earth spectrum?
+    :param fix_cgb: use cgb?
+    :param nr_saa_decays:
+    :param decay_at_day_start:
     :param bgo_cr_approximation: Use bgo cr approximation
     :return:
     """
@@ -64,7 +69,7 @@ def Setup(data, saa_object, ep, geom_object, echan_list=[], sun_object=None, res
     for index, echan in enumerate(echan_list):
 
         if use_saa:
-            total_sources.extend(setup_SAA(data, saa_object, echan, index, nr_saa_decays))
+            total_sources.extend(setup_SAA(data, saa_object, echan, index, nr_saa_decays, decay_at_day_start))
 
         if use_constant:
             total_sources.append(setup_Constant(data, saa_object, echan, index))
@@ -102,9 +107,10 @@ def Setup(data, saa_object, ep, geom_object, echan_list=[], sun_object=None, res
     return total_sources
 
 
-def setup_SAA(data, saa_object, echan, index, nr_decays=1):
+def setup_SAA(data, saa_object, echan, index, nr_decays=1, decay_at_day_start=True):
     """
     Setup for SAA sources
+    :param decay_at_day_start:
     :param nr_decays: Number of decays that should be fittet to each SAA Exit
     :param index:
     :param saa_object: SAA precalculation object
@@ -119,7 +125,8 @@ def setup_SAA(data, saa_object, echan, index, nr_decays=1):
     # Add 'SAA' decay at start of the day if fitting only one day to account for leftover excitation
 
     day_start = []
-    if len(data.day_met) <= 1:
+
+    if decay_at_day_start and len(data.day_met) <= 1:
         for i in range(nr_decays):
             day_start.append(data.day_met)
 
