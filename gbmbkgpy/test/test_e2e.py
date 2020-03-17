@@ -19,15 +19,13 @@ import pytest
 
 
 @pytest.mark.run(order=1)
-def test_model_builder_properties():
-    print('Started Model Builder')
+def test_model_builder():
     path_of_tests = os.path.dirname(os.path.abspath(__file__))
 
-    data_path = get_path_of_external_data_dir()
-    file_path = os.path.join(data_path, 'ctime', '150126')
+    data_path = os.path.join(get_path_of_external_data_dir(), 'ctime', '150126')
     file_name = 'glg_ctime_n0_150126_test.pha'
 
-    shutil.copy(os.path.join(path_of_tests, file_name), os.path.join(file_path, file_name))
+    shutil.copy(os.path.join(path_of_tests, 'datasets', file_name), os.path.join(data_path, file_name))
 
     model_generator = BackgroundModelGenerator()
 
@@ -147,4 +145,11 @@ def test_plotting():
 @pytest.mark.run(order=5)
 def test_delete_outputs():
     if os.access(pytest._test_output_dir, os.F_OK):
-        shutil.rmtree(pytest._test_output_dir)
+       shutil.rmtree(pytest._test_output_dir)
+
+    data_path = os.path.join(get_path_of_external_data_dir(), 'ctime', '150126')
+    file_name = 'glg_ctime_n0_150126_test.pha'
+    file_path = os.path.join(data_path, file_name)
+
+    if file_existing_and_readable(file_path):
+        os.remove(file_path)
