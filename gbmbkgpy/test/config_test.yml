@@ -1,0 +1,98 @@
+####################################################################################################
+################ Config file for all the input parameters ##########################################
+####################################################################################################
+
+
+################## General Input [Days, Detector, Data Type, Energy Channels] #######################
+general:
+  dates:      ['150126']
+  detector:   'n0'
+  data_type:  'ctime'
+  echan_list: [3]
+  min_bin_width: 30
+  test: true
+
+################# Input for response precalculation [how many grid poits?] ##########################
+response:
+  Ngrid: 40000
+
+####### Input for SAA mask precaluclation [time to exclude after SAA, delete short time intervals? ##
+saa:
+  time_after_saa: 50
+  short_time_intervals: false
+  nr_decays: 1
+
+###### Input for geometry calculation [n time bins per day to calculate the geometry ################
+geometry:
+  n_bins_to_calculate: 800
+
+##### Input for source Setup [use CR, use Earth, use CGB, point source list, fix earth, fix cgb #####
+setup:
+  use_saa:      true
+  use_constant: true
+  use_cr:       true
+  use_earth:    true
+  use_cgb:      true
+  ps_list:      ['CRAB']
+  fix_ps:       [true]
+  fix_earth:    true
+  fix_cgb:      true
+  use_sun:      false
+  bgo_cr_approximation: true
+
+################################ Bounds for the different sources ###################################
+####### SAA: Amplitude and decay constant, CR: Constant and McIlwain normalization ##################
+####### Point source: Amplitude, Earth/CGB fixec: Amplitude, Earth/CGB free: Amplitude, #############
+############################ index1, index2 and break energy#########################################
+bounds:
+  saa_bound:          [[1, 1.0e+4],      [1.0e-5, 1.0e-1]]
+  cr_bound:           [[1.0e-1, 1.0e+2], [0.1, 1.0e+2]]
+  earth_fixed_bound:  [[1.0e-3, 1]]
+  cgb_fixed_bound:    [[1.0e-2, 0.5]]
+  earth_free_bound:   [[1.0e-3, 1],      [-8, -3],   [1.1, 1.9], [20, 40]]
+  cgb_free_bound:     [[0.01, 0.5],      [0.5, 1.7], [2.2, 3.1], [27, 40]]
+  ps_fixed_bound:     [[1.0e-4, 1]]
+  ps_free_bound:      [[1.0e-4, 1],      [1.5, 2.5]]
+  sun_bound:          [[1.0e-2, 1.0e+2], [0.5,4]]
+
+gaussian_bounds:
+  saa_bound:          [[null, null], [null, null]]
+  cr_bound:           [[null, null], [null, null]]
+  earth_fixed_bound:  [[null, null]]
+  cgb_fixed_bound:    [[null, null]]
+  earth_free_bound:   [[null, null], [-5, 2],     [1.72, 0.1],  [null, null]]
+  cgb_free_bound:     [[null, null], [1.32, 0.1], [2.88, 0.15], [null, null]]
+  ps_fixed_bound:     [[null, null]]
+  ps_free_bound:      [[null, null], [2.1, 0.3]]
+  sun_bound:          [[null, null], [2., 1.]]
+
+##################### Input for fit method ##########################################################
+fit:
+  method: 'multinest'
+  multinest:
+    num_live_points: 400
+    constant_efficiency_mode: true
+
+##################### Input for Result Export  ######################################################
+export:
+  save_cov_matrix: false
+  save_ppc: true
+  save_unbinned: true
+
+############################### Input for plotting ##################################################
+### bin_width to bin the data, change_time from MET to seconds since midnight, show residuals? ######
+### show data?, show grb trigger times? if yes at which time ('20:57:03.000' format) and what name? #
+### show ppc?, xlim and ylim (as list e.g. [0,100]), legend outside of the plot? ####################
+plot:
+  bin_width:      30
+  change_time:    true
+  show_residuals: false
+  show_data:      true
+  plot_sources:   true
+  show_grb_trigger: true
+  times_mark:     []
+  names_mark:     []
+  ppc:            true
+  xlim:           null
+  ylim:           null
+  legend_outside: false
