@@ -29,7 +29,7 @@ geom_dict = {'n_bins_to_calculate': 800}
 ##### Input for source Setup (use CR, use Earth, use CGB, point source list, fix earth, fix cgb #####
 
 setup_dict = {'use_saa': False,
-              'use_Constant': True,
+              'use_constant': True,
               'use_cr': True,
               'use_earth': True,
               'use_cgb': True,

@@ -21,7 +21,7 @@ class Parameter(object):
 
         self._normalization = False
 
-        for k, v in kwargs.iteritems():
+        for k, v in kwargs.items():
 
             if (k.lower() == 'normalization'):
                 self._normalization = bool(v)

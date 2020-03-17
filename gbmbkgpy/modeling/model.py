@@ -1,5 +1,5 @@
 import collections
-from source import CONTINUUM_SOURCE, POINT_SOURCE, FLARE_SOURCE, SAA_SOURCE, GLOBAL_SOURCE, FIT_SPECTRUM_SOURCE
+from gbmbkgpy.modeling.source import CONTINUUM_SOURCE, POINT_SOURCE, FLARE_SOURCE, SAA_SOURCE, GLOBAL_SOURCE, FIT_SPECTRUM_SOURCE, TRANSIENT_SOURCE
 import numpy as np
 
 
@@ -21,6 +21,8 @@ class Model(object):
         self._global_sources = collections.OrderedDict()
 
         self._fit_spectrum_sources = collections.OrderedDict()
+
+        self._transient_sources = collections.OrderedDict()
 
         for source in sources:
             self._add_source(source)
@@ -44,7 +46,7 @@ class Model(object):
 
         free_parameters_dictionary = collections.OrderedDict()
 
-        for parameter_name, parameter in self._parameters.iteritems():
+        for parameter_name, parameter in self._parameters.items():
 
             if parameter.free:
                 free_parameters_dictionary[parameter_name] = parameter
@@ -57,7 +59,7 @@ class Model(object):
         :param new_parameters:
         :return:
         """
-        for i, parameter in enumerate(self.free_parameters.itervalues()):
+        for i, parameter in enumerate(self.free_parameters.values()):
             parameter.value = new_parameters[i]
 
     def set_parameter_bounds(self, param_dict):
@@ -85,7 +87,7 @@ class Model(object):
 
         normalization_parameters_dictionary = collections.OrderedDict()
 
-        for parameter_name, parameter in self._parameters.iteritems():
+        for parameter_name, parameter in self._parameters.items():
 
             if parameter.normalization:
                 normalization_parameters_dictionary[parameter_name] = parameter
@@ -107,7 +109,7 @@ class Model(object):
 
         normalization_parameters_dictionary = collections.OrderedDict()
 
-        for parameter_name, parameter in self._parameters.iteritems():
+        for parameter_name, parameter in self._parameters.items():
 
             if not parameter.normalization:
                 normalization_parameters_dictionary[parameter_name] = parameter
@@ -132,11 +134,11 @@ class Model(object):
 
         parameters = collections.OrderedDict()
 
-        for sources in [self._continuum_sources, self._flare_sources, self._point_sources, self._saa_sources, self._global_sources, self._fit_spectrum_sources]:
+        for sources in [self._continuum_sources, self._flare_sources, self._point_sources, self._saa_sources, self._global_sources, self._fit_spectrum_sources, self._transient_sources]:
 
-            for source in sources.itervalues():
+            for source in sources.values():
 
-                for parameter_name, parameter in source.parameters.iteritems():
+                for parameter_name, parameter in source.parameters.items():
                     parameters[parameter_name] = parameter
 
         self._parameters = parameters
@@ -166,13 +168,16 @@ class Model(object):
         if source.source_type == FIT_SPECTRUM_SOURCE:
             self._fit_spectrum_sources[source.name] = source
 
+        if source.source_type == TRANSIENT_SOURCE:
+            self._transient_sources[source.name] = source
+
     def set_initial_SAA_amplitudes(self, norm_array):
         """
         Sets the initial normalization of the saa_sources
         :param norm_array:
         :return:
         """
-        for i, saa_source in enumerate(self._saa_sources.itervalues()):
+        for i, saa_source in enumerate(self._saa_sources.values()):
             saa_source.parameters['A-%s' % i].value = norm_array[i]
 
     def set_initial_continuum_amplitudes(self, norm_array):
@@ -181,9 +186,9 @@ class Model(object):
         :param norm_array:
         :return:
         """
-        for i, continuum_source in enumerate(self._continuum_sources.itervalues()):
+        for i, continuum_source in enumerate(self._continuum_sources.values()):
 
-            for j, parameter in enumerate(continuum_source.parameters.itervalues()):
+            for j, parameter in enumerate(continuum_source.parameters.values()):
                 parameter.value = norm_array[i]
 
     def set_initial_global_amplitudes(self, norm_array):
@@ -192,9 +197,9 @@ class Model(object):
         :param norm_array:
         :return:
         """
-        for i, global_source in enumerate(self._global_sources.itervalues()):
+        for i, global_source in enumerate(self._global_sources.values()):
 
-            for j, parameter in enumerate(global_source.parameters.itervalues()):
+            for j, parameter in enumerate(global_source.parameters.values()):
                 parameter.value = norm_array[i]
 
     @property
@@ -223,6 +228,11 @@ class Model(object):
         return self._fit_spectrum_sources
 
     @property
+    def transient_sources(self):
+
+        return self._transient_sources
+
+    @property
     def saa_sources(self):
 
         return self._saa_sources
@@ -247,6 +257,11 @@ class Model(object):
 
         return len(self._saa_sources)
 
+    @property
+    def n_transient(self):
+
+        return len(self._transient_sources)
+
     def get_continuum_counts(self, id, time_bins, saa_mask, echan):
         """
         Get the count of the sources in the self._continuum_sources dict
@@ -255,8 +270,8 @@ class Model(object):
         :return: 
         """
         source_counts = np.zeros(len(time_bins))
-        if self._continuum_sources.values()[id].echan == echan:
-            source_counts = self._continuum_sources.values()[id].get_counts(time_bins, echan)
+        if list(self._continuum_sources.values())[id].echan == echan:
+            source_counts = list(self._continuum_sources.values())[id].get_counts(time_bins, echan)
 
         # The SAA sections will be set to zero if a saa_mask is provided
         if saa_mask is not None:
@@ -270,15 +285,15 @@ class Model(object):
         :return: sources, echan of sources, number so parameters per source
         """
 
-        source_list = [self._continuum_sources, self._flare_sources, self._point_sources, self._saa_sources, self._global_sources, self._fit_spectrum_sources]
+        source_list = [self._continuum_sources, self._flare_sources, self._point_sources, self._saa_sources, self._global_sources, self._fit_spectrum_sources, self._transient_sources]
         echan = np.array([])
         num_params = np.array([])
         for sources in source_list:
 
-            for source in sources.itervalues():
+            for source in sources.values():
                 echan = np.append(echan, source.echan)
                 num_para = 0
-                for parameter_name, parameter in source.parameters.iteritems():
+                for parameter_name, parameter in source.parameters.items():
                     num_para += 1
                 num_params = np.append(num_params, num_para)
 
@@ -293,7 +308,7 @@ class Model(object):
         :param time_bins:
         :return:
         """
-        source_counts = self._global_sources.values()[id].get_counts(time_bins, echan)
+        source_counts = list(self._global_sources.values())[id].get_counts(time_bins, echan)
 
         # The SAA sections will be set to zero if a saa_mask is provided
         if saa_mask is not None:
@@ -311,7 +326,7 @@ class Model(object):
         :param time_bins:
         :return:
         """
-        source_counts = self._fit_spectrum_sources.values()[id].get_counts(time_bins, echan)  # The SAA sections will be set to zero if a saa_mask is provided
+        source_counts = list(self._fit_spectrum_sources.values())[id].get_counts(time_bins, echan)  # The SAA sections will be set to zero if a saa_mask is provided
         if saa_mask is not None:
             assert len(time_bins) == len(saa_mask), "The time_bins and saa_mask should be of equal length"
             source_counts[np.where(~saa_mask)] = 0.
@@ -328,8 +343,8 @@ class Model(object):
         :return: 
         """
         source_counts = np.zeros(len(time_bins))
-        if self._flare_sources.values()[id].echan == echan:
-            source_counts = self._flare_sources.values()[id].get_counts(time_bins)
+        if list(self._flare_sources.values())[id].echan == echan:
+            source_counts = list(self._flare_sources).values()[id].get_counts(time_bins)
 
         # The SAA sections will be set to zero if a saa_mask is provided
         if saa_mask is not None:
@@ -349,8 +364,8 @@ class Model(object):
         """
         source_counts = np.zeros(len(time_bins))
         for i, point_source in enumerate(self._point_sources):
-            if self._point_sources.values()[i].echan == echan:
-                source_counts += self._point_sources.values()[i].get_counts(time_bins, echan)
+            if list(self._point_sources.values())[i].echan == echan:
+                source_counts += list(self._point_sources.values())[i].get_counts(time_bins, echan)
 
         # The SAA sections will be set to zero if a saa_mask is provided
         if saa_mask is not None:
@@ -370,8 +385,30 @@ class Model(object):
         source_counts = np.zeros(len(time_bins))
 
         for i, saa in enumerate(self._saa_sources):
-            if self._saa_sources.values()[i].echan == echan:
-                source_counts += self._saa_sources.values()[i].get_counts(time_bins, echan)
+            if list(self._saa_sources.values())[i].echan == echan:
+                source_counts += list(self._saa_sources.values())[i].get_counts(time_bins, echan)
+
+        # The SAA sections will be set to zero if a saa_mask is provided
+        if saa_mask is not None:
+            assert len(time_bins) == len(saa_mask), "The time_bins and saa_mask should be of equal length"
+            source_counts[np.where(~saa_mask)] = 0.
+
+        return source_counts
+
+    def get_transient_counts(self, time_bins, saa_mask, echan):
+        """
+
+        :param echan:
+        :param saa_mask:
+        :param time_bins:
+        :param id:
+        :return:
+        """
+        source_counts = np.zeros(len(time_bins))
+
+        for i, transient in enumerate(self._transient_sources):
+            if list(self._transient_sources.values())[i].echan == echan:
+                source_counts += list(self._transient_sources.values())[i].get_counts(time_bins, echan)
 
         # The SAA sections will be set to zero if a saa_mask is provided
         if saa_mask is not None:
@@ -430,6 +467,10 @@ class Model(object):
 
         for fit_spectrum_source in self._fit_spectrum_sources.values():
             total_counts += fit_spectrum_source.get_counts(time_bins, echan, bin_mask)
+
+        for transient in self._transient_sources.values():
+            total_counts += transient.get_counts(time_bins, echan, bin_mask)
+
         # The SAA sections will be set to zero if a saa_mask is provided
         if saa_mask is not None:
             assert len(time_bins) == len(saa_mask), "The time_bins and saa_mask should be of equal length"
