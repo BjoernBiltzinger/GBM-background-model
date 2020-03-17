@@ -11,6 +11,8 @@ import matplotlib.pyplot as plt
 import shutil
 from datetime import datetime
 
+from gbmbkgpy.utils.statistics.stats_tools import compute_covariance_matrix
+
 try:
 
     from mininest.integrator import ReactiveNestedSampler
@@ -245,8 +247,10 @@ class MultiNestFit(object):
         if using_mpi:
             if rank == 0:
                 self.analyze_result()
+                self.comp_covariance_matrix()
         else:
             self.analyze_result()
+            self.comp_covariance_matrix()
 
     def minimize_mininest(self, loglike=None, prior=None, n_dim=None, min_num_live_points=400,
                           chain_name=None, resume=False, quiet=False, verbose=False, **kwargs):
@@ -299,9 +303,9 @@ class MultiNestFit(object):
         # if using mpi only analyze in rank=0
         if using_mpi:
             if rank == 0:
-                self.analyze_result()
+                best_fit_values, minimum = self.analyze_result()
         else:
-            self.analyze_result()
+            best_fit_values, minimum = self.analyze_result()
 
     def _construct_multinest_prior(self):
         """
@@ -360,18 +364,27 @@ class MultiNestFit(object):
 
         return prior
 
-    def analyze_result(self):
-        # Save parameter names
-        param_index = []
-        for i, parameter in enumerate(self._likelihood._parameters.values()):
-            param_index.append(parameter.name)
+    def analyze_result(self, output_dir=None):
+        """
+        Analyze result of multinest fit, when a output directory of an old fit is passed the params.json
+        will not be overwritten.
+        :param output_dir:
+        :return:
+        """
+        if output_dir is None:
+            output_dir = self.output_dir
 
-        self._param_names = param_index
-        json.dump(self._param_names, open(self.output_dir + 'params.json', 'w'))
+            # Save parameter names
+            param_index = []
+            for i, parameter in enumerate(self._likelihood._parameters.values()):
+                param_index.append(parameter.name)
+
+            self._param_names = param_index
+            json.dump(self._param_names, open(output_dir + 'params.json', 'w'))
 
         ## Use PyMULTINEST analyzer to gather parameter info
         multinest_analyzer = pymultinest.analyse.Analyzer(n_params=self._n_dim,
-                                                          outputfiles_basename=self.output_dir)
+                                                          outputfiles_basename=output_dir)
 
         # Get the function value from the chain
         func_values = multinest_analyzer.get_equal_weighted_posterior()[:, -1]
@@ -386,16 +399,18 @@ class MultiNestFit(object):
 
         idx = func_values.argmax()
 
-        best_fit_values = _raw_samples[idx]
+        self.best_fit_values = _raw_samples[idx]
 
-        minimum = func_values[idx] * (-1)
+        self.minimum = func_values[idx] * (-1)
         self._samples = _raw_samples
         self.multinest_data = multinest_analyzer.get_data()
 
         # set parameters to best fit values
-        self._likelihood.set_free_parameters(best_fit_values)
+        self._likelihood.set_free_parameters(self.best_fit_values)
+        return self.best_fit_values, self.minimum
 
-        return best_fit_values, minimum
+    def comp_covariance_matrix(self):
+        self.cov_matrix = compute_covariance_matrix(self._likelihood.cov_call, self.best_fit_values)
 
     def plot_marginals(self, true_params=None):
         """

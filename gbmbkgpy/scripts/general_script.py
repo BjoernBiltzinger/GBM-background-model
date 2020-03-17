@@ -17,6 +17,7 @@ from gbmbkgpy.modeling.albedo_cgb import Albedo_CGB_fixed, Albedo_CGB_free
 from gbmbkgpy.io.package_data import get_path_of_external_data_dir                                                               
 from gbmbkgpy.modeling.sun import Sun
 from gbmbkgpy.io.file_utils import file_existing_and_readable
+from gbmbkgpy.io.export import DataExporter
 
 import os
 from shutil import copyfile
@@ -361,11 +362,25 @@ mn_fit = MultiNestFit(background_like, model.parameters)
 # Fit with multinest and define the number of live points one wants to use
 mn_fit.minimize_multinest(n_live_points=num_live_points, const_efficiency_mode=const_efficiency_mode)
 
+# Analyze result
+mn_fit.analyze_result()
+
 # Plot Marginals
 mn_fit.plot_marginals()
 
 # Multinest Output dir
 output_dir = mn_fit.output_dir
+
+################################# Data Export #############################################
+
+data_exporter = DataExporter(data=data,
+                             model=model,
+                             saa_object=saa_calc,
+                             echan_list=echan_list,
+                             best_fit_values=mn_fit.best_fit_values,
+                             covariance_matrix=mn_fit.cov_matrix)
+
+data_exporter.save_data(output_dir + 'data_of_fit.hdf5', output_dir, save_ppc=True)
 
 ################################# Plotting ################################################
 
@@ -417,7 +432,7 @@ for index, echan in enumerate(echan_list):
     if rank == 0:
         residual_plot.savefig(output_dir + 'residual_plot_{}_det_{}_echan_{}_bin_width_{}.pdf'.format(
             date, detector, echan, bin_width), dpi=300)
-plotter._save_plotting_data(output_dir + 'data_for_plots.hdf5', output_dir, echan_list)
+# plotter._save_plotting_data(output_dir + 'data_for_plots.hdf5', output_dir, echan_list)
 if custom:
     copyfile(config_custom_path, output_dir + 'used_config.py')
 else:
