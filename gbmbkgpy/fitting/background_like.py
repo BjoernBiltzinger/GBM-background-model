@@ -102,7 +102,7 @@ class BackgroundLike(object):
         :return: 
         """
 
-        for i, parameter in enumerate(self._free_parameters.itervalues()):
+        for i, parameter in enumerate(self._free_parameters.values()):
             parameter.value = new_parameters[i]
 
     def set_free_parameters(self, new_parameters):
@@ -153,7 +153,7 @@ class BackgroundLike(object):
 
     def fix_parameters(self, parameter_names):
         """
-        Fixe the parameters to their value
+        Fix the parameters to their value
         :param parameter_names:
         :return:
         """
@@ -210,7 +210,7 @@ class BackgroundLike(object):
         :return:
         """
         param_value_list = []
-        for i, parameter in enumerate(self._free_parameters.itervalues()):
+        for i, parameter in enumerate(self._free_parameters.values()):
             param_value_list.append(parameter.value)
 
         return param_value_list
@@ -222,7 +222,7 @@ class BackgroundLike(object):
         :return:
         """
         param_bound_list = []
-        for i, parameter in enumerate(self._free_parameters.itervalues()):
+        for i, parameter in enumerate(self._free_parameters.values()):
             param_bound_list.append(parameter.bounds)
 
         return param_bound_list
