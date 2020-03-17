@@ -23,9 +23,11 @@ try:
     else:
 
         using_mpi = False
+        rank = 0
 except:
 
     using_mpi = False
+    rank = 0
 
 
 class DataExporter(object):
