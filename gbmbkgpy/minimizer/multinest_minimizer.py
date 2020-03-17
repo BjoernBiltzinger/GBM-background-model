@@ -64,7 +64,7 @@ class MultiNestFit(object):
         self._day_list = self._likelihood._data.day
         self._day = ''
         for d in self._day_list:
-            self._day = 'test_2days'  # TODO change this; set maximum characters for multinestpath higher
+            self._day = d  # TODO change this; set maximum characters for multinestpath higher
         self._det = self._likelihood._data._det
 
         self._echan_list = self._likelihood._echan_list
@@ -84,7 +84,7 @@ class MultiNestFit(object):
                                                                                len(self._echan_list),
                                                                                self._echan_list[0],
                                                                                self._echan_list[-1])
-                time_dir = 'fit_' + current_time.strftime("%m-%d_%H-%M") + '/'
+                time_dir = current_time.strftime("%m-%d_%H-%M") + '/'
 
                 self.output_dir = os.path.join(multinest_out_dir, date_det_echan_dir, time_dir)
 

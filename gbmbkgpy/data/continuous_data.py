@@ -10,6 +10,7 @@ import numpy as np
 import os
 from gbmbkgpy.io.package_data import get_path_of_external_data_dir
 from gbmgeometry import GBMTime
+from gbmbkgpy.utils.binner import Rebinner
 
 try:
 
@@ -71,13 +72,45 @@ class Data(object):
 
         self._build_arrays()
 
+        self._rebinned = False
+        self._data_rebinner = None
+        self._rebinned_counts = None
+        self._rebinned_time_bins = None
+        self._rebinned_saa_mask = None
+
+    def rebinn_data(self, min_bin_width, saa_mask):
+        """
+        Rebins the time bins to a min bin width
+        :param min_bin_width:
+        :return:
+        """
+        self._rebinned = True
+
+        self._data_rebinner = Rebinner(self._time_bins, min_bin_width, mask=saa_mask)
+
+        for i, echan in enumerate(self._echan_list):
+            if i == 0:
+                count_array = self._data_rebinner.rebin(self._counts[:, i])[0]
+                count_array = count_array.reshape((len(count_array), 1))
+            else:
+                count_array = np.stack((count_array, self._data_rebinner.rebin(self._counts[:, i])[0]), axis=-1)
+
+        self._rebinned_counts = count_array.astype(np.uint16)
+
+        self._rebinned_time_bins = self._data_rebinner.time_rebinned
+
+        self._rebinned_saa_mask = self._data_rebinner.rebinned_saa_mask
+
     @property
     def counts(self):
         """
         Returns the count information of all time bins
         :return:
         """
-        return self._counts
+        if self._rebinned:
+            return self._rebinned_counts
+        else:
+            return self._counts
 
     @property
     def time_bins(self):
@@ -85,7 +118,17 @@ class Data(object):
         Returns the time bin information of all time bins
         :return:
         """
-        return self._time_bins
+        if self._rebinned:
+            return self._rebinned_time_bins
+        else:
+            return self._time_bins
+
+    @property
+    def rebinned_saa_mask(self):
+        if self._rebinned:
+            return self._rebinned_saa_mask
+        else:
+            raise Exception('Data is unbinned, the saa mask has to be obtained from the SAA_calc object')
 
     @property
     def det(self):
@@ -152,12 +195,26 @@ class Data(object):
         return self._det[-1]
 
     @property
+    def time_bin_width(self):
+        """
+        Returns width of the time bins
+        :return:
+        """
+        if self._rebinned:
+            return np.diff(self._rebinned_time_bins, axis=1)[:, 0]
+        else:
+            return np.diff(self._time_bins, axis=1)[:, 0]
+
+    @property
     def mean_time(self):
         """
         Returns mean time of the time bins
         :return:
         """
-        return np.mean(self._time_bins, axis=1)
+        if self._rebinned:
+            return np.mean(self._rebinned_time_bins, axis=1)
+        else:
+            return np.mean(self._time_bins, axis=1)
 
     def _build_arrays(self):
         """
