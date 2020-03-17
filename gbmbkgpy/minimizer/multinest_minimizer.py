@@ -1,17 +1,15 @@
-from astromodels.functions.priors import Uniform_prior, Log_uniform_prior, Log_normal, Truncated_gaussian, Gaussian
-
 import numpy as np
-import os, sys
-from gbmbkgpy.io.package_data import get_path_of_external_data_dir
+import os
+import sys
 import json
 import collections
 import math
-from numpy import exp, log
-import matplotlib.pyplot as plt
-import shutil
 from datetime import datetime
+import matplotlib.pyplot as plt
 
+from gbmbkgpy.io.package_data import get_path_of_external_data_dir
 from gbmbkgpy.utils.statistics.stats_tools import compute_covariance_matrix
+from astromodels.functions.priors import Uniform_prior, Log_uniform_prior, Log_normal, Truncated_gaussian, Gaussian
 
 try:
 
