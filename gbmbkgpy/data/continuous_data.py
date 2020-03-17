@@ -90,10 +90,11 @@ class Data(object):
 
         for i, echan in enumerate(self._echan_list):
             if i == 0:
-                count_array = self._data_rebinner.rebin(self._counts[:, i])[0]
-                count_array = count_array.reshape((len(count_array), 1))
+                count_array_tmp = self._data_rebinner.rebin(self._counts[:, i])[0]
+                count_array = np.zeros((len(count_array_tmp), len(self._echan_list)))
+                count_array[:, i] = count_array_tmp
             else:
-                count_array = np.stack((count_array, self._data_rebinner.rebin(self._counts[:, i])[0]), axis=-1)
+                count_array[:, i] = self._data_rebinner.rebin(self._counts[:, i])[0]
 
         self._rebinned_counts = count_array.astype(np.uint16)
 

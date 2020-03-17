@@ -5,7 +5,6 @@ from gbmbkgpy.utils.binner import Rebinner
 from gbmbkgpy.utils.progress_bar import progress_bar
 
 from gbmbkgpy.io.plotting.step_plots import step_plot
-# from threeML.config.config import config
 from gbmbkgpy.exceptions.custom_exceptions import custom_warnings
 
 try:

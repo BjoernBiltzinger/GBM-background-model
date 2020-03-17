@@ -62,6 +62,7 @@ class BackgroundLike(object):
         self._grb_mask_calculated = False
 
         self._get_sources_fit_spectrum()
+        self._build_cov_call()
 
     def _create_rebinner_before_fit(self, min_bin_width):
         """
@@ -229,6 +230,13 @@ class BackgroundLike(object):
     def _get_sources_fit_spectrum(self):
 
         self._sources_fit_spectrum = self._model.fit_spectrum_sources.values()
+
+    def _build_cov_call(self):
+
+        def cov_call(*parameters):
+            return self.__call__(parameters)
+
+        self.cov_call = cov_call
 
     def __call__(self, parameters):
         """
