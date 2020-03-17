@@ -1,16 +1,9 @@
-import numpy as np
-from gbmbkgpy.data.continuous_data import Data
-from gbmbkgpy.modeling.model import Model
-
-from gbmbkgpy.utils.binner import Rebinner
 import re
-import os
-import json
-from gbmbkgpy.io.package_data import get_path_of_external_data_dir
+import numpy as np
 import numexpr as ne
 
-
-NO_REBIN = 1E-99
+from gbmbkgpy.data.continuous_data import Data
+from gbmbkgpy.modeling.model import Model
 
 
 class BackgroundLike(object):
