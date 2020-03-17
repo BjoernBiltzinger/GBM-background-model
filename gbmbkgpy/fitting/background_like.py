@@ -1,19 +1,14 @@
 import numpy as np
 from gbmbkgpy.data.continuous_data import Data
 from gbmbkgpy.modeling.model import Model
-from gbmbkgpy.utils.statistics.stats_tools import Significance
-from gbmbkgpy.io.plotting.data_residual_plot import ResidualPlot
+
 from gbmbkgpy.utils.binner import Rebinner
-from gbmgeometry import GBMTime
-import astropy.time as astro_time
-import copy
 import re
 import os
 import json
 from gbmbkgpy.io.package_data import get_path_of_external_data_dir
 import numexpr as ne
 
-import astropy.io.fits as fits
 
 NO_REBIN = 1E-99
 
@@ -377,27 +372,6 @@ class BackgroundLike(object):
         :return:
         """
         self._grb_mask = np.ones(len(self._time_bins), dtype=bool)  # np.full(len(self._time_bins), True)
-
-    def _read_fits_file(self, date, detector, echan, file_number=0):
-
-        file_name = 'Fit_' + str(date) + '_' + str(detector) + '_' + str(echan) + '_' + str(file_number) + '.json'
-        file_path = os.path.join(get_path_of_external_data_dir(), 'fits', file_name)
-
-        # Reading data back
-        with open(file_path, 'r') as f:
-            data = json.load(f)
-
-        return data
-
-    def load_fits_file(self, date, detector, echan):
-
-        data = self._read_fits_file(date, detector, echan)
-
-        fit_result = np.array(data['fit-result']['param-values'])
-
-        self.set_free_parameters(fit_result)
-
-        print("Fits file was successfully loaded and the free parameters set")
 
 
     @property
