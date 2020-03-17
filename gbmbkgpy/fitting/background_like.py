@@ -30,6 +30,7 @@ class BackgroundLike(object):
 
         self._data = data  # type: Data
         self._model = model  # type: Model
+        self._echan_names = echan_list
         self._echan_list = np.arange(len(echan_list))  # list of index of all echans which should be fitted
 
         self._name = "Count rate detector %s" % self._data.det
@@ -405,7 +406,7 @@ class BackgroundLike(object):
 
     @property
     def echan_list(self):
-        return self._echan_list
+        return self._echan_names
 
     @property
     def data(self):
