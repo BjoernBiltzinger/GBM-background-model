@@ -18,9 +18,9 @@ response:
 ####### Input for SAA mask precaluclation [time to exclude after SAA, delete short time intervals? ##
 saa:
   time_after_saa: 50
-  short_time_intervals: False
+  short_time_intervals: false
   nr_decays: 1
-  decay_at_day_start: True
+  decay_at_day_start: true
 
 ###### Input for geometry calculation [n time bins per day to calculate the geometry ################
 geometry:
@@ -28,17 +28,17 @@ geometry:
 
 ##### Input for source Setup [use CR, use Earth, use CGB, point source list, fix earth, fix cgb #####
 setup:
-  use_saa:      True
-  use_constant: True
-  use_cr:       True
-  use_earth:    True
-  use_cgb:      True
+  use_saa:      true
+  use_constant: true
+  use_cr:       true
+  use_earth:    true
+  use_cgb:      true
   ps_list:      ['CRAB']
-  fix_ps:       [True]
-  fix_earth:    True
-  fix_cgb:      True
-  use_sun:      False
-  bgo_cr_approximation: True
+  fix_ps:       [true]
+  fix_earth:    true
+  fix_cgb:      true
+  use_sun:      false
+  bgo_cr_approximation: true
 
 ################################ Bounds for the different sources ###################################
 ####### SAA: Amplitude and decay constant, CR: Constant and McIlwain normalization ##################
@@ -71,13 +71,13 @@ fit:
   method: 'multinest'
   multinest:
     num_live_points: 400
-    constant_efficiency_mode: True
+    constant_efficiency_mode: true
 
 ##################### Input for Result Export  ######################################################
 export:
-  save_cov_matrix: False
-  save_ppc: True
-  save_unbinned: True
+  save_cov_matrix: false
+  save_ppc: true
+  save_unbinned: true
 
 ############################### Input for plotting ##################################################
 ### bin_width to bin the data, change_time from MET to seconds since midnight, show residuals? ######
@@ -85,14 +85,14 @@ export:
 ### show ppc?, xlim and ylim (as list e.g. [0,100]), legend outside of the plot? ####################
 plot:
   bin_width:      30
-  change_time:    True
-  show_residuals: False
-  show_data:      True
-  plot_sources:   True
-  show_grb_trigger: True
+  change_time:    true
+  show_residuals: false
+  show_data:      true
+  plot_sources:   true
+  show_grb_trigger: true
   times_mark:     []
   names_mark:     []
-  ppc:            True
+  ppc:            true
   xlim:           null
   ylim:           null
-  legend_outside: False
+  legend_outside: false
