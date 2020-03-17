@@ -107,6 +107,7 @@ class ResultPlotGenerator(object):
         self._time_bins_start = None
         self._time_bins_stop =  None
         self._time_stamp =      None
+        self._plot_path_list =  []
 
     def create_plots(self):
         print('Load data and start plotting')
@@ -145,10 +146,13 @@ class ResultPlotGenerator(object):
 
                         total_steps = 12 if self.show_ppc is False else 12 + len(self._ppc_counts)
 
+                        plot_path = '{}/plot_date_{}_det_{}_echan_{}__{}.pdf'.format(self.save_path_basis, day, self._det, self._echan, self._time_stamp)
+                        self._plot_path_list.append(plot_path)
+
                         with progress_bar(total_steps, title='Create Result plot') as p:
                             self._create_model_plots(
                                 which_day=i,
-                                savepath='{}/plot_date_{}_det_{}_echan_{}__{}.pdf'.format(self.save_path_basis, day, self._det, self._echan, self._time_stamp),
+                                savepath=plot_path,
                                 p_bar=p
                             )
         print('Success!')
