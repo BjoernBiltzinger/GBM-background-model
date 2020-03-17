@@ -9,18 +9,19 @@ general:
   detector:   'n0'
   data_type:  'ctime'
   echan_list: [3]
-  min_bin_width: 30
+  min_bin_width: 40
   test: true
 
 ################# Input for response precalculation [how many grid poits?] ##########################
 response:
-  Ngrid: 40000
+  Ngrid: 4000
 
 ####### Input for SAA mask precaluclation [time to exclude after SAA, delete short time intervals? ##
 saa:
   time_after_saa: 50
   short_time_intervals: false
   nr_decays: 1
+  decay_at_day_start: false
 
 ###### Input for geometry calculation [n time bins per day to calculate the geometry ################
 geometry:
