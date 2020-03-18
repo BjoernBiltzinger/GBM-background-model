@@ -11,7 +11,6 @@ from gbmbkgpy.io.package_data import get_path_of_external_data_dir
 from gbmbkgpy.utils.statistics.stats_tools import compute_covariance_matrix
 
 try:
-
     from mininest.integrator import ReactiveNestedSampler
     import pymultinest  # This is currently used for analysis_result
 

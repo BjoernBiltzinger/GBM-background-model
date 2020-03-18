@@ -52,21 +52,25 @@ class MultiNestFit(object):
     def __init__(self, likelihood, parameters):
 
         self._likelihood = likelihood
-
-        self._day_list = self._likelihood._data.day
-        self._day = ''
-        for d in self._day_list:
-            self._day = d  # TODO change this; set maximum characters for multinestpath higher
-        self._det = self._likelihood._data._det
-
-        self._echan_list = self._likelihood._echan_list
         self.parameters = parameters
 
-        self._n_dim = len(self._likelihood._free_parameters)
+        self._day_list = self._likelihood.data.day
+        self._day = ''
+
+        for d in self._day_list:
+            self._day = d  # TODO change this; set maximum characters for multinestpath higher
+
+        self._det = self._likelihood.det
+        self._echan_list = self._likelihood.echan_list
+        self._n_dim = len(self.parameters)
 
         self.cov_matrix = None
         self.best_fit_values = None
         self._sampler = None
+        self._param_names = None
+        self.minimum = None
+        self._samples =  None
+        self.multinest_data =  None
 
         if using_mpi:
             if rank == 0:
@@ -132,13 +136,10 @@ class MultiNestFit(object):
         if using_mpi:
             if rank == 0:
                 self.analyze_result()
-                self.comp_covariance_matrix()
+
+            self.best_fit_values = comm.bcast(self.best_fit_values, root=0)
         else:
             self.analyze_result()
-            self.comp_covariance_matrix()
-
-        self.cov_matrix = comm.bcast(self.cov_matrix, root=0)
-        self.best_fit_values = comm.bcast(self.best_fit_values, root=0)
 
     def _construct_multinest_prior(self):
         """
@@ -192,7 +193,6 @@ class MultiNestFit(object):
             if prior_type is not None:
                 if prior_type == 'uniform':
                     self._param_priors[parameter_name] = Uniform_prior(lower_bound=min_value, upper_bound=max_value)
-
                 elif prior_type == 'log_uniform':
                     self._param_priors[parameter_name] = Log_uniform_prior(lower_bound=min_value, upper_bound=max_value)
                 elif prior_type == 'gaussian':
@@ -235,12 +235,10 @@ class MultiNestFit(object):
             output_dir = self.output_dir
 
             # Save parameter names
-            param_index = []
-            for i, parameter in enumerate(self._likelihood._parameters.values()):
-                param_index.append(parameter.name)
+            self._param_names = [parameter.name for parameter in self.parameters.values()]
 
-            self._param_names = param_index
-            json.dump(self._param_names, open(output_dir + 'params.json', 'w'))
+            if rank == 0:
+                json.dump(self._param_names, open(output_dir + 'params.json', 'w'))
 
         ## Use PyMULTINEST analyzer to gather parameter info
         multinest_analyzer = pymultinest.analyse.Analyzer(n_params=self._n_dim,
@@ -250,13 +248,9 @@ class MultiNestFit(object):
         func_values = multinest_analyzer.get_equal_weighted_posterior()[:, -1]
 
         # Get the samples from the sampler
-
         _raw_samples = multinest_analyzer.get_equal_weighted_posterior()[:, :-1]
-        # print(_raw_samples)
-        # print(_raw_samples[0])
 
         # Find the minimum of the function (i.e. the maximum of func_wrapper)
-
         idx = func_values.argmax()
 
         self.best_fit_values = _raw_samples[idx]
@@ -270,7 +264,13 @@ class MultiNestFit(object):
         return self.best_fit_values, self.minimum
 
     def comp_covariance_matrix(self):
-        self.cov_matrix = compute_covariance_matrix(self._likelihood.cov_call, self.best_fit_values)
+        if using_mpi:
+            if rank == 0:
+                self.cov_matrix = compute_covariance_matrix(self._likelihood.cov_call, self.best_fit_values)
+
+            self.cov_matrix = comm.bcast(self.cov_matrix, root=0)
+        else:
+            self.cov_matrix = compute_covariance_matrix(self._likelihood.cov_call, self.best_fit_values)
 
     def _create_output_dir(self):
         current_time = datetime.now()

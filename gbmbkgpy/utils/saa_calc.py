@@ -22,7 +22,7 @@ except:
 
 
 class SAA_calc(object):
-    def __init__(self, data_object, bins_to_add=8, time_after_SAA=5000, short_time_intervals=False, nr_decays=1):
+    def __init__(self, data, bins_to_add=8, time_after_SAA=5000, short_time_intervals=False, nr_decays=1):
         """
         Initalize the SAA calculation that calculates the start and stop times of the SAAs and builds
         masks. 
@@ -33,11 +33,11 @@ class SAA_calc(object):
         """
 
         assert type(bins_to_add) == int, 'bins_to_add gives the number of time_bins to add before and after the SAA. It must therefore be an int but it is {}.'.format(type(bins_to_add))
-        assert type(data_object.time_bins) == np.ndarray, 'Invalid type for time_bins. Must be an array but is {}.'.format(type(data_object.time_bins))
+        assert type(data.time_bins) == np.ndarray, 'Invalid type for time_bins. Must be an array but is {}.'.format(type(data.time_bins))
         assert type(time_after_SAA) == int, 'time_after_SAA must be a int but is a {}'.format(type(time_after_SAA))
         assert type(short_time_intervals) == bool, 'short_time_intervals must be a bool but is {}'.format(short_time_intervals)
 
-        self._time_bins = data_object.time_bins
+        self._time_bins = data.time_bins
         self._build_masks(bins_to_add, time_after_SAA, short_time_intervals, nr_decays=nr_decays)
         self._rebinned = False
         self._rebinned_saa_mask = None
