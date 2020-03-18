@@ -79,9 +79,6 @@ if config['fit']['method'] == 'multinest':
         const_efficiency_mode=config['fit']['multinest']['constant_efficiency_mode']
     )
 
-    # Analyze result
-    minimizer.analyze_result()
-
     # Plot Marginals
     minimizer.plot_marginals()
 else:

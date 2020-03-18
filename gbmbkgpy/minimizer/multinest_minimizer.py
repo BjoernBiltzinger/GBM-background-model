@@ -1,17 +1,15 @@
-from astromodels.functions.priors import Uniform_prior, Log_uniform_prior, Log_normal, Truncated_gaussian, Gaussian
-
 import numpy as np
-import os, sys
-from gbmbkgpy.io.package_data import get_path_of_external_data_dir
+import os
+import sys
 import json
 import collections
 import math
-from numpy import exp, log
-import matplotlib.pyplot as plt
-import shutil
 from datetime import datetime
+import matplotlib.pyplot as plt
 
+from gbmbkgpy.io.package_data import get_path_of_external_data_dir
 from gbmbkgpy.utils.statistics.stats_tools import compute_covariance_matrix
+from astromodels.functions.priors import Uniform_prior, Log_uniform_prior, Log_normal, Truncated_gaussian, Gaussian
 
 try:
 
@@ -133,13 +131,11 @@ class MultiNestFit(object):
         self._sampler = sampler
 
         # if using mpi only analyze in rank=0
-        if using_mpi:
-            if rank == 0:
-                self.analyze_result()
-
-            self.best_fit_values = comm.bcast(self.best_fit_values, root=0)
-        else:
+        if rank == 0:
             self.analyze_result()
+
+        if using_mpi:
+            self.best_fit_values = comm.bcast(self.best_fit_values, root=0)
 
     def _construct_multinest_prior(self):
         """
@@ -264,13 +260,11 @@ class MultiNestFit(object):
         return self.best_fit_values, self.minimum
 
     def comp_covariance_matrix(self):
-        if using_mpi:
-            if rank == 0:
-                self.cov_matrix = compute_covariance_matrix(self._likelihood.cov_call, self.best_fit_values)
-
-            self.cov_matrix = comm.bcast(self.cov_matrix, root=0)
-        else:
+        if rank == 0:
             self.cov_matrix = compute_covariance_matrix(self._likelihood.cov_call, self.best_fit_values)
+
+        if using_mpi:
+            self.cov_matrix = comm.bcast(self.cov_matrix, root=0)
 
     def _create_output_dir(self):
         current_time = datetime.now()
