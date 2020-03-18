@@ -20,6 +20,7 @@ saa:
   time_after_saa: 50
   short_time_intervals: False
   nr_decays: 1
+  decay_at_day_start: True
 
 ###### Input for geometry calculation [n time bins per day to calculate the geometry ################
 geometry:

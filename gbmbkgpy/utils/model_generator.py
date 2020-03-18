@@ -116,7 +116,8 @@ class BackgroundModelGenerator(object):
             date= config['general']['dates'],
             detector=config['general']['detector'],
             data_type=config['general']['data_type'],
-            echan_list=config['general']['echan_list']
+            echan_list=config['general']['echan_list'],
+            test=config['general'].get('test', False)
         )
         print_progress('Done')
 
@@ -219,6 +220,7 @@ class BackgroundModelGenerator(object):
             fix_cgb=config['setup']['fix_cgb'],
             use_sun=config['setup']['use_sun'],
             nr_saa_decays=config['saa']['nr_decays'],
+            decay_at_day_start=config['saa']['decay_at_day_start'],
             bgo_cr_approximation=config['setup']['bgo_cr_approximation'])
 
         print_progress('Done')
@@ -239,7 +241,7 @@ class BackgroundModelGenerator(object):
             if config['setup']['use_saa']:
 
                 # If fitting only one day add additional 'SAA' decay to account for leftover excitation
-                if len(config['general']['dates']) == 1:
+                if config['saa']['decay_at_day_start'] and len(config['general']['dates']) == 1:
                     offset = config['saa']['nr_decays']
                 else:
                     offset = 0
