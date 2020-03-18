@@ -25,7 +25,7 @@ class ResultPlotGenerator(object):
         self.time_t0 =              plot_config.get('time_t0', None)
         self.xlim =                 plot_config.get('xlim', None)
         self.ylim =                 plot_config.get('ylim', None)
-        self.residual_ylim = plot_config.get('residual_ylim', None)
+        self.residual_ylim =        plot_config.get('residual_ylim', None)
         self.xscale =               plot_config.get('xscale', 'linear')
         self.yscale =               plot_config.get('yscale', 'linear')
         self.xlabel =               plot_config.get('xlabel', None)

@@ -44,6 +44,7 @@ class Geometry(object):
         assert type(n_bins_to_calculate_per_day) == int, 'Type of n_bins_to_calculate has to be int but is {}'.format(type(n_bins_to_calculate_per_day))
 
         # Save everything
+        self._data = data
         self.mean_time = data.mean_time
         self._det = det
         self._n_bins_to_calculate_per_day = n_bins_to_calculate_per_day
@@ -86,7 +87,8 @@ class Geometry(object):
         # Calculate Geometry. With or without Mpi support.
         for day_number, day in enumerate(day_list):
             if using_mpi:
-                sun_angle, sun_positions, time, earth_az, earth_zen, earth_position, quaternion, sc_pos, times_lower_bound_index, times_upper_bound_index = self._one_day_setup_geometery_mpi(day_number)
+                sun_angle, sun_positions, time, earth_az, earth_zen, earth_position, quaternion, sc_pos, times_lower_bound_index, times_upper_bound_index = \
+                    self._one_day_setup_geometery_mpi(day_number)
             else:
                 sun_angle, sun_positions, time, earth_az, earth_zen, earth_position, quaternion, sc_pos = \
                     self._one_day_setup_geometery_no_mpi(day_number)

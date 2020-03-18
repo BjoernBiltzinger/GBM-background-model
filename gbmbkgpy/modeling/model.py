@@ -69,8 +69,8 @@ class Model(object):
         :return:
         """
         for param_name, bound_dict in param_dict.items():
-            self._parameters[param_name].bounds = bound_dict['bounds']
-            self._parameters[param_name].gaussian_parameter = bound_dict['gaussian_parameter']
+            self.parameters[param_name].bounds = bound_dict['bounds']
+            self.parameters[param_name].gaussian_parameter = bound_dict['gaussian_parameter']
 
     @property
     def normalization_parameters(self):
@@ -125,6 +125,16 @@ class Model(object):
         self._update_parameters()
 
         return self._parameters
+
+    @property
+    def parameter_names(self):
+        """
+        Return a list with all paramete names
+        :return: list of parameter names
+        """
+        param_names = [parameter.name for parameter in self.parameters.values()]
+
+        return param_names
 
     def _update_parameters(self):
         """
@@ -201,6 +211,14 @@ class Model(object):
 
             for j, parameter in enumerate(global_source.parameters.values()):
                 parameter.value = norm_array[i]
+
+    def add_source(self, source):
+        """
+        Public method to add a source in the correct dictionary
+        :param source:
+        :return:
+        """
+        self._add_source(source)
 
     @property
     def point_sources(self):
