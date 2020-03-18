@@ -37,7 +37,7 @@ valid_det_names = ['n0', 'n1', 'n2', 'n3', 'n4', 'n5', 'n6', 'n7', 'n8', 'n9', '
 
 class Data(object):
 
-    def __init__(self, date, detector, data_type, echan_list):
+    def __init__(self, date, detector, data_type, echan_list, test=False):
         """
         Initalize the ContinousData Class, which contains the information about the time bins 
         and counts of the data.
@@ -61,6 +61,7 @@ class Data(object):
         self._det = detector
         self._day_list = sorted(date)
         self._echan_list = echan_list
+        self._test = test
         if self._data_type == 'ctime':
             self._echan_mask = np.zeros(8, dtype=bool)
             for e in echan_list:
@@ -259,8 +260,10 @@ class Data(object):
         :param day:
         :return:
         """
+        version = 'v00' if not self._test else 'test'
+
         # Download data-file and poshist file if not existing:
-        datafile_name = 'glg_{0}_{1}_{2}_v00.pha'.format(self._data_type, self._det, day)
+        datafile_name = 'glg_{0}_{1}_{2}_{3}.pha'.format(self._data_type, self._det, day, version)
         datafile_path = os.path.join(get_path_of_external_data_dir(), self._data_type, day, datafile_name)
 
         poshistfile_name = 'glg_{0}_all_{1}_v00.fit'.format('poshist', day)
@@ -293,14 +296,11 @@ class Data(object):
 
         # Sometimes there are corrupt time bins where the time bin start = time bin stop
         # So we have to delete these times bins
-        i = 0
-        while i < len(bin_start):
-            if bin_start[i] == bin_stop[i]:
-                bin_start = np.delete(bin_start, [i])
-                bin_stop = np.delete(bin_stop, [i])
-                counts = np.delete(counts, [i], axis=0)
-            else:
-                i += 1
+        idx_zero_bins = np.where(bin_start==bin_stop)[0]
+
+        bin_start = np.delete(bin_start, idx_zero_bins)
+        bin_stop = np.delete(bin_stop, idx_zero_bins)
+        counts = np.delete(counts, idx_zero_bins, axis=0)
 
         # Sometimes the poshist file does not cover the whole time covered by the CTIME/CSPEC file.
         # So we have to delete these time bins 
@@ -310,17 +310,15 @@ class Data(object):
             pos_times = f['GLAST POS HIST'].data['SCLK_UTC']
         min_time_pos = pos_times[0]
         max_time_pos = pos_times[-1]
+
         # check for all time bins if they are outside of this interval
-        i = 0
-        counter = 0
-        while i < len(bin_start):
-            if bin_start[i] < min_time_pos or bin_stop[i] > max_time_pos:
-                bin_start = np.delete(bin_start, i)
-                bin_stop = np.delete(bin_stop, i)
-                counts = np.delete(counts, i, 0)
-                counter += 1
-            else:
-                i += 1
+        idx_below_min_time = np.where(bin_start < min_time_pos)
+        idx_above_max_time = np.where(bin_start > max_time_pos)
+        idx_out_of_bounds =  np.unique(np.hstack((idx_below_min_time, idx_above_max_time)))
+
+        bin_start = np.delete(bin_start, idx_out_of_bounds)
+        bin_stop = np.delete(bin_stop, idx_out_of_bounds)
+        counts = np.delete(counts, idx_out_of_bounds, axis=0)
 
         # Calculate the MET time for the day
         day = day

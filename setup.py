@@ -1,5 +1,7 @@
-from setuptools import setup, find_packages
+from setuptools import setup
 import os
+
+import versioneer
 
 
 # Create list of data files
@@ -11,34 +13,17 @@ def find_data_files(directory):
 
         for filename in filenames:
 
-            paths.append(os.path.join('..', path, filename))
+            paths.append(os.path.join("..", path, filename))
 
     return paths
 
-extra_files = find_data_files('gbmbkgpy/data')
+
+extra_files = find_data_files("gbmbkgpy/data")
+
 
 setup(
-
-    name="gbmbkgpy",
-    packages=find_packages(),
-    version='v0.1',
-    description=' GBM Background ',
-    author='MPE GRB Team',
-    author_email='jburgess@mpe.mpg.de',
-    package_data={'': extra_files, },
+    version=versioneer.get_version(),
     include_package_data=True,
-    requires=[
-        'numpy',
-        'matplotlib',
-        'astropy',
-        'scipy',
-        'gbm_drm_gen',
-        'gbmgeometry',
-        'astromodels',
-        'spherical_geometry',
-        'healpy',
-        'numdifftools',
-        'numexpr'
-    ]
-
+    package_data={"": extra_files},
+    cmdclass=versioneer.get_cmdclass(),
 )
