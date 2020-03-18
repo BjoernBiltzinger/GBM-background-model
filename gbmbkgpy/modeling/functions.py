@@ -93,6 +93,7 @@ class GRB(Function):
 
     def set_time_bins(self, time_bins):
         self._time_bins = time_bins
+        self._time_bin_means = np.mean(self._time_bins, axis=1)
 
     def set_grb_params(self, A, t_start, t_rise, t_decay):
         self._A = A
@@ -106,52 +107,20 @@ class GRB(Function):
         The the values are calculated for the start and stop times of the bins for vectorized integration
         :return:
         """
+        t_start = self._t_start + self._time_bin_means[0]
 
-        out = np.zeros_like(self._time_bins)
-        idx_start = self._time_bins[:, 0] < self._t_start
-        idx_stop = self._time_bins[:, 1] < self._t_start
-
-        out[:, 0][~idx_start] = self._A * np.exp(2 * (self._t_rise / self._t_decay) ** (1 / 2)) * np.exp(-self._t_rise /
-                                                                                                         (self._time_bins[:, 0][~idx_start] - self._t_start) - (self._time_bins[:, 0][~idx_start] - self._t_start) / self._t_decay)
-
-        out[:, 1][~idx_stop] = self._A * np.exp(2 * (self._t_rise / self._t_decay) ** (1 / 2)) * np.exp(-self._t_rise /
-                                                                                                        (self._time_bins[:, 1][~idx_stop] - self._t_start) - (self._time_bins[:, 1][~idx_stop] - self._t_start) / self._t_decay)
-        return out
-
-
-class Transient(Function):
-
-    def __init__(self, transient_number, echan):
-        A = Parameter("norm_transient-{}_echan-{}".format(transient_number, echan), initial_value=1., min_value=0, max_value=None, delta=0.1, normalization=True, prior='log_uniform')
-        t_start = Parameter("t_start-{}_echan-{}".format(transient_number, echan), initial_value=1., min_value=0, max_value=None, delta=0.1, prior='log_uniform')
-        t_rise = Parameter("t_rise-{}_echan-{}".format(transient_number, echan), initial_value=0.01, min_value=0., max_value=1., delta=0.1, prior='log_uniform')
-        t_decay = Parameter("t_decay-{}_echan-{}".format(transient_number, echan), initial_value=0.01, min_value=0., max_value=1., delta=0.1, prior='log_uniform')
-
-        super(Transient, self).__init__(A, t_start, t_rise, t_decay)
-
-    def set_time_bins(self, time_bins):
-        self._time_bins = time_bins
-
-    def _evaluate(self, A, t_start, t_rise, t_decay, echan=None):
-        """
-        Calculates the exponential decay for the SAA exit
-        The the values are calculated for the start and stop times of the bins with the analytic solution of the integral
-        for a function A*exp(-saa_decay_constant*(t-t0)) which is -A/saa_decay_constant *
-        (exp(-saa_decay_constant*(tend_bin-to) - exp(-saa_decay_constant*(tstart_bin-to))
-        :param A:
-        :param saa_decay_constant:
-        :return:
-        """
-
-        self._idx_start = self._time_bins[:, 0] - self._time_bins[0, 0] < t_start
-
-        tb_start = (self._time_bins[:, 0] - self._time_bins[0, 0])[~self._idx_start]
-        tb_stop = (self._time_bins[:, 1] - self._time_bins[0, 0])[~self._idx_start]
+        idx_start = self._time_bin_means > t_start
 
         out = np.zeros_like(self._time_bins[:, 0])
 
-        out[~self._idx_start] = ne.evaluate("A * exp(2*sqrt(t_rise/t_decay)) * ( exp(-t_rise/(tb_stop  - t_start) - (tb_stop -t_start)/t_decay) * (t_rise/(tb_stop -t_start)**2 - 1/t_decay)"
-                                                                           + " - exp(-t_rise/(tb_start - t_start) - (tb_start-t_start)/t_decay) * (t_rise/(tb_start-t_start)**2 - 1/t_decay) )")
+        t = self._time_bin_means[idx_start] - t_start
+        A = self._A
+        t_start = self._t_start
+        t_rise = self._t_rise
+        t_decay = self._t_decay
+
+        out[idx_start] = ne.evaluate("A * exp(2*sqrt(t_rise/t_decay)) * exp(-t_rise/t - t/t_decay) ")
+
         return out
 
 

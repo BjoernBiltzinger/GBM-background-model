@@ -1,21 +1,9 @@
-import numpy as np
-from gbmbkgpy.data.continuous_data import Data
-from gbmbkgpy.modeling.model import Model
-from gbmbkgpy.utils.statistics.stats_tools import Significance
-from gbmbkgpy.io.plotting.data_residual_plot import ResidualPlot
-from gbmbkgpy.utils.binner import Rebinner
-from gbmgeometry import GBMTime
-import astropy.time as astro_time
-import copy
 import re
-import os
-import json
-from gbmbkgpy.io.package_data import get_path_of_external_data_dir
+import numpy as np
 import numexpr as ne
 
-import astropy.io.fits as fits
-
-NO_REBIN = 1E-99
+from gbmbkgpy.data.continuous_data import Data
+from gbmbkgpy.modeling.model import Model
 
 
 class BackgroundLike(object):
@@ -30,6 +18,7 @@ class BackgroundLike(object):
 
         self._data = data  # type: Data
         self._model = model  # type: Model
+        self._echan_names = echan_list
         self._echan_list = np.arange(len(echan_list))  # list of index of all echans which should be fitted
 
         self._name = "Count rate detector %s" % self._data.det
@@ -56,44 +45,10 @@ class BackgroundLike(object):
         self._total_counts_all_echan = self._data.counts[2:-2]
 
         self._total_scale_factor = 1.
-        self._rebinner = None
-        self._fit_rebinned = False
-        self._fit_rebinner = None
         self._grb_mask_calculated = False
 
         self._get_sources_fit_spectrum()
         self._build_cov_call()
-
-    def _create_rebinner_before_fit(self, min_bin_width):
-        """
-        This method rebins the observed counts bevore the fitting process.
-        The fitting will be done on the rebinned counts afterwards!
-        :param min_bin_width:
-        :return:
-        """
-        self._fit_rebinned = True
-
-        self._fit_rebinner = Rebinner(self._total_time_bins, min_bin_width, self._saa_mask)
-
-    def _rebinned_observed_counts_fitting(self):
-        """
-        :return:
-        """
-        # Rebinn the observec counts on time
-        self._rebinned_observed_counts_fitting_all_echan = []
-        for echan in self._echan_list:
-            self._rebinned_observed_counts_fitting_all_echan.append(self._fit_rebinner.rebin(self._total_counts_all_echan[:, echan]))
-        self._rebinned_observed_counts_fitting_all_echan = np.array(self._rebinned_observed_counts_fitting_all_echan)
-
-    def _rebinned_model_counts_fitting(self):
-        """
-        :return:
-        """
-        # the rebinned expected counts from the model
-        self._rebinned_model_counts_fitting_all_echan = []
-        for echan in self._echan_list:
-            self._rebinned_model_counts_fitting_all_echan.append(self._fit_rebinner.rebin(self.model_counts(echan))[0])
-        self._rebinned_model_counts_fitting_all_echan = np.array(self._rebinned_model_counts_fitting_all_echan)
 
     def _set_free_parameters(self, new_parameters):
         """
@@ -249,9 +204,7 @@ class BackgroundLike(object):
         :return: the poisson log likelihood
         """
         self._set_free_parameters(parameters)
-        if self._fit_rebinned:
-            self._rebinned_observed_counts_fitting()
-            self._rebinned_model_counts_fitting()
+
         log_likelihood_list = []
         ######### Calculate rates for new spectral parameter
         for source in self._sources_fit_spectrum:
@@ -273,14 +226,8 @@ class BackgroundLike(object):
         # whatever value has log(M_i). Thus, initialize the whole vector v = {v_i}
         # to zero, then overwrite the elements corresponding to D_i > 0
 
-        # Use rebinned counts if fir_rebinned is set to true:
-        if self._fit_rebinned:
-            index = int(np.argwhere(self._echan_list == echan))
-            d_times_logM = self._rebinned_observed_counts_fitting_all_echan[index] * logM
-
-        else:
-            counts = self._counts_all_echan[:, echan]
-            d_times_logM = ne.evaluate("counts*logM")
+        counts = self._counts_all_echan[:, echan]
+        d_times_logM = ne.evaluate("counts*logM")
 
         log_likelihood = ne.evaluate("sum(M - d_times_logM)")
         return log_likelihood
@@ -291,14 +238,7 @@ class BackgroundLike(object):
         :return:
         """
 
-        model_counts = self._model.get_counts(self._time_bins, echan, bin_mask=self._total_mask)
-
-        if self._fit_rebinned:
-            index = int(np.argwhere(self._echan_list == echan))
-            return self._rebinned_model_counts_fitting_all_echan[index]
-
-        else:
-            return model_counts
+        return self._model.get_counts(self._time_bins, echan, bin_mask=self._total_mask)
 
     def _evaluate_logM(self, M):
         # Evaluate the logarithm with protection for negative or small
@@ -377,27 +317,6 @@ class BackgroundLike(object):
         """
         self._grb_mask = np.ones(len(self._time_bins), dtype=bool)  # np.full(len(self._time_bins), True)
 
-    def _read_fits_file(self, date, detector, echan, file_number=0):
-
-        file_name = 'Fit_' + str(date) + '_' + str(detector) + '_' + str(echan) + '_' + str(file_number) + '.json'
-        file_path = os.path.join(get_path_of_external_data_dir(), 'fits', file_name)
-
-        # Reading data back
-        with open(file_path, 'r') as f:
-            data = json.load(f)
-
-        return data
-
-    def load_fits_file(self, date, detector, echan):
-
-        data = self._read_fits_file(date, detector, echan)
-
-        fit_result = np.array(data['fit-result']['param-values'])
-
-        self.set_free_parameters(fit_result)
-
-        print("Fits file was successfully loaded and the free parameters set")
-
 
     @property
     def det(self):
@@ -405,7 +324,7 @@ class BackgroundLike(object):
 
     @property
     def echan_list(self):
-        return self._echan_list
+        return self._echan_names
 
     @property
     def data(self):

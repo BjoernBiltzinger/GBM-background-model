@@ -53,6 +53,10 @@ class ConfigurationFileCorrupt(RuntimeWarning):
     pass
 
 
+class MissingCommandLineArgument(RuntimeError):
+    pass
+
+
 class deprecated(object):
     def __init__(self, reason):
         if inspect.isclass(reason) or inspect.isfunction(reason):

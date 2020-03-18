@@ -1,68 +1,70 @@
 import numpy as np
+import h5py
+import yaml
+from datetime import datetime
+from matplotlib import pyplot as plt
+from gbmgeometry import GBMTime
+import astropy.time as astro_time
+
+from gbmbkgpy.utils.progress_bar import progress_bar
 from gbmbkgpy.utils.statistics.stats_tools import Significance
 from gbmbkgpy.io.plotting.data_residual_plot import ResidualPlot
 from gbmbkgpy.utils.binner import Rebinner
-from matplotlib import pyplot as plt
-import h5py
-from datetime import datetime
-from gbmgeometry import GBMTime
-import astropy.time as astro_time
-from gbmbkgpy.utils.progress_bar import progress_bar
 
 NO_REBIN = 1E-99
 
 
 class ResultPlotGenerator(object):
-    def __init__(self, plot_config, component_config, style_config, highlight_config={}):
+    def __init__(self, config_file, data_path):
 
-        # Import plot settings
+        # Load the config.yml
+        with open(config_file) as f:
+            config = yaml.load(f)
 
-        self.data_path =            plot_config['data_path']
-        self.bin_width =            plot_config.get('bin_width', 10)
-        self.change_time =          plot_config.get('change_time', True)
-        self.time_since_midnight =  plot_config.get('time_since_midnight', True)
-        self.time_format =          plot_config.get('time_format', 'h')
-        self.time_t0 =              plot_config.get('time_t0', None)
-        self.xlim =                 plot_config.get('xlim', None)
-        self.ylim =                 plot_config.get('ylim', None)
-        self.residual_ylim =        plot_config.get('residual_ylim', None)
-        self.xscale =               plot_config.get('xscale', 'linear')
-        self.yscale =               plot_config.get('yscale', 'linear')
-        self.xlabel =               plot_config.get('xlabel', None)
-        self.ylabel =               plot_config.get('ylabel', None)
-        self.dpi =                  plot_config.get('dpi', 400)
-        self.show_legend =          plot_config.get('show_legend', True)
-        self.show_title =           plot_config.get('show_title', True)
-        self.axis_title =           plot_config.get('axis_title', None)
-        self.legend_outside =       plot_config.get('legend_outside', True)
+        self.data_path =            data_path
+        self.bin_width =            config['plot'].get('bin_width', 10)
+        self.change_time =          config['plot'].get('change_time', True)
+        self.time_since_midnight =  config['plot'].get('time_since_midnight', True)
+        self.time_format =          config['plot'].get('time_format', 'h')
+        self.time_t0 =              config['plot'].get('time_t0', None)
+        self.xlim =                 config['plot'].get('xlim', None)
+        self.ylim =                 config['plot'].get('ylim', None)
+        self.residual_ylim =        config['plot'].get('residual_ylim', None)
+        self.xscale =               config['plot'].get('xscale', 'linear')
+        self.yscale =               config['plot'].get('yscale', 'linear')
+        self.xlabel =               config['plot'].get('xlabel', None)
+        self.ylabel =               config['plot'].get('ylabel', None)
+        self.dpi =                  config['plot'].get('dpi', 400)
+        self.show_legend =          config['plot'].get('show_legend', True)
+        self.show_title =           config['plot'].get('show_title', True)
+        self.axis_title =           config['plot'].get('axis_title', None)
+        self.legend_outside =       config['plot'].get('legend_outside', True)
 
         # Import component settings
-        self.show_data =            component_config.get('show_data', True)
-        self.show_model =           component_config.get('show_model', True)
-        self.show_ppc =             component_config.get('show_ppc', True)
-        self.show_residuals =       component_config.get('show_residuals', False)
-
-        self.show_all_sources =     component_config.get('show_all_sources', True)
-        self.show_earth =           component_config.get('show_earth', True)
-        self.show_cgb =             component_config.get('show_cgb', True)
-        self.show_sun =             component_config.get('show_sun', True)
-        self.show_saa =             component_config.get('show_saa', True)
-        self.show_cr =              component_config.get('show_cr', True)
-        self.show_constant =        component_config.get('show_constant', True)
-        self.show_crab =            component_config.get('show_crab', True)
-
-        self.show_occ_region =      component_config.get('show_occ_region', False)
-        self.show_grb_trigger =     component_config.get('show_grb_trigger', False)
+        self.show_data =            config['component'].get('show_data', True)
+        self.show_model =           config['component'].get('show_model', True)
+        self.show_ppc =             config['component'].get('show_ppc', True)
+        self.show_residuals =       config['component'].get('show_residuals', False)
+        self.show_all_sources =     config['component'].get('show_all_sources', True)
+        self.show_earth =           config['component'].get('show_earth', True)
+        self.show_cgb =             config['component'].get('show_cgb', True)
+        self.show_sun =             config['component'].get('show_sun', True)
+        self.show_saa =             config['component'].get('show_saa', True)
+        self.show_cr =              config['component'].get('show_cr', True)
+        self.show_constant =        config['component'].get('show_constant', True)
+        self.show_crab =            config['component'].get('show_crab', True)
+        self.show_occ_region =      config['component'].get('show_occ_region', False)
+        self.show_grb_trigger =     config['component'].get('show_grb_trigger', False)
 
         # Import style settings
-        self.model_styles =      style_config['model']
-        self.source_styles =    style_config['sources']
-        self.ppc_styles =       style_config['ppc']
-        self.data_styles =       style_config['data']
-        self.legend_kwargs =    style_config.get('legend_kwargs', None)
+        self.model_styles =         config['style']['model']
+        self.source_styles =        config['style']['sources']
+        self.ppc_styles =           config['style']['ppc']
+        self.data_styles =          config['style']['data']
+        self.legend_kwargs =        config['style'].get('legend_kwargs', None)
 
-        if style_config['mpl_style'] is not None:
-            plt.style.use(style_config['mpl_style'])
+        if config['style']['mpl_style'] is not None:
+            plt.style.use(config['style']['mpl_style'])
 
         # Save path basis
         self.save_path_basis = '/'.join(self.data_path.split('/')[:-1])
@@ -70,9 +72,9 @@ class ResultPlotGenerator(object):
         self._grb_triggers = {}
         self._occ_region = {}
 
-        if highlight_config != {}:
-            if highlight_config['grb_trigger'] is not None:
-                for grb_trigger in highlight_config['grb_trigger']:
+        if config.get('highlight', None) is not None:
+            if config['highlight']['grb_trigger'] is not None:
+                for grb_trigger in config['highlight']['grb_trigger']:
                     self.add_grb_trigger(grb_name=grb_trigger['name'],
                                          trigger_time=grb_trigger['trigger_time'],
                                          time_format='UTC',
@@ -82,8 +84,8 @@ class ResultPlotGenerator(object):
                                          linestyle=grb_trigger.get('linestyle', '-'),
                                          linewidth=grb_trigger.get('linewidth', 0.8)
                                          )
-            if highlight_config['occ_region'] is not None:
-                for occ_region in highlight_config['occ_region']:
+            if config['highlight']['occ_region'] is not None:
+                for occ_region in config['highlight']['occ_region']:
                     self.add_occ_region(occ_name=occ_region['name'],
                                         time_start=occ_region['time_start'],
                                         time_stop=occ_region['time_stop'],
@@ -105,16 +107,19 @@ class ResultPlotGenerator(object):
         self._time_bins_start = None
         self._time_bins_stop =  None
         self._time_stamp =      None
+        self._plot_path_list =  []
 
     def create_plots(self):
         print('Load data and start plotting')
 
         with h5py.File(self.data_path, 'r') as f:
             keys = f.keys()
-            self._det = np.array(f['general']['Detector'])
-            self._dates = np.array(f['general']['Dates'])
+            self._det = np.array(f['general']['detector'])
+            self._dates = np.array(f['general']['dates'])
             self._day_start_times = np.array(f['general']['day_start_times'])
             self._day_stop_times = np.array(f['general']['day_stop_times'])
+            self._time_bins_start = np.array(f['general'].get('time_bins_start', None))
+            self._time_bins_stop = np.array(f['general'].get('time_bins_stop', None))
             self._saa_mask = np.array(f['general']['saa_mask'])
             for i, day in enumerate(self._dates):
 
@@ -123,11 +128,15 @@ class ResultPlotGenerator(object):
                         pass
                     else:
                         self._echan = key.split(' ')[1]
-                        self._time_bins_start = np.array(f[key]['time_bins_start'])
-                        self._time_bins_stop = np.array(f[key]['time_bins_stop'])
+
                         self._model_counts = self._set_saa_zero(np.array(f[key]['total_model_counts']))
                         self._observed_counts = self._set_saa_zero(np.array(f[key]['observed_counts']))
                         self._ppc_counts = np.array(f[key]['PPC'])
+
+                        # This is to keep it compatible to old data files
+                        if self._time_bins_start is None:
+                            self._time_bins_start = np.array(f[key].get('time_bins_start'))
+                            self._time_bins_stop = np.array(f[key].get('time_bins_stop'))
 
                         self._sources = {}
                         for key_inter in f[key]['Sources']:
@@ -137,10 +146,13 @@ class ResultPlotGenerator(object):
 
                         total_steps = 12 if self.show_ppc is False else 12 + len(self._ppc_counts)
 
+                        plot_path = '{}/plot_date_{}_det_{}_echan_{}__{}.pdf'.format(self.save_path_basis, day, self._det, self._echan, self._time_stamp)
+                        self._plot_path_list.append(plot_path)
+
                         with progress_bar(total_steps, title='Create Result plot') as p:
                             self._create_model_plots(
                                 which_day=i,
-                                savepath='{}/plot_date_{}_det_{}_echan_{}__{}.pdf'.format(self.save_path_basis, day, self._det, self._echan, self._time_stamp),
+                                savepath=plot_path,
                                 p_bar=p
                             )
         print('Success!')

@@ -19,7 +19,8 @@ import numpy as np
 
 
 # File to hdf5 file with expected values for tests
-test_hdf5_path = 'test_expected.hdf5'
+path_of_tests = os.path.dirname(os.path.abspath(__file__))
+test_hdf5_path = os.path.join(path_of_tests, 'test_expected.hdf5')
 
 
 
@@ -58,12 +59,12 @@ assert file_existing_and_readable(file_path2)
 data = Data(date, detector, data_type, echan_list)
 
 # Import the expected values of the sum of all mean times and all counts
-f = h5py.File(test_hdf5_path, 'r')
-mean_time_c = f['/data_preparation/cspec_mean_time_sum'][()]
-counts_c = f['/data_preparation/cspec_counts_sum'][()]
-day_start_times_c = f['/data_preparation/cspec_day_start_times_sum'][()]
-day_stop_times_c = f['/data_preparation/cspec_day_stop_times_sum'][()]
-f.close()
+with (h5py.File(test_hdf5_path, 'r')) as f:
+    mean_time_c = f['/data_preparation/cspec_mean_time_sum'][()]
+    counts_c = f['/data_preparation/cspec_counts_sum'][()]
+    day_start_times_c = f['/data_preparation/cspec_day_start_times_sum'][()]
+    day_stop_times_c = f['/data_preparation/cspec_day_stop_times_sum'][()]
+
 
 # Check if the time bins and count arrays are the same
 assert np.sum(data.mean_time) == mean_time_c
@@ -105,12 +106,11 @@ assert file_existing_and_readable(file_path2)
 data = Data(date, detector, data_type, echan_list)
 
 # Import the expected values of the sum of all mean times and all counts
-f = h5py.File(test_hdf5_path, 'r')
-mean_time_c = f['/data_preparation/ctime_mean_time_sum'][()]
-counts_c = f['/data_preparation/ctime_counts_sum'][()]
-day_start_times_c = f['/data_preparation/ctime_day_start_times_sum'][()]
-day_stop_times_c = f['/data_preparation/ctime_day_stop_times_sum'][()]
-f.close()
+with (h5py.File(test_hdf5_path, 'r')) as f:
+    mean_time_c = f['/data_preparation/ctime_mean_time_sum'][()]
+    counts_c = f['/data_preparation/ctime_counts_sum'][()]
+    day_start_times_c = f['/data_preparation/ctime_day_start_times_sum'][()]
+    day_stop_times_c = f['/data_preparation/ctime_day_stop_times_sum'][()]
 
 # Check if the time bins and count arrays are the same
 assert np.sum(data.mean_time) == mean_time_c
