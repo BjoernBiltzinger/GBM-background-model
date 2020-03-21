@@ -141,9 +141,9 @@ def download_trigdata_file(trigger, type, detector='all'):
     :return:
     """
 
-    year = '20%s' % trigger[:2]
-    month = trigger[2:-2]
-    day = trigger[-2:]
+    year = '20%s' % trigger[2:4]
+    month = trigger[4:6]
+    day = trigger[6:8]
 
     data_path = get_path_of_external_data_dir()
     if not os.access(data_path, os.F_OK):
@@ -164,30 +164,30 @@ def download_trigdata_file(trigger, type, detector='all'):
         os.mkdir(file_path)
 
     try:
-        url = 'https://heasarc.gsfc.nasa.gov/FTP/fermi/data/gbm/triggers/{0}/bn{1}/current/glg_{2}_{3}_bn{4}_v00.{5}'.format(year, trigger, type, detector, trigger, file_type)
+        url = 'https://heasarc.gsfc.nasa.gov/FTP/fermi/data/gbm/triggers/{0}/{1}/current/glg_{2}_{3}_{4}_v00.{5}'.format(year, trigger, type, detector, trigger, file_type)
         path_to_file = download_file(url)
     except:
         try:
-            url = 'https://heasarc.gsfc.nasa.gov/FTP/fermi/data/gbm/triggers/{0}/bn{1}/current/glg_{2}_{3}_bn{4}_v01.{5}'.format(year, trigger, type, detector, trigger, file_type)
+            url = 'https://heasarc.gsfc.nasa.gov/FTP/fermi/data/gbm/triggers/{0}/{1}/current/glg_{2}_{3}_{4}_v01.{5}'.format(year, trigger, type, detector, trigger, file_type)
             path_to_file = download_file(url)
         except:
             try:
-                url = 'https://heasarc.gsfc.nasa.gov/FTP/fermi/data/gbm/triggers/{0}/bn{1}/current/glg_{2}_{3}_bn{4}_v02.{5}'.format(year, trigger, type, detector, trigger, file_type)
+                url = 'https://heasarc.gsfc.nasa.gov/FTP/fermi/data/gbm/triggers/{0}/{1}/current/glg_{2}_{3}_{4}_v02.{5}'.format(year, trigger, type, detector, trigger, file_type)
 
                 path_to_file = download_file(url)
             except:
                 try:
-                    url = 'https://heasarc.gsfc.nasa.gov/FTP/fermi/data/gbm/triggers/{0}/bn{1}/current/glg_{2}_{3}_bn{4}_v03.{5}'.format(year, trigger, type, detector, trigger, file_type)
+                    url = 'https://heasarc.gsfc.nasa.gov/FTP/fermi/data/gbm/triggers/{0}/{1}/current/glg_{2}_{3}_{4}_v03.{5}'.format(year, trigger, type, detector, trigger, file_type)
 
                     path_to_file = download_file(url)
                 except:
                     try:
-                        url = 'https://heasarc.gsfc.nasa.gov/FTP/fermi/data/gbm/triggers/{0}/bn{1}/current/glg_{2}_{3}_bn{4}_v04.{5}'.format(year, trigger, type, detector, trigger, file_type)
+                        url = 'https://heasarc.gsfc.nasa.gov/FTP/fermi/data/gbm/triggers/{0}/{1}/current/glg_{2}_{3}_{4}_v04.{5}'.format(year, trigger, type, detector, trigger, file_type)
                         path_to_file = download_file(url)
                     except:
                         print('This url not found {}'.format(url))
 
-    file_name = 'glg_{0}_{1}_bn{2}_v00.{3}'.format(type, detector, trigger, file_type)
+    file_name = 'glg_{0}_{1}_{2}_v00.{3}'.format(type, detector, trigger, file_type)
 
     shutil.move(path_to_file, os.path.join(file_path, file_name))
 
