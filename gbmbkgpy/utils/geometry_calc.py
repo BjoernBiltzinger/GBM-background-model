@@ -52,8 +52,30 @@ class Geometry(object):
         self._day_stop_times = data.day_stop_times
         self._day_list = sorted(day_list)  # map(str, sorted(map(int, day_list)))
 
+        # Number of bins to skip, to equally distribute the n_bins_to_calculate times over the day
+        n_skip = int(np.ceil(len(self.mean_time) / (self._n_bins_to_calculate_per_day * len(day_list))))
+
+        # Create the lists of the times where to calculate the geometry
+        list_times_to_calculate = self.mean_time[::n_skip]
+        print(list_times_to_calculate.shape)
+        # Add start and stop time of days to times for which the geometry should be calculated (to ensure a valid
+        # interpolation for all used times
+        self._list_times_to_calculate = self._add_start_stop(list_times_to_calculate, self._day_start_times,
+                                                             self._day_stop_times)
+        print(self._list_times_to_calculate.shape)
         if self._data.data_type == 'trigdat':
             self._pos_hist = np.array([self._data.trigdata_path])
+
+            # Dirty fix because the position data in trigdat only interpolates up to the beginning of the last time bin
+            self._list_times_to_calculate[-2] = self._data.time_bins[-2, 1]
+            self._list_times_to_calculate[-1] = self._data.time_bins[-1, 0]
+
+            # GBM Geometry handles trigdat times in reference to the trigger time
+            # we have to account for this before and after the position interpolation
+            self._list_times_to_calculate =  self._list_times_to_calculate - self._data.trigtime
+            self._day_start_times = self._day_start_times - self._data.trigtime
+            self._day_stop_times = self._day_stop_times - self._data.trigtime
+
 
         else:
             # Check if poshist file exists, if not download it and save the paths for all days in an array
@@ -77,16 +99,6 @@ class Geometry(object):
             for pos in self._pos_hist:
                 assert file_existing_and_readable(pos), '{} does not exist'.format(pos)
 
-        # Number of bins to skip, to equally distribute the n_bins_to_calculate times over the day
-        n_skip = int(np.ceil(len(self.mean_time) / (self._n_bins_to_calculate_per_day * len(day_list))))
-
-        # Create the lists of the times where to calculate the geometry
-        list_times_to_calculate = self.mean_time[::n_skip]
-
-        # Add start and stop time of days to times for which the geometry should be calculated (to ensure a valid
-        # interpolation for all used times
-        self._list_times_to_calculate = self._add_start_stop(list_times_to_calculate, self._day_start_times,
-                                                             self._day_stop_times)
 
         # Calculate Geometry. With or without Mpi support.
         for day_number, day in enumerate(day_list):
@@ -128,6 +140,11 @@ class Geometry(object):
         self._earth_position = np.concatenate(self._earth_position, axis=0)
         self._quaternion = np.concatenate(self._quaternion, axis=0)
         self._sc_pos = np.concatenate(self._sc_pos, axis=0)
+
+        # Here we add the trigger time to build the model in MET
+        if self._data.data_type == 'trigdat':
+            self._time = self._time + self._data.trigtime
+            self._list_times_to_calculate = self._list_times_to_calculate + self._data.trigtime
 
     # All properties of the class.
     # Returns the calculated values of the quantities for all the n_bins_to_calculate times
