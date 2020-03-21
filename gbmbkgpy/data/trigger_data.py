@@ -34,16 +34,15 @@ valid_det_names = ['n0', 'n1', 'n2', 'n3', 'n4', 'n5', 'n6', 'n7', 'n8', 'n9', '
 
 class TrigData(object):
 
-    def __init__(self, trigger, detector, data_type, echan_list):
+    def __init__(self, trigger, detector, data_type, echan_list, test=False):
         """
         Initalize the TrigData Class, which contains the information about the time bins
         and counts of the data.
         """
-
-        assert data_type == 'trigdat' 'Please use a valid data type: trigdat'
+        assert data_type == 'trigdat', 'Please use a valid data type: trigdat'
         assert detector in valid_det_names, 'Please use a valid det name. One of these: {}'.format(valid_det_names)
 
-        assert len(trigger) == 9, 'Please provide a valid trigger in the format YYMMDDxxx'
+        assert len(trigger) == 11, 'Please provide a valid trigger in the format bnYYMMDDxxx'
 
         if data_type == 'trigdat':
             assert type(echan_list) and max(echan_list) <= 7 and min(echan_list) >= 0 \
@@ -52,6 +51,7 @@ class TrigData(object):
 
         self._data_type = data_type
         self._det = detector
+        self._det_idx = valid_det_names.index(detector)
         self._trigger = trigger
         self._echan_list = echan_list
 
@@ -115,6 +115,60 @@ class TrigData(object):
             return self._time_bins
 
     @property
+    def time_bin_width(self):
+        """
+        Returns width of the time bins
+        :return:
+        """
+        if self._rebinned:
+            return np.diff(self._rebinned_time_bins, axis=1)[:, 0]
+        else:
+            return np.diff(self._time_bins, axis=1)[:, 0]
+
+    @property
+    def mean_time(self):
+        """
+        Returns mean time of the time bins
+        :return:
+        """
+        if self._rebinned:
+            return np.mean(self._rebinned_time_bins, axis=1)
+        else:
+            return np.mean(self._time_bins, axis=1)
+
+    @property
+    def day_start_times(self):
+        """
+        Returns the start time of the trigdata file to keep it conform with daily data
+        :return:
+        """
+        return np.array([self._time_bins[0, 0]])
+
+    @property
+    def day_stop_times(self):
+        """
+        Returns the stop time of the trigdata file to keep it conform with daily data
+        :return:
+        """
+        return np.array([self._time_bins[-1, 1]])
+
+    @property
+    def day_met(self):
+        """
+        Returns array with the day_met of all used days
+        :return:
+        """
+        return np.array([self._time_bins[0, 0]])
+
+    @property
+    def day(self):
+        """
+        Returns the trigger name to keep it conform with daily data, this is used to create the output directory
+        :return:
+        """
+        return [self._trigger]
+
+    @property
     def rebinned_saa_mask(self):
         if self._rebinned:
             return self._rebinned_saa_mask
@@ -146,6 +200,10 @@ class TrigData(object):
         return self._trigger
 
     @property
+    def trigtime(self):
+        return self._trigtime
+
+    @property
     def trigdata_path(self):
         """
         Returns trigger
@@ -161,33 +219,12 @@ class TrigData(object):
         """
         return self._det[-1]
 
-    @property
-    def time_bin_width(self):
-        """
-        Returns width of the time bins
-        :return:
-        """
-        if self._rebinned:
-            return np.diff(self._rebinned_time_bins, axis=1)[:, 0]
-        else:
-            return np.diff(self._time_bins, axis=1)[:, 0]
-
-    @property
-    def mean_time(self):
-        """
-        Returns mean time of the time bins
-        :return:
-        """
-        if self._rebinned:
-            return np.mean(self._rebinned_time_bins, axis=1)
-        else:
-            return np.mean(self._time_bins, axis=1)
-
     def _build_arrays(self):
+        year = '20%s' % self._trigger[2:4]
 
         # Download data-file and poshist file if not existing:
-        datafile_name = 'glg_{0}_{1}_{2}_v00.pha'.format(self._data_type, 'all', self._trigger)
-        datafile_path = os.path.join(get_path_of_external_data_dir(), self._data_type, self._trigger, datafile_name)
+        datafile_name = 'glg_{0}_{1}_{2}_v00.fit'.format(self._data_type, 'all', self._trigger)
+        datafile_path = os.path.join(get_path_of_external_data_dir(), self._data_type, year, datafile_name)
 
         # If MPI is used only one rank should download the data; the others wait
         if rank == 0:
@@ -199,32 +236,35 @@ class TrigData(object):
 
         self._trigdata_path = datafile_path
 
+        evntrate = "EVNTRATE"
+
         # Open the datafile of the CTIME/CSPEC data and read in all needed quantities
-        with fits.open(datafile_path) as f:
-            counts = f['SPECTRUM'].data['COUNTS']
-            bin_start = f['SPECTRUM'].data['TIME']
-            bin_stop = f['SPECTRUM'].data['ENDTIME']
+        with fits.open(datafile_path) as trigdat:
+            self._trigtime = trigdat[evntrate].header['TRIGTIME']
+            bin_start = trigdat[evntrate].data['TIME']
+            bin_stop = trigdat[evntrate].data['ENDTIME']
+            rates = trigdat[evntrate].data['RATE'][:, :, self._det_idx]
 
         # Sometimes there are corrupt time bins where the time bin start = time bin stop
         # So we have to delete these times bins
-        i = 0
-        while i < len(bin_start):
-            if bin_start[i] == bin_stop[i]:
-                bin_start = np.delete(bin_start, [i])
-                bin_stop = np.delete(bin_stop, [i])
-                counts = np.delete(counts, [i], axis=0)
-            else:
-                i += 1
+        idx_zero_bins = np.where(bin_start==bin_stop)[0]
+
+        bin_start = np.delete(bin_start, idx_zero_bins)
+        bin_stop = np.delete(bin_stop, idx_zero_bins)
+        rates = np.delete(rates, idx_zero_bins, axis=0)
 
         # Get time bins
         time_bins = np.vstack((bin_start, bin_stop)).T
+        time_bin_width = np.diff(time_bins, axis=1)
+
+        time_width_matrix = np.repeat(time_bin_width, 8, axis=1)
+        counts = np.multiply(rates, time_width_matrix).astype(int)
 
         # Only keep the count informations we need for the echan's we want to fit
         counts = counts.T[self._echan_mask].T
 
         self._counts = counts
         self._time_bins = time_bins
-        self._day_start_times = [time_bins[0, 0]]
-        self._day_stop_times = [time_bins[-1, 1]]
+
 
 
