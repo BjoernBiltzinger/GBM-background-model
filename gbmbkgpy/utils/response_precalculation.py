@@ -85,18 +85,18 @@ class Response_Precalculation(object):
 
         # Read in the datafile to get the energy boundaries
         if data_type == 'trigdat':
-            year = '20%s' % trigger[:2]
-            datafile_name = 'glg_{0}_all_bn{1}_v00.pha'.format(data_type, trigger)
-            datafile_path = os.path.join(get_path_of_external_data_dir(), data_type, year, datafile_name)
+            self._Ebin_out_edge = np.array(
+                [3.4, 10.0, 22.0, 44.0, 95.0, 300.0, 500.0, 800.0, 2000.],
+                dtype=np.float32)
         else:
             datafile_name = 'glg_{0}_{1}_{2}_v00.pha'.format(data_type, det, day[0])
             datafile_path = os.path.join(get_path_of_external_data_dir(), data_type, day[0], datafile_name)
 
-        with fits.open(datafile_path) as f:
-            edge_start = f['EBOUNDS'].data['E_MIN']
-            edge_stop = f['EBOUNDS'].data['E_MAX']
+            with fits.open(datafile_path) as f:
+                edge_start = f['EBOUNDS'].data['E_MIN']
+                edge_stop = f['EBOUNDS'].data['E_MAX']
 
-        self._Ebin_out_edge = np.append(edge_start, edge_stop[-1])
+            self._Ebin_out_edge = np.append(edge_start, edge_stop[-1])
 
         # Create the points on the unit sphere
         self._points = np.array(self._fibonacci_sphere(samples=Ngrid))
