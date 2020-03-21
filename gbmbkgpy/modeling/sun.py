@@ -36,7 +36,7 @@ class Sun(object):
         self._rsp = response_object
         self._data_type = self._rsp.data_type
 
-        if self._data_type == 'ctime':
+        if self._data_type == 'ctime' or self._data_type == 'trigdat':
             self._echan_mask = np.zeros(8, dtype=bool)
             for e in echan_list:
                 self._echan_mask[e] = True
