@@ -8,7 +8,6 @@ from gbmbkgpy.utils.progress_bar import progress_bar
 NO_REBIN = 1E-99
 
 try:
-
     # see if we have mpi and/or are upalsing parallel
 
     from mpi4py import MPI
@@ -25,7 +24,6 @@ try:
         using_mpi = False
         rank = 0
 except:
-
     using_mpi = False
     rank = 0
 
