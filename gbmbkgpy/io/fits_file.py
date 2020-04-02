@@ -231,7 +231,7 @@ class FITSExtension(object):
 
         # update the header to indicate that the file was created by gbmbkgpy
         self._hdu.header.set('CREATOR', "gbmbkgpy v.%s" % (pkg_resources.get_distribution("gbmbkgpy").version),
-             "(J. Michael Burgess, jburgess@mpe.mpg.de)")
+             "(Felix Kunzweiler, fkunzwei@mpe.mpg.de)")
 
     @property
     def hdu(self):

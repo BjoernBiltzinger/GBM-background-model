@@ -271,6 +271,22 @@ class PHAExporter(DataExporter):
 
         spectrum.hdu.dump(path)
 
+det_name_lookup = {
+    'n0': 'NAI_00',
+    'n1': 'NAI_01',
+    'n2': 'NAI_02',
+    'n3': 'NAI_03',
+    'n4': 'NAI_04',
+    'n5': 'NAI_05',
+    'n6': 'NAI_06',
+    'n7': 'NAI_07',
+    'n8': 'NAI_08',
+    'n9': 'NAI_09',
+    'na': 'NAI_10',
+    'nb': 'NAI_11',
+    'b0': 'BGO_00',
+    'b1': 'BGO_01',
+}
 
 class PHACombiner(object):
 
@@ -319,22 +335,34 @@ class PHACombiner(object):
                 self._model_rates[:, echan] = model_counts[:, index] / self._total_time_bin_widths
                 self._stat_err[:, echan] = stat_err[:, index]
 
-    def save_pha(self, path):
-        spectrum = PHAII(instrument_name='GBM_NAI_0{}'.format(self._det),
-                         telescope_name='GLAST',
-                         tstart=self._total_time_bins[:, 1],
-                         telapse=self._total_time_bin_widths,
+    def save_pha(self, path, start_time=None, end_time=None, trigger_time=None):
+
+        if start_time is not None and end_time is not None:
+            idx_min_time = self._total_time_bins[:, 0] >= start_time
+            idx_max_time = self._total_time_bins[:, 1] <= end_time
+            idx_valid_bin = idx_min_time * idx_max_time
+        else:
+            idx_valid_bin = np.ones_like(self._total_time_bins[:, 0], dtype=bool)
+
+        if trigger_time is None:
+            trigger_time = 0.
+
+        spectrum = PHAII(instrument_name='GBM_{}'.format(det_name_lookup[str(self._det)]),
+                         telescope_name='Fermi',
+                         tstart=self._total_time_bins[idx_valid_bin][:, 1] - trigger_time,
+                         telapse=self._total_time_bin_widths[idx_valid_bin],
                          channel=self._echan_names,
-                         rate=self._model_rates,
-                         quality=np.zeros_like(self._model_rates, dtype=int),
+                         rate=self._model_rates[idx_valid_bin],
+                         quality=np.zeros_like(self._model_rates[idx_valid_bin], dtype=int),
                          grouping=np.ones_like(self._echan_names),
-                         exposure=self._total_time_bin_widths,
-                         backscale=None,
+                         exposure=self._total_time_bin_widths[idx_valid_bin],
+                         backscale=np.ones_like(self._model_rates[idx_valid_bin][:, 0]),
                          respfile=None,
                          ancrfile=None,
                          back_file=None,
                          sys_err=None,
-                         stat_err=self._stat_err,
+                         stat_err=self._stat_err[idx_valid_bin],
                          is_poisson=False)
 
         spectrum.writeto(path)
+
