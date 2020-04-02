@@ -57,12 +57,12 @@ class Geometry(object):
 
         # Create the lists of the times where to calculate the geometry
         list_times_to_calculate = self.mean_time[::n_skip]
-        print(list_times_to_calculate.shape)
+
         # Add start and stop time of days to times for which the geometry should be calculated (to ensure a valid
         # interpolation for all used times
         self._list_times_to_calculate = self._add_start_stop(list_times_to_calculate, self._day_start_times,
                                                              self._day_stop_times)
-        print(self._list_times_to_calculate.shape)
+
         if self._data.data_type == 'trigdat':
             self._pos_hist = np.array([self._data.trigdata_path])
 
