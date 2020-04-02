@@ -247,11 +247,81 @@ class TrigData(object):
 
         # Sometimes there are corrupt time bins where the time bin start = time bin stop
         # So we have to delete these times bins
-        idx_zero_bins = np.where(bin_start==bin_stop)[0]
+        idx_zero_bins = np.where(bin_start == bin_stop)[0]
 
-        bin_start = np.delete(bin_start, idx_zero_bins)
-        bin_stop = np.delete(bin_stop, idx_zero_bins)
-        rates = np.delete(rates, idx_zero_bins, axis=0)
+        # Sometimes time bins are not in order and stop times are corrupt
+        # so we have to delete these time bins
+        # ida_unordered = np.where(bin_start[:-1] >= bin_start[1:])[0]
+
+        idx_delete = idx_zero_bins  # np.unique(np.hstack((idx_zero_bins, ida_unordered)))
+
+        bin_start = np.delete(bin_start, idx_delete)
+        bin_stop = np.delete(bin_stop, idx_delete)
+        rates = np.delete(rates, idx_delete, axis=0)
+
+
+
+        # Sort out the high res times because they are dispersed with the normal
+        # times.
+
+        # The delta time in the file.
+        # This routine is modeled off the procedure in RMFIT.
+        myDelta = bin_stop - bin_start
+        bin_start[myDelta < .1] = np.round(bin_start[myDelta < .1], 4)
+        bin_stop[myDelta < .1] = np.round(bin_stop[myDelta < .1], 4)
+
+        bin_start[~(myDelta < .1)] = np.round(bin_start[~(myDelta < .1)],
+                                                 3)
+        bin_stop[~(myDelta < .1)] = np.round(bin_stop[~(myDelta < .1)],
+                                                3)
+
+        all_index = list(range(len(bin_start)))
+        # masks for all the different delta times and
+        # the mid points for the different binnings
+        temp1 = myDelta < .1
+        temp2 = np.logical_and(myDelta > .1, myDelta < 1.)
+        temp3 = np.logical_and(myDelta > 1., myDelta < 2.)
+        temp4 = myDelta > 2.
+        midT1 = (bin_start[temp1] + bin_stop[temp1]) / 2.
+        midT2 = (bin_start[temp2] + bin_stop[temp2]) / 2.
+        midT3 = (bin_start[temp3] + bin_stop[temp3]) / 2.
+
+        # Dump any index that occurs in a lower resolution
+        # binning when a finer resolution covers the interval
+        for indx in np.where(temp2)[0]:
+            for x in midT1:
+                if bin_start[indx] < x < bin_stop[indx]:
+                    try:
+
+                        all_index.remove(indx)
+                    except:
+                        pass
+
+        for indx in np.where(temp3)[0]:
+            for x in midT2:
+                if bin_start[indx] < x < bin_stop[indx]:
+                    try:
+
+                        all_index.remove(indx)
+
+                    except:
+                        pass
+        for indx in np.where(temp4)[0]:
+            for x in midT3:
+                if bin_start[indx] < x < bin_stop[indx]:
+                    try:
+
+                        all_index.remove(indx)
+                    except:
+                        pass
+
+        all_index = np.array(all_index)
+
+        bin_start = bin_start[all_index]
+        bin_stop = bin_stop[all_index]
+        rates = rates[all_index]
+
+
 
         # Get time bins
         time_bins = np.vstack((bin_start, bin_stop)).T
@@ -265,6 +335,3 @@ class TrigData(object):
 
         self._counts = counts
         self._time_bins = time_bins
-
-
-
