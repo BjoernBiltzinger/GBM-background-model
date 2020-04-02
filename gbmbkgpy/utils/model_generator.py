@@ -63,9 +63,6 @@ class BackgroundModelGenerator(object):
         self._config = config
 
 
-        self._download_data(config)  # TODO: Check if this is still necessary or if build in method from continuous data is sufficient
-
-
         self._instantiate_data_class(config)
 
 
@@ -94,21 +91,6 @@ class BackgroundModelGenerator(object):
 
 
         self._instantiate_likelihood(config)
-
-
-    def _download_data(self, config):
-        # download files with rank=0; all other ranks have to wait!
-        print_progress('Download data...')
-        if rank == 0:
-            for d in config['general']['dates']:
-                download_files(
-                    data_type=config['general']['data_type'],
-                    det=config['general']['detector'],
-                    day=d
-                )
-        if using_mpi:
-            comm.barrier()
-        print_progress('Done')
 
 
     def _instantiate_data_class(self, config):
