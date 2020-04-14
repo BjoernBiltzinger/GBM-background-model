@@ -13,61 +13,80 @@ from gbmbkgpy.utils.binner import Rebinner
 
 NO_REBIN = 1E-99
 
+try:
+    # see if we have mpi and/or are upalsing parallel
+
+    from mpi4py import MPI
+
+    if MPI.COMM_WORLD.Get_size() > 1:  # need parallel capabilities
+        using_mpi = True
+
+        comm = MPI.COMM_WORLD
+        rank = comm.Get_rank()
+        size = comm.Get_size()
+
+    else:
+
+        using_mpi = False
+        rank = 0
+except:
+    using_mpi = False
+    rank = 0
+
 
 class ResultPlotGenerator(object):
-    def __init__(self, config_file, data_path):
+    def __init__(self, config_file, result_dict):
 
         # Load the config.yml
         with open(config_file) as f:
             config = yaml.load(f)
 
-        self.data_path =            data_path
-        self.bin_width =            config['plot'].get('bin_width', 10)
-        self.change_time =          config['plot'].get('change_time', True)
-        self.time_since_midnight =  config['plot'].get('time_since_midnight', True)
-        self.time_format =          config['plot'].get('time_format', 'h')
-        self.time_t0 =              config['plot'].get('time_t0', None)
-        self.xlim =                 config['plot'].get('xlim', None)
-        self.ylim =                 config['plot'].get('ylim', None)
-        self.residual_ylim =        config['plot'].get('residual_ylim', None)
-        self.xscale =               config['plot'].get('xscale', 'linear')
-        self.yscale =               config['plot'].get('yscale', 'linear')
-        self.xlabel =               config['plot'].get('xlabel', None)
-        self.ylabel =               config['plot'].get('ylabel', None)
-        self.dpi =                  config['plot'].get('dpi', 400)
-        self.show_legend =          config['plot'].get('show_legend', True)
-        self.show_title =           config['plot'].get('show_title', True)
-        self.axis_title =           config['plot'].get('axis_title', None)
-        self.legend_outside =       config['plot'].get('legend_outside', True)
+        self._result_dict = result_dict
+
+        self.bin_width = config['plot'].get('bin_width', 10)
+        self.change_time = config['plot'].get('change_time', True)
+        self.time_since_midnight = config['plot'].get('time_since_midnight', True)
+        self.time_format = config['plot'].get('time_format', 'h')
+        self.time_t0 = config['plot'].get('time_t0', None)
+        self.set_axis_limits = config['plot'].get('set_axis_limits', False)
+        self.xlim = config['plot'].get('xlim', None)
+        self.ylim = config['plot'].get('ylim', None)
+        self.residual_ylim = config['plot'].get('residual_ylim', None)
+        self.xscale = config['plot'].get('xscale', 'linear')
+        self.yscale = config['plot'].get('yscale', 'linear')
+        self.xlabel = config['plot'].get('xlabel', None)
+        self.ylabel = config['plot'].get('ylabel', None)
+        self.dpi = config['plot'].get('dpi', 400)
+        self.show_legend = config['plot'].get('show_legend', True)
+        self.show_title = config['plot'].get('show_title', True)
+        self.axis_title = config['plot'].get('axis_title', None)
+        self.legend_outside = config['plot'].get('legend_outside', True)
 
         # Import component settings
-        self.show_data =            config['component'].get('show_data', True)
-        self.show_model =           config['component'].get('show_model', True)
-        self.show_ppc =             config['component'].get('show_ppc', True)
-        self.show_residuals =       config['component'].get('show_residuals', False)
-        self.show_all_sources =     config['component'].get('show_all_sources', True)
-        self.show_earth =           config['component'].get('show_earth', True)
-        self.show_cgb =             config['component'].get('show_cgb', True)
-        self.show_sun =             config['component'].get('show_sun', True)
-        self.show_saa =             config['component'].get('show_saa', True)
-        self.show_cr =              config['component'].get('show_cr', True)
-        self.show_constant =        config['component'].get('show_constant', True)
-        self.show_crab =            config['component'].get('show_crab', True)
-        self.show_occ_region =      config['component'].get('show_occ_region', False)
-        self.show_grb_trigger =     config['component'].get('show_grb_trigger', False)
+        self.show_data = config['component'].get('show_data', True)
+        self.show_model = config['component'].get('show_model', True)
+        self.show_ppc = config['component'].get('show_ppc', True)
+        self.show_residuals = config['component'].get('show_residuals', False)
+        self.show_all_sources = config['component'].get('show_all_sources', True)
+        self.show_earth = config['component'].get('show_earth', True)
+        self.show_cgb = config['component'].get('show_cgb', True)
+        self.show_sun = config['component'].get('show_sun', True)
+        self.show_saa = config['component'].get('show_saa', True)
+        self.show_cr = config['component'].get('show_cr', True)
+        self.show_constant = config['component'].get('show_constant', True)
+        self.show_crab = config['component'].get('show_crab', True)
+        self.show_occ_region = config['component'].get('show_occ_region', False)
+        self.show_grb_trigger = config['component'].get('show_grb_trigger', False)
 
         # Import style settings
-        self.model_styles =         config['style']['model']
-        self.source_styles =        config['style']['sources']
-        self.ppc_styles =           config['style']['ppc']
-        self.data_styles =          config['style']['data']
-        self.legend_kwargs =        config['style'].get('legend_kwargs', None)
+        self.model_styles = config['style']['model']
+        self.source_styles = config['style']['sources']
+        self.ppc_styles = config['style']['ppc']
+        self.data_styles = config['style']['data']
+        self.legend_kwargs = config['style'].get('legend_kwargs', None)
 
         if config['style']['mpl_style'] is not None:
             plt.style.use(config['style']['mpl_style'])
-
-        # Save path basis
-        self.save_path_basis = '/'.join(self.data_path.split('/')[:-1])
 
         self._grb_triggers = {}
         self._occ_region = {}
@@ -93,77 +112,164 @@ class ResultPlotGenerator(object):
                                         color=occ_region.get('color', 'grey'),
                                         alpha=occ_region.get('alpha', 0.1)
                                         )
-        self._det =             None
-        self._dates =           None
-        self._day_start_times = None
-        self._day_stop_times =  None
-        self._saa_mask =        None
-        self._model_counts =    None
-        self._observed_counts = None
-        self._ppc_counts =      None
-        self._sources =         None
-        self._total_time_bins = None
-        self._echan =           None
-        self._time_bins_start = None
-        self._time_bins_stop =  None
-        self._time_stamp =      None
-        self._plot_path_list =  []
+        self._plot_path_list = []
 
-    def create_plots(self):
-        print('Load data and start plotting')
+    @classmethod
+    def from_result_file(cls, config_file, result_data_file):
 
-        with h5py.File(self.data_path, 'r') as f:
+        result_dict = {}
+
+        with h5py.File(result_data_file, 'r') as f:
             keys = f.keys()
-            self._det = np.array(f['general']['detector'])
-            self._dates = np.array(f['general']['dates'])
-            self._day_start_times = np.array(f['general']['day_start_times'])
-            self._day_stop_times = np.array(f['general']['day_stop_times'])
-            self._time_bins_start = np.array(f['general'].get('time_bins_start', None))
-            self._time_bins_stop = np.array(f['general'].get('time_bins_stop', None))
-            self._saa_mask = np.array(f['general']['saa_mask'])
-            for i, day in enumerate(self._dates):
 
-                for key in keys:
-                    if key == 'general':
-                        pass
-                    else:
-                        self._echan = key.split(' ')[1]
+            result_dict['det'] = np.array(f['general']['detector'])
+            result_dict['dates'] = np.array(f['general']['dates'])
+            result_dict['day_start_times'] = np.array(f['general']['day_start_times'])
+            result_dict['day_stop_times'] = np.array(f['general']['day_stop_times'])
+            result_dict['time_bins_start'] = np.array(f['general'].get('time_bins_start', None))
+            result_dict['time_bins_stop'] = np.array(f['general'].get('time_bins_stop', None))
+            result_dict['total_time_bins'] = np.vstack((result_dict['time_bins_start'], result_dict['time_bins_stop'])).T
+            result_dict['saa_mask'] = np.array(f['general']['saa_mask'])
 
-                        self._model_counts = self._set_saa_zero(np.array(f[key]['total_model_counts']))
-                        self._observed_counts = self._set_saa_zero(np.array(f[key]['observed_counts']))
-                        self._ppc_counts = np.array(f[key]['PPC'])
+            result_dict['echans'] = {}
 
-                        # This is to keep it compatible to old data files
-                        if self._time_bins_start is None:
-                            self._time_bins_start = np.array(f[key].get('time_bins_start'))
-                            self._time_bins_stop = np.array(f[key].get('time_bins_stop'))
+            for key in keys:
+                if key == 'general':
+                    pass
+                else:
+                    echan = key.split(' ')[1]
 
-                        self._sources = {}
-                        for key_inter in f[key]['Sources']:
-                            self._sources[key_inter] = self._set_saa_zero(np.array(f[key]['Sources'][key_inter]))
-                        self._total_time_bins = np.vstack((self._time_bins_start, self._time_bins_stop)).T
-                        self._time_stamp = datetime.now().strftime('%y%m%d_%H%M')
+                    result_dict['echans'][echan] = {}
+                    result_dict['echans'][echan]['echan'] = echan
 
-                        total_steps = 12 if self.show_ppc is False else 12 + len(self._ppc_counts)
+                    result_dict['echans'][echan]['model_counts'] = set_saa_zero(
+                        np.array(f[key]['total_model_counts']), saa_mask=result_dict['saa_mask']
+                    )
+                    result_dict['echans'][echan]['observed_counts'] = set_saa_zero(
+                        np.array(f[key]['observed_counts']), saa_mask=result_dict['saa_mask']
+                    )
+                    result_dict['echans'][echan]['ppc_counts'] = np.array(f[key]['ppc'])
 
-                        plot_path = '{}/plot_date_{}_det_{}_echan_{}__{}.pdf'.format(self.save_path_basis, day, self._det, self._echan, self._time_stamp)
-                        self._plot_path_list.append(plot_path)
+                    # This is to keep it compatible to old data files
+                    if result_dict['time_bins_start'] is None:
+                        result_dict['time_bins_start'] = np.array(f[key].get('time_bins_start'))
+                        result_dict['time_bins_stop'] = np.array(f[key].get('time_bins_stop'))
 
-                        with progress_bar(total_steps, title='Create Result plot') as p:
-                            self._create_model_plots(
-                                which_day=i,
-                                savepath=plot_path,
-                                p_bar=p
-                            )
-        print('Success!')
+                    result_dict['echans'][echan]['sources'] = {}
 
-    def _set_saa_zero(self, vector):
-        vector[np.where(~self._saa_mask)] = 0.
-        return vector
+                    for key_inter in f[key]['sources']:
+                        result_dict['echans'][echan]['sources'][key_inter] = set_saa_zero(
+                            np.array(f[key]['sources'][key_inter]), saa_mask=result_dict['saa_mask']
+                        )
+
+                    result_dict['echans'][echan]['time_stamp'] = datetime.now().strftime('%y%m%d_%H%M')
+
+        return cls(
+            config_file=config_file, result_dict=result_dict
+        )
+
+    @classmethod
+    def from_result_instance(cls, config_file, data, model, saa_object, echan_list):
+        result_dict = {}
+
+        result_dict['det'] = data.det
+        result_dict['dates'] = data.day
+        result_dict['day_start_times'] = data.day_start_times
+        result_dict['day_stop_times'] = data.day_stop_times
+        result_dict['total_time_bins'] = data.time_bins[2:-2]
+        result_dict['saa_mask'] = saa_object.saa_mask[2:-2]
+
+        result_dict['echans'] = {}
+
+        for echan_idx, echan in enumerate(echan_list):
+
+            result_dict['echans'][echan] = {}
+            result_dict['echans'][echan]['echan'] = echan
+
+            result_dict['echans'][echan]['model_counts'] = model.get_counts(
+                time_bins=result_dict['total_time_bins'],
+                echan=echan_idx,
+                saa_mask=result_dict['saa_mask']
+            )
+
+            result_dict['echans'][echan]['observed_counts'] = set_saa_zero(
+                data.counts[2:-2, echan_idx],
+                saa_mask=result_dict['saa_mask']
+            )
+
+            result_dict['echans'][echan]['sources'] = {}
+
+            for i, source_name in enumerate(model.continuum_sources):
+                data = model.get_continuum_counts(
+                    i, result_dict['total_time_bins'], result_dict['saa_mask'], echan_idx
+                )
+                if np.sum(data) != 0:
+                    result_dict['echans'][echan]['sources'][source_name] = data
+
+            for i, source_name in enumerate(model.global_sources):
+                data = model.get_global_counts(
+                    i, result_dict['total_time_bins'], result_dict['saa_mask'], echan_idx
+                )
+                if np.sum(data) != 0:
+                    result_dict['echans'][echan]['sources'][source_name] = data
+
+            for i, source_name in enumerate(model.fit_spectrum_sources):
+                data = model.get_fit_spectrum_counts(
+                    i, result_dict['total_time_bins'], result_dict['saa_mask'], echan_idx
+                )
+                if np.sum(data) != 0:
+                    result_dict['echans'][echan]['sources'][source_name] = data
+
+            saa_data = model.get_saa_counts(
+                result_dict['total_time_bins'], result_dict['saa_mask'], echan_idx
+            )
+            if np.sum(saa_data) != 0:
+                result_dict['echans'][echan]['sources']['SAA_decays'] = saa_data
+
+            for i, point_source in enumerate(model.point_sources):
+                data = model.get_point_source_counts(
+                    i, result_dict['total_time_bins'], result_dict['saa_mask'], echan_idx
+                )
+                if np.sum(data) != 0:
+                    result_dict['echans'][echan]['sources'][point_source] = data
+
+            result_dict['echans'][echan]['time_stamp'] = datetime.now().strftime('%y%m%d_%H%M')
+
+            result_dict['echans'][echan]['ppc_counts'] = []
+
+        return cls(
+            config_file=config_file, result_dict=result_dict
+        )
+
+    def create_plots(self, output_dir):
+
+        for day_idx, day in enumerate(self._result_dict['dates']):
+
+            for echan in self._result_dict['echans'].keys():
+                total_steps = 12 if self.show_ppc is False else 12 + len(self._result_dict['echans'][echan]['ppc_counts'])
+
+                time_stamp = datetime.now().strftime('%y%m%d_%H%M')
+
+                plot_path = f'{output_dir}/' \
+                    f'plot_date_{day}_' \
+                    f'det_{self._result_dict["det"]}_' \
+                    f'echan_{self._result_dict["echans"][echan]["echan"]}__' \
+                    f'{time_stamp}.pdf'
+
+                self._plot_path_list.append(plot_path)
+
+                with progress_bar(total_steps, title='Create Result plot') as p:
+                    self._create_model_plots(
+                        p_bar=p,
+                        echan=echan,
+                        day_idx=day_idx,
+                        savepath=plot_path,
+                    )
 
     def _create_model_plots(self,
                             p_bar,
-                            which_day=0,
+                            echan,
+                            day_idx=None,
                             savepath='test.pdf',
                             **kwargs
                             ):
@@ -192,9 +298,9 @@ class ResultPlotGenerator(object):
             raise ValueError('You selected time since midnight and passed a t0, you should choose one...')
 
         # Change time reference to seconds since beginning of the day
-        if self.time_since_midnight and which_day is not None:
-            assert which_day < len(self._dates), 'Use a valid date...'
-            self._time_ref = self._day_start_times[which_day]
+        if self.time_since_midnight and day_idx is not None:
+            assert day_idx < len(self._result_dict['dates']), 'Use a valid date...'
+            self._time_ref = self._result_dict['day_start_times'][day_idx]
             time_frame = 'Time since midnight [{}]'.format(self.time_format)
 
         elif self.time_t0 is not None:
@@ -213,58 +319,83 @@ class ResultPlotGenerator(object):
 
         residual_plot = ResidualPlot(show_residuals=self.show_residuals, **kwargs)
 
-        this_rebinner = Rebinner((self._total_time_bins - self._time_ref), self.bin_width, self._saa_mask)
+        if self.bin_width > NO_REBIN:
 
-        self._rebinned_observed_counts, = this_rebinner.rebin(self._observed_counts)
+            this_rebinner = Rebinner(
+                (self._result_dict['total_time_bins'] - self._time_ref),
+                self.bin_width,
+                self._result_dict['saa_mask']
+            )
 
-        self._rebinned_model_counts, = this_rebinner.rebin(self._model_counts)
+            self._rebinned_observed_counts, = this_rebinner.rebin(self._result_dict['echans'][echan]['observed_counts'])
+
+            self._rebinned_model_counts, = this_rebinner.rebin(self._result_dict['echans'][echan]['model_counts'])
+
+            self._rebinned_time_bins = this_rebinner.time_rebinned
+
+            rebin = True
+
+        else:
+
+            self._rebinned_observed_counts = self._result_dict['echans'][echan]['observed_counts']
+
+            self._rebinned_model_counts = self._result_dict['echans'][echan]['model_counts']
+
+            self._rebinned_time_bins = self._result_dict['total_time_bins'] - self._time_ref
+
+            rebin = False
+
 
         self._rebinned_background_counts = np.zeros_like(self._rebinned_observed_counts)
-
-        self._rebinned_time_bins = this_rebinner.time_rebinned
 
         self._rebinned_time_bin_widths = np.diff(self._rebinned_time_bins, axis=1)[:, 0]
 
         self._rebinned_time_bin_mean = np.mean(self._rebinned_time_bins, axis=1)
 
-        significance_calc = Significance(self._rebinned_observed_counts,
-                                         self._rebinned_background_counts + self._rebinned_model_counts,
-                                         1)
+
+        significance_calc = Significance(
+            self._rebinned_observed_counts,
+            self._rebinned_background_counts + self._rebinned_model_counts,
+            1
+        )
+
         residual_errors = None
         self._residuals = significance_calc.known_background()
 
         p_bar.increase()
 
-        residual_plot.add_data(self._rebinned_time_bin_mean,
-                               self._rebinned_observed_counts / self._rebinned_time_bin_widths,
-                               self._residuals,
-                               residual_yerr=residual_errors,
-                               yerr=None,
-                               xerr=None,
-                               label='Obs. Count Rates' if self.data_styles.get('show_label', True) else None,
-                               color=self.data_styles.get('color', 'black'),
-                               alpha=self.data_styles.get('alpha', 0.6),
-                               show_data=self.show_data,
-                               marker_size=self.data_styles.get('marker_size', 0.5),
-                               linewidth=self.data_styles.get('linewidth', 0.2),
-                               elinewidth=self.data_styles.get('elinewidth', 0.5),
-                               rasterized=self.data_styles.get('rasterized', False)
-                               )
+        residual_plot.add_data(
+            self._rebinned_time_bin_mean,
+            self._rebinned_observed_counts / self._rebinned_time_bin_widths,
+            self._residuals,
+            residual_yerr=residual_errors,
+            yerr=None,
+            xerr=None,
+            label='Obs. Count Rates' if self.data_styles.get('show_label', True) else None,
+            color=self.data_styles.get('color', 'black'),
+            alpha=self.data_styles.get('alpha', 0.6),
+            show_data=self.show_data,
+            marker_size=self.data_styles.get('marker_size', 0.5),
+            linewidth=self.data_styles.get('linewidth', 0.2),
+            elinewidth=self.data_styles.get('elinewidth', 0.5),
+            rasterized=self.data_styles.get('rasterized', False)
+        )
         p_bar.increase()
 
         if self.show_model:
-            residual_plot.add_model(self._rebinned_time_bin_mean,
-                                    self._rebinned_model_counts / self._rebinned_time_bin_widths,
-                                    label='Best Fit' if self.model_styles.get('show_label', True) else None,
-                                    color=self.model_styles.get('color', 'red'),
-                                    alpha=self.model_styles.get('alpha', 0.9),
-                                    linewidth=self.model_styles.get('linewidth', 0.8),
-                                    )
+            residual_plot.add_model(
+                self._rebinned_time_bin_mean,
+                self._rebinned_model_counts / self._rebinned_time_bin_widths,
+                label='Best Fit' if self.model_styles.get('show_label', True) else None,
+                color=self.model_styles.get('color', 'red'),
+                alpha=self.model_styles.get('alpha', 0.9),
+                linewidth=self.model_styles.get('linewidth', 0.8),
+            )
 
         p_bar.increase()
 
         src_list = []
-        for i, (key, value) in enumerate(self._sources.items()):
+        for i, (key, value) in enumerate(self._result_dict['echans'][echan]['sources'].items()):
             if 'L-parameter' in key or 'BGO_CR_Approx' in key:
                 label = 'Cosmic Rays'
                 style_key = 'cr'
@@ -317,11 +448,14 @@ class ResultPlotGenerator(object):
             else:
                 label = key
                 style_key = 'default'
-                sort_idx = i + len(self._sources.items())
+                sort_idx = i + len(self._result_dict['echans'][echan]['sources'].items())
                 if not self.show_all_sources:
                     continue
 
-            rebinned_source_counts = this_rebinner.rebin(self._sources[key])[0]
+            if rebin:
+                rebinned_source_counts = this_rebinner.rebin(self._result_dict['echans'][echan]['sources'][key])[0]
+            else:
+                rebinned_source_counts = self._result_dict['echans'][echan]['sources'][key]
 
             src_list.append({
                 'data': rebinned_source_counts / self._rebinned_time_bin_widths,
@@ -351,9 +485,15 @@ class ResultPlotGenerator(object):
 
         if self.show_ppc:
             rebinned_ppc_rates = []
-            for j, ppc in enumerate(self._ppc_counts):
-                self._set_saa_zero(self._ppc_counts[j])
-                rebinned_ppc_rates.append(this_rebinner.rebin(self._ppc_counts[j][2:-2]) / self._rebinned_time_bin_widths)
+            for j, ppc in enumerate(self._result_dict['echans'][echan]['ppc_counts']):
+                set_saa_zero(
+                    self._result_dict['echans'][echan]['ppc_counts'][j], saa_mask=self._result_dict['saa_mask']
+                )
+                if rebin:
+                    rebinned_ppc_rates.append(this_rebinner.rebin(self._result_dict['echans'][echan]['ppc_counts'][j][2:-2]) / self._rebinned_time_bin_widths)
+                else:
+                    rebinned_ppc_rates.append(self._result_dict['echans'][echan]['ppc_counts'][j][2:-2] / self._rebinned_time_bin_widths)
+
                 p_bar.increase()
             rebinned_ppc_rates = np.array(rebinned_ppc_rates)
 
@@ -371,47 +511,54 @@ class ResultPlotGenerator(object):
         if self.show_occ_region:
             residual_plot.add_occ_region(self._occ_region, self._time_ref)
 
-        if self.xlim is None or self.ylim is None:
-            xlim, ylim = self._calc_limits(which_day)
-            self.xlim = xlim if self.xlim is None else self.xlim
-            self.ylim = ylim if self.ylim is None else self.ylim
+        if self.set_axis_limits:
+            if self.xlim is None or self.ylim is None:
+                xlim, ylim = self._calc_limits(day_idx)
+                self.xlim = xlim if self.xlim is None else self.xlim
+                self.ylim = ylim if self.ylim is None else self.ylim
 
-        if self.time_format == 'h':
-            xticks = []
-            xtick_labels = []
-            for xstep in range(int(self.xlim[0] / 3600), int((self.xlim[1] + 500) / 3600) + 1, 4):
-                xticks.append(xstep * 3600)
-                xtick_labels.append('%s' % xstep)
+            if self.time_format == 'h':
+                xticks = []
+                xtick_labels = []
+                for xstep in range(int(self.xlim[0] / 3600), int((self.xlim[1] + 500) / 3600) + 1, 4):
+                    xticks.append(xstep * 3600)
+                    xtick_labels.append('%s' % xstep)
 
-        elif self.time_format == 's':
+            elif self.time_format == 's':
+                xticks = None
+                xtick_labels = None
+
+            else:
+                raise NotImplementedError("Please provide a valid time format: ['h', 's']")
+        else:
             xticks = None
             xtick_labels = None
-        else:
-            raise NotImplementedError("Please provide a valid time format: ['h', 's']")
 
         p_bar.increase()
 
         xlabel = "{}".format(time_frame) if self.xlabel is None else self.xlabel
         ylabel = "Count Rate [counts s$^{-1}$]" if self.ylabel is None else self.ylabel
 
-        axis_title = "Detector: {} Date: {} Energy: {}".format(self._det,
-                                                               self._dates[which_day],
-                                                               self._get_echan_str(self._echan)) if self.axis_title is None else self.axis_title
+        axis_title = "Detector: {} Date: {} Energy: {}".format(self._result_dict['det'],
+                                                               self._result_dict['dates'][day_idx],
+                                                               self._get_echan_str(echan)) if self.axis_title is None else self.axis_title
 
-        final_plot = residual_plot.finalize(xlabel=xlabel,
-                                            ylabel=ylabel,
-                                            xscale=self.xscale,
-                                            yscale=self.yscale,
-                                            xticks=xticks,
-                                            xtick_labels=xtick_labels,
-                                            show_legend=self.show_legend,
-                                            xlim=self.xlim,
-                                            ylim=self.ylim,
-                                            residual_ylim=self.residual_ylim,
-                                            legend_outside=self.legend_outside,
-                                            legend_kwargs=self.legend_kwargs,
-                                            axis_title=axis_title,
-                                            show_title=self.show_title)
+        final_plot = residual_plot.finalize(
+            xlabel=xlabel,
+            ylabel=ylabel,
+            xscale=self.xscale,
+            yscale=self.yscale,
+            xticks=xticks,
+            xtick_labels=xtick_labels,
+            show_legend=self.show_legend,
+            xlim=self.xlim,
+            ylim=self.ylim,
+            residual_ylim=self.residual_ylim,
+            legend_outside=self.legend_outside,
+            legend_kwargs=self.legend_kwargs,
+            axis_title=axis_title,
+            show_title=self.show_title
+        )
 
         p_bar.increase()
 
@@ -470,8 +617,8 @@ class ResultPlotGenerator(object):
         self._occ_region[occ_name] = {'met': (met_start, met_stop), 'color': color, 'alpha': alpha}
 
     def _calc_limits(self, which_day):
-        min_time = self._day_start_times[which_day] - self._time_ref
-        max_time = self._day_stop_times[which_day] - self._time_ref
+        min_time = self._result_dict['day_start_times'][which_day] - self._time_ref
+        max_time = self._result_dict['day_stop_times'][which_day] - self._time_ref
 
         day_mask_larger = self._rebinned_time_bin_mean > min_time
         day_mask_smaller = self._rebinned_time_bin_mean < max_time
@@ -518,7 +665,7 @@ class ResultPlotGenerator(object):
                 source_rates_masked = source['data'][zero_counts_mask]
                 h_lim = 1.5 * np.percentile(source_rates_masked, 99)
                 high_lim = h_lim if h_lim > high_lim else high_lim
-        
+
         ylim = (0, high_lim)
         return xlim, ylim
 
@@ -536,3 +683,8 @@ class ResultPlotGenerator(object):
         }
 
         return echan_dict[str(echan)]
+
+
+def set_saa_zero(vector, saa_mask):
+    vector[np.where(~saa_mask)] = 0.
+    return vector
