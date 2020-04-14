@@ -251,10 +251,10 @@ class Geometry(object):
 
         if self._data.data_type == 'trigdat':
             # Create the PositionInterpolator object with the infos from the trigdat file
-            position_interpolator = PositionInterpolator(trigdat=self._pos_hist[day_number])
+            position_interpolator = PositionInterpolator.from_trigdat(trigdat_file=self._pos_hist[day_number])
         else:
             # Create the PositionInterpolator object with the infos from the poshist file
-            position_interpolator = PositionInterpolator(poshist=self._pos_hist[day_number])
+            position_interpolator = PositionInterpolator.from_poshist(poshist_file=self._pos_hist[day_number])
 
         # Init all lists
         sun_angle = []
@@ -387,10 +387,10 @@ class Geometry(object):
 
         if self._data.data_type == 'trigdat':
             # Create the PositionInterpolator object with the infos from the trigdat file
-            position_interpolator = PositionInterpolator(trigdat=self._pos_hist[day_number])
+            position_interpolator = PositionInterpolator.from_trigdat(trigdat_file=self._pos_hist[day_number])
         else:
             # Create the PositionInterpolator object with the infos from the poshist file
-            position_interpolator = PositionInterpolator(poshist=self._pos_hist[day_number])
+            position_interpolator = PositionInterpolator.from_poshist(poshist_file=self._pos_hist[day_number])
 
         # Get the times for which the geometry should be calculated for this day (Build a mask that masks all time bins
         # outside the start and stop day of this time bin
