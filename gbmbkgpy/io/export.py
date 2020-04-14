@@ -111,13 +111,13 @@ class DataExporter(object):
                     group_echan.create_dataset('total_model_counts', data=model_counts, compression="gzip", compression_opts=9)
                     group_echan.create_dataset('observed_counts', data=observed_counts, compression="gzip", compression_opts=9)
 
-                    group_sources = group_echan.create_group('Sources')
+                    group_sources = group_echan.create_group('sources')
                     for source in source_list:
                         group_sources.create_dataset(source['label'], data=source['data'], compression="gzip", compression_opts=9)
 
                     if save_ppc:
                         ppc_counts = ppc_counts_all[j]
-                        group_echan.create_dataset('PPC', data=ppc_counts, compression="gzip", compression_opts=9)
+                        group_echan.create_dataset('ppc', data=ppc_counts, compression="gzip", compression_opts=9)
 
 
     def get_counts_of_sources(self, time_bins, echan):
@@ -130,11 +130,13 @@ class DataExporter(object):
         source_list = []
         color_list = ['b', 'g', 'c', 'm', 'y', 'k', 'navy', 'darkgreen', 'cyan']
         i_index = 0
+
         for i, source_name in enumerate(self._model.continuum_sources):
             data = self._model.get_continuum_counts(i, time_bins, self._saa_mask, echan)
             if np.sum(data) != 0:
                 source_list.append({"label": source_name, "data": data, "color": color_list[i_index]})
                 i_index += 1
+
         for i, source_name in enumerate(self._model._global_sources):
             data = self._model.get_global_counts(i, time_bins, self._saa_mask, echan)
             source_list.append({"label": source_name, "data": data, "color": color_list[i_index]})
@@ -149,11 +151,13 @@ class DataExporter(object):
         if np.sum(saa_data) != 0:
             source_list.append({"label": "SAA_decays", "data": saa_data, "color": color_list[i_index]})
             i_index += 1
+
         point_source_data = self._model.get_point_source_counts(self._total_time_bins, self._saa_mask, echan)
         if np.sum(point_source_data) != 0:
             source_list.append(
                 {"label": "Point_sources", "data": point_source_data, "color": color_list[i_index]})
             i_index += 1
+
         return source_list
 
     def _ppc_data(self, result_dir, echan):
