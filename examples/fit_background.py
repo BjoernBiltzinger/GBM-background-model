@@ -79,8 +79,8 @@ if config['fit']['method'] == 'multinest':
         const_efficiency_mode=config['fit']['multinest']['constant_efficiency_mode']
     )
 
-    # Plot Marginals
-    minimizer.plot_marginals()
+    # Create corner plot
+    minimizer.create_corner_plot()
 else:
     raise KeyError('Invalid fit method')
 
