@@ -294,9 +294,19 @@ class BackgroundLike(object):
 
             list_of_intervals.append([imin, imax])
 
-            bin_exclude = np.logical_and(self._time_bins[:, 0] > imin, self._time_bins[:, 1] < imax)
+            bin_exclude = np.logical_and(self._total_time_bins[:, 0] > imin, self._total_time_bins[:, 1] < imax)
 
             self._grb_mask[np.where(bin_exclude)] = False
+
+        # An entry in the total mask is False when one of the two masks is False
+        self._total_mask = ~ np.logical_xor(self._saa_mask, self._grb_mask)
+
+        # Get the valid time bins by including the total_mask
+        self._time_bins = self._total_time_bins[self._total_mask]
+
+        # Extract the counts from the data object. should be same size as time bins. For all echans together
+        self._counts_all_echan = self._data.counts[2:-2][self._total_mask]
+        self._total_counts_all_echan = self._data.counts[2:-2]
 
     def _parse_interval(self, time_interval):
         """
@@ -315,7 +325,17 @@ class BackgroundLike(object):
 
         :return:
         """
-        self._grb_mask = np.ones(len(self._time_bins), dtype=bool)  # np.full(len(self._time_bins), True)
+        self._grb_mask = np.ones(len(self._total_time_bins), dtype=bool)
+
+        # An entry in the total mask is False when one of the two masks is False
+        self._total_mask = ~ np.logical_xor(self._saa_mask, self._grb_mask)
+
+        # Get the valid time bins by including the total_mask
+        self._time_bins = self._total_time_bins[self._total_mask]
+
+        # Extract the counts from the data object. should be same size as time bins. For all echans together
+        self._counts_all_echan = self._data.counts[2:-2][self._total_mask]
+        self._total_counts_all_echan = self._data.counts[2:-2]
 
 
     @property
