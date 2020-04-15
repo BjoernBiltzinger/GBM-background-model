@@ -327,9 +327,9 @@ class ResultPlotGenerator(object):
                 self._result_dict['saa_mask']
             )
 
-            self._rebinned_observed_counts, = this_rebinner.rebin(self._result_dict['echans'][echan]['observed_counts'])
+            self._rebinned_observed_counts, _ = this_rebinner.rebin(self._result_dict['echans'][echan]['observed_counts'])
 
-            self._rebinned_model_counts, = this_rebinner.rebin(self._result_dict['echans'][echan]['model_counts'])
+            self._rebinned_model_counts, _ = this_rebinner.rebin(self._result_dict['echans'][echan]['model_counts'])
 
             self._rebinned_time_bins = this_rebinner.time_rebinned
 
@@ -345,13 +345,11 @@ class ResultPlotGenerator(object):
 
             rebin = False
 
-
         self._rebinned_background_counts = np.zeros_like(self._rebinned_observed_counts)
 
         self._rebinned_time_bin_widths = np.diff(self._rebinned_time_bins, axis=1)[:, 0]
 
         self._rebinned_time_bin_mean = np.mean(self._rebinned_time_bins, axis=1)
-
 
         significance_calc = Significance(
             self._rebinned_observed_counts,
@@ -562,7 +560,8 @@ class ResultPlotGenerator(object):
 
         p_bar.increase()
 
-        final_plot.savefig(savepath, dpi=self.dpi)
+        if rank == 0:
+            final_plot.savefig(savepath, dpi=self.dpi)
 
         p_bar.increase()
 
