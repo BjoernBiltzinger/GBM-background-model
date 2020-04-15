@@ -29,25 +29,49 @@ except:
     using_mpi = False
     rank = 0
 
-valid_det_names = ['n0', 'n1', 'n2', 'n3', 'n4', 'n5', 'n6', 'n7', 'n8', 'n9', 'na', 'nb', 'b0', 'b1']
+valid_det_names = [
+    "n0",
+    "n1",
+    "n2",
+    "n3",
+    "n4",
+    "n5",
+    "n6",
+    "n7",
+    "n8",
+    "n9",
+    "na",
+    "nb",
+    "b0",
+    "b1",
+]
 
 
 class TrigData(object):
-
     def __init__(self, trigger, detector, data_type, echan_list, test=False):
         """
         Initalize the TrigData Class, which contains the information about the time bins
         and counts of the data.
         """
-        assert data_type == 'trigdat', 'Please use a valid data type: trigdat'
-        assert detector in valid_det_names, 'Please use a valid det name. One of these: {}'.format(valid_det_names)
+        assert data_type == "trigdat", "Please use a valid data type: trigdat"
+        assert (
+            detector in valid_det_names
+        ), "Please use a valid det name. One of these: {}".format(valid_det_names)
 
-        assert len(trigger) == 11, 'Please provide a valid trigger in the format bnYYMMDDxxx'
+        assert (
+            len(trigger) == 11
+        ), "Please provide a valid trigger in the format bnYYMMDDxxx"
 
-        if data_type == 'trigdat':
-            assert type(echan_list) and max(echan_list) <= 7 and min(echan_list) >= 0 \
-                   and all(isinstance(x, int) for x in echan_list), 'Echan_list variable must be a list and can only ' \
-                                                                    'have integer entries between 0 and 7'
+        if data_type == "trigdat":
+            assert (
+                type(echan_list)
+                and max(echan_list) <= 7
+                and min(echan_list) >= 0
+                and all(isinstance(x, int) for x in echan_list)
+            ), (
+                "Echan_list variable must be a list and can only "
+                "have integer entries between 0 and 7"
+            )
 
         self._data_type = data_type
         self._det = detector
@@ -55,7 +79,7 @@ class TrigData(object):
         self._trigger = trigger
         self._echan_list = echan_list
 
-        if self._data_type == 'trigdat':
+        if self._data_type == "trigdat":
             self._echan_mask = np.zeros(8, dtype=bool)
             for e in echan_list:
                 self._echan_mask[e] = True
@@ -173,7 +197,9 @@ class TrigData(object):
         if self._rebinned:
             return self._rebinned_saa_mask
         else:
-            raise Exception('Data is unbinned, the saa mask has to be obtained from the SAA_calc object')
+            raise Exception(
+                "Data is unbinned, the saa mask has to be obtained from the SAA_calc object"
+            )
 
     @property
     def det(self):
@@ -220,11 +246,15 @@ class TrigData(object):
         return self._det[-1]
 
     def _build_arrays(self):
-        year = '20%s' % self._trigger[2:4]
+        year = "20%s" % self._trigger[2:4]
 
         # Download data-file and poshist file if not existing:
-        datafile_name = 'glg_{0}_{1}_{2}_v00.fit'.format(self._data_type, 'all', self._trigger)
-        datafile_path = os.path.join(get_path_of_external_data_dir(), self._data_type, year, datafile_name)
+        datafile_name = "glg_{0}_{1}_{2}_v00.fit".format(
+            self._data_type, "all", self._trigger
+        )
+        datafile_path = os.path.join(
+            get_path_of_external_data_dir(), self._data_type, year, datafile_name
+        )
 
         # If MPI is used only one rank should download the data; the others wait
         if rank == 0:
@@ -240,26 +270,14 @@ class TrigData(object):
 
         # Open the datafile of the CTIME/CSPEC data and read in all needed quantities
         with fits.open(datafile_path) as trigdat:
-            self._trigtime = trigdat[evntrate].header['TRIGTIME']
-            bin_start = trigdat[evntrate].data['TIME']
-            bin_stop = trigdat[evntrate].data['ENDTIME']
-            rates = trigdat[evntrate].data['RATE'][:, :, self._det_idx]
+            self._trigtime = trigdat[evntrate].header["TRIGTIME"]
+            bin_start = trigdat[evntrate].data["TIME"]
+            bin_stop = trigdat[evntrate].data["ENDTIME"]
 
-        # Sometimes there are corrupt time bins where the time bin start = time bin stop
-        # So we have to delete these times bins
-        idx_zero_bins = np.where(bin_start == bin_stop)[0]
+            rates = trigdat[evntrate].data["RATE"]
 
-        # Sometimes time bins are not in order and stop times are corrupt
-        # so we have to delete these time bins
-        # ida_unordered = np.where(bin_start[:-1] >= bin_start[1:])[0]
-
-        idx_delete = idx_zero_bins  # np.unique(np.hstack((idx_zero_bins, ida_unordered)))
-
-        bin_start = np.delete(bin_start, idx_delete)
-        bin_stop = np.delete(bin_stop, idx_delete)
-        rates = np.delete(rates, idx_delete, axis=0)
-
-
+            num_times = len(bin_start)
+            rates = rates.reshape(num_times, 14, 8)
 
         # Sort out the high res times because they are dispersed with the normal
         # times.
@@ -267,71 +285,107 @@ class TrigData(object):
         # The delta time in the file.
         # This routine is modeled off the procedure in RMFIT.
         myDelta = bin_stop - bin_start
-        bin_start[myDelta < .1] = np.round(bin_start[myDelta < .1], 4)
-        bin_stop[myDelta < .1] = np.round(bin_stop[myDelta < .1], 4)
+        bin_start[myDelta < 0.1] = np.round(bin_start[myDelta < 0.1], 4)
+        bin_stop[myDelta < 0.1] = np.round(bin_stop[myDelta < 0.1], 4)
 
-        bin_start[~(myDelta < .1)] = np.round(bin_start[~(myDelta < .1)],
-                                                 3)
-        bin_stop[~(myDelta < .1)] = np.round(bin_stop[~(myDelta < .1)],
-                                                3)
+        bin_start[~(myDelta < 0.1)] = np.round(bin_start[~(myDelta < 0.1)], 3)
+        bin_stop[~(myDelta < 0.1)] = np.round(bin_stop[~(myDelta < 0.1)], 3)
 
-        all_index = list(range(len(bin_start)))
-        # masks for all the different delta times and
-        # the mid points for the different binnings
-        temp1 = myDelta < .1
-        temp2 = np.logical_and(myDelta > .1, myDelta < 1.)
-        temp3 = np.logical_and(myDelta > 1., myDelta < 2.)
-        temp4 = myDelta > 2.
-        midT1 = (bin_start[temp1] + bin_stop[temp1]) / 2.
-        midT2 = (bin_start[temp2] + bin_stop[temp2]) / 2.
-        midT3 = (bin_start[temp3] + bin_stop[temp3]) / 2.
+        fine = True
 
-        # Dump any index that occurs in a lower resolution
-        # binning when a finer resolution covers the interval
-        for indx in np.where(temp2)[0]:
-            for x in midT1:
-                if bin_start[indx] < x < bin_stop[indx]:
-                    try:
+        if fine:
 
-                        all_index.remove(indx)
-                    except:
-                        pass
+            # Create a starting list of array indices.
+            # We will dumb then ones that are not needed
 
-        for indx in np.where(temp3)[0]:
-            for x in midT2:
-                if bin_start[indx] < x < bin_stop[indx]:
-                    try:
+            all_index = range(len(bin_start))
 
-                        all_index.remove(indx)
+            # masks for all the different delta times and
+            # the mid points for the different binnings
+            temp1 = myDelta < 0.1
+            temp2 = np.logical_and(myDelta > 0.1, myDelta < 1.0)
+            temp3 = np.logical_and(myDelta > 1.0, myDelta < 2.0)
+            temp4 = myDelta > 2.0
+            midT1 = (bin_start[temp1] + bin_stop[temp1]) / 2.0
+            midT2 = (bin_start[temp2] + bin_stop[temp2]) / 2.0
+            midT3 = (bin_start[temp3] + bin_stop[temp3]) / 2.0
 
-                    except:
-                        pass
-        for indx in np.where(temp4)[0]:
-            for x in midT3:
-                if bin_start[indx] < x < bin_stop[indx]:
-                    try:
+            # Dump any index that occurs in a lower resolution
+            # binning when a finer resolution covers the interval
+            for indx in np.where(temp2)[0]:
+                for x in midT1:
+                    if bin_start[indx] < x < bin_stop[indx]:
+                        try:
 
-                        all_index.remove(indx)
-                    except:
-                        pass
+                            all_index.remove(indx)
+                        except:
+                            pass
 
-        all_index = np.array(all_index)
+            for indx in np.where(temp3)[0]:
+                for x in midT2:
+                    if bin_start[indx] < x < bin_stop[indx]:
+                        try:
 
+                            all_index.remove(indx)
+
+                        except:
+                            pass
+            for indx in np.where(temp4)[0]:
+                for x in midT3:
+                    if bin_start[indx] < x < bin_stop[indx]:
+                        try:
+
+                            all_index.remove(indx)
+                        except:
+                            pass
+
+            all_index = np.array(all_index)
+        else:
+
+            # Just deal with the first level of fine data
+            all_index = np.where(myDelta > 1.0)[0].tolist()
+
+            temp1 = np.logical_and(myDelta > 1.0, myDelta < 2.0)
+            temp2 = myDelta > 2.0
+            midT1 = (bin_start[temp1] + bin_stop[temp1]) / 2.0
+
+            for indx in np.where(temp2)[0]:
+                for x in midT1:
+                    if bin_start[indx] < x < bin_stop[indx]:
+
+                        try:
+
+                            all_index.remove(indx)
+
+                        except:
+                            pass
+
+            all_index = np.array(all_index)
+
+        # Now dump the indices we do not need
         bin_start = bin_start[all_index]
         bin_stop = bin_stop[all_index]
-        rates = rates[all_index]
 
+        rates = rates[all_index, :, :]
 
+        # Now we need to sort because GBM may not have done this!
 
-        # Get time bins
-        time_bins = np.vstack((bin_start, bin_stop)).T
-        time_bin_width = np.diff(time_bins, axis=1)
+        sort_mask = np.argsort(bin_start)
+        bin_start = bin_start[sort_mask]
+        bin_stop = bin_stop[sort_mask]
+        rates = rates[sort_mask, :, :]
 
-        time_width_matrix = np.repeat(time_bin_width, 8, axis=1)
-        counts = np.multiply(rates, time_width_matrix).astype(int)
+        from threeML.utils.time_interval import TimeIntervalSet
 
-        # Only keep the count informations we need for the echan's we want to fit
-        counts = counts.T[self._echan_mask].T
+        self._time_intervals = TimeIntervalSet.from_starts_and_stops(
+            bin_start, bin_stop
+        )
+
+        counts = rates[:, self._det_idx, :] * self._time_intervals.widths.reshape(
+            (len(self._time_intervals), 1)
+        )
+
+        time_bins = self._time_intervals.bin_stack
 
         self._counts = counts
         self._time_bins = time_bins
