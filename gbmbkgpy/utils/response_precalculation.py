@@ -29,13 +29,34 @@ valid_det_names = ['n0', 'n1', 'n2', 'n3', 'n4', 'n5', 'n6', 'n7', 'n8', 'n9', '
 
 
 class Response_Precalculation(object):
+
+    def __init__(self, detectors, dates, echans, Ngrid=40000, Ebin_edge_incoming=None, data_type='ctime', trigger=None):
+        self._echans = echans
+
+        responses = {}
+
+        for det in detectors:
+            responses[det] = Det_Response_Precalculation(det, dates, echans, Ngrid, Ebin_edge_incoming, data_type, trigger)
+
+        self._responses = responses
+
+    @property
+    def responses(self):
+        return self._responses
+
+    @property
+    def echans(self):
+        return self._echans
+
+
+class Det_Response_Precalculation(object):
     """
     With this class one can precalculate the response on a equally distributed point grid
     around the detector. Is used later to calculate the rates of spectral sources
     like the earth or the CGB
     """
 
-    def __init__(self, det, day, echan_list, Ngrid=40000, Ebin_edge_incoming=None, data_type='ctime', trigger=None):
+    def __init__(self, det, dates, echans, Ngrid=40000, Ebin_edge_incoming=None, data_type='ctime', trigger=None):
         """
         initialize the grid around the detector and set the values for the Ebins of incoming and detected photons
         :param det: which detector is used
@@ -44,31 +65,37 @@ class Response_Precalculation(object):
         :param Ebin_edge_detector: Ebins edges of detector
         """
 
-        assert det in valid_det_names, 'Invalid det name. Must be one of these {} but is {}.'.format(valid_det_names, det)
-        assert type(day[0]) == str and len(day[0]) == 6, 'Day must be a string of the format YYMMDD, but is {}'.format(day)
+        assert det in valid_det_names, \
+            'Invalid det name. Must be one of these {} but is {}.'.format(valid_det_names, det)
+
+        assert type(dates[0]) == str and len(dates[0]) == 6, \
+            'Day must be a string of the format YYMMDD, but is {}'.format(dates[0])
+
         assert type(Ngrid) == int, 'Ngrid has to be an integer, but is a {}.'.format(type(Ngrid))
 
         if Ebin_edge_incoming is not None:
-            assert type(Ebin_edge_incoming) == np.ndarray, 'Invalid type for mean_time. Must be an array but is {}.'.format(type(Ebin_edge_incoming))
+            assert type(Ebin_edge_incoming) == np.ndarray, \
+                'Invalid type for mean_time. Must be an array but is {}.'.format(type(Ebin_edge_incoming))
 
-        assert data_type == 'ctime' or data_type == 'cspec 'or data_type == 'trigdat', 'Please use a valid data_type (ctime, cspec or trigdat). Your input is {}.'.format(data_type)
+        assert data_type == 'ctime' or data_type == 'cspec ' or data_type == 'trigdat', \
+            'Please use a valid data_type (ctime, cspec or trigdat). Your input is {}.'.format(data_type)
 
         if data_type == 'ctime':
-            assert type(echan_list) and max(echan_list) <= 7 and min(echan_list) >= 0 \
-                   and all(isinstance(x, int) for x in echan_list), 'Echan_list variable must be a list and can only ' \
-                                                                    'have integer entries between 0 and 7'
+            assert type(echans) and max(echans) <= 7 and min(echans) >= 0 \
+                   and all(isinstance(x, int) for x in echans), \
+                   'Echan_list variable must be a list and can only have integer entries between 0 and 7'
 
         if data_type == 'cspec':
-            assert type(echan_list) and max(echan_list) <= 127 and min(echan_list) >= 0 \
-                   and all(isinstance(x, int) for x in echan_list), 'Echan_list variable must be a list and can only ' \
-                                                                    'have integer entries between 0 and 7'
+            assert type(echans) and max(echans) <= 127 and min(echans) >= 0 \
+                   and all(isinstance(x, int) for x in echans), \
+                   'Echan_list variable must be a list and can only have integer entries between 0 and 7'
 
         if data_type == 'trigdat':
-            assert type(echan_list) and max(echan_list) <= 7 and min(echan_list) >= 0 \
-                   and all(isinstance(x, int) for x in echan_list), 'Echan_list variable must be a list and can only ' \
-                                                                    'have integer entries between 0 and 7'
-            assert trigger is not None, 'If you use trigdat data you have to provide a trigger.'
+            assert type(echans) and max(echans) <= 7 and min(echans) >= 0 \
+                   and all(isinstance(x, int) for x in echans), \
+                   'Echan_list variable must be a list and can only have integer entries between 0 and 7'
 
+            assert trigger is not None, 'If you use trigdat data you have to provide a trigger.'
 
         self._data_type = data_type
 
@@ -83,14 +110,17 @@ class Response_Precalculation(object):
             # Use the user defined incoming energy bins
             self._Ebin_in_edge = Ebin_edge_incoming
 
+        # TODO: If we use multiple days then the Edges of the energy bins are not correct,
+        # TODO: should we calculate a seperate response for each day?
+
         # Read in the datafile to get the energy boundaries
         if data_type == 'trigdat':
             self._Ebin_out_edge = np.array(
                 [3.4, 10.0, 22.0, 44.0, 95.0, 300.0, 500.0, 800.0, 2000.],
                 dtype=np.float32)
         else:
-            datafile_name = 'glg_{0}_{1}_{2}_v00.pha'.format(data_type, det, day[0])
-            datafile_path = os.path.join(get_path_of_external_data_dir(), data_type, day[0], datafile_name)
+            datafile_name = 'glg_{0}_{1}_{2}_v00.pha'.format(data_type, det, dates[0])
+            datafile_path = os.path.join(get_path_of_external_data_dir(), data_type, dates[0], datafile_name)
 
             with fits.open(datafile_path) as f:
                 edge_start = f['EBOUNDS'].data['E_MIN']
@@ -116,14 +146,16 @@ class Response_Precalculation(object):
             elif det[1] == '1':
                 self._det = 13
 
-        self._echan_list = echan_list
+        self._detector = det
+
+        self._echans = echans
         if self._data_type == 'ctime' or self._data_type == 'trigdat':
             self._echan_mask = np.zeros(8, dtype=bool)
-            for e in echan_list:
+            for e in echans:
                 self._echan_mask[e] = True
         elif self._data_type == 'cspec':
             self._echan_mask = np.zeros(128, dtype=bool)
-            for e in echan_list:
+            for e in echans:
                 self._echan_mask[e] = True
 
         # Calculate the reponse for all points on the unit sphere
@@ -138,12 +170,16 @@ class Response_Precalculation(object):
         return self._Ngrid
 
     @property
-    def responses(self):
-        return self._responses
+    def response_array(self):
+        return self._response_array
 
     @property
     def det(self):
         return self._det
+
+    @property
+    def detector(self):
+        return self._detector
 
     @property
     def Ebin_in_edge(self):
@@ -216,8 +252,8 @@ class Response_Precalculation(object):
                 if rank == 0:
 
                     with progress_bar(points_upper_index - points_lower_index,
-                                      title='Calculating response on a grid around detector '
-                                            'This shows the progress of rank 0. All other should be about the same.') as p:
+                                      title='Calculating response on a grid around detector {}. '
+                                            'This shows the progress of rank 0. All other should be about the same.'.format(self.detector)) as p:
 
                         for point in self._points[points_lower_index:points_upper_index]:
                             # get the response of every point
@@ -268,9 +304,13 @@ class Response_Precalculation(object):
                     points_upper_index = int(np.floor(points_per_rank * (rank + 1)) + n_start)
 
                     if rank == 0:
-                        print('We have to split up the response precalculation in {} runs. MPI can not handle everything at once.'.format(num_split))
+                        print('We have to split up the response precalculation in {} runs.'
+                              ' MPI can not handle everything at once.'.format(num_split))
+
                         with progress_bar(points_upper_index - points_lower_index,
-                                          title='Calculating response on a grid around detector run {} of {}. This shows the progress of rank 0. All other should be about the same.'.format(j + 1, num_split)) as p:
+                                          title='Calculating response on a grid around detector {}, run {} of {}.'
+                                                ' This shows the progress of rank 0. All other should be about the same.'
+                                                .format(self.detector, j + 1, num_split)) as p:
 
                             for point in self._points[points_lower_index:points_upper_index]:
                                 # get the response of every point
@@ -303,15 +343,15 @@ class Response_Precalculation(object):
 
         else:
             with progress_bar(len(self._points),
-                              title='Calculating response on a grid around detector '
-                                    'This shows the progress of rank 0. All other should be about the same.') as p:
+                              title='Calculating response on a grid around detector {}. '
+                                    'This shows the progress of rank 0. All other should be about the same.'.format(self.detector)) as p:
                 for point in self._points:
                     # get the response of every point
                     matrix = self._response(point[0], point[1], point[2], DRM).matrix[self._echan_mask]
                     responses.append(matrix.T)
                     p.increase()
 
-        self._responses = np.array(responses)
+        self._response_array = np.array(responses)
 
     def _fibonacci_sphere(self, samples=1):
         """
