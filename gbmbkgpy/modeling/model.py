@@ -4,11 +4,14 @@ import numpy as np
 
 
 class Model(object):
-    def __init__(self, *sources):
+    def __init__(self, *sources, echans, detectors):
         """
         Init model class with all wanted sources
         :param sources: list of sources
         """
+        self._nr_detectors = len(detectors)
+
+        self._nr_echans = len(echans)
 
         self._continuum_sources = collections.OrderedDict()
 
@@ -280,23 +283,31 @@ class Model(object):
 
         return len(self._transient_sources)
 
-    def get_continuum_counts(self, id, time_bins, saa_mask, echan):
+    def get_continuum_counts(self, id, time_bins, saa_mask):
         """
         Get the count of the sources in the self._continuum_sources dict
         :param id: 
         :param time_bins:
         :return: 
         """
-        source_counts = np.zeros(len(time_bins))
-        if list(self._continuum_sources.values())[id].echan == echan:
-            source_counts = list(self._continuum_sources.values())[id].get_counts(time_bins, echan)
+        continuum_counts = np.zeros((
+            len(time_bins),
+            self._nr_detectors,
+            self._nr_echans
+        ))
+
+        continuum_source = list(self._continuum_sources.values())[id]
+
+        continuum_counts[:, :, continuum_source.echan] += continuum_source.get_counts(
+                time_bins=time_bins
+        )
 
         # The SAA sections will be set to zero if a saa_mask is provided
         if saa_mask is not None:
             assert len(time_bins) == len(saa_mask), "The time_bins and saa_mask should be of equal length"
-            source_counts[np.where(~saa_mask)] = 0.
+            continuum_counts[~saa_mask] = 0.
 
-        return source_counts
+        return continuum_counts
 
     def _sources_echan_number_parameter(self):
         """
@@ -317,7 +328,7 @@ class Model(object):
 
         return source_list, echan, num_params
 
-    def get_global_counts(self, id, time_bins, saa_mask, echan):
+    def get_global_counts(self, id, time_bins, saa_mask):
         """
         Get the count of the source id in the self._global_sources dict
         :param echan:
@@ -326,7 +337,7 @@ class Model(object):
         :param time_bins:
         :return:
         """
-        source_counts = list(self._global_sources.values())[id].get_counts(time_bins, echan)
+        source_counts = list(self._global_sources.values())[id].get_counts(time_bins)
 
         # The SAA sections will be set to zero if a saa_mask is provided
         if saa_mask is not None:
@@ -335,7 +346,7 @@ class Model(object):
 
         return source_counts
 
-    def get_fit_spectrum_counts(self, id, time_bins, saa_mask, echan):
+    def get_fit_spectrum_counts(self, id, time_bins, saa_mask):
         """
         Get the count of the sources in the self._fit_spectrum_sources dict
         :param echan:
@@ -344,7 +355,9 @@ class Model(object):
         :param time_bins:
         :return:
         """
-        source_counts = list(self._fit_spectrum_sources.values())[id].get_counts(time_bins, echan)  # The SAA sections will be set to zero if a saa_mask is provided
+        source_counts = list(self._fit_spectrum_sources.values())[id].get_counts(time_bins)
+
+        # The SAA sections will be set to zero if a saa_mask is provided
         if saa_mask is not None:
             assert len(time_bins) == len(saa_mask), "The time_bins and saa_mask should be of equal length"
             source_counts[np.where(~saa_mask)] = 0.
@@ -371,7 +384,7 @@ class Model(object):
 
         return source_counts
 
-    def get_point_source_counts(self, time_bins, saa_mask, echan):
+    def get_point_source_counts(self, id, time_bins, saa_mask):
         """
         
         :param echan:
@@ -380,10 +393,7 @@ class Model(object):
         :param id:
         :return: 
         """
-        source_counts = np.zeros(len(time_bins))
-        for i, point_source in enumerate(self._point_sources):
-            if list(self._point_sources.values())[i].echan == echan:
-                source_counts += list(self._point_sources.values())[i].get_counts(time_bins, echan)
+        source_counts = list(self._point_sources.values())[id].get_counts(time_bins)
 
         # The SAA sections will be set to zero if a saa_mask is provided
         if saa_mask is not None:
@@ -391,7 +401,7 @@ class Model(object):
             source_counts[np.where(~saa_mask)] = 0.
         return source_counts
 
-    def get_saa_counts(self, time_bins, saa_mask, echan):
+    def get_saa_counts(self, time_bins, saa_mask):
         """
 
         :param echan:
@@ -400,11 +410,16 @@ class Model(object):
         :param id:
         :return:
         """
-        source_counts = np.zeros(len(time_bins))
+        source_counts = np.zeros((
+            len(time_bins),
+            self._nr_detectors,
+            self._nr_echans
+        ))
 
-        for i, saa in enumerate(self._saa_sources):
-            if list(self._saa_sources.values())[i].echan == echan:
-                source_counts += list(self._saa_sources.values())[i].get_counts(time_bins, echan)
+        for saa_source in self._saa_sources.values():
+            source_counts[:, :, saa_source.echan] += saa_source.get_counts(
+                time_bins=time_bins,
+            )
 
         # The SAA sections will be set to zero if a saa_mask is provided
         if saa_mask is not None:
@@ -422,7 +437,11 @@ class Model(object):
         :param id:
         :return:
         """
-        source_counts = np.zeros(len(time_bins))
+        source_counts = np.zeros((
+            len(time_bins),
+            self._nr_detectors,
+            self._nr_echans
+        ))
 
         for i, transient in enumerate(self._transient_sources):
             if list(self._transient_sources.values())[i].echan == echan:
@@ -435,68 +454,7 @@ class Model(object):
 
         return source_counts
 
-    def add_SAA_regions(self, *regions):
-        """
-        Add SAA temporal regions which cause the model to be set to zero
-        
-        :param regions: 
-        :return: 
-        """
-
-    def get_counts(self, time_bins, echan, bin_mask=None, saa_mask=None):
-        """
-        Calculates the counts for all sources in the model and returns the summed up array.
-        Only one of the following usecases can be used!
-        1) The bin_mask serves for masking the saa sections for faster fitting
-        2) The saa_mask sets the SAA sections to zero when the counts for all time bins are returned
-
-        :param saa_mask:
-        :param echan:
-        :param time_bins:
-        :param bin_mask:
-        :return:
-        """
-        if bin_mask is not None:
-            assert saa_mask is None, "There should only be a bin mask or a saa_mask provided"
-
-        if bin_mask is None:
-            bin_mask = np.ones(len(time_bins), dtype=bool)  # np.full(len(time_bins), True)
-
-        total_counts = np.zeros(len(time_bins))
-
-        for continuum_source in self._continuum_sources.values():
-            if continuum_source.echan == echan:
-                total_counts += continuum_source.get_counts(time_bins, echan, bin_mask)
-
-        for flare_source in self._flare_sources.values():
-            if flare_source.echan == echan:
-                total_counts += flare_source.get_counts(time_bins, echan, bin_mask)
-
-        for point_source in self._point_sources.values():
-            if point_source.echan == echan:
-                total_counts += point_source.get_counts(time_bins, echan, bin_mask)
-
-        for saa_source in self._saa_sources.values():
-            if saa_source.echan == echan:
-                total_counts += saa_source.get_counts(time_bins, echan, bin_mask)
-
-        for global_source in self._global_sources.values():
-            total_counts += global_source.get_counts(time_bins, echan, bin_mask)
-
-        for fit_spectrum_source in self._fit_spectrum_sources.values():
-            total_counts += fit_spectrum_source.get_counts(time_bins, echan, bin_mask)
-
-        for transient in self._transient_sources.values():
-            total_counts += transient.get_counts(time_bins, echan, bin_mask)
-
-        # The SAA sections will be set to zero if a saa_mask is provided
-        if saa_mask is not None:
-            assert len(time_bins) == len(saa_mask), "The time_bins and saa_mask should be of equal length"
-            total_counts[np.where(~saa_mask)] = 0.
-
-        return total_counts
-
-    def get_all_global_counts(self, time_bins, echan, bin_mask=None, saa_mask=None):
+    def get_all_global_counts(self, time_bins, bin_mask=None, saa_mask=None):
         """
         Get all counts from the sources in the "global dict"
         :param time_bins:
@@ -513,12 +471,83 @@ class Model(object):
             bin_mask = np.ones(len(time_bins),
                                dtype=bool)  # np.full(len(time_bins), True)
 
-        total_counts = np.zeros(len(time_bins))
+        total_counts = np.zeros((
+            len(time_bins),
+            self._nr_detectors,
+            self._nr_echans
+        ))
 
         for global_source in self._global_sources.values():
-            total_counts += global_source.get_counts(time_bins, echan, bin_mask)
+            total_counts += global_source.get_counts(time_bins, bin_mask)
 
-        # The SAA sections will be set to zero if a saa_mask is provided                                                                                                                                                                                                       
+        # The SAA sections will be set to zero if a saa_mask is provided
+        if saa_mask is not None:
+            assert len(time_bins) == len(saa_mask), "The time_bins and saa_mask should be of equal length"
+            total_counts[np.where(~saa_mask)] = 0.
+
+        return total_counts
+
+
+    def get_counts(self, time_bins, bin_mask=None, saa_mask=None):
+        """
+        Calculates the counts for all sources in the model and returns the summed up array.
+        Only one of the following usecases can be used!
+        1) The bin_mask serves for masking the saa sections for faster fitting
+        2) The saa_mask sets the SAA sections to zero when the counts for all time bins are returned
+
+        :param saa_mask:
+        :param time_bins:
+        :param bin_mask:
+        :return:
+        """
+        if bin_mask is not None:
+            assert saa_mask is None, "There should only be a bin mask or a saa_mask provided"
+
+        if bin_mask is None:
+            bin_mask = np.ones(len(time_bins), dtype=bool)
+
+        total_counts = np.zeros((
+            len(time_bins),
+            self._nr_detectors,
+            self._nr_echans
+        ))
+
+        for continuum_source in self._continuum_sources.values():
+            total_counts[:, :, continuum_source.echan] += continuum_source.get_counts(
+                time_bins=time_bins,
+                bin_mask=bin_mask
+            )
+
+        # for flare_source in self._flare_sources.values():
+        #     if flare_source.echan == echan:
+        #         total_counts += flare_source.get_counts(time_bins, echan, bin_mask)
+        #
+        # for point_source in self._point_sources.values():
+        #     if point_source.echan == echan:
+        #         total_counts += point_source.get_counts(time_bins, echan, bin_mask)
+
+        for saa_source in self._saa_sources.values():
+            total_counts[:, :, saa_source.echan] += saa_source.get_counts(
+                time_bins=time_bins,
+                bin_mask=bin_mask
+            )
+
+        for global_source in self._global_sources.values():
+            total_counts += global_source.get_counts(
+                time_bins=time_bins,
+                bin_mask=bin_mask
+            )
+
+        for fit_spectrum_source in self._fit_spectrum_sources.values():
+            total_counts += fit_spectrum_source.get_counts(
+                time_bins=time_bins,
+                bin_mask=bin_mask
+            )
+
+        for transient in self._transient_sources.values():
+            total_counts += transient.get_counts(time_bins, echan, bin_mask)
+
+        # The SAA sections will be set to zero if a saa_mask is provided
         if saa_mask is not None:
             assert len(time_bins) == len(saa_mask), "The time_bins and saa_mask should be of equal length"
             total_counts[np.where(~saa_mask)] = 0.
