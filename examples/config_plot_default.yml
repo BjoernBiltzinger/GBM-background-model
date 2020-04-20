@@ -25,6 +25,7 @@ plot:
   time_since_midnight:  true
   time_format:          'h'
   time_t0:              null
+  set_axis_limits:      false
   xlim:                 null
   ylim:                 null
   residual_ylim:        null
