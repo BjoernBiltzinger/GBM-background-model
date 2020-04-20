@@ -33,14 +33,14 @@ class Function(object):
 
         return [par.value for par in self._parameter_dict.values()]
 
-    def __call__(self, echan):
+    def __call__(self):
         """
         Starts the evaluation of the counts per time bin with the current parameters
         :param echan: echan for which the counts should be returned
         :return:
         """
 
-        return self._evaluate(*self.parameter_value, echan=echan)
+        return self._evaluate(*self.parameter_value)
 
     def recalculate_counts(self):
         """
@@ -59,6 +59,12 @@ class Function(object):
         """
 
         return self._parameter_dict
+
+    def _evaluate(self, *parameter_values):
+        raise NotImplementedError("This method has to be defined in a subclass")
+
+    def _fold_spectrum(self, *parameter_values):
+        raise NotImplementedError("This method has to be defined in a subclass")
 
 
 class ContinuumFunction(Function):
@@ -93,26 +99,17 @@ class ContinuumFunction(Function):
         :param saa_mask:
         :return:
         """
-        self._function_array[np.where(~saa_mask)] = 0.
+        self._function_array[~saa_mask] = 0.
 
     def remove_vertical_movement(self):
         """
         Remove the vertical movement of the values in the function array by subtracting the minimal value of the array
         :return:
         """
-
-        self._function_array[self._function_array > 0] = self._function_array[self._function_array > 0] - \
-                                                         np.min(self._function_array[self._function_array > 0])
-
-    def remove_vertical_movement_mean(self):
-        """
-        Remove the vertical movement of the values in the function array by subtracting the mean value of the array
-        :return:
-        """
-
-        self._function_array[self._function_array != 0] = self._function_array[self._function_array != 0] - \
-                                                          np.mean(self._function_array[self._function_array != 0],
-                                                                  dtype=np.float64)
+        for det_idx in range(self._function_array.shape[1]):
+            self._function_array[:, det_idx, :][self._function_array[:, det_idx, :] > 0] = \
+                self._function_array[:, det_idx, :][self._function_array[:, det_idx, :] > 0] - \
+                np.min(self._function_array[:, det_idx, :][self._function_array[:, det_idx, :] > 0])
 
     def integrate_array(self, time_bins):
         """
@@ -121,22 +118,27 @@ class ContinuumFunction(Function):
         :param time_bins: The time bins of the data
         :return:
         """
+        tiled_time_bins = np.tile(
+            time_bins,
+            (self._function_array.shape[1], 1, 1)
+        )
+        print(tiled_time_bins.shape)
+        tiled_time_bins = np.swapaxes(tiled_time_bins, 0, 1)
+        print(tiled_time_bins.shape)
+        self._source_counts = integrate.cumtrapz(self._function_array, tiled_time_bins)[:, :, 0]
 
-        self._integrated_function_array = integrate.cumtrapz(self._function_array, time_bins)
-
-    def _evaluate(self, K, echan=None):
+    def _evaluate(self, K):
         """
         Evaulate this source. Use the precalculated integrated over the time bins function array and use numexpr to
         speed up.
         :param K: the current parameter value for K
-        :param echan: echan,dummy value as this source is only for one echan
         :return:
         """
-        int_function_array = self._integrated_function_array[:, 0]
-        return ne.evaluate("K*int_function_array")
+        source_counts = self._source_counts
+        return ne.evaluate("K*source_counts")
 
-    def __call__(self, echan):
-        return self._evaluate(*self.parameter_value, echan=echan)
+    def __call__(self):
+        return self._evaluate(*self.parameter_value)
 
 
 class GlobalFunction(Function):
@@ -172,26 +174,17 @@ class GlobalFunction(Function):
         :param saa_mask:
         :return:
         """
-        self._function_array[:, np.where(~saa_mask)] = 0.
+        self._function_array[~saa_mask] = 0.
 
     def remove_vertical_movement(self):
         """
         Remove the vertical movement of the values in the function array by subtracting the minimal value of the array
         :return:
         """
-
-        self._function_array[self._function_array > 0] = self._function_array[self._function_array > 0] - \
-                                                         np.min(self._function_array[self._function_array > 0])
-
-    def remove_vertical_movement_mean(self):
-        """
-        Remove the vertical movement of the values in the function array by subtracting the mean value of the array
-        :return:
-        """
-
-        self._function_array[self._function_array != 0] = self._function_array[self._function_array != 0] - \
-                                                          np.mean(self._function_array[self._function_array != 0],
-                                                                  dtype=np.float64)
+        for det_idx in range(self._function_array.shape[1]):
+            self._function_array[:, det_idx, :, :][self._function_array[:, det_idx, :, :] > 0] = \
+                self._function_array[:, det_idx, :, :][self._function_array[:, det_idx, :, :] > 0] - \
+                np.min(self._function_array[:, det_idx, :, :][self._function_array[:, det_idx, :, :] > 0])
 
     def integrate_array(self, time_bins):
         """
@@ -201,24 +194,27 @@ class GlobalFunction(Function):
         :return:
         """
 
-        self._integrated_function_array = []
+        tiled_time_bins = np.tile(
+            time_bins,
+            (self._function_array.shape[1], self._function_array.shape[2], 1, 1)
+        )
 
-        for i in range(len(self._function_array)):
-            self._integrated_function_array.append(integrate.cumtrapz(self._function_array[i], time_bins))
+        tiled_time_bins = np.swapaxes(tiled_time_bins, 0, 2)
 
-    def _evaluate(self, K, echan=None):
+        self._source_counts = integrate.cumtrapz(self._function_array, tiled_time_bins)[:, :, :, 0]
+
+    def _evaluate(self, K):
         """
         Evaulate this source. Use the precalculated integrated over the time bins function array and use numexpr to
         speed up.
         :param K: the fitted parameter
-        :param echan: echan
         :return:
         """
-        int_function_array_echan = self._integrated_function_array[echan][:, 0]
-        return ne.evaluate("K*int_function_array_echan")
+        source_counts = self._source_counts
+        return ne.evaluate("K*source_counts")
 
-    def __call__(self, echan):
-        return self._evaluate(*self.parameter_value, echan=echan)
+    def __call__(self):
+        return self._evaluate(*self.parameter_value)
 
 
 class GlobalFunctionSpectrumFit(Function):
@@ -262,14 +258,19 @@ class GlobalFunctionSpectrumFit(Function):
 
         self._evaluate = self.build_evaluation_function()
 
-    def set_response_array(self, response_array):
+
+    def set_dets_echans(self, detectors, echans):
+
+        self._nr_detectors = len(detectors)
+        self._nr_echans = len(echans)
+
+    def set_effective_response(self, effective_response):
         """
         effective response sum for all times for which the geometry was calculated (NO INTERPOLATION HERE)
         :param response_array:
         :return:
         """
-
-        self._response_array = response_array
+        self.effective_response = effective_response
 
     def set_interpolation_times(self, interpolation_times):
         """
@@ -279,22 +280,28 @@ class GlobalFunctionSpectrumFit(Function):
         """
         self._interpolation_times = interpolation_times
 
-    def set_basis_function_array(self, time_bins):
+    def set_time_bins(self, time_bins):
         """
         Basis array that has the length as the time_bins array with all entries 1
         :param time_bins:
         :return:
         """
         self._time_bins = time_bins
-        self._function_array_b = np.ones_like(time_bins)
 
-    def set_saa_zero(self, saa_mask):
+        tiled_time_bins = np.tile(
+            time_bins,
+            (self._nr_detectors, self._nr_echans, 1, 1)
+        )
+
+        self._tiled_time_bins = np.swapaxes(tiled_time_bins, 0, 2)
+
+    def set_saa_mask(self, saa_mask):
         """
         Set the SAA sections in the function array to zero
         :param saa_mask:
         :return:
         """
-        self._function_array_b[np.where(~saa_mask)] = 0.
+        self._saa_mask = saa_mask
 
     def energy_boundaries(self, energy_bins):
         """
@@ -311,14 +318,12 @@ class GlobalFunctionSpectrumFit(Function):
         :param time_bins: The time bins of the data
         :return:
         """
-
         # Get the flux for all times
-        folded_flux_all = self._folded_flux_inter(self._time_bins)
-        self._integrated_function_array = []
+        folded_flux_all_dets = self._folded_flux_inter(self._time_bins)
 
-        # For all echans calculate the count prediction for all time bins
-        for i in range(len(folded_flux_all)):
-            self._integrated_function_array.append(integrate.cumtrapz(folded_flux_all[i] * self._function_array_b, self._time_bins))
+        self._source_counts = integrate.cumtrapz(folded_flux_all_dets, self._tiled_time_bins)[:, :, :, 0]
+
+        self._source_counts[~self._saa_mask] = 0.
 
     def _spectrum(self, energy):
         """
@@ -366,15 +371,32 @@ class GlobalFunctionSpectrumFit(Function):
             self._C = parameters[0]
             self._index = parameters[1]
 
-        true_flux = self._integral(self._energy_bins[:-1], self._energy_bins[1:])
-        folded_flux = np.dot(true_flux, self._response_array)
 
-        self._folded_flux_inter = interpolate.interp1d(self._interpolation_times, folded_flux.T)
+        folded_flux = np.zeros((
+            len(self._geom[self._detectors[0]].time),
+            len(self._detectors),
+            len(self._echans),
+        ))
+
+        for det_idx, det in enumerate(self._detectors):
+            true_flux = self._integral(
+                self._rsp[det].Ebin_in_edge[:-1],
+                self._rsp[det].Ebin_in_edge[1:]
+            )
+
+            folded_flux[:, det_idx, :] = np.dot(true_flux, self._effective_response[det])
+
+        self._folded_flux_inter = interpolate.interp1d(
+            self._interpolation_times,
+            self._folded_flux,
+            axis=0
+        )
+
         self.integrate_array()
 
     def build_evaluation_function(self):
         if self._spec == 'bpl':
-            def _evaluate(C, index1, index2, break_energy, echan=None):
+            def _evaluate(C, index1, index2, break_energy):
                 """
                 Evaulate this source.
                 :param K: the fitted parameter
@@ -382,11 +404,11 @@ class GlobalFunctionSpectrumFit(Function):
                 :return:
                 """
 
-                return self._integrated_function_array[echan][:, 0]
+                return self._source_counts
 
         elif self._spec == 'pl':
 
-            def _evaluate(C, index, echan=None):
+            def _evaluate(C, index):
                 """
                 Evaulate this source.
                 :param K: the fitted parameter
@@ -394,10 +416,10 @@ class GlobalFunctionSpectrumFit(Function):
                 :return:
                 """
 
-                return self._integrated_function_array[echan][:, 0]
+                return self._source_counts
 
         return _evaluate
 
     def __call__(self, echan):
 
-        return self._evaluate(*self.parameter_value, echan=echan)
+        return self._evaluate(*self.parameter_value)
