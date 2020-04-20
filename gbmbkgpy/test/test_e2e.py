@@ -6,7 +6,7 @@ from gbmbkgpy.io.export import DataExporter
 from gbmbkgpy.io.file_utils import file_existing_and_readable
 from gbmbkgpy.io.package_data import get_path_of_external_data_dir
 from gbmbkgpy.utils.model_generator import BackgroundModelGenerator
-from gbmbkgpy.io.plotting.result_plot import ResultPlotGenerator
+from gbmbkgpy.io.plotting.plot_result import ResultPlotGenerator
 from gbmbkgpy.minimizer.multinest_minimizer import MultiNestFit
 from gbmbkgpy.data.continuous_data import Data
 from gbmbkgpy.data.external_prop import ExternalProps
