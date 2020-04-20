@@ -137,30 +137,26 @@ class Albedo_CGB_free(object):
                                   title='Calculating the effective response for several times. '
                                         'This shows the progress of rank 0. All other should be about the same.') as p:
                     for pos in earth_pos_inter_times:
-                        cgb_response_time = np.zeros_like(responses[0])
-                        earth_response_time = np.zeros_like(responses[0])
-                        for i, pos_point in enumerate(points):
-                            angle_earth = np.arccos(np.dot(pos, pos_point)) * (180 / np.pi)
-                            if angle_earth > opening_angle_earth:
-                                cgb_response_time += responses[i]
-                            else:
-                                earth_response_time += responses[i]
+                        angle_earth = np.arccos(np.dot(pos, points.T)) * (180 / np.pi)
+
+                        cgb_response_time = np.sum(responses[np.where(angle_earth > opening_angle_earth)], axis=0)
+
+                        earth_response_time = np.sum(responses[np.where(angle_earth < opening_angle_earth)], axis=0)
+
                         array_cgb_response_sum.append(cgb_response_time)
                         array_earth_response_sum.append(earth_response_time)
-
                         p.increase()
             else:
                 for pos in earth_pos_inter_times:
-                    cgb_response_time = np.zeros_like(responses[0])
-                    earth_response_time = np.zeros_like(responses[0])
-                    for i, pos_point in enumerate(points):
-                        angle_earth = np.arccos(np.dot(pos, pos_point)) * (180 / np.pi)
-                        if angle_earth > opening_angle_earth:
-                            cgb_response_time += responses[i]
-                        else:
-                            earth_response_time += responses[i]
+                    angle_earth = np.arccos(np.dot(pos, points.T)) * (180 / np.pi)
+
+                    cgb_response_time = np.sum(responses[np.where(angle_earth > opening_angle_earth)], axis=0)
+
+                    earth_response_time = np.sum(responses[np.where(angle_earth < opening_angle_earth)], axis=0)
+
                     array_cgb_response_sum.append(cgb_response_time)
                     array_earth_response_sum.append(earth_response_time)
+                    p.increase()
 
             # Collect all results in rank=0 and broadcast it to all ranks
             # in the end
@@ -197,14 +193,12 @@ class Albedo_CGB_free(object):
             with progress_bar(len(earth_pos_inter_times),
                               title='Calculating the effective response for several times.') as p:
                 for pos in self._earth_pos_inter_times:
-                    cgb_response_time = np.zeros_like(responses[0])
-                    earth_response_time = np.zeros_like(responses[0])
-                    for i, pos_point in enumerate(points):
-                        angle_earth = np.arccos(np.dot(pos, pos_point)) * (180 / np.pi)
-                        if angle_earth > opening_angle_earth:
-                            cgb_response_time += responses[i]
-                        else:
-                            earth_response_time += responses[i]
+                    angle_earth = np.arccos(np.dot(pos, points.T)) * (180 / np.pi)
+
+                    cgb_response_time = np.sum(responses[np.where(angle_earth > opening_angle_earth)], axis=0)
+
+                    earth_response_time = np.sum(responses[np.where(angle_earth < opening_angle_earth)], axis=0)
+
                     array_cgb_response_sum.append(cgb_response_time)
                     array_earth_response_sum.append(earth_response_time)
                     p.increase()
@@ -255,6 +249,13 @@ class Albedo_CGB_fixed(object):
         """
         earth_rates = self._interp_rate_earth(met)
 
+        # The interpolated rate has the dimensions (len(time_bins), 2, len(detectors), len(echans))
+        # We want (len(time_bins), len(detectors), len(echans), 2) so we net to swap axes
+        # The 2 is the start stop in the time_bins
+
+        earth_rates = np.swapaxes(earth_rates, 1, 2)
+        earth_rates = np.swapaxes(earth_rates, 2, 3)
+
         return earth_rates
 
     def get_cgb_rates(self, met):
@@ -266,7 +267,12 @@ class Albedo_CGB_fixed(object):
 
         cgb_rates = self._interp_rate_cgb(met)
 
+        # The interpolated rate has the dimensions (len(time_bins), 2, len(detectors), len(echans))
+        # We want (len(time_bins), len(detectors), len(echans), 2) so we net to swap axes
+        # The 2 is the start stop in the time_bins
 
+        cgb_rates = np.swapaxes(cgb_rates, 1, 2)
+        cgb_rates = np.swapaxes(cgb_rates, 2, 3)
 
         # cgb_rates = np.zeros((
         #     len(met),
@@ -354,7 +360,7 @@ class Albedo_CGB_fixed(object):
 
         #     interp_rate_earth[det] = interpolate.interp1d(
         #         self._geom[det].time,
-        #         self._folded_flux_earth[:, det_idx, :].T
+        #         self._folded_flux_earth[:, Det_idx, :].T
         #     )
 
         # self._interp_rate_cgb = interp_rate_cgb

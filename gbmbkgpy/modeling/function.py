@@ -321,6 +321,13 @@ class GlobalFunctionSpectrumFit(Function):
         # Get the flux for all times
         folded_flux_all_dets = self._folded_flux_inter(self._time_bins)
 
+        # The interpolated flux has the dimensions (len(time_bins), 2, len(detectors), len(echans))
+        # We want (len(time_bins), len(detectors), len(echans), 2) so we net to swap axes
+        # The 2 is the start stop in the time_bins
+
+        folded_flux_all_dets = np.swapaxes(folded_flux_all_dets, 1, 2)
+        folded_flux_all_dets = np.swapaxes(folded_flux_all_dets, 2, 3)
+
         self._source_counts = integrate.cumtrapz(folded_flux_all_dets, self._tiled_time_bins)[:, :, :, 0]
 
         self._source_counts[~self._saa_mask] = 0.

@@ -78,6 +78,10 @@ class PointSrc_fixed(object):
         """
         return self._ps_skycoord
 
+    @property
+    def geometry_time(self):
+        return self._geom[self._detectors[0]].time
+
     def get_ps_rates(self, met):
         """
         Returns an array with the predicted count rates for the times for which the geometry
@@ -85,20 +89,16 @@ class PointSrc_fixed(object):
         and the fixed spectral index defined in the init of the object.
         :param met:
         """
-        ps_rates = np.zeros((
-            len(met),
-            len(self._detectors),
-            len(self._echans),
-            2
-        ))
 
-        for det_idx, det in enumerate(self._detectors):
-            integrated_ps_rate = self._interp_rate_ps[det](met)
+        # Get the rates for all times
+        ps_rates = self._interp_rate_ps(met)
 
-            # The interpolated rate has the dimensions nr_echans, nr_time_bins, 2
-            # So we swap zeroth and first axes to get nr_time_bins, nr_echans, 2
+        # The interpolated flux has the dimensions (len(time_bins), 2, len(detectors), len(echans))
+        # We want (len(time_bins), len(detectors), len(echans), 2) so we net to swap axes
+        # The 2 is the start stop in the time_bins
 
-            ps_rates[:, det_idx, :, :] = np.swapaxes(integrated_ps_rate, 0, 1)
+        ps_rates = np.swapaxes(ps_rates, 1, 2)
+        ps_rates = np.swapaxes(ps_rates, 2, 3)
 
         return ps_rates
 
@@ -133,15 +133,12 @@ class PointSrc_fixed(object):
         self._folded_flux_ps = folded_flux_ps
 
     def _interpolate_ps_rates(self):
-        interp_rate_ps = {}
 
-        for det_idx, det in enumerate(self._detectors):
-
-            interp_rate_ps[det] = interpolate.interp1d(
-                self._geom[det].time,
-                self._folded_flux_ps[:, det_idx, :].T
-            )
-        self._interp_rate_ps = interp_rate_ps
+        self._interp_rate_ps = interpolate.interp1d(
+            self.geometry_time,
+            self._folded_flux_ps,
+            axis=0
+        )
 
     def _response_sum_one_det(self, det_response, det_geometry):
         """
