@@ -50,6 +50,9 @@ class SAA_Decay(Function):
     def set_time_bins(self, time_bins):
         self._time_bins = time_bins
 
+    def set_nr_detectors(self, nr_detectors):
+        self._nr_detectors = nr_detectors
+
     def precalulate_time_bins_integral(self):
         """
         This function is needed to do all the precalculations one can do for the later evaluation. One can precalulate
@@ -63,7 +66,9 @@ class SAA_Decay(Function):
         self._tstart = self._time_bins[:, 0][~self._idx_start]
         self._tstop = self._time_bins[:, 1][~self._idx_start]
 
-    def _evaluate(self, A, saa_decay_constant, echan=None):
+        self._out = np.zeros_like(self._time_bins[:, 0])
+
+    def _evaluate(self, A, saa_decay_constant):
         """
         Calculates the exponential decay for the SAA exit
         The the values are calculated for the start and stop times of the bins with the analytic solution of the integral
@@ -73,17 +78,18 @@ class SAA_Decay(Function):
         :param saa_decay_constant:
         :return:
         """
-
-        out = np.zeros_like(self._time_bins[:, 0])
-
         t0 = self._t0
         tstart = self._tstart
         tstop = self._tstop
 
-        # out[~self._idx_start] = ne.evaluate("-A / saa_decay_constant*(exp((t0-tstop)*saa_decay_constant) - exp((t0 - tstart)*saa_decay_constant))")
-        out[~self._idx_start] = ne.evaluate("-A / saa_decay_constant*(exp((t0-tstop)*abs(saa_decay_constant)) - exp((t0 - tstart)*abs(saa_decay_constant)))")
+        self._out[~self._idx_start] = ne.evaluate(
+            "-A / saa_decay_constant*(exp((t0-tstop)*abs(saa_decay_constant)) - exp((t0 - tstart)*abs(saa_decay_constant)))"
+        )
 
-        return out
+        return np.tile(
+            self._out,
+            (self._nr_detectors, 1)
+        ).T
 
 
 class GRB(Function):
@@ -101,7 +107,7 @@ class GRB(Function):
         self._t_rise = t_rise
         self._t_decay = t_decay
 
-    def _evaluate(self, echan=None):
+    def _evaluate(self):
         """
         Calculates a "typical" GRB pulse with a preset rise and decay time.
         The the values are calculated for the start and stop times of the bins for vectorized integration
