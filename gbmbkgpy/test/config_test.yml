@@ -6,9 +6,9 @@
 ################## General Input [Days, Detector, Data Type, Energy Channels] #######################
 general:
   dates:      ['150126']
-  detector:   'n0'
+  detectors:   ['n0']
   data_type:  'ctime'
-  echan_list: [3]
+  echans:     [3]
   min_bin_width: 40
   test: true
 
