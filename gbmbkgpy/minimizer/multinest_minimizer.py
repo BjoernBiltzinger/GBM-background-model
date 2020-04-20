@@ -52,16 +52,9 @@ class MultiNestFit(object):
 
         self._likelihood = likelihood
         self.parameters = parameters
-
-        self._day_list = self._likelihood.data.day
-        self._day = ''
-
-        for d in self._day_list:
-            self._day = d  # TODO change this; set maximum characters for multinestpath higher
-
-        self._det = self._likelihood.det
-        self._echan_list = self._likelihood.echan_list
         self._n_dim = len(self.parameters)
+
+        self._dates = self._likelihood.data.dates
 
         self.cov_matrix = None
         self.best_fit_values = None
@@ -269,38 +262,15 @@ class MultiNestFit(object):
 
     def _create_output_dir(self):
         current_time = datetime.now()
-        fits_path = os.path.join(get_path_of_external_data_dir(), 'fits/')
-        multinest_out_dir = os.path.join(get_path_of_external_data_dir(), 'fits', 'mn_out/')
-        if len(self._echan_list) == 1:
-            date_det_echan_dir = '{}_{}_{:d}/'.format(self._day, self._det, self._echan_list[0])
-        else:
-            date_det_echan_dir = '{}_{}_{:d}_ech_{:d}_to_{:d}/'.format(self._day, self._det,
-                                                                       len(self._echan_list),
-                                                                       self._echan_list[0],
-                                                                       self._echan_list[-1])
-        time_dir = current_time.strftime("%m-%d_%H-%M") + '/'
 
-        output_dir = os.path.join(multinest_out_dir, date_det_echan_dir, time_dir)
+        multinest_out_base_dir = os.path.join(get_path_of_external_data_dir(), 'fits', 'mn_out/')
 
+        output_dir = os.path.join(multinest_out_base_dir, self._dates[0], current_time.strftime("%m-%d_%H-%M") + '/')
+
+        # Create output dir for multinest if not existing
         if not os.access(output_dir, os.F_OK):
-
-            # create directory if it doesn't exist
-            if not os.access(fits_path, os.F_OK):
-                print("Making New Directory")
-                os.mkdir(fits_path)
-
-            # Create multinest_out if not existend
-            if not os.access(multinest_out_dir, os.F_OK):
-                print("Making New Directory")
-                os.mkdir(multinest_out_dir)
-
-            # Create date_det_echan_dir if not existend
-            if not os.access(os.path.join(multinest_out_dir, date_det_echan_dir), os.F_OK):
-                print("Making New Directory")
-                os.mkdir(os.path.join(multinest_out_dir, date_det_echan_dir))
-
             print("Making New Directory")
-            os.mkdir(output_dir)
+            os.makedirs(output_dir)
 
         return output_dir
 
