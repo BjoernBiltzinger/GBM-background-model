@@ -37,9 +37,12 @@ except:
 class ResultPlotGenerator(object):
     def __init__(self, config_file, result_dict):
 
-        # Load the config.yml
-        with open(config_file) as f:
-            config = yaml.load(f)
+        if isinstance(config_file, dict):
+            config = config_file
+        else:
+            # Load the config.yml
+            with open(config_file) as f:
+                config = yaml.load(f)
 
         self._result_dict = result_dict
 
@@ -169,73 +172,124 @@ class ResultPlotGenerator(object):
         )
 
     @classmethod
-    def from_result_instance(cls, config_file, data, model, saa_object, echan_list):
+    def from_result_instance(cls, config_file, data, model, saa_object):
         result_dict = {}
 
-        result_dict['det'] = data.det
-        result_dict['dates'] = data.day
+        result_dict['detectors'] = data.detectors
+        result_dict['dates'] = data.dates
+        result_dict['echans'] = data.echans
         result_dict['day_start_times'] = data.day_start_times
         result_dict['day_stop_times'] = data.day_stop_times
         result_dict['total_time_bins'] = data.time_bins[2:-2]
         result_dict['saa_mask'] = saa_object.saa_mask[2:-2]
 
-        result_dict['echans'] = {}
-
-        for echan_idx, echan in enumerate(echan_list):
-
-            result_dict['echans'][echan] = {}
-            result_dict['echans'][echan]['echan'] = echan
-
-            result_dict['echans'][echan]['model_counts'] = model.get_counts(
-                time_bins=result_dict['total_time_bins'],
-                echan=echan_idx,
+        result_dict['observed_counts'] = set_saa_zero(
+                data.counts[2:-2],
                 saa_mask=result_dict['saa_mask']
+        )
+
+        result_dict['model_counts'] = model.get_counts(
+            time_bins=result_dict['total_time_bins'],
+            saa_mask=result_dict['saa_mask']
+        )
+
+        result_dict['sources'] = {}
+
+        for i, source_name in enumerate(model.continuum_sources):
+            data = model.get_continuum_counts(
+                i, result_dict['total_time_bins'], result_dict['saa_mask']
             )
+            if np.sum(data) != 0:
+                result_dict['sources'][source_name] = data
 
-            result_dict['echans'][echan]['observed_counts'] = set_saa_zero(
-                data.counts[2:-2, echan_idx],
-                saa_mask=result_dict['saa_mask']
+        for i, source_name in enumerate(model.global_sources):
+            data = model.get_global_counts(
+                i, result_dict['total_time_bins'], result_dict['saa_mask']
             )
+            if np.sum(data) != 0:
+                result_dict['sources'][source_name] = data
 
-            result_dict['echans'][echan]['sources'] = {}
-
-            for i, source_name in enumerate(model.continuum_sources):
-                data = model.get_continuum_counts(
-                    i, result_dict['total_time_bins'], result_dict['saa_mask'], echan_idx
-                )
-                if np.sum(data) != 0:
-                    result_dict['echans'][echan]['sources'][source_name] = data
-
-            for i, source_name in enumerate(model.global_sources):
-                data = model.get_global_counts(
-                    i, result_dict['total_time_bins'], result_dict['saa_mask'], echan_idx
-                )
-                if np.sum(data) != 0:
-                    result_dict['echans'][echan]['sources'][source_name] = data
-
-            for i, source_name in enumerate(model.fit_spectrum_sources):
-                data = model.get_fit_spectrum_counts(
-                    i, result_dict['total_time_bins'], result_dict['saa_mask'], echan_idx
-                )
-                if np.sum(data) != 0:
-                    result_dict['echans'][echan]['sources'][source_name] = data
-
-            saa_data = model.get_saa_counts(
-                result_dict['total_time_bins'], result_dict['saa_mask'], echan_idx
+        for i, source_name in enumerate(model.fit_spectrum_sources):
+            data = model.get_fit_spectrum_counts(
+                i, result_dict['total_time_bins'], result_dict['saa_mask']
             )
-            if np.sum(saa_data) != 0:
-                result_dict['echans'][echan]['sources']['SAA_decays'] = saa_data
+            if np.sum(data) != 0:
+                result_dict['sources'][source_name] = data
 
-            for i, point_source in enumerate(model.point_sources):
-                data = model.get_point_source_counts(
-                    i, result_dict['total_time_bins'], result_dict['saa_mask'], echan_idx
-                )
-                if np.sum(data) != 0:
-                    result_dict['echans'][echan]['sources'][point_source] = data
+        saa_data = model.get_saa_counts(
+            result_dict['total_time_bins'], result_dict['saa_mask']
+        )
+        if np.sum(saa_data) != 0:
+            result_dict['sources']['SAA_decays'] = saa_data
 
-            result_dict['echans'][echan]['time_stamp'] = datetime.now().strftime('%y%m%d_%H%M')
+        for i, point_source in enumerate(model.point_sources):
+            data = model.get_point_source_counts(
+                i, result_dict['total_time_bins'], result_dict['saa_mask']
+            )
+            if np.sum(data) != 0:
+                result_dict['sources'][point_source] = data
 
-            result_dict['echans'][echan]['ppc_counts'] = []
+        result_dict['time_stamp'] = datetime.now().strftime('%y%m%d_%H%M')
+
+
+
+        # result_dict['echans'] = {}
+        #
+        # for echan_idx, echan in enumerate(echan_list):
+        #
+        #     result_dict['echans'][echan] = {}
+        #     result_dict['echans'][echan]['echan'] = echan
+        #
+        #     result_dict['echans'][echan]['model_counts'] = model.get_counts(
+        #         time_bins=result_dict['total_time_bins'],
+        #         echan=echan_idx,
+        #         saa_mask=result_dict['saa_mask']
+        #     )
+        #
+        #     result_dict['echans'][echan]['observed_counts'] = set_saa_zero(
+        #         data.counts[2:-2, echan_idx],
+        #         saa_mask=result_dict['saa_mask']
+        #     )
+        #
+        #     result_dict['echans'][echan]['sources'] = {}
+        #
+        #     for i, source_name in enumerate(model.continuum_sources):
+        #         data = model.get_continuum_counts(
+        #             i, result_dict['total_time_bins'], result_dict['saa_mask'], echan_idx
+        #         )
+        #         if np.sum(data) != 0:
+        #             result_dict['echans'][echan]['sources'][source_name] = data
+        #
+        #     for i, source_name in enumerate(model.global_sources):
+        #         data = model.get_global_counts(
+        #             i, result_dict['total_time_bins'], result_dict['saa_mask'], echan_idx
+        #         )
+        #         if np.sum(data) != 0:
+        #             result_dict['echans'][echan]['sources'][source_name] = data
+        #
+        #     for i, source_name in enumerate(model.fit_spectrum_sources):
+        #         data = model.get_fit_spectrum_counts(
+        #             i, result_dict['total_time_bins'], result_dict['saa_mask'], echan_idx
+        #         )
+        #         if np.sum(data) != 0:
+        #             result_dict['echans'][echan]['sources'][source_name] = data
+        #
+        #     saa_data = model.get_saa_counts(
+        #         result_dict['total_time_bins'], result_dict['saa_mask'], echan_idx
+        #     )
+        #     if np.sum(saa_data) != 0:
+        #         result_dict['echans'][echan]['sources']['SAA_decays'] = saa_data
+        #
+        #     for i, point_source in enumerate(model.point_sources):
+        #         data = model.get_point_source_counts(
+        #             i, result_dict['total_time_bins'], result_dict['saa_mask'], echan_idx
+        #         )
+        #         if np.sum(data) != 0:
+        #             result_dict['echans'][echan]['sources'][point_source] = data
+        #
+        #     result_dict['echans'][echan]['time_stamp'] = datetime.now().strftime('%y%m%d_%H%M')
+
+        #     result_dict['echans'][echan]['ppc_counts'] = []
 
         return cls(
             config_file=config_file, result_dict=result_dict
@@ -245,30 +299,39 @@ class ResultPlotGenerator(object):
 
         for day_idx, day in enumerate(self._result_dict['dates']):
 
-            for echan in self._result_dict['echans'].keys():
-                total_steps = 12 if self.show_ppc is False else 12 + len(self._result_dict['echans'][echan]['ppc_counts'])
+            for det_idx, det in enumerate(self._result_dict['detectors']):
 
-                time_stamp = datetime.now().strftime('%y%m%d_%H%M')
+                for echan_idx, echan in enumerate(self._result_dict['echans']):
 
-                plot_path = f'{output_dir}/' \
-                    f'plot_date_{day}_' \
-                    f'det_{self._result_dict["det"]}_' \
-                    f'echan_{self._result_dict["echans"][echan]["echan"]}__' \
-                    f'{time_stamp}.pdf'
+                    total_steps = 12 if self.show_ppc is False else 12 + len(self._result_dict['ppc_counts'])
 
-                self._plot_path_list.append(plot_path)
+                    time_stamp = datetime.now().strftime('%y%m%d_%H%M')
 
-                with progress_bar(total_steps, title='Create Result plot') as p:
-                    self._create_model_plots(
-                        p_bar=p,
-                        echan=echan,
-                        day_idx=day_idx,
-                        savepath=plot_path,
-                    )
+                    plot_path = f'{output_dir}/' \
+                        f'plot_date_{day}_' \
+                        f'det_{det}_' \
+                        f'echan_{echan}__' \
+                        f'{time_stamp}.pdf'
+
+                    self._plot_path_list.append(plot_path)
+
+                    with progress_bar(total_steps, title='Create Result plot') as p:
+                        self._create_model_plots(
+                            p_bar=p,
+                            det=det,
+                            det_idx=det_idx,
+                            echan=echan,
+                            echan_idx=echan_idx,
+                            day_idx=day_idx,
+                            savepath=plot_path,
+                        )
 
     def _create_model_plots(self,
                             p_bar,
+                            det,
+                            det_idx,
                             echan,
+                            echan_idx,
                             day_idx=None,
                             savepath='test.pdf',
                             **kwargs
@@ -304,10 +367,16 @@ class ResultPlotGenerator(object):
             time_frame = 'Time since midnight [{}]'.format(self.time_format)
 
         elif self.time_t0 is not None:
+            # if it is of type string, assume we are dealing with a UTC timestamp
+            if isinstance(self.time_t0, str):
 
-            day_at = astro_time.Time("%s(UTC)" % self.time_t0)
+                day_at = astro_time.Time("%s(UTC)" % self.time_t0)
 
-            self._time_ref = GBMTime(day_at).met
+                self._time_ref = GBMTime(day_at).met
+
+            # if it is of type float, assume it is in MET
+            elif isinstance(self.time_t0, float):
+                self._time_ref = self.time_t0
 
             time_frame = 't-t$_0$ [{}]'.format(self.time_format)
 
@@ -327,9 +396,9 @@ class ResultPlotGenerator(object):
                 self._result_dict['saa_mask']
             )
 
-            self._rebinned_observed_counts, _ = this_rebinner.rebin(self._result_dict['echans'][echan]['observed_counts'])
+            self._rebinned_observed_counts, _ = this_rebinner.rebin(self._result_dict['observed_counts'][:, det_idx, echan_idx])
 
-            self._rebinned_model_counts, _ = this_rebinner.rebin(self._result_dict['echans'][echan]['model_counts'])
+            self._rebinned_model_counts, _ = this_rebinner.rebin(self._result_dict['model_counts'][:, det_idx, echan_idx])
 
             self._rebinned_time_bins = this_rebinner.time_rebinned
 
@@ -337,9 +406,9 @@ class ResultPlotGenerator(object):
 
         else:
 
-            self._rebinned_observed_counts = self._result_dict['echans'][echan]['observed_counts']
+            self._rebinned_observed_counts = self._result_dict['observed_counts'][:, det_idx, echan_idx]
 
-            self._rebinned_model_counts = self._result_dict['echans'][echan]['model_counts']
+            self._rebinned_model_counts = self._result_dict['model_counts'][:, det_idx, echan_idx]
 
             self._rebinned_time_bins = self._result_dict['total_time_bins'] - self._time_ref
 
@@ -393,7 +462,7 @@ class ResultPlotGenerator(object):
         p_bar.increase()
 
         src_list = []
-        for i, (key, value) in enumerate(self._result_dict['echans'][echan]['sources'].items()):
+        for i, (key, value) in enumerate(self._result_dict['sources'].items()):
             if 'L-parameter' in key or 'BGO_CR_Approx' in key:
                 label = 'Cosmic Rays'
                 style_key = 'cr'
@@ -446,23 +515,25 @@ class ResultPlotGenerator(object):
             else:
                 label = key
                 style_key = 'default'
-                sort_idx = i + len(self._result_dict['echans'][echan]['sources'].items())
+                sort_idx = i + len(self._result_dict['sources'].items())
                 if not self.show_all_sources:
                     continue
 
             if rebin:
-                rebinned_source_counts = this_rebinner.rebin(self._result_dict['echans'][echan]['sources'][key])[0]
+                rebinned_source_counts = this_rebinner.rebin(self._result_dict['sources'][key][:, det_idx, echan_idx])[0]
             else:
-                rebinned_source_counts = self._result_dict['echans'][echan]['sources'][key]
+                rebinned_source_counts = self._result_dict['sources'][key][:, det_idx, echan_idx]
 
-            src_list.append({
-                'data': rebinned_source_counts / self._rebinned_time_bin_widths,
-                'label': label if self.source_styles[style_key].get('show_label', True) or self.source_styles['use_global'] else None,
-                'color': self.source_styles[style_key]['color'] if not self.source_styles['use_global'] else None,
-                'alpha': self.source_styles[style_key]['alpha'] if not self.source_styles['use_global'] else None,
-                'linewidth': self.source_styles[style_key]['linewidth'] if not self.source_styles['use_global'] else None,
-                'sort_idx': sort_idx
-            })
+            if np.sum(rebinned_source_counts) > 0.:
+
+               src_list.append({
+                   'data': rebinned_source_counts / self._rebinned_time_bin_widths,
+                   'label': label if self.source_styles[style_key].get('show_label', True) or self.source_styles['use_global'] else None,
+                   'color': self.source_styles[style_key]['color'] if not self.source_styles['use_global'] else None,
+                   'alpha': self.source_styles[style_key]['alpha'] if not self.source_styles['use_global'] else None,
+                   'linewidth': self.source_styles[style_key]['linewidth'] if not self.source_styles['use_global'] else None,
+                   'sort_idx': sort_idx
+               })
 
         self._source_list = sorted(src_list, key=lambda src: src['sort_idx'])
 
@@ -483,14 +554,14 @@ class ResultPlotGenerator(object):
 
         if self.show_ppc:
             rebinned_ppc_rates = []
-            for j, ppc in enumerate(self._result_dict['echans'][echan]['ppc_counts']):
+            for j, ppc in enumerate(self._result_dict['ppc_counts']):
                 set_saa_zero(
-                    self._result_dict['echans'][echan]['ppc_counts'][j], saa_mask=self._result_dict['saa_mask']
+                    self._result_dict['ppc_counts'][j], saa_mask=self._result_dict['saa_mask']
                 )
                 if rebin:
-                    rebinned_ppc_rates.append(this_rebinner.rebin(self._result_dict['echans'][echan]['ppc_counts'][j][2:-2]) / self._rebinned_time_bin_widths)
+                    rebinned_ppc_rates.append(this_rebinner.rebin(self._result_dict['ppc_counts'][j][2:-2]) / self._rebinned_time_bin_widths)
                 else:
-                    rebinned_ppc_rates.append(self._result_dict['echans'][echan]['ppc_counts'][j][2:-2] / self._rebinned_time_bin_widths)
+                    rebinned_ppc_rates.append(self._result_dict['ppc_counts'][j][2:-2] / self._rebinned_time_bin_widths)
 
                 p_bar.increase()
             rebinned_ppc_rates = np.array(rebinned_ppc_rates)
@@ -537,7 +608,7 @@ class ResultPlotGenerator(object):
         xlabel = "{}".format(time_frame) if self.xlabel is None else self.xlabel
         ylabel = "Count Rate [counts s$^{-1}$]" if self.ylabel is None else self.ylabel
 
-        axis_title = "Detector: {} Date: {} Energy: {}".format(self._result_dict['det'],
+        axis_title = "Detector: {} Date: {} Energy: {}".format(det,
                                                                self._result_dict['dates'][day_idx],
                                                                self._get_echan_str(echan)) if self.axis_title is None else self.axis_title
 
