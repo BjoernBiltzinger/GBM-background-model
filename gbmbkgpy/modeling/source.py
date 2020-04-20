@@ -18,7 +18,7 @@ class Source(object):
     def recalculate_counts(self):
         self._shape.recalculate_counts()
 
-    def get_counts(self, time_bins, index, bin_mask=None):
+    def get_counts(self, time_bins, bin_mask=None):
         """
         Calls the evaluation of the source to get the counts per bin. Uses a bin_mask to exclude some bins if needed.
         No need of integration here anymore! This is done in the function class of the sources!
@@ -29,7 +29,7 @@ class Source(object):
         """
         if bin_mask is None:
             bin_mask = np.ones(len(time_bins), dtype=bool)  # np.full(len(time_bins), True)
-        return self._shape(index)[bin_mask]
+        return self._shape()[bin_mask]
 
     @property
     def name(self):
