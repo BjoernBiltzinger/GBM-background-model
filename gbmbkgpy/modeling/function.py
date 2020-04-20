@@ -122,9 +122,9 @@ class ContinuumFunction(Function):
             time_bins,
             (self._function_array.shape[1], 1, 1)
         )
-        print(tiled_time_bins.shape)
+
         tiled_time_bins = np.swapaxes(tiled_time_bins, 0, 1)
-        print(tiled_time_bins.shape)
+
         self._source_counts = integrate.cumtrapz(self._function_array, tiled_time_bins)[:, :, 0]
 
     def _evaluate(self, K):
