@@ -48,40 +48,36 @@ valid_det_names = [
 
 
 class TrigData(object):
-    def __init__(self, trigger, detector, data_type, echan_list, test=False):
+    def __init__(self, trigger, detectors, data_type, echans, test=False):
         """
         Initalize the TrigData Class, which contains the information about the time bins
         and counts of the data.
         """
         assert data_type == "trigdat", "Please use a valid data type: trigdat"
-        assert (
-            detector in valid_det_names
-        ), "Please use a valid det name. One of these: {}".format(valid_det_names)
 
-        assert (
-            len(trigger) == 11
-        ), "Please provide a valid trigger in the format bnYYMMDDxxx"
+        for det in detectors:
+            assert det in valid_det_names, 'Please use a valid det name. One of these: {}'.format(valid_det_names)
+
+        assert len(trigger) == 11, \
+                "Please provide a valid trigger in the format bnYYMMDDxxx"
 
         if data_type == "trigdat":
             assert (
-                type(echan_list)
-                and max(echan_list) <= 7
-                and min(echan_list) >= 0
-                and all(isinstance(x, int) for x in echan_list)
-            ), (
-                "Echan_list variable must be a list and can only "
-                "have integer entries between 0 and 7"
-            )
+                type(echans)
+                and max(echans) <= 7
+                and min(echans) >= 0
+                and all(isinstance(x, int) for x in echans)
+            ), "Echan_list variable must be a list and can only have integer entries between 0 and 7"
 
         self._data_type = data_type
-        self._det = detector
-        self._det_idx = valid_det_names.index(detector)
+        self._detectors = detectors
+        self._detectors_idx = [valid_det_names.index(det) for det in detectors]
         self._trigger = trigger
-        self._echan_list = echan_list
+        self._echans = echans
 
         if self._data_type == "trigdat":
             self._echan_mask = np.zeros(8, dtype=bool)
-            for e in echan_list:
+            for e in echans:
                 self._echan_mask[e] = True
 
         self._build_arrays()
@@ -102,19 +98,23 @@ class TrigData(object):
 
         self._data_rebinner = Rebinner(self._time_bins, min_bin_width, mask=saa_mask)
 
-        for i, echan in enumerate(self._echan_list):
-            if i == 0:
-                count_array_tmp = self._data_rebinner.rebin(self._counts[:, i])[0]
-                count_array = np.zeros((len(count_array_tmp), len(self._echan_list)))
-                count_array[:, i] = count_array_tmp
-            else:
-                count_array[:, i] = self._data_rebinner.rebin(self._counts[:, i])[0]
-
-        self._rebinned_counts = count_array.astype(np.uint16)
-
         self._rebinned_time_bins = self._data_rebinner.time_rebinned
 
         self._rebinned_saa_mask = self._data_rebinner.rebinned_saa_mask
+
+        rebinned_counts = np.zeros((
+            len(self._rebinned_time_bins),
+            len(self._detectors),
+            len(self._echans)
+        ))
+
+        for det_idx, det in enumerate(self._detectors):
+
+            for echan_idx, echan in enumerate(self._echans):
+
+                rebinned_counts[:, det_idx, echan_idx] = self._data_rebinner.rebin(self._counts[:, det_idx, echan_idx])[0]
+
+        self._rebinned_counts = rebinned_counts.astype(np.uint16)
 
     @property
     def counts(self):
@@ -185,7 +185,7 @@ class TrigData(object):
         return np.array([self._time_bins[0, 0]])
 
     @property
-    def day(self):
+    def dates(self):
         """
         Returns the trigger name to keep it conform with daily data, this is used to create the output directory
         :return:
@@ -202,12 +202,20 @@ class TrigData(object):
             )
 
     @property
-    def det(self):
+    def detectors(self):
         """
         Returns the used detector
         :return:
         """
-        return self._det
+        return self._detectors
+
+    @property
+    def echans(self):
+        """
+        Returns the used detector
+        :return:
+        """
+        return self._echans
 
     @property
     def data_type(self):
@@ -220,30 +228,27 @@ class TrigData(object):
     @property
     def trigger(self):
         """
-        Returns trigger
+        Returns trigger number
         :return:
         """
         return self._trigger
 
     @property
     def trigtime(self):
+        """
+        Returns the trigger time
+        :return:
+        """
         return self._trigtime
 
     @property
     def trigdata_path(self):
         """
-        Returns trigger
+        Returns the path to the trigdat file
         :return:
         """
         return self._trigdata_path
 
-    @property
-    def detector_id(self):
-        """
-        Returns detector number
-        :return:
-        """
-        return self._det[-1]
 
     def _build_arrays(self):
         year = "20%s" % self._trigger[2:4]
@@ -291,7 +296,7 @@ class TrigData(object):
         bin_start[~(myDelta < 0.1)] = np.round(bin_start[~(myDelta < 0.1)], 3)
         bin_stop[~(myDelta < 0.1)] = np.round(bin_stop[~(myDelta < 0.1)], 3)
 
-        fine = True
+        fine = False
 
         if fine:
 
@@ -369,23 +374,41 @@ class TrigData(object):
         rates = rates[all_index, :, :]
 
         # Now we need to sort because GBM may not have done this!
-
         sort_mask = np.argsort(bin_start)
         bin_start = bin_start[sort_mask]
         bin_stop = bin_stop[sort_mask]
         rates = rates[sort_mask, :, :]
 
-        from threeML.utils.time_interval import TimeIntervalSet
+        time_bins = np.vstack((bin_start, bin_stop)).T
 
-        self._time_intervals = TimeIntervalSet.from_starts_and_stops(
-            bin_start, bin_stop
-        )
+        # Sometime time bins are inverted so we swap them
+        swap_bins_if_inverted = True
 
-        counts = rates[:, self._det_idx, :] * self._time_intervals.widths.reshape(
-            (len(self._time_intervals), 1)
-        )
+        if swap_bins_if_inverted:
+            for bin in time_bins:
+                if bin[0] > bin[1]:
+                    start = bin[1]
+                    stop = bin[0]
 
-        time_bins = self._time_intervals.bin_stack
+                    bin[0] = start
+                    bin[1] = stop
+
+        time_bin_widths = np.diff(time_bins, axis=1)[:, 0]
+
+        # Calculate the photon counts by multiplying the count-rate with the bin_width
+
+        counts = np.zeros((
+            len(time_bins),
+            len(self._detectors),
+            len(self._echans)
+        ))
+
+
+        for det_idx, det_data_idx in enumerate(self._detectors_idx):
+
+            for echan_idx, echan_data_idx in enumerate(self._echans):
+
+                counts[:, det_idx, echan_idx] = rates[:, det_data_idx, echan_data_idx] * time_bin_widths
 
         self._counts = counts
         self._time_bins = time_bins
