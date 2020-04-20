@@ -1,10 +1,8 @@
 from math import sqrt
 
-import numpy as np
-import pandas as pd
 import scipy.interpolate
 import scipy.stats
-import warnings
+from past.utils import old_div
 from scipy.special import erfinv
 import warnings as custom_warnings
 from gbmbkgpy.utils.differentiation import *
@@ -19,13 +17,16 @@ class PoissonResiduals(object):
     This class implements a way to compute residuals for a Poisson distribution mapping them to residuals of a standard
     normal distribution. The probability of obtaining the observed counts given the expected one is computed, and then
     transformed "in unit of sigma", i.e., the sigma value corresponding to that probability is computed.
+
     The algorithm implemented here uses different branches so that it is fairly accurate between -36 and +36 sigma.
+
     NOTE: if the expected number of counts is not very high, then the Poisson distribution is skewed and so the
     probability of obtaining a downward fluctuation at a given sigma level is not the same as obtaining the same
     fluctuation in the upward direction. Therefore, the distribution of residuals is *not* expected to be symmetric
     in that case. The sigma level at which this effect is visible depends strongly on the expected number of counts.
     Under normal circumstances residuals are expected to be a few sigma at most, in which case the effect becomes
     important for expected number of counts <~ 15-20.
+
     """
 
     # Putting these here make them part of the *class*, not the instance, i.e., they are created
@@ -41,12 +42,11 @@ class PoissonResiduals(object):
     # Make the interpolator here so we do it only once. Also use ext=3 so that the interpolation
     # will return the maximum value instead of extrapolating
 
-
     _interpolator = scipy.interpolate.InterpolatedUnivariateSpline(_logy[::-1], _x[::-1], k=1, ext=3)
 
     def __init__(self, Non, Noff, alpha=1.0):
 
-        assert alpha > 0 and alpha <= 1, 'alpha was %f' %alpha
+        assert alpha > 0 and alpha <= 1, 'alpha was %f' % alpha
 
         self.Non = np.array(Non, dtype=float, ndmin=1)
 
@@ -119,11 +119,12 @@ class PoissonResiduals(object):
 class Significance(object):
     """
     Implements equations in Li&Ma 1983
+
     """
 
     def __init__(self, Non, Noff, alpha=1):
 
-        assert alpha > 0 and alpha <= 1,  'alpha was %f' %alpha
+        assert alpha > 0 and alpha <= 1, 'alpha was %f' % alpha
 
         self.Non = np.array(Non, dtype=float, ndmin=1)
 
@@ -140,12 +141,15 @@ class Significance(object):
         Compute the significance under the hypothesis that there is no uncertainty in the background. In other words,
         compute the probability of obtaining the observed counts given the expected counts from the background, then
         transform it in sigma.
+
         NOTE: this is reliable for expected counts >~10-15 if the significance is not very high. The higher the
         expected counts, the more reliable the significance estimation. As rule of thumb, you need at least 25 counts
         to have reliable estimates up to 5 sigma.
+
         NOTE 2: if you use to compute residuals in units of sigma, you should not expected them to be symmetrically
         distributed around 0 unless the expected number of counts is high enough for all bins (>~15). This is due to
         the fact that the Poisson distribution is very skewed at low counts.
+
         :return: significance vector
         """
 
@@ -159,6 +163,7 @@ class Significance(object):
         """
         Compute the significance using the formula from Li & Ma 1983, which is appropriate when both background and
         observed signal are counts coming from a Poisson distribution.
+
         :param assign_sign: whether to assign a sign to the significance, according to the sign of the net counts
         Non - alpha * Noff, so that excesses will have positive significances and defects negative significances
         :return:
@@ -168,12 +173,12 @@ class Significance(object):
 
         idx = self.Non > 0
 
-        one[idx] = self.Non[idx] * np.log((1 + self.alpha) / self.alpha *
-                                          (self.Non[idx] / (self.Non[idx] + self.Noff[idx])))
+        one[idx] = self.Non[idx] * np.log(old_div((1 + self.alpha), self.alpha) *
+                                          (old_div(self.Non[idx], (self.Non[idx] + self.Noff[idx]))))
 
         two = np.zeros_like(self.Noff, dtype=float)
 
-        two[idx] = self.Noff[idx] * np.log((1 + self.alpha) * (self.Noff[idx] / (self.Non[idx] + self.Noff[idx])))
+        two[idx] = self.Noff[idx] * np.log((1 + self.alpha) * (old_div(self.Noff[idx], (self.Non[idx] + self.Noff[idx]))))
 
         if assign_sign:
 
@@ -186,15 +191,27 @@ class Significance(object):
         return sign * np.sqrt(2 * (one + two))
 
     def li_and_ma_equivalent_for_gaussian_background(self, sigma_b):
+        """
+        Compute the significance using the formula from Vianello 2018
+        (https://iopscience.iop.org/article/10.3847/1538-4365/aab780/meta),
+        which is appropriate when the observation is Poisson distributed but
+        the background has been modeled and thus has Gaussian distributed errors.
+
+        :param sigma_b: The gaussian 1 sigma errors on the background
+        :return:
+
+        """
 
         # This is a computation I need to publish (G. Vianello)
+
+        # Actually, you did (and beat J. Michael!) For details on this computation
 
         b = self.expected
         o = self.Non
 
         b0 = 0.5 * (np.sqrt(b ** 2 - 2 * sigma_b ** 2 * (b - 2 * o) + sigma_b ** 4) + b - sigma_b ** 2)
 
-        S = sqrt(2) * np.sqrt(o * np.log(o / b0) + (b0 - b) ** 2 / (2 * sigma_b ** 2) + b0 - o)
+        S = sqrt(2) * np.sqrt(o * np.log(old_div(o, b0)) + old_div((b0 - b) ** 2, (2 * sigma_b ** 2)) + b0 - o)
 
         sign = np.where(o > b, 1, -1)
 
