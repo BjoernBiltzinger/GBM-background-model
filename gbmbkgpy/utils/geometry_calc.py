@@ -32,7 +32,31 @@ valid_det_names = ['n0', 'n1', 'n2', 'n3', 'n4', 'n5', 'n6', 'n7', 'n8', 'n9', '
 
 
 class Geometry(object):
-    def __init__(self, data, det, day_list, n_bins_to_calculate_per_day):
+
+    def __init__(self, data, detectors, dates, n_bins_to_calculate_per_day):
+        geometries = {}
+
+        geometry_times = None
+
+        for det in detectors:
+            geometries[det] = Det_Geometry(data, det, dates, n_bins_to_calculate_per_day)
+
+            # Assert that the times where the geometry is calculated is the same for all detectors
+            # this will allow us the speed up the following calculations
+            if geometry_times is None:
+                geometry_times = geometries[det].time
+            else:
+                assert np.array_equal(geometry_times, geometries[det].time)
+
+        self._geometries = geometries
+
+    @property
+    def geometries(self):
+        return self._geometries
+
+
+class Det_Geometry(object):
+    def __init__(self, data, det, dates, n_bins_to_calculate_per_day):
         """
         Initalize the geometry precalculation. This calculates several quantities (e.g. Earth
         position in the satellite frame for n_bins_to_calculate times during the day
@@ -50,10 +74,10 @@ class Geometry(object):
         self._n_bins_to_calculate_per_day = n_bins_to_calculate_per_day
         self._day_start_times = data.day_start_times
         self._day_stop_times = data.day_stop_times
-        self._day_list = sorted(day_list)  # map(str, sorted(map(int, day_list)))
+        self._day_list = sorted(dates)  # map(str, sorted(map(int, day_list)))
 
         # Number of bins to skip, to equally distribute the n_bins_to_calculate times over the day
-        n_skip = int(np.ceil(len(self.mean_time) / (self._n_bins_to_calculate_per_day * len(day_list))))
+        n_skip = int(np.ceil(len(self.mean_time) / (self._n_bins_to_calculate_per_day * len(dates))))
 
         # Create the lists of the times where to calculate the geometry
         list_times_to_calculate = self.mean_time[::n_skip]
@@ -80,7 +104,7 @@ class Geometry(object):
         else:
             # Check if poshist file exists, if not download it and save the paths for all days in an array
             self._pos_hist = np.array([])
-            for day in day_list:
+            for day in dates:
                 poshistfile_name = 'glg_{0}_all_{1}_v00.fit'.format('poshist', day)
                 poshistfile_path = os.path.join(get_path_of_external_data_dir(), 'poshist', poshistfile_name)
 
@@ -101,7 +125,7 @@ class Geometry(object):
 
 
         # Calculate Geometry. With or without Mpi support.
-        for day_number, day in enumerate(day_list):
+        for day_number, day in enumerate(dates):
             if using_mpi:
                 sun_angle, sun_positions, time, earth_az, earth_zen, earth_position, quaternion, sc_pos, times_lower_bound_index, times_upper_bound_index = \
                     self._one_day_setup_geometery_mpi(day_number)
