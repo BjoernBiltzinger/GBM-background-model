@@ -5,8 +5,8 @@ import numpy as np
 from gbmbkgpy.io.export import DataExporter
 from gbmbkgpy.io.file_utils import file_existing_and_readable
 from gbmbkgpy.io.package_data import get_path_of_external_data_dir
-from gbmbkgpy.io.plotting.plot import Plotter
 from gbmbkgpy.utils.model_generator import BackgroundModelGenerator
+from gbmbkgpy.io.plotting.result_plot import ResultPlotGenerator
 from gbmbkgpy.minimizer.multinest_minimizer import MultiNestFit
 from gbmbkgpy.data.continuous_data import Data
 from gbmbkgpy.data.external_prop import ExternalProps
@@ -93,8 +93,8 @@ def test_data_export():
     )
 
     result_file_name = "fit_result_{}_{}_e{}.hdf5".format(config['general']['dates'],
-                                                          config['general']['detector'],
-                                                          config['general']['echan_list'])
+                                                          config['general']['detectors'],
+                                                          config['general']['echans'])
 
     data_exporter.save_data(
         file_path=os.path.join(pytest._test_output_dir, result_file_name),
@@ -108,38 +108,22 @@ def test_data_export():
 def test_plotting():
     config = pytest._test_model_generator.config
     # Create Plotter object that creates the plots
-    plotter = Plotter(
+
+    plot_generator = ResultPlotGenerator.from_result_instance(
+        config_file=config,
         data=pytest._test_model_generator.data,
         model=pytest._test_model_generator.model,
         saa_object=pytest._test_model_generator.saa_calc,
-        echan_list=pytest._test_model_generator.config['general']['echan_list']
     )
 
-    # Create one plot for every echan and save it
-    for index, echan in enumerate(pytest._test_model_generator.config['general']['echan_list']):
-        residual_plot = plotter.display_model(
-            index=index,
-            min_bin_width=config['plot']['bin_width'],
-            show_residuals=config['plot']['show_residuals'],
-            show_data=config['plot']['show_data'],
-            plot_sources=config['plot']['plot_sources'],
-            show_grb_trigger=config['plot']['show_grb_trigger'],
-            change_time=config['plot']['change_time'],
-            ppc=config['plot']['ppc'],
-            result_dir=pytest._test_output_dir,
-            xlim=config['plot']['xlim'],
-            ylim=config['plot']['ylim'],
-            legend_outside=config['plot']['legend_outside']
-        )
+    plot_generator.create_plots(
+        output_dir=pytest._test_output_dir
+    )
 
-    plot_file_name = 'residual_plot_{}_det_{}_echan_{}_bin_width_{}.pdf'.format(config['general']['dates'],
-                                                                                config['general']['detector'],
-                                                                                echan,
-                                                                                config['plot']['bin_width'])
-    residual_plot.savefig(os.path.join(pytest._test_output_dir, plot_file_name), dpi=300)
+    for plot_path in plot_generator._plot_path_list:
+        assert file_existing_and_readable(plot_path)
 
-    assert file_existing_and_readable(os.path.join(pytest._test_output_dir, plot_file_name))
-
+        os.remove(plot_path)
 
 
 @pytest.mark.run(order=5)
