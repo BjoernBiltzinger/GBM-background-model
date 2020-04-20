@@ -8,20 +8,17 @@ from gbmbkgpy.modeling.model import Model
 
 class BackgroundLike(object):
 
-    def __init__(self, data, model, saa_object, echan_list):
+    def __init__(self, data, model, saa_object):
         """
         Init backgroundlike that compares the data with the model
         :param data:
         :param model:
-        :param echan_list:
+        :param echans:
         """
 
         self._data = data  # type: Data
         self._model = model  # type: Model
-        self._echan_names = echan_list
-        self._echan_list = np.arange(len(echan_list))  # list of index of all echans which should be fitted
 
-        self._name = "Count rate detector %s" % self._data.det
         # The MET start time of the day
 
         self._free_parameters = self._model.free_parameters
@@ -40,9 +37,9 @@ class BackgroundLike(object):
         # Get the valid time bins by including the total_mask
         self._time_bins = self._total_time_bins[self._total_mask]
 
-        # Extract the counts from the data object. should be same size as time bins. For all echans together
-        self._counts_all_echan = self._data.counts[2:-2][self._total_mask]
-        self._total_counts_all_echan = self._data.counts[2:-2]
+        # Extract the counts from the data object. should be same size as time bins.
+        self._total_counts = self._data.counts[2:-2]
+        self._masked_counts = self._data.counts[2:-2][self._total_mask]
 
         self._total_scale_factor = 1.
         self._grb_mask_calculated = False
@@ -69,14 +66,14 @@ class BackgroundLike(object):
 
         self._model.set_free_parameters(new_parameters)
 
-    def model_counts(self, echan):
+    def model_counts(self):
         """
         Returns the predicted counts from the model for all time bins,
         the saa_mask sets the SAA sections to zero.
         :return:
         """
 
-        return self._model.get_counts(self._total_time_bins, echan, saa_mask=self._saa_mask)
+        return self._model.get_counts(self._total_time_bins, saa_mask=self._saa_mask)
 
     @property
     def get_normalization_parameter_list(self):
@@ -200,24 +197,20 @@ class BackgroundLike(object):
 
     def __call__(self, parameters):
         """
-        
         :return: the poisson log likelihood
         """
         self._set_free_parameters(parameters)
 
-        log_likelihood_list = []
         ######### Calculate rates for new spectral parameter
         for source in self._sources_fit_spectrum:
             source.recalculate_counts()
         ########
-        for echan in self._echan_list:
-            log_likelihood_list.append(self._get_log_likelihood_echan(echan))
-        log_likelihood_list = np.array(log_likelihood_list)
-        return np.sum(log_likelihood_list)
 
-    def _get_log_likelihood_echan(self, echan):
+        return self._get_log_likelihood()
 
-        M = self._evaluate_model(echan)
+    def _get_log_likelihood(self):
+
+        M = self._evaluate_model()
         # Poisson loglikelihood statistic (Cash) is:
         # L = Sum ( M_i - D_i * log(M_i))
 
@@ -226,32 +219,32 @@ class BackgroundLike(object):
         # whatever value has log(M_i). Thus, initialize the whole vector v = {v_i}
         # to zero, then overwrite the elements corresponding to D_i > 0
 
-        counts = self._counts_all_echan[:, echan]
+        counts = self._masked_counts
         d_times_logM = ne.evaluate("counts*logM")
 
         log_likelihood = ne.evaluate("sum(M - d_times_logM)")
         return log_likelihood
 
-    def _evaluate_model(self, echan):
+    def _evaluate_model(self):
         """
         Loops over time bins and extracts the model counts and returns this array
         :return:
         """
 
-        return self._model.get_counts(self._time_bins, echan, bin_mask=self._total_mask)
+        return self._model.get_counts(time_bins=self._time_bins, bin_mask=self._total_mask)
 
     def _evaluate_logM(self, M):
         # Evaluate the logarithm with protection for negative or small
         # numbers, using a smooth linear extrapolation (better than just a sharp
         # cutoff)
-        tiny = np.float64(np.finfo(M[0]).tiny)
+        tiny = np.float64(np.finfo(M[0][0][0]).tiny)
 
         non_tiny_mask = (M > 2.0 * tiny)
 
         tink_mask = np.logical_not(non_tiny_mask)
 
         if (len(tink_mask.nonzero()[0]) > 0):
-            logM = np.zeros(len(M))
+            logM = np.zeros_like(M)
             logM[tink_mask] = np.abs(M[tink_mask]) / tiny + np.log(tiny) - 1
             logM[non_tiny_mask] = np.log(M[non_tiny_mask])
 
@@ -304,9 +297,9 @@ class BackgroundLike(object):
         # Get the valid time bins by including the total_mask
         self._time_bins = self._total_time_bins[self._total_mask]
 
-        # Extract the counts from the data object. should be same size as time bins. For all echans together
-        self._counts_all_echan = self._data.counts[2:-2][self._total_mask]
-        self._total_counts_all_echan = self._data.counts[2:-2]
+        # Extract the counts from the data object. should be same size as time bins.
+        self._masked_counts = self._data.counts[2:-2][self._total_mask]
+        self._total_counts = self._data.counts[2:-2]
 
     def _parse_interval(self, time_interval):
         """
@@ -333,18 +326,9 @@ class BackgroundLike(object):
         # Get the valid time bins by including the total_mask
         self._time_bins = self._total_time_bins[self._total_mask]
 
-        # Extract the counts from the data object. should be same size as time bins. For all echans together
-        self._counts_all_echan = self._data.counts[2:-2][self._total_mask]
-        self._total_counts_all_echan = self._data.counts[2:-2]
-
-
-    @property
-    def det(self):
-        return self._data.det
-
-    @property
-    def echan_list(self):
-        return self._echan_names
+        # Extract the counts from the data object. should be same size as time bins.
+        self._masked_counts = self._data.counts[2:-2][self._total_mask]
+        self._total_counts = self._data.counts[2:-2]
 
     @property
     def data(self):
