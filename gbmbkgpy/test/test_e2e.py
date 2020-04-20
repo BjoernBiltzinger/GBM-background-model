@@ -63,7 +63,7 @@ def test_fitting():
         )
 
         # Plot Marginals
-        minimizer.plot_marginals()
+        minimizer.create_corner_plot()
     else:
         raise KeyError('Invalid fit method')
 
