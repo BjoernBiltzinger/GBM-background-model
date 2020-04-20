@@ -93,7 +93,7 @@ class SAA_calc(object):
         jump = self._time_bins[1:, 0] - self._time_bins[:-1, 1]
 
         # Get mask for which the jump is > 1 second
-        jump_large = jump > 1
+        jump_large = jump > 10
 
         # Get the indices of the time bins for which the jump to the previous time bin is >1 second
         # +1 is needed because we started with second time bin (we can not calculate the time jump
