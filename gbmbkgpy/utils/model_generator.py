@@ -84,7 +84,7 @@ class BackgroundModelGenerator(object):
         self._setup_sources(config)
 
 
-        self._instantiate_model()
+        self._instantiate_model(config)
 
 
         self._build_parameter_bounds(config)
@@ -96,10 +96,10 @@ class BackgroundModelGenerator(object):
     def _instantiate_data_class(self, config):
         print_progress('Prepare data...')
         self._data = Data(
-            date= config['general']['dates'],
-            detector=config['general']['detector'],
+            dates= config['general']['dates'],
+            detectors=config['general']['detectors'],
             data_type=config['general']['data_type'],
-            echan_list=config['general']['echan_list'],
+            echans=config['general']['echans'],
             test=config['general'].get('test', False)
         )
         print_progress('Done')
@@ -132,8 +132,8 @@ class BackgroundModelGenerator(object):
         print_progress('Download and prepare external properties...')
 
         self._ep = ExternalProps(
-            day_list=config['general']['dates'],
-            det=config['general']['detector'],
+            dates=config['general']['dates'],
+            detectors=config['general']['detectors'],
             bgo_cr_approximation=config['setup']['bgo_cr_approximation']
         )
 
@@ -146,9 +146,9 @@ class BackgroundModelGenerator(object):
         print_progress('Precalculate responses for {} points on sphere around detector...'.format(config['response']['Ngrid']))
 
         self._resp = Response_Precalculation(
-            det=config['general']['detector'],
-            day=config['general']['dates'],
-            echan_list=config['general']['echan_list'],
+            detectors=config['general']['detectors'],
+            dates=config['general']['dates'],
+            echans=config['general']['echans'],
             Ngrid=config['response']['Ngrid'],
             data_type=config['general']['data_type']
         )
@@ -161,8 +161,8 @@ class BackgroundModelGenerator(object):
 
         self._geom = Geometry(
             data=self._data,
-            det=config['general']['detector'],
-            day_list= config['general']['dates'],
+            detectors=config['general']['detectors'],
+            dates= config['general']['dates'],
             n_bins_to_calculate_per_day= config['geometry']['n_bins_to_calculate'],
         )
 
@@ -179,7 +179,10 @@ class BackgroundModelGenerator(object):
         else:
             self._albedo_cgb_obj = Albedo_CGB_free(self._resp, self._geom)
 
-        self._sun_obj = Sun(self._resp, self._geom, config['general']['echan_list'])
+        if config['setup']['use_sun']:
+            self._sun_obj = Sun(self._resp, self._geom, config['general']['echan_list'])
+        else:
+            self._sun_obj = None
 
         print_progress('Create Source list...')
 
@@ -187,10 +190,10 @@ class BackgroundModelGenerator(object):
             data=self._data,
             saa_object=self._saa_calc,
             ep=self._ep,
-            geom_object=self._geom,
+            det_geometries=self._geom,
             sun_object=self._sun_obj,
-            echan_list=config['general']['echan_list'],
-            response_object=self._resp,
+            echans=config['general']['echans'],
+            det_responses=self._resp,
             albedo_cgb_object=self._albedo_cgb_obj,
             use_saa=config['setup']['use_saa'],
             use_constant=config['setup']['use_constant'],
@@ -209,9 +212,13 @@ class BackgroundModelGenerator(object):
         print_progress('Done')
 
 
-    def _instantiate_model(self):
+    def _instantiate_model(self, config):
         print_progress('Build model with source_list...')
-        self._model = Model(*self._source_list)
+        self._model = Model(
+            *self._source_list,
+            echans=config['general']['echans'],
+            detectors=config['general']['detectors']
+        )
         print_progress('Done')
 
 
@@ -219,7 +226,7 @@ class BackgroundModelGenerator(object):
         parameter_bounds = {}
 
         # Echan individual sources
-        for e in config['general']['echan_list']:
+        for e in config['general']['echans']:
 
             if config['setup']['use_saa']:
 
@@ -342,7 +349,6 @@ class BackgroundModelGenerator(object):
             data=self._data,
             model=self._model,
             saa_object=self._saa_calc,
-            echan_list=config['general']['echan_list']
         )
         print_progress('Done')
 
@@ -393,9 +399,9 @@ class TrigdatBackgroundModelGenerator(BackgroundModelGenerator):
         print_progress('Prepare data...')
         self._data = TrigData(
             trigger= config['general']['trigger'],
-            detector=config['general']['detector'],
+            detectors=config['general']['detectors'],
             data_type=config['general']['data_type'],
-            echan_list=config['general']['echan_list'],
+            echans=config['general']['echans'],
             test=config['general'].get('test', False)
         )
         print_progress('Done')
@@ -406,9 +412,9 @@ class TrigdatBackgroundModelGenerator(BackgroundModelGenerator):
         print_progress('Precalculate responses for {} points on sphere around detector...'.format(config['response']['Ngrid']))
 
         self._resp = Response_Precalculation(
-            det=config['general']['detector'],
-            day=config['general']['dates'],
-            echan_list=config['general']['echan_list'],
+            detectors=config['general']['detectors'],
+            dates=config['general']['dates'],
+            echans=config['general']['echans'],
             Ngrid=config['response']['Ngrid'],
             data_type=config['general']['data_type'],
             trigger=config['general']['trigger']
