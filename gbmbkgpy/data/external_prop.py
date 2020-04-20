@@ -39,18 +39,23 @@ except:
 
 class ExternalProps(object):
 
-    def __init__(self, day_list, det=None, bgo_cr_approximation=False):
+    def __init__(self, dates, detectors, bgo_cr_approximation=False):
         """
         Build the external properties for a given day
-        :param day_list: [YYMMDD, YYMMDD,]
+        :param detectors: list
+        :param dates: [YYMMDD, YYMMDD,]
         """
 
-        assert len(day_list[0]) == 6, 'Day must be in format YYMMDD'
+        assert len(dates[0]) == 6, 'Day must be in format YYMMDD'
+        self._detectors = detectors
+
+        self._side_0 = ['n0', 'n1', 'n2', 'n3', 'n4', 'n5']
+        self._side_1 = ['n6', 'n7', 'n8', 'n9', 'na', 'nb']
 
         # Global list which weeks where already added to the lat data (to prevent double entries later)
         self._weeks = np.array([])
         if not bgo_cr_approximation:
-            for i, date in enumerate(day_list):
+            for i, date in enumerate(dates):
                 mc_l, mc_b, lat_time, lat_geo, lon_geo = self._one_day_build_lat_spacecraft(date)
                 if i == 0:
                     self._mc_l = mc_l
@@ -66,48 +71,78 @@ class ExternalProps(object):
                     self._lon_geo = np.append(self._lon_geo, lon_geo)
             self._mc_l_interp = interpolate.interp1d(self._lat_time, self._mc_l)
         else:
-            for i, date in enumerate(day_list):
-                times, rates = self._bgo_cr_approximation(date, det)
-                if i == 0:
-                    self._bgo_times = times
-                    self._bgo_rates = rates
-                else:
-                    self._bgo_rates = np.append(self._bgo_rates, rates)
-                    self._bgo_times = np.append(self._bgo_times, times)
-            # self._bgo_rate_interp = interpolate.interp1d(self._bgo_times, self._bgo_rates)
-            self._bgo_rate_interp = interpolate.UnivariateSpline(self._bgo_times, self._bgo_rates, s=1000, k=3)
+            self._build_bgo_cr_approximation(dates, detectors)
 
-    def build_point_sources(self, rsp, geom, echan_list, free_spectrum=[]):
+    def build_point_sources(self, det_responses, det_geometries, echans, include_all_ps=False, point_source_list=[], free_spectrum=[]):
         """
-        Build all PS saved in the txt file
+        This function reads the point_sources.dat file and builds the point sources
+        :param echans:
+        :param include_all_ps:
+        :param source_list:
         :param free_spectrum:
-        :param echan_list:
-        :param rsp: response_precalculation
-        :param geom: geometry_precalculation
         :return:
         """
-        self._rsp = rsp
-        self._geom = geom
-        self._build_point_sources(echan_list, free_spectrum=free_spectrum)
 
-    def build_some_source(self, rsp, geom, source_list, echan_list, free_spectrum=[]):
-        """
-        Build the PS form the text file with a certain name
-        :param free_spectrum:
-        :param echan_list:
-        :param rsp: response_precalculation
-        :param geom: geometry_precalculation
-        :param source_list: which sources to buld
-        :return:
-        """
-        self._rsp = rsp
-        self._geom = geom
-        self._build_some_source(source_list, echan_list, free_spectrum=free_spectrum)
+        file_path = get_path_of_data_file('background_point_sources/', 'point_sources.dat')
+
+        self._ps_df = pd.read_table(file_path, names=['name', 'ra', 'dec'])
+
+        if include_all_ps:
+            point_source_list = list(self._ps_df['name'])
+
+        # instantiate dic of point source objects
+        self._point_sources_dic = {}
+
+        ### Single core calc ###
+        for row in self._ps_df.itertuples():
+            for i, element in enumerate(point_source_list):
+                if row[1] == element:
+                    if len(free_spectrum) > 0 and free_spectrum[i]:
+                        self._point_sources_dic[row[1]] = PointSrc_free(
+                            name=row[1],
+                            ra=row[2],
+                            dec=row[3],
+                            response_object=det_responses,
+                            geometry_object=det_geometries,
+                            echan_list=echans
+                        )
+
+                    else:
+                        self._point_sources_dic[row[1]] = PointSrc_fixed(
+                            name=row[1],
+                            ra=row[2],
+                            dec=row[3],
+                            det_responses=det_responses,
+                            det_geometries=det_geometries,
+                            echans=echans,
+                            spectral_index=2.114
+                        )
 
     def bgo_cr_approximation(self, met):
 
-        return self._bgo_rate_interp(met)
-        
+        bgo_cr_rates = np.zeros((
+            len(met),
+            len(self._detectors),
+            2
+        ))
+
+        for det_idx, det in enumerate(self._detectors):
+            if det in self._side_0:
+                bgo_cr_rates[:, det_idx, :] = self._bgo_0_rate_interp(met)
+            elif det in self._side_1:
+                bgo_cr_rates[:, det_idx, :] = self._bgo_1_rate_interp(met)
+            else:
+                raise AssertionError('Use a valid NaI det name to use this function.')
+
+        return bgo_cr_rates
+
+    def mc_l_rates(self, met):
+
+        return np.tile(
+            self.mc_l(met),
+            (len(self._detectors), 1)
+        )
+
     def mc_l(self, met):
         """
         Get MC L for a given MET
@@ -116,23 +151,6 @@ class ExternalProps(object):
         """
 
         return self._mc_l_interp(met)
-
-    def mc_b(self, met):
-        """
-        Get MC B for a given MET
-        :param met: 
-        :return: 
-        """
-
-        return self._mc_b_interp(met)
-
-    def lon_geo(self, met):
-
-        return self._lon_geo_interp(met)
-
-    def lat_geo(self, met):
-
-        return self._lat_geo_interp(met)
 
     @property
     def point_sources(self):
@@ -266,52 +284,93 @@ class ExternalProps(object):
 
         return mc_l, mc_b, lat_time, lat_geo, lon_geo
 
-    def _build_point_sources(self, echan_list, free_spectrum=[]):
-        """This function reads the point_sources.dat file and returns the sources in the form: names, coordinates[ra][dec]\n
-        Input:\n
-        readfile.saa()\n
-        Output\n
-        0 = source_names
-        1 = coordinates\n"""
-        file_path = get_path_of_data_file('background_point_sources/', 'point_sources.dat')
+    def _calc_bgo_rates(self, date, bgo_det):
 
-        self._ps_df = pd.read_table(file_path, names=['name', 'ra', 'dec'])
+        data_type = 'cspec'
+        echans = np.arange(85, 105, 1)
 
-        # instantiate dic of point source objects
-        self._point_sources_dic = {}
+        if using_mpi:
+            if rank == 0:
+                download_files(data_type, bgo_det, date)
+            comm.barrier()
+        else:
+            download_files(data_type, bgo_det, date)
 
-        ### Single core calc ###
-        for i, row in enumerate(self._ps_df.itertuples()):
-            if len(free_spectrum) > 0 and free_spectrum[i]:
-                self._point_sources_dic[row[1]] = PointSrc_free(row[1], row[2], row[3], self._rsp, self._geom,
-                                                                echan_list)
+        datafile_name = 'glg_{0}_{1}_{2}_v00.pha'.format(data_type, bgo_det, date)
+        datafile_path = os.path.join(get_path_of_external_data_dir(), data_type, date, datafile_name)
+
+        with fits.open(datafile_path) as f:
+            counts = f['SPECTRUM'].data['COUNTS'][:, echans[0]]
+            for echan in echans[1:]:
+                counts += f['SPECTRUM'].data['COUNTS'][:, echan]
+            bin_start = f['SPECTRUM'].data['TIME']
+            bin_stop = f['SPECTRUM'].data['ENDTIME']
+
+        total_time_bins = np.vstack((bin_start, bin_stop)).T
+        min_bin_width = 100
+
+        this_rebinner = Rebinner(total_time_bins, min_bin_width)
+        rebinned_time_bins = this_rebinner.time_rebinned
+        rebinned_counts, = this_rebinner.rebin(counts)
+
+        rates = rebinned_counts / (rebinned_time_bins[:, 1] - rebinned_time_bins[:, 0])
+
+        # Add first time and last time with corresponding rate to rate_list
+
+        rates = np.concatenate((rates[:1], rates, rates[-1:]))
+
+        times = np.concatenate((bin_start[:1], np.mean(rebinned_time_bins, axis=1), bin_stop[-1:]))
+
+        return times, rates
+
+    def _build_bgo_cr_approximation(self, dates, detectors):
+        """
+        Function that gets the count rate of the 85-105th energy channel of the BGO
+        of the correct side and uses this as function proportional to the CR influence in
+        the NaI energy channels. Makes less sense when SAA is included!
+        :param date: Date
+        :param det: NaI detector
+        """
+        get_b0 = False
+        get_b1 = False
+
+        for det_idx, det in enumerate(detectors):
+            if det in self._side_0:
+                get_b0 = True
+            elif det in self._side_1:
+                get_b1 = True
             else:
-                self._point_sources_dic[row[1]] = PointSrc_fixed(row[1], row[2], row[3], self._rsp, self._geom,
-                                                                 echan_list, index=2.114)
+                raise AssertionError('Use a valid NaI det name to use this function.')
 
-    def _build_some_source(self, source_list, echan_list, free_spectrum=[]):
-        """
-        This function builds the PS specified in source_list
-        :param source_list: list of PS to build
-        :return:
-        """
-        file_path = get_path_of_data_file('background_point_sources/', 'point_sources.dat')
+        if get_b0:
 
-        self._ps_df = pd.read_table(file_path, names=['name', 'ra', 'dec'])
+            for date_idx, date in enumerate(dates):
 
-        # instantiate dic of point source objects
-        self._point_sources_dic = {}
+                bgo_0_times, bgo_0_rates = self._calc_bgo_rates(date, 'b0')
 
-        ### Single core calc ###
-        for row in self._ps_df.itertuples():
-            for i, element in enumerate(source_list):
-                if row[1] == element:
-                    if len(free_spectrum) > 0 and free_spectrum[i]:
-                        self._point_sources_dic[row[1]] = PointSrc_free(row[1], row[2], row[3], self._rsp, self._geom,
-                                                                        echan_list)
-                    else:
-                        self._point_sources_dic[row[1]] = PointSrc_fixed(row[1], row[2], row[3], self._rsp, self._geom,
-                                                                         echan_list, index=2.114)
+                if date_idx == 0:
+                    self._bgo_0_times = bgo_0_times
+                    self._bgo_0_rates = bgo_0_rates
+                else:
+                    self._bgo_0_times = np.append(self._bgo_0_times, bgo_0_times)
+                    self._bgo_0_rates = np.append(self._bgo_0_rates, bgo_0_rates)
+
+            self._bgo_0_rate_interp = interpolate.UnivariateSpline(self._bgo_0_times, self._bgo_0_rates, s=1000, k=3)
+
+        if get_b1:
+
+            for date_idx, date in enumerate(dates):
+
+                bgo_1_times, bgo_1_rates = self._calc_bgo_rates(date, 'b1')
+
+                if date_idx == 0:
+                    self._bgo_1_times = bgo_1_times
+                    self._bgo_1_rates = bgo_1_rates
+                else:
+                    self._bgo_1_times = np.append(self._bgo_1_times, bgo_1_times)
+                    self._bgo_1_rates = np.append(self._bgo_1_rates, bgo_1_rates)
+
+            self._bgo_1_rate_interp = interpolate.UnivariateSpline(self._bgo_1_times, self._bgo_1_rates, s=1000, k=3)
 
     def lat_acd(self, time_bins, use_side):
 
@@ -390,10 +449,14 @@ class ExternalProps(object):
         rate_D_binned = []
         for i in range(len(timestamps[::108]) / sum_timestamps):
             binned_timestamps.append((timestamps[::108][(i + 1) * sum_timestamps - 1] + timestamps[::108][i * sum_timestamps]) / 2)
-            rate_A_binned.append(np.sum(counts_A_all[i * sum_timestamps:(i + 1) * sum_timestamps]) / np.sum(time_delta_A_all[i * sum_timestamps:(i + 1) * sum_timestamps]))
-            rate_B_binned.append(np.sum(counts_B_all[i * sum_timestamps:(i + 1) * sum_timestamps]) / np.sum(time_delta_B_all[i * sum_timestamps:(i + 1) * sum_timestamps]))
-            rate_C_binned.append(np.sum(counts_C_all[i * sum_timestamps:(i + 1) * sum_timestamps]) / np.sum(time_delta_C_all[i * sum_timestamps:(i + 1) * sum_timestamps]))
-            rate_D_binned.append(np.sum(counts_D_all[i * sum_timestamps:(i + 1) * sum_timestamps]) / np.sum(time_delta_D_all[i * sum_timestamps:(i + 1) * sum_timestamps]))
+            rate_A_binned.append(
+                np.sum(counts_A_all[i * sum_timestamps:(i + 1) * sum_timestamps]) / np.sum(time_delta_A_all[i * sum_timestamps:(i + 1) * sum_timestamps]))
+            rate_B_binned.append(
+                np.sum(counts_B_all[i * sum_timestamps:(i + 1) * sum_timestamps]) / np.sum(time_delta_B_all[i * sum_timestamps:(i + 1) * sum_timestamps]))
+            rate_C_binned.append(
+                np.sum(counts_C_all[i * sum_timestamps:(i + 1) * sum_timestamps]) / np.sum(time_delta_C_all[i * sum_timestamps:(i + 1) * sum_timestamps]))
+            rate_D_binned.append(
+                np.sum(counts_D_all[i * sum_timestamps:(i + 1) * sum_timestamps]) / np.sum(time_delta_D_all[i * sum_timestamps:(i + 1) * sum_timestamps]))
         rate_A_binned = np.array(rate_A_binned)
         rate_B_binned = np.array(rate_B_binned)
         rate_C_binned = np.array(rate_C_binned)
@@ -501,58 +564,3 @@ class ExternalProps(object):
         mask = timestamp_zero[timestamp_index]
 
         return mask
-
-    def _bgo_cr_approximation(self, date, det):
-        """
-        Function that gets the count rate of the 85-105th energy channel of the BGO
-        of the correct side and uses this as function proportional to the CR influence in
-        the NaI energy channels. Makes no sense when SAA is included!
-        :param date: Date 
-        :param det: NaI detector
-        """
-        side_0 = ['n0','n1','n2','n3','n4','n5']
-        side_1 = ['n6','n7','n8','n9','na','nb']
-
-        if det in side_0:
-            bgo_det = 'b0'
-        elif det in side_1:
-            bgo_det = 'b1'
-        else:
-            raise AssertionError('Use a valid NaI det name to use this function.')
-
-        data_type = 'cspec'
-        echans = np.arange(85, 105, 1)
-        
-        if using_mpi:
-            if rank == 0:
-                download_files(data_type, bgo_det, date)
-            comm.barrier()
-        else:
-            download_files(data_type, bgo_det, date)
-            
-        datafile_name = 'glg_{0}_{1}_{2}_v00.pha'.format(data_type, bgo_det, date)
-        datafile_path = os.path.join(get_path_of_external_data_dir(), data_type, date, datafile_name)
-
-        with fits.open(datafile_path) as f:
-            counts = f['SPECTRUM'].data['COUNTS'][:,echans[0]]
-            for echan in echans[1:]:
-                counts += f['SPECTRUM'].data['COUNTS'][:,echan]
-            bin_start = f['SPECTRUM'].data['TIME']
-            bin_stop = f['SPECTRUM'].data['ENDTIME']
-
-        total_time_bins = np.vstack((bin_start, bin_stop)).T
-        min_bin_width = 100
-
-        this_rebinner = Rebinner(total_time_bins, min_bin_width)
-        rebinned_time_bins = this_rebinner.time_rebinned
-        rebinned_counts, = this_rebinner.rebin(counts)
-
-        rates = rebinned_counts/(rebinned_time_bins[:,1]-rebinned_time_bins[:,0])
-        
-        # Add first time and last time with corresponding rate to rate_list
-
-        rates = np.concatenate((rates[:1], rates, rates[-1:]))
-
-        times = np.concatenate((bin_start[:1], np.mean(rebinned_time_bins, axis=1), bin_stop[-1:]))
-
-        return times, rates
