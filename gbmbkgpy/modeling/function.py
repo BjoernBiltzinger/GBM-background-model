@@ -200,6 +200,7 @@ class GlobalFunction(Function):
         )
 
         tiled_time_bins = np.swapaxes(tiled_time_bins, 0, 2)
+        tiled_time_bins = np.swapaxes(tiled_time_bins, 1, 2)
 
         self._source_counts = integrate.cumtrapz(self._function_array, tiled_time_bins)[:, :, :, 0]
 
