@@ -362,24 +362,47 @@ def setup_ps(data, ep, saa_object, det_responses, det_geometries, echans,
     for i, ps in enumerate(ep.point_sources.values()):
 
         if len(free_spectrum) > 0 and free_spectrum[i]:
-            PS_Continuum_dic['{}'.format(ps.name)] = Point_Source_Continuum_Fit_Spectrum('ps_{}_spectrum_fitted'.format(ps.name), E_norm=25.)
-
-            PS_Continuum_dic['{}'.format(ps.name)].set_response_array(
-                ps.ps_response_array
+            PS_Continuum_dic['{}'.format(ps.name)] = Point_Source_Continuum_Fit_Spectrum(
+                'ps_{}_spectrum_fitted'.format(ps.name),
+                E_norm=25.
             )
 
-            PS_Continuum_dic['{}'.format(ps.name)].set_basis_function_array(data.time_bins[2:-2])
+            PS_Continuum_dic['{}'.format(ps.name)].set_effective_responses(
+                effective_responses=ps.ps_effective_response
+            )
 
-            PS_Continuum_dic['{}'.format(ps.name)].set_saa_zero(saa_object.saa_mask[2:-2])
+            PS_Continuum_dic['{}'.format(ps.name)].set_dets_echans(
+                detectors=data.detectors,
+                echans=data.echans
+            )
 
-            PS_Continuum_dic['{}'.format(ps.name)].set_interpolation_times(ps.geometry_times)
+            PS_Continuum_dic['{}'.format(ps.name)].set_time_bins(
+                time_bins=data.time_bins[2:-2]
+            )
 
-            PS_Continuum_dic['{}'.format(ps.name)].energy_boundaries(ps.Ebin_in_edge)
+            PS_Continuum_dic['{}'.format(ps.name)].set_saa_mask(
+                saa_mask=saa_object.saa_mask[2:-2]
+            )
 
-            PS_Sources_list.append(FitSpectrumSource('{}'.format(ps.name), PS_Continuum_dic['{}'.format(ps.name)]))
+            PS_Continuum_dic['{}'.format(ps.name)].set_interpolation_times(
+                interpolation_times=ps.geometry_times
+            )
+
+            PS_Continuum_dic['{}'.format(ps.name)].set_responses(
+                responses=ps.responses
+            )
+
+            PS_Sources_list.append(
+                FitSpectrumSource(
+                    name='{}'.format(ps.name),
+                    continuum_shape=PS_Continuum_dic['{}'.format(ps.name)]
+                )
+            )
 
         else:
-            PS_Continuum_dic['{}'.format(ps.name)] = Point_Source_Continuum('norm_point_source-{}'.format(ps.name))
+            PS_Continuum_dic['{}'.format(ps.name)] = Point_Source_Continuum(
+                name='norm_point_source-{}'.format(ps.name)
+            )
 
             PS_Continuum_dic['{}'.format(ps.name)].set_function_array(
                 ps.get_ps_rates(data.time_bins[2:-2])
@@ -395,8 +418,8 @@ def setup_ps(data, ep, saa_object, det_responses, det_geometries, echans,
 
             PS_Sources_list.append(
                 GlobalSource(
-                    '{}'.format(ps.name),
-                    PS_Continuum_dic['{}'.format(ps.name)]
+                    name='{}'.format(ps.name),
+                    continuum_shape=PS_Continuum_dic['{}'.format(ps.name)]
                 )
             )
 
@@ -412,15 +435,37 @@ def setup_earth_free(data, albedo_cgb_object, saa_object):
     :return:
     """
 
-    eff_response = albedo_cgb_object.earth_effective_response
-
     earth_albedo = Earth_Albedo_Continuum_Fit_Spectrum()
-    earth_albedo.set_response_array(eff_response)
-    earth_albedo.set_basis_function_array(data.time_bins[2:-2])
-    earth_albedo.set_saa_zero(saa_object.saa_mask[2:-2])
-    earth_albedo.set_interpolation_times(albedo_cgb_object.geometry_times)
-    earth_albedo.energy_boundaries(albedo_cgb_object.Ebin_in_edge)
-    Source_Earth_Albedo_Continuum = FitSpectrumSource('Earth occultation', earth_albedo)
+
+    earth_albedo.set_dets_echans(
+        detectors=data.detectors,
+        echans=data.echans
+    )
+
+    earth_albedo.set_effective_responses(
+       effective_responses=albedo_cgb_object.earth_effective_response
+    )
+
+    earth_albedo.set_time_bins(
+        time_bins=data.time_bins[2:-2]
+    )
+
+    earth_albedo.set_saa_mask(
+        saa_mask=saa_object.saa_mask[2:-2]
+    )
+
+    earth_albedo.set_interpolation_times(
+        interpolation_times=albedo_cgb_object.geometry_times
+    )
+
+    earth_albedo.set_responses(
+        responses=albedo_cgb_object.responses
+    )
+
+    Source_Earth_Albedo_Continuum = FitSpectrumSource(
+        name='Earth occultation',
+        continuum_shape=earth_albedo
+    )
 
     return Source_Earth_Albedo_Continuum
 
@@ -460,17 +505,39 @@ def setup_cgb_free(data, albedo_cgb_object, saa_object):
     :param saa_object:
     :return:
     """
-    eff_response = albedo_cgb_object.cgb_effective_response
-
     cgb = Cosmic_Gamma_Ray_Background_Fit_Spectrum()
-    cgb.set_response_array(eff_response)
-    cgb.set_basis_function_array(data.time_bins[2:-2])
-    cgb.set_saa_zero(saa_object.saa_mask[2:-2])
-    cgb.set_interpolation_times(albedo_cgb_object.geometry_times)
-    cgb.energy_boundaries(albedo_cgb_object.Ebin_in_edge)
-    Source_CGB_Albedo_Continuum = FitSpectrumSource('CGB', cgb)
 
-    return Source_CGB_Albedo_Continuum
+    cgb.set_dets_echans(
+        detectors=data.detectors,
+        echans=data.echans
+    )
+
+    cgb.set_effective_responses(
+       effective_responses=albedo_cgb_object.cgb_effective_response
+    )
+
+    cgb.set_time_bins(
+        time_bins=data.time_bins[2:-2]
+    )
+
+    cgb.set_saa_mask(
+        saa_mask=saa_object.saa_mask[2:-2]
+    )
+
+    cgb.set_interpolation_times(
+        interpolation_times=albedo_cgb_object.geometry_times
+    )
+
+    cgb.set_responses(
+        responses=albedo_cgb_object.responses
+    )
+
+    Source_CGB_Continuum = FitSpectrumSource(
+        name='CGB',
+        continuum_shape=cgb
+    )
+
+    return Source_CGB_Continuum
 
 
 def setup_cgb_fix(data, albedo_cgb_object, saa_object):

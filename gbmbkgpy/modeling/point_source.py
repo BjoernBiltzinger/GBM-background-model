@@ -79,6 +79,10 @@ class PointSrc_fixed(object):
         return self._ps_skycoord
 
     @property
+    def responses(self):
+        return self._rsp
+
+    @property
     def geometry_time(self):
         return self._geom[self._detectors[0]].time
 
@@ -540,11 +544,11 @@ class PointSrc_free(object):
 
         if self._data_type == 'ctime':
             self._echan_mask = np.zeros(8, dtype=bool)
-            for e in echan_list:
+            for e in echans:
                 self._echan_mask[e] = True
         elif self._data_type == 'cspec':
             self._echan_mask = np.zeros(128, dtype=bool)
-            for e in echan_list:
+            for e in echans:
                 self._echan_mask[e] = True
 
         self._calc_det_responses()
@@ -555,6 +559,14 @@ class PointSrc_free(object):
         Returns the SkyCoord object of the PS
         """
         return self._ps_skycoord
+
+    @property
+    def responses(self):
+        return self._rsp
+
+    @property
+    def geometry_times(self):
+        return self._geom[self._detectors[0]].time
 
     @property
     def ps_responses(self):
