@@ -58,6 +58,14 @@ class Albedo_CGB_free(object):
         """
         return self._earth_response_sums
 
+    @property
+    def geometry_times(self):
+        return self._geom[self._detectors[0]].time
+
+    @property
+    def responses(self):
+        return self._rsp
+
     def _calc_earth_cgb_responses(self):
         # Calculate the true flux for the Earth for the assumed spectral parameters (Normalization=1).
         # This true flux is binned in energy bins as defined in the response object
@@ -71,7 +79,7 @@ class Albedo_CGB_free(object):
                 det_geometry=self._geom[det]
             )
 
-        self._cgb_response_sums = cgb_respons_sums
+        self._cgb_response_sums = cgb_response_sums
         self._earth_response_sums = earth_response_sums
 
     def _response_sum_one_det(self, det_response, det_geometry):
@@ -84,7 +92,7 @@ class Albedo_CGB_free(object):
 
         # Get the precalulated points and responses on the unit sphere
         points = det_response.points
-        responses = det_response.responses
+        responses = det_response.response_array
 
         # Factor to multiply the responses with. Needed as the later spectra are given in units of
         # 1/sr. The sr_points gives the area of the sphere occulted by one point
@@ -329,6 +337,10 @@ class Albedo_CGB_fixed(object):
 
         self._folded_flux_cgb = folded_flux_cgb
         self._folded_flux_earth = folded_flux_earth
+
+    @property
+    def responses(self):
+        return self._rsp
 
     @property
     def geometry_time(self):
