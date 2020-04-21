@@ -231,66 +231,6 @@ class ResultPlotGenerator(object):
 
         result_dict['time_stamp'] = datetime.now().strftime('%y%m%d_%H%M')
 
-
-
-        # result_dict['echans'] = {}
-        #
-        # for echan_idx, echan in enumerate(echan_list):
-        #
-        #     result_dict['echans'][echan] = {}
-        #     result_dict['echans'][echan]['echan'] = echan
-        #
-        #     result_dict['echans'][echan]['model_counts'] = model.get_counts(
-        #         time_bins=result_dict['total_time_bins'],
-        #         echan=echan_idx,
-        #         saa_mask=result_dict['saa_mask']
-        #     )
-        #
-        #     result_dict['echans'][echan]['observed_counts'] = set_saa_zero(
-        #         data.counts[2:-2, echan_idx],
-        #         saa_mask=result_dict['saa_mask']
-        #     )
-        #
-        #     result_dict['echans'][echan]['sources'] = {}
-        #
-        #     for i, source_name in enumerate(model.continuum_sources):
-        #         data = model.get_continuum_counts(
-        #             i, result_dict['total_time_bins'], result_dict['saa_mask'], echan_idx
-        #         )
-        #         if np.sum(data) != 0:
-        #             result_dict['echans'][echan]['sources'][source_name] = data
-        #
-        #     for i, source_name in enumerate(model.global_sources):
-        #         data = model.get_global_counts(
-        #             i, result_dict['total_time_bins'], result_dict['saa_mask'], echan_idx
-        #         )
-        #         if np.sum(data) != 0:
-        #             result_dict['echans'][echan]['sources'][source_name] = data
-        #
-        #     for i, source_name in enumerate(model.fit_spectrum_sources):
-        #         data = model.get_fit_spectrum_counts(
-        #             i, result_dict['total_time_bins'], result_dict['saa_mask'], echan_idx
-        #         )
-        #         if np.sum(data) != 0:
-        #             result_dict['echans'][echan]['sources'][source_name] = data
-        #
-        #     saa_data = model.get_saa_counts(
-        #         result_dict['total_time_bins'], result_dict['saa_mask'], echan_idx
-        #     )
-        #     if np.sum(saa_data) != 0:
-        #         result_dict['echans'][echan]['sources']['SAA_decays'] = saa_data
-        #
-        #     for i, point_source in enumerate(model.point_sources):
-        #         data = model.get_point_source_counts(
-        #             i, result_dict['total_time_bins'], result_dict['saa_mask'], echan_idx
-        #         )
-        #         if np.sum(data) != 0:
-        #             result_dict['echans'][echan]['sources'][point_source] = data
-        #
-        #     result_dict['echans'][echan]['time_stamp'] = datetime.now().strftime('%y%m%d_%H%M')
-
-        #     result_dict['echans'][echan]['ppc_counts'] = []
-
         return cls(
             config_file=config_file, result_dict=result_dict
         )
