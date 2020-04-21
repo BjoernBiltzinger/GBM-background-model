@@ -38,8 +38,8 @@ parser.add_argument(
     default="config_plot_default.yml",
 )
 parser.add_argument("-date", "--date", type=str, help="Date string")
-parser.add_argument("-det", "--detector", type=str, help="Name detector")
-parser.add_argument("-e", "--echan", type=int, help="Echan number")
+parser.add_argument("-dets", "--detectors", type=str, help="Name detector")
+parser.add_argument("-echans", "--echans", type=int, help="Echan number")
 args = parser.parse_args()
 
 # Load the config.yml
@@ -50,9 +50,9 @@ with open(args.config_file) as f:
 if args.date is not None:
     config["general"]["dates"] = [args.date]
 if args.detector is not None:
-    config["general"]["detector"] = args.detector
+    config["general"]["detectors"] = args.detectors
 if args.echan is not None:
-    config["general"]["echan_list"] = [args.echan]
+    config["general"]["echans"] = [args.echans]
 
 ############## Generate the GBM-background-model ##################
 model_generator = BackgroundModelGenerator()
@@ -95,15 +95,15 @@ data_exporter = DataExporter(
     data=model_generator.data,
     model=model_generator.model,
     saa_object=model_generator.saa_calc,
-    echan_list=config["general"]["echan_list"],
+    echan_list=config["general"]["echans"],
     best_fit_values=minimizer.best_fit_values,
     covariance_matrix=minimizer.cov_matrix,
 )
 
 result_file_name = "fit_result_{}_{}_e{}.hdf5".format(
     config["general"]["dates"],
-    config["general"]["detector"],
-    config["general"]["echan_list"],
+    config["general"]["detectors"],
+    config["general"]["echans"],
 )
 
 data_exporter.save_data(
