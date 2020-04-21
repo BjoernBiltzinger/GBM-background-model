@@ -262,16 +262,16 @@ class GlobalFunctionSpectrumFit(Function):
 
     def set_dets_echans(self, detectors, echans):
 
-        self._nr_detectors = len(detectors)
-        self._nr_echans = len(echans)
+        self._detectors = detectors
+        self._echans = echans
 
-    def set_effective_response(self, effective_response):
+    def set_effective_responses(self, effective_responses):
         """
         effective response sum for all times for which the geometry was calculated (NO INTERPOLATION HERE)
         :param response_array:
         :return:
         """
-        self.effective_response = effective_response
+        self._effective_responses = effective_responses
 
     def set_interpolation_times(self, interpolation_times):
         """
@@ -291,10 +291,13 @@ class GlobalFunctionSpectrumFit(Function):
 
         tiled_time_bins = np.tile(
             time_bins,
-            (self._nr_detectors, self._nr_echans, 1, 1)
+            (len(self._detectors), len(self._echans), 1, 1)
         )
 
-        self._tiled_time_bins = np.swapaxes(tiled_time_bins, 0, 2)
+        tiled_time_bins = np.swapaxes(tiled_time_bins, 0, 2)
+        tiled_time_bins = np.swapaxes(tiled_time_bins, 1, 2)
+
+        self._tiled_time_bins = tiled_time_bins
 
     def set_saa_mask(self, saa_mask):
         """
@@ -304,13 +307,13 @@ class GlobalFunctionSpectrumFit(Function):
         """
         self._saa_mask = saa_mask
 
-    def energy_boundaries(self, energy_bins):
+    def set_responses(self, responses):
         """
         Energie bundaries for the incoming photon spectrum (defined in the response precalculation)
         :param energy_bins:
         :return:
         """
-        self._energy_bins = energy_bins
+        self._responses = responses
 
     def integrate_array(self):
         """
@@ -381,22 +384,22 @@ class GlobalFunctionSpectrumFit(Function):
 
 
         folded_flux = np.zeros((
-            len(self._geom[self._detectors[0]].time),
+            len(self._interpolation_times),
             len(self._detectors),
             len(self._echans),
         ))
 
         for det_idx, det in enumerate(self._detectors):
             true_flux = self._integral(
-                self._rsp[det].Ebin_in_edge[:-1],
-                self._rsp[det].Ebin_in_edge[1:]
+                self._responses[det].Ebin_in_edge[:-1],
+                self._responses[det].Ebin_in_edge[1:]
             )
 
-            folded_flux[:, det_idx, :] = np.dot(true_flux, self._effective_response[det])
+            folded_flux[:, det_idx, :] = np.dot(true_flux, self._effective_responses[det])
 
         self._folded_flux_inter = interpolate.interp1d(
             self._interpolation_times,
-            self._folded_flux,
+            folded_flux,
             axis=0
         )
 
@@ -428,6 +431,6 @@ class GlobalFunctionSpectrumFit(Function):
 
         return _evaluate
 
-    def __call__(self, echan):
+    def __call__(self):
 
         return self._evaluate(*self.parameter_value)
