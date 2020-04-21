@@ -1,7 +1,9 @@
 import numpy as np
 from gbm_drm_gen.drmgen import DRMGen
 import os
+import h5py
 from gbmbkgpy.io.package_data import get_path_of_external_data_dir
+from gbmbkgpy.io.file_utils import file_existing_and_readable, if_dir_containing_file_not_existing_then_make
 import astropy.io.fits as fits
 from gbmbkgpy.utils.progress_bar import progress_bar
 
@@ -64,7 +66,6 @@ class Det_Response_Precalculation(object):
         :param Ebin_edge_incoming: Ebins edges of incomming photons
         :param Ebin_edge_detector: Ebins edges of detector
         """
-
         assert det in valid_det_names, \
             'Invalid det name. Must be one of these {} but is {}.'.format(valid_det_names, det)
 
@@ -99,9 +100,23 @@ class Det_Response_Precalculation(object):
 
         self._data_type = data_type
 
-        # If no values for Ngrid or Ebin_incoming are given we use the standard values
+        self._echans = echans
 
         self._Ngrid = Ngrid
+
+        self._detector = det
+
+        # Translate the n0-nb and b0,b1 notation to the detector 0-14 notation that is used
+        # by the response generator
+        self._det = valid_det_names.index(det)
+
+        if self._data_type == 'ctime' or self._data_type == 'trigdat':
+            self._echan_mask = np.zeros(8, dtype=bool)
+            self._echan_mask[self._echans] = True
+
+        elif self._data_type == 'cspec':
+            self._echan_mask = np.zeros(128, dtype=bool)
+            self._echan_mask[self._echans] = True
 
         if Ebin_edge_incoming is None:
             # Incoming spectrum between ~3 and ~5000 keV in 300 bins
@@ -118,6 +133,33 @@ class Det_Response_Precalculation(object):
             self._Ebin_out_edge = np.array(
                 [3.4, 10.0, 22.0, 44.0, 95.0, 300.0, 500.0, 800.0, 2000.],
                 dtype=np.float32)
+
+            response_cache_file = os.path.join(
+                get_path_of_external_data_dir(), 'response', 'trigdat', f'effective_response_{det}.hd5'
+            )
+
+            if file_existing_and_readable(response_cache_file):
+
+                print(f'Load response chace for detector {det}')
+
+                self._load_response_cache(
+                    response_cache_file
+                )
+
+            else:
+
+                print(f'No response cache existing for detector {det}. We will build it from scratch!')
+
+                # Create the points on the unit sphere
+                self._points = np.array(self._fibonacci_sphere(samples=Ngrid))
+
+                # Calculate the reponse for all points on the unit sphere
+                self._calculate_responses()
+
+                self._save_response_cache(
+                    response_cache_file
+                )
+
         else:
             datafile_name = 'glg_{0}_{1}_{2}_v00.pha'.format(data_type, det, dates[0])
             datafile_path = os.path.join(get_path_of_external_data_dir(), data_type, dates[0], datafile_name)
@@ -128,38 +170,11 @@ class Det_Response_Precalculation(object):
 
             self._Ebin_out_edge = np.append(edge_start, edge_stop[-1])
 
-        # Create the points on the unit sphere
-        self._points = np.array(self._fibonacci_sphere(samples=Ngrid))
+            # Create the points on the unit sphere
+            self._points = np.array(self._fibonacci_sphere(samples=Ngrid))
 
-        # Translate the n0-nb and b0,b1 notation to the detector 0-14 notation that is used
-        # by the response generator
-        if det[0] == 'n':
-            if det[1] == 'a':
-                self._det = 10
-            elif det[1] == 'b':
-                self._det = 11
-            else:
-                self._det = int(det[1])
-        elif det[0] == 'b':
-            if det[1] == '0':
-                self._det = 12
-            elif det[1] == '1':
-                self._det = 13
-
-        self._detector = det
-
-        self._echans = echans
-        if self._data_type == 'ctime' or self._data_type == 'trigdat':
-            self._echan_mask = np.zeros(8, dtype=bool)
-            for e in echans:
-                self._echan_mask[e] = True
-        elif self._data_type == 'cspec':
-            self._echan_mask = np.zeros(128, dtype=bool)
-            for e in echans:
-                self._echan_mask[e] = True
-
-        # Calculate the reponse for all points on the unit sphere
-        self._calculate_responses()
+            # Calculate the reponse for all points on the unit sphere
+            self._calculate_responses()
 
     @property
     def points(self):
@@ -208,6 +223,50 @@ class Det_Response_Precalculation(object):
         :return:
         """
         self._Ebin_out_edge = Ebin_edge_outcoming
+
+    def _load_response_cache(self, cache_file):
+        with h5py.File(cache_file, "r") as f:
+            detector = f.attrs['detector']
+            det = f.attrs['det']
+            data_type = f.attrs['data_type']
+            n_grid = f.attrs['ngrid']
+
+            ebin_in_edge = f['ebin_in_edge'][()]
+            ebin_out_edge = f['ebin_out_edge'][()]
+            points = f['points'][()]
+            response_array = f['response_array'][()]
+
+        assert(detector == self.detector)
+        assert(det == self.det)
+        assert(data_type == self.data_type)
+        assert(n_grid == self.Ngrid)
+
+        assert(np.array_equal(ebin_in_edge, self.Ebin_in_edge))
+        assert(np.array_equal(ebin_out_edge, self.Ebin_out_edge))
+
+        self._points = points
+        self._response_array = response_array
+
+    def _save_response_cache(self, cache_file):
+        if_dir_containing_file_not_existing_then_make(cache_file)
+
+        with h5py.File(cache_file, "w") as f:
+            f.attrs['detector'] = self.detector
+            f.attrs['det'] = self.det
+            f.attrs['data_type'] = self.data_type
+            f.attrs['ngrid'] = self.Ngrid
+
+            f.create_dataset('ebin_in_edge', data=self.Ebin_in_edge,
+                             compression="gzip")
+
+            f.create_dataset('ebin_out_edge', data=self.Ebin_out_edge,
+                             compression="gzip")
+
+            f.create_dataset('points', data=self.points,
+                             compression="gzip")
+
+            f.create_dataset('response_array', data=self.response_array,
+                             compression="gzip")
 
     def _response(self, x, y, z, DRM):
         """
