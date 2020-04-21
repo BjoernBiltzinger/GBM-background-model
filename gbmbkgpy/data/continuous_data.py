@@ -60,7 +60,7 @@ class Data(object):
 
         self._data_type = data_type
         self._detectors = sorted(detectors)
-        self._day_list = sorted(dates)
+        self._dates = sorted(dates)
         self._echans = sorted(echans)
         self._test = test
 
@@ -178,14 +178,6 @@ class Data(object):
         return self._following_day
 
     @property
-    def day(self):
-        """
-        Returns day_list
-        :return:
-        """
-        return self._day_list
-
-    @property
     def dates(self):
         """
         Returns day_list
@@ -194,20 +186,20 @@ class Data(object):
         return self._day_list
 
     @property
+    def echans(self):
+        """
+        Returns day_list
+        :return:
+        """
+        return self._echans
+
+    @property
     def data_type(self):
         """
         Returns used data_type
         :return:
         """
         return self._data_type
-
-    @property
-    def detector_id(self):
-        """
-        Returns detector number
-        :return:
-        """
-        return self._detectors[0][-1]
 
     @property
     def time_bin_width(self):
