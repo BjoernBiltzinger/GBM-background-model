@@ -140,7 +140,7 @@ class Det_Response_Precalculation(object):
 
             if file_existing_and_readable(response_cache_file):
 
-                print(f'Load response chace for detector {det}')
+                print(f'Load response cache for detector {det}')
 
                 self._load_response_cache(
                     response_cache_file
