@@ -232,7 +232,7 @@ class Data(object):
 
         for det_idx, det in enumerate(self._detectors):
 
-            for day_idx, day in enumerate(self._day_list):
+            for day_idx, day in enumerate(self._dates):
                 counts, time_bins, day_met = self._one_day_one_det_data(day, det)
 
                 if day_idx == 0:

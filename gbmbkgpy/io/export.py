@@ -29,25 +29,16 @@ except:
 
 
 class DataExporter(object):
-    def __init__(self, data, model, saa_object, echan_list, best_fit_values, covariance_matrix):
+    def __init__(self, data, model, saa_object, echans, best_fit_values):
 
         self._data = data
         self._model = model
         self._saa_object = saa_object
 
-        self._echan_names = echan_list
-        self._echan_list = np.arange(len(echan_list))
+        self._echans = echans
         self._best_fit_values = best_fit_values
-        self._covariance_matrix = covariance_matrix
 
-        self._name = "Count rate detector %s" % data.det
-
-        # The MET start time of the first used day
-        self._day_met = data.day_met[0]
-
-        self._total_time_bins = self._data.time_bins[2:-2]
-        self._total_time_bin_widths = np.diff(self._total_time_bins, axis=1)[:, 0]
-        self._total_counts_all_echan = self._data.counts[2:-2]
+        self._time_bins = self._data.time_bins[2:-2]
         self._saa_mask = self._saa_object.saa_mask[2:-2]
 
         self._total_scale_factor = 1.
@@ -60,67 +51,55 @@ class DataExporter(object):
         """
         Function to save the data needed to create the plots.
         """
-        model_counts = np.zeros((len(self._total_time_bin_widths), len(self._echan_list)))
-        stat_err = np.zeros_like(model_counts)
 
         # Get the model counts
-        for echan in self._echan_list:
-            model_counts[:, echan] = self._model.get_counts(self._total_time_bins, echan, saa_mask=self._saa_mask)
+        model_counts = model.get_counts(
+            time_bins=self._time_bins[2:-2]
+        )
+
+
+        # TODO: Vectorize the stat_error and ppc calculation
+        #####################
 
         # Get the statistical error from the posterior samples
-        for echan in self._echan_list:
-            counts = self._ppc_data(result_dir, echan)[:, 2:-2]
+        ppc_counts = self._ppc_data(result_dir)[:, 2:-2, :, :]
 
-            low = np.percentile(counts, 50 - 50 * 0.68, axis=0)[0]
-            high = np.percentile(counts, 50 + 50 * 0.68, axis=0)[0]
+        low = np.percentile(counts, 50 - 50 * 0.68, axis=0)[0]
+        high = np.percentile(counts, 50 + 50 * 0.68, axis=0)[0]
 
-            stat_err[:, echan] = high - low
+        stat_err= high - low
 
-        if save_ppc:
-            ppc_counts_all = []
-            for index in self._echan_list:
-                ppc_counts_all.append(self._ppc_data(result_dir, index))
+       ####################
+
 
         if rank == 0:
-            with h5py.File(file_path, "w") as f1:
-                group_general = f1.create_group('general')
+            with h5py.File(file_path, "w") as f:
 
-                group_general.create_dataset('detector', data=self._data.det)
-                group_general.create_dataset('dates', data=np.string_(self._data.day))
-                group_general.create_dataset('echans', data=self._echan_names)
-                group_general.create_dataset('day_start_times', data=self._data.day_start_times)
-                group_general.create_dataset('day_stop_times', data=self._data.day_stop_times)
-                group_general.create_dataset('saa_mask', data=self._saa_mask, compression="gzip", compression_opts=9)
-                group_general.create_dataset('time_bins_start', data=self._total_time_bins[:, 0], compression="gzip", compression_opts=9)
-                group_general.create_dataset('time_bins_stop', data=self._total_time_bins[:, 1], compression="gzip", compression_opts=9)
+                f.attrs['dates'] = self._data.dates
+                f.attrs['detectors'] = self._data.detectors
+                f.attrs['echans'] = self._data.echans
+                f.attrs['param_names'] = self._model.paramter_names
+                f.attrs['best_fit_values'] = self._best_fit_values
 
-                group_general.create_dataset('best_fit_values', data=self._best_fit_values, compression="gzip", compression_opts=9)
-                group_general.create_dataset('param_names', data=np.string_(self._model.parameter_names))
-                group_general.create_dataset('model_counts', data=model_counts, compression="gzip", compression_opts=9)
-                group_general.create_dataset('stat_err', data=stat_err, compression="gzip", compression_opts=9)
+                f.create_dataset('day_start_times', data=self._data.day_start_times)
+                f.create_dataset('day_stop_times', data=self._data.day_stop_times)
+                f.create_dataset('saa_mask', data=self._saa_mask, compression="gzip", compression_opts=9)
+                f.create_dataset('time_bins_start', data=self._time_bins[:, 0], compression="gzip", compression_opts=9)
+                f.create_dataset('time_bins_stop', data=self._time_bins[:, 1], compression="gzip", compression_opts=9)
+                f.create_dataset('observed_counts', data=self._data.counts, compression="gzip", compression_opts=9)
 
-                if self._covariance_matrix is not None:
-                    group_general.create_dataset('covariance_matrix', data=self._covariance_matrix, compression="gzip", compression_opts=9)
+                f.create_dataset('model_counts', data=model_counts, compression="gzip", compression_opts=9)
+                f.create_dataset('stat_err', data=stat_err, compression="gzip", compression_opts=9)
 
-                for j, index in enumerate(self._echan_list):
-                    source_list = self.get_counts_of_sources(self._total_time_bins, index)
-                    model_counts = self._model.get_counts(self._total_time_bins, index, saa_mask=self._saa_mask)
-                    observed_counts = self._total_counts_all_echan[:, index]
+                group_sources = f.create_group('sources')
+                for source in source_list:
+                    group_sources.create_dataset(source['label'], data=source['data'], compression="gzip", compression_opts=9)
 
-                    group_echan = f1.create_group('echan {}'.format(self._echan_names[j]))
-                    group_echan.create_dataset('total_model_counts', data=model_counts, compression="gzip", compression_opts=9)
-                    group_echan.create_dataset('observed_counts', data=observed_counts, compression="gzip", compression_opts=9)
-
-                    group_sources = group_echan.create_group('sources')
-                    for source in source_list:
-                        group_sources.create_dataset(source['label'], data=source['data'], compression="gzip", compression_opts=9)
-
-                    if save_ppc:
-                        ppc_counts = ppc_counts_all[j]
-                        group_echan.create_dataset('ppc', data=ppc_counts, compression="gzip", compression_opts=9)
+                if save_ppc:
+                    group_echan.create_dataset('ppc', data=ppc_counts, compression="gzip", compression_opts=9)
 
 
-    def get_counts_of_sources(self, time_bins, echan):
+    def get_counts_of_sources(self, time_bins):
         """
         Builds a list of the different model sources.
         Each source is a dict containing the label of the source, the data, and the plotting color
@@ -132,27 +111,27 @@ class DataExporter(object):
         i_index = 0
 
         for i, source_name in enumerate(self._model.continuum_sources):
-            data = self._model.get_continuum_counts(i, time_bins, self._saa_mask, echan)
+            data = self._model.get_continuum_counts(i, time_bins, self._saa_mask)
             if np.sum(data) != 0:
                 source_list.append({"label": source_name, "data": data, "color": color_list[i_index]})
                 i_index += 1
 
         for i, source_name in enumerate(self._model._global_sources):
-            data = self._model.get_global_counts(i, time_bins, self._saa_mask, echan)
+            data = self._model.get_global_counts(i, time_bins, self._saa_mask)
             source_list.append({"label": source_name, "data": data, "color": color_list[i_index]})
             i_index += 1
 
         for i, source_name in enumerate(self._model.fit_spectrum_sources):
-            data = self._model.get_fit_spectrum_counts(i, time_bins, self._saa_mask, echan)
+            data = self._model.get_fit_spectrum_counts(i, time_bins, self._saa_mask)
             source_list.append({"label": source_name, "data": data, "color": color_list[i_index]})
             i_index += 1
 
-        saa_data = self._model.get_saa_counts(self._total_time_bins, self._saa_mask, echan)
+        saa_data = self._model.get_saa_counts(self._total_time_bins, self._saa_mask)
         if np.sum(saa_data) != 0:
             source_list.append({"label": "SAA_decays", "data": saa_data, "color": color_list[i_index]})
             i_index += 1
 
-        point_source_data = self._model.get_point_source_counts(self._total_time_bins, self._saa_mask, echan)
+        point_source_data = self._model.get_point_source_counts(self._total_time_bins, self._saa_mask)
         if np.sum(point_source_data) != 0:
             source_list.append(
                 {"label": "Point_sources", "data": point_source_data, "color": color_list[i_index]})
@@ -160,7 +139,7 @@ class DataExporter(object):
 
         return source_list
 
-    def _ppc_data(self, result_dir, echan):
+    def _ppc_data(self, result_dir):
         """
         Add ppc plot
         :param result_dir: path to result directory
@@ -193,13 +172,13 @@ class DataExporter(object):
 
                     for i, sample in enumerate(mn_posteriour_samples[a][points_lower_index:points_upper_index]):
                         synth_data = self.get_synthetic_data(sample)
-                        counts.append(synth_data.counts[:, echan])
+                        counts.append(synth_data.counts)
                         p.increase()
 
             else:
                 for i, sample in enumerate(mn_posteriour_samples[a][points_lower_index:points_upper_index]):
                     synth_data = self.get_synthetic_data(sample)
-                    counts.append(synth_data.counts[:, echan])
+                    counts.append(synth_data.counts)
             counts = np.array(counts)
             counts_g = comm.gather(counts, root=0)
 
@@ -209,7 +188,7 @@ class DataExporter(object):
         else:
             for i, sample in enumerate(analyzer.get_equal_weighted_posterior()[:, :-1][a]):
                 synth_data = self.get_synthetic_data(sample)
-                counts.append(synth_data.counts[:, echan])
+                counts.append(synth_data.counts)
             counts = np.array(counts)
         return counts
 
@@ -228,8 +207,7 @@ class DataExporter(object):
         for i, parameter in enumerate(synth_model.free_parameters.values()):
             parameter.value = synth_parameters[i]
 
-        for echan in self._echan_list:
-            synth_data.counts[:, echan][2:-2] = np.random.poisson(synth_model.get_counts(synth_data.time_bins[2:-2], echan))
+        synth_data.counts[2:-2] = np.random.poisson(synth_model.get_counts(synth_data.time_bins[2:-2]))
 
         return synth_data
 
