@@ -1,6 +1,7 @@
 import os
 import shutil
 import numpy as np
+import h5py
 
 from gbmbkgpy.io.export import DataExporter
 from gbmbkgpy.io.file_utils import file_existing_and_readable
@@ -31,6 +32,7 @@ def test_model_builder():
 
     model_generator.from_config_file(os.path.join(path_of_tests, 'config_test.yml'))
 
+    # Check that all objects are instantiated correctly
     assert isinstance(model_generator.data, Data)
     assert isinstance(model_generator.external_properties, ExternalProps)
     assert isinstance(model_generator.saa_calc, SAA_calc)
@@ -41,6 +43,152 @@ def test_model_builder():
     assert isinstance(model_generator.likelihood, BackgroundLike)
     assert isinstance(model_generator.parameter_bounds, dict)
     assert isinstance(model_generator.config, dict)
+
+    echans = model_generator.config['general']['echans']
+    echans_idx = np.arange(len(echans))
+    detectors = model_generator.config['general']['detectors']
+
+    test_responses = {}
+    test_geometries = {}
+
+    test_sources_saa = {}
+    test_sources_continuum = {}
+    test_sources_global = {}
+
+    with h5py.File(os.path.join(path_of_tests, 'datasets', '150126_test_comb.hd5'), 'r') as f:
+        test_time_bins = f['time_bins'][()]
+        test_counts = f['counts'][()]
+
+        test_rebinned_time_bins = f['rebinned_time_bins'][()]
+        test_rebinned_counts = f['rebinned_counts'][()]
+
+        test_saa_mask = f['saa_mask'][()]
+        test_rebinned_saa_mask = f['rebinned_saa_mask'][()]
+
+        for det in f['responses'].keys():
+            test_responses[det] = {}
+
+            test_responses[det]['response_array'] = \
+                f['responses'][det]['response_array'][()]
+
+
+        for det in f['geometries'].keys():
+            test_geometries[det] = {}
+
+            test_geometries[det]['earth_az'] = \
+                f['geometries'][det]['earth_az'][()]
+
+            test_geometries[det]['earth_zen'] = \
+                f['geometries'][det]['earth_zen'][()]
+
+
+        for src_name in f['sources']['saa'].keys():
+            test_sources_saa[src_name] = {}
+
+            test_sources_saa[src_name]['echan'] = \
+                f['sources']['saa'][src_name].attrs['echan']
+
+            test_sources_saa[src_name]['counts'] = \
+                f['sources']['saa'][src_name]['counts'][()]
+
+
+        for src_name in f['sources']['continuum'].keys():
+            test_sources_continuum[src_name] = {}
+
+            test_sources_continuum[src_name]['echan'] = \
+                f['sources']['continuum'][src_name].attrs['echan']
+
+            test_sources_continuum[src_name]['counts'] = \
+                f['sources']['continuum'][src_name]['counts'][()]
+
+
+        for src_name in f['sources']['global'].keys():
+            test_sources_global[src_name] = {}
+
+            test_sources_global[src_name]['counts'] = \
+                f['sources']['global'][src_name]['counts'][()]
+
+
+    # Get the test counts from the same echan specified in the config
+    test_counts_echans = test_counts[:, :, echans].reshape(
+        (len(test_counts), len(detectors), len(echans))
+    )
+
+    test_rebinned_counts_echans = test_rebinned_counts[:, :, echans].reshape(
+        (len(test_rebinned_counts), len(detectors), len(echans))
+    )
+
+    # Test if the Data class importet the synthetic data correctly
+    # Use the unbinned time_bins and counts
+    assert np.array_equal(test_time_bins, model_generator.data._time_bins)
+    assert np.array_equal(test_counts_echans, model_generator.data._counts)
+
+    # Now test if the rebinned counts and time_bins are correct
+    assert np.array_equal(test_rebinned_time_bins, model_generator.data.time_bins)
+    assert np.array_equal(test_rebinned_counts_echans, model_generator.data.counts)
+
+    # Check if the SAA mask was calculated correctly
+    assert np.array_equal(test_saa_mask, model_generator.saa_calc._saa_mask)
+    assert np.array_equal(test_rebinned_saa_mask, model_generator.saa_calc.saa_mask)
+
+    # Check if response precalculation is correct
+    for det in model_generator.config['general']['detectors']:
+
+        assert np.allclose(
+            test_responses[det]['response_array'],
+            model_generator.response.responses[det].response_array,
+            rtol=1e-8
+        )
+
+    # Check if geometry precalculation is correct
+    for det in model_generator.config['general']['detectors']:
+
+        assert np.array_equal(
+            test_geometries[det]['earth_az'],
+            model_generator.geometry.geometries[det].earth_az,
+        )
+
+        assert np.array_equal(
+            test_geometries[det]['earth_zen'],
+            model_generator.geometry.geometries[det].earth_zen
+        )
+
+
+    # Check the saa sources
+    for saa_src in test_sources_saa.items():
+
+        assert saa_src[1]['echan'] == model_generator.model.saa_sources[saa_src[0]].echan
+
+        assert np.array_equal(
+            saa_src[1]['counts'],
+            model_generator.model.saa_sources[saa_src[0]].get_counts(
+                model_generator.data.time_bins[2:-2]
+            )
+        )
+
+
+    # Check the continuum sources
+    for cont_src in test_sources_continuum.items():
+
+        assert cont_src[1]['echan'] == model_generator.model.continuum_sources[cont_src[0]].echan
+
+        assert np.array_equal(
+            cont_src[1]['counts'],
+            model_generator.model.continuum_sources[cont_src[0]].get_counts(
+                model_generator.data.time_bins[2:-2]
+            )
+        )
+
+    # Check the global sources
+    for global_src in test_sources_global.items():
+
+        assert np.allclose(
+            global_src[1]['counts'][:, :, echans],
+            model_generator.model.global_sources[global_src[0]].get_counts(
+                model_generator.data.time_bins[2:-2]
+            )[:, echans_idx],
+            rtol=1e-7
+        )
 
     pytest._test_model_generator = model_generator
 
