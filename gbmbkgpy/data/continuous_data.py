@@ -183,7 +183,7 @@ class Data(object):
         Returns day_list
         :return:
         """
-        return self._day_list
+        return self._dates
 
     @property
     def echans(self):
