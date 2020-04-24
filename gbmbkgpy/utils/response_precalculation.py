@@ -120,10 +120,10 @@ class Det_Response_Precalculation(object):
 
         if Ebin_edge_incoming is None:
             # Incoming spectrum between ~3 and ~5000 keV in 300 bins
-            self._Ebin_in_edge = np.array(np.logspace(0.5, 3.7, 301), dtype=np.float32)
+            self._Ebin_in_edge = np.array(np.logspace(0.5, 3.7, 301), dtype=np.float64)
         else:
-            # Use the user defined incoming energy bins
-            self._Ebin_in_edge = Ebin_edge_incoming
+            # Use the user defined incoming energy bin
+            self._Ebin_in_edge = Ebin_edge_incoming.astype(np.float64)
 
         # TODO: If we use multiple days then the Edges of the energy bins are not correct,
         # TODO: should we calculate a seperate response for each day?
@@ -132,7 +132,7 @@ class Det_Response_Precalculation(object):
         if data_type == 'trigdat':
             self._Ebin_out_edge = np.array(
                 [3.4, 10.0, 22.0, 44.0, 95.0, 300.0, 500.0, 800.0, 2000.],
-                dtype=np.float32)
+                dtype=np.float64)
 
             response_cache_file = os.path.join(
                 get_path_of_external_data_dir(), 'response', 'trigdat', f'effective_response_{det}.hd5'
