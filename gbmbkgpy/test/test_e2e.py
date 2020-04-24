@@ -137,7 +137,7 @@ def test_model_builder():
         assert np.allclose(
             test_responses[det]['response_array'],
             model_generator.response.responses[det].response_array,
-            rtol=1e-8
+            rtol=1e-6
         )
 
     # Check if geometry precalculation is correct
