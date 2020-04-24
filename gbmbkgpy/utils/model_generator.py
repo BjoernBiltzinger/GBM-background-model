@@ -207,7 +207,9 @@ class BackgroundModelGenerator(object):
             use_sun=config['setup']['use_sun'],
             nr_saa_decays=config['saa']['nr_decays'],
             decay_at_day_start=config['saa']['decay_at_day_start'],
-            bgo_cr_approximation=config['setup']['bgo_cr_approximation'])
+            bgo_cr_approximation=config['setup']['bgo_cr_approximation'],
+            use_numba=config['fit'].get('use_numba', False)
+        )
 
         print_progress('Done')
 

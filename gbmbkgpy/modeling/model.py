@@ -487,7 +487,6 @@ class Model(object):
 
         return total_counts
 
-
     def get_counts(self, time_bins, bin_mask=None, saa_mask=None):
         """
         Calculates the counts for all sources in the model and returns the summed up array.
