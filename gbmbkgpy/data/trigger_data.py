@@ -410,5 +410,5 @@ class TrigData(object):
 
                 counts[:, det_idx, echan_idx] = rates[:, det_data_idx, echan_data_idx] * time_bin_widths
 
-        self._counts = counts
+        self._counts = np.array(counts)
         self._time_bins = time_bins

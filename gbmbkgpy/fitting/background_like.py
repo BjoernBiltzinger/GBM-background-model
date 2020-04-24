@@ -1,6 +1,7 @@
 import re
 import numpy as np
 import numexpr as ne
+import numba
 
 from gbmbkgpy.data.continuous_data import Data
 from gbmbkgpy.modeling.model import Model
@@ -8,7 +9,7 @@ from gbmbkgpy.modeling.model import Model
 
 class BackgroundLike(object):
 
-    def __init__(self, data, model, saa_object):
+    def __init__(self, data, model, saa_object, use_numba=False):
         """
         Init backgroundlike that compares the data with the model
         :param data:
@@ -18,7 +19,7 @@ class BackgroundLike(object):
 
         self._data = data  # type: Data
         self._model = model  # type: Model
-
+        self._use_numba = use_numba
         # The MET start time of the day
 
         self._free_parameters = self._model.free_parameters
@@ -45,7 +46,8 @@ class BackgroundLike(object):
         self._grb_mask_calculated = False
 
         self._get_sources_fit_spectrum()
-        self._build_cov_call()
+        self._build_log_like()
+
 
     def _set_free_parameters(self, new_parameters):
         """
@@ -197,8 +199,8 @@ class BackgroundLike(object):
 
     def __call__(self, parameters):
         """
-        :return: the poisson log likelihood
-        """
+                :return: the poisson log likelihood
+                """
         self._set_free_parameters(parameters)
 
         ######### Calculate rates for new spectral parameter
@@ -208,22 +210,57 @@ class BackgroundLike(object):
 
         return self._get_log_likelihood()
 
-    def _get_log_likelihood(self):
 
-        M = self._evaluate_model()
-        # Poisson loglikelihood statistic (Cash) is:
-        # L = Sum ( M_i - D_i * log(M_i))
+    def _build_log_like(self):
 
-        logM = self._evaluate_logM(M)
-        # Evaluate v_i = D_i * log(M_i): if D_i = 0 then the product is zero
-        # whatever value has log(M_i). Thus, initialize the whole vector v = {v_i}
-        # to zero, then overwrite the elements corresponding to D_i > 0
+        if self._use_numba:
 
-        counts = self._masked_counts
-        d_times_logM = ne.evaluate("counts*logM")
+            print('Use numba likelihood')
 
-        log_likelihood = ne.evaluate("sum(M - d_times_logM)")
-        return log_likelihood
+            if self._data.data_type == 'trigdat':
+
+                def log_like_numba():
+
+                    M = self._evaluate_model()
+
+                    counts = self._masked_counts
+
+                    return _log_likelihood_numba_trigdat(M, counts)
+            else:
+
+                def log_like_numba():
+
+                    M = selfelf._evaluate_model()
+
+                    counts = self._masked_counts
+
+                    return _log_likelihood_numba(M, counts)
+
+            self._get_log_likelihood = log_like_numba
+
+        else:
+
+            print('Use vectorized likelihood')
+
+            def log_like_vector():
+
+                M = self._evaluate_model()
+                # Poisson loglikelihood statistic (Cash) is:
+                # L = Sum ( M_i - D_i * log(M_i))
+
+                logM = self._evaluate_logM(M)
+                # Evaluate v_i = D_i * log(M_i): if D_i = 0 then the product is zero
+                # whatever value has log(M_i). Thus, initialize the whole vector v = {v_i}
+                # to zero, then overwrite the elements corresponding to D_i > 0
+
+                counts = self._masked_counts
+                d_times_logM = ne.evaluate("counts*logM")
+
+                log_likelihood = ne.evaluate("sum(M - d_times_logM)")
+                return log_likelihood
+
+            self._get_log_likelihood = log_like_vector
+
 
     def _evaluate_model(self):
         """
@@ -333,3 +370,26 @@ class BackgroundLike(object):
     @property
     def data(self):
         return self._data
+
+
+@numba.njit(numba.float64(numba.float64[:,:,:], numba.int64[:,:,:]), parallel=True)
+def _log_likelihood_numba(M, counts):
+    # Poisson loglikelihood statistic (Cash) is:
+    # L = Sum ( M_i - D_i * log(M_i))
+    val = 0.
+    for i in numba.prange(M.shape[0]):
+        for j in numba.prange(M.shape[1]):
+            for k in numba.prange(M.shape[2]):
+                val += M[i,j,k]-counts[i,j,k]*np.log(M[i,j,k])
+    return val
+
+@numba.njit(numba.float64(numba.float64[:,:,:], numba.float64[:,:,:]), parallel=True)
+def _log_likelihood_numba_trigdat(M, counts):
+    # Poisson loglikelihood statistic (Cash) is:
+    # L = Sum ( M_i - D_i * log(M_i))
+    val = 0.
+    for i in numba.prange(M.shape[0]):
+        for j in numba.prange(M.shape[1]):
+            for k in numba.prange(M.shape[2]):
+                val += M[i,j,k]-counts[i,j,k]*np.log(M[i,j,k])
+    return val
