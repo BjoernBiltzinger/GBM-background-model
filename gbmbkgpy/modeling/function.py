@@ -4,7 +4,67 @@ import numpy as np
 import scipy.integrate as integrate
 import numexpr as ne
 import scipy.interpolate as interpolate
-from numba import njit, float64, float32
+
+try:
+    from numba import njit, float64
+    has_numba = True
+except:
+    has_numba = False
+
+if has_numba:
+    @njit([float64[:](float64[:,::1], float64[:,::1])])
+    def trapz(y,x):
+        """
+        Fast trapz integration with numba
+        :param x: x values
+        :param y: y values
+        :return: Trapz integrated
+        """
+        return np.trapz(y,x)
+
+    @njit(float64[:](float64[:],float64[:],float64[:]))
+    def log_interp1d(x_new, x_old, y_old):
+        """
+        Linear interpolation in log space for base value pairs (x_old, y_old)
+        for new x_values x_new
+        :param x_old: Old x values used for interpolation
+        :param y_old: Old y values used for interpolation
+        :param x_new: New x values
+        :retrun: y_new from liner interpolation in log space
+        """
+        # log of all
+        logx = np.log10(x_old)
+        logxnew = np.log10(x_new)
+        # Avoid nan entries for yy=0 entries
+        logy = np.log10(np.where(y_old<=0, 1e-99, y_old))
+
+        lin_interp = np.interp(logxnew,logx, logy)
+
+        return 10**lin_interp
+
+else:
+
+    from numpy import trapz
+
+    def log_interp1d(x_new, x_old, y_old):
+        """
+        Linear interpolation in log space for base value pairs (x_old, y_old)
+        for new x_values x_new
+        :param x_old: Old x values used for interpolation
+        :param y_old: Old y values used for interpolation
+        :param x_new: New x values
+        :retrun: y_new from liner interpolation in log space
+        """
+        # log of all
+        logx = np.log10(x_old)
+        logxnew = np.log10(x_new)
+        # Avoid nan entries for yy=0 entries
+        logy = np.log10(np.where(y_old<=0, 1e-99, y_old))
+
+        lin_interp = np.interp(logxnew,logx, logy)
+
+        return 10**lin_interp
+
 
 class Function(object):
 
