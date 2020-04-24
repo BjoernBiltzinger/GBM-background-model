@@ -4,7 +4,7 @@ import numpy as np
 import scipy.integrate as integrate
 import numexpr as ne
 import scipy.interpolate as interpolate
-
+from numba import njit, float64, float32
 
 class Function(object):
 
@@ -225,7 +225,7 @@ class GlobalFunctionSpectrumFit(Function):
     spectrum!
     """
 
-    def __init__(self, coefficient_name, spectrum='bpl', E_norm=1):
+    def __init__(self, coefficient_name, spectrum='bpl', E_norm=1.):
         """
         Init the parameters of a broken power law
         :param coefficient_name:
@@ -257,6 +257,7 @@ class GlobalFunctionSpectrumFit(Function):
 
             raise ValueError('Spectrum must be bpl or pl at the moment. But is {}'.format(self._spec))
 
+        #self._spec_integral = self._build_spec_integral()
         self._evaluate = self.build_evaluation_function()
 
 
@@ -350,7 +351,7 @@ class GlobalFunctionSpectrumFit(Function):
 
             return self._C / (energy/self._E_norm) ** self._index
 
-    def _integral(self, e1, e2):
+    def _spec_integral(self, e1, e2):
         """
         Calculates the flux of photons between two energies
         :param e1: lower e bound
@@ -360,6 +361,25 @@ class GlobalFunctionSpectrumFit(Function):
         return (e2 - e1) / 6.0 * (
                 self._spectrum(e1) + 4 * self._spectrum((e1 + e2) / 2.0) +
                 self._spectrum(e2))
+
+
+    # def _build_spec_integral(self):
+
+    #     if self._spec == 'bpl':
+
+    #         def _integral(e1, e2):
+
+    #             return _spec_integral_bpl(e1, e2, self._C, self._break_energy, self._index1, self._index2)
+
+    #         return _integral
+
+    #     elif self._spec == 'pl':
+
+    #         def _integral(e1, e2):
+
+    #             return _spec_integral_pl(e1, e2, self._C, self._E_norm, self._index)
+
+    #         return _integral
 
     def _fold_spectrum(self, *parameters):
         """
@@ -389,8 +409,9 @@ class GlobalFunctionSpectrumFit(Function):
             len(self._echans),
         ))
 
+        # TODO: use a matrix with ebins for all detectors
         for det_idx, det in enumerate(self._detectors):
-            true_flux = self._integral(
+            true_flux = self._spec_integral(
                 self._responses[det].Ebin_in_edge[:-1],
                 self._responses[det].Ebin_in_edge[1:]
             )
@@ -434,3 +455,38 @@ class GlobalFunctionSpectrumFit(Function):
     def __call__(self):
 
         return self._evaluate(*self.parameter_value)
+
+
+# @njit#(float64[:](float64[:], float64, float64, float64, float64))
+# def _spectrum_bpl(energy, c, break_energy, index1, index2):
+
+#     return c / ((energy / break_energy) ** index1 + (energy / break_energy) ** index2)
+
+# @njit# (float64[:](float64[:], float64, float64, float64))
+# def _spectrum_pl(energy, c, e_norm, index):
+
+#     return c / (energy/e_norm) ** index
+
+# @njit #(float64[:](float64[:], float64[:], float64, float64, float64))
+# def _spec_integral_pl(e1, e2, c, e_norm, index):
+#         """
+#         Calculates the flux of photons between two energies
+#         :param e1: lower e bound
+#         :param e2: upper e bound
+#         :return:
+#         """
+#         return (e2 - e1) / 6.0 * (
+#                 _spectrum_pl(e1, c, e_norm, index) + 4 * _spectrum_pl((e1 + e2) / 2.0, c, e_norm, index) +
+#                 _spectrum_pl(e2, c, e_norm, index))
+
+# @njit #(float64[:](float32[:], float32[:], float64, float64, float64, float64))
+# def _spec_integral_bpl(e1, e2, c, break_energy, index1, index2):
+#         """
+#         Calculates the flux of photons between two energies
+#         :param e1: lower e bound
+#         :param e2: upper e bound
+#         :return:
+#         """
+#         return (e2 - e1) / 6.0 * (
+#                 _spectrum_bpl(e1, c, break_energy, index1, index2) + 4 * _spectrum_bpl((e1 + e2) / 2.0, c, break_energy, index1, index2) +
+#                 _spectrum_bpl(e2, c, break_energy, index1, index2))
