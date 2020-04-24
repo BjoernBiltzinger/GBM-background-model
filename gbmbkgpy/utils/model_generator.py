@@ -349,6 +349,7 @@ class BackgroundModelGenerator(object):
             data=self._data,
             model=self._model,
             saa_object=self._saa_calc,
+            use_numba=config['fit'].get('use_numba', False)
         )
         print_progress('Done')
 
