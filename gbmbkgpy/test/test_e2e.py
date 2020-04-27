@@ -162,7 +162,7 @@ def test_model_builder():
         assert np.array_equal(
             saa_src[1]['counts'],
             model_generator.model.saa_sources[saa_src[0]].get_counts(
-                model_generator.data.time_bins[2:-2]
+                model_generator.data.time_bins
             )
         )
 
@@ -175,7 +175,7 @@ def test_model_builder():
         assert np.array_equal(
             cont_src[1]['counts'],
             model_generator.model.continuum_sources[cont_src[0]].get_counts(
-                model_generator.data.time_bins[2:-2]
+                model_generator.data.time_bins
             )
         )
 
@@ -185,7 +185,7 @@ def test_model_builder():
         assert np.allclose(
             global_src[1]['counts'][:, :, echans],
             model_generator.model.global_sources[global_src[0]].get_counts(
-                model_generator.data.time_bins[2:-2]
+                model_generator.data.time_bins
             )[:, echans_idx],
             rtol=1e-7
         )

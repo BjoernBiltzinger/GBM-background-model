@@ -47,11 +47,11 @@ class Plotter(object):
         self._parameters = self._model.parameters
 
         # The data object should return all the time bins that are valid... i.e. non-zero
-        self._total_time_bins = data.time_bins[2:-2]
+        self._total_time_bins = data.time_bins
         self._total_time_bin_widths = np.diff(self._total_time_bins, axis=1)[:, 0]
 
         # Get the SAA and GRB mask:
-        self._saa_mask = saa_object.saa_mask[2:-2]
+        self._saa_mask = saa_object.saa_mask
         self._grb_mask = np.ones(len(self._total_time_bins), dtype=bool)  # np.full(len(self._total_time_bins), True)
         # An entry in the total mask is False when one of the two masks is False
         self._total_mask = ~ np.logical_xor(self._saa_mask, self._grb_mask)
@@ -60,8 +60,8 @@ class Plotter(object):
         self._time_bins = self._total_time_bins[self._total_mask]
 
         # Extract the counts from the data object. should be same size as time bins. For all echans together
-        self._counts_all_echan = data.counts[2:-2][self._total_mask]
-        self._total_counts_all_echan = data.counts[2:-2]
+        self._counts_all_echan = data.counts[self._total_mask]
+        self._total_counts_all_echan = data.counts
 
         self._total_scale_factor = 1.
         self._rebinner = None
@@ -425,7 +425,7 @@ class Plotter(object):
             parameter.value = synth_parameters[i]
 
         for echan in self._echan_list:
-            synth_data.counts[:, echan][2:-2] = np.random.poisson(synth_model.get_counts(synth_data.time_bins[2:-2], echan))
+            synth_data.counts[:, echan] = np.random.poisson(synth_model.get_counts(synth_data.time_bins, echan))
 
         return synth_data
 

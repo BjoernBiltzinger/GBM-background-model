@@ -26,11 +26,11 @@ class BackgroundLike(object):
         self._parameters = self._model.parameters
 
         # The data object should return all the time bins that are valid... i.e. non-zero
-        self._total_time_bins = self._data.time_bins[2:-2]
+        self._total_time_bins = self._data.time_bins
         self._total_time_bin_widths = np.diff(self._total_time_bins, axis=1)[:, 0]
 
         # Get the SAA and GRB mask:
-        self._saa_mask = saa_object.saa_mask[2:-2]
+        self._saa_mask = saa_object.saa_mask
         self._grb_mask = np.ones(len(self._total_time_bins), dtype=bool)  # np.full(len(self._total_time_bins), True)
         # An entry in the total mask is False when one of the two masks is False
         self._total_mask = ~ np.logical_xor(self._saa_mask, self._grb_mask)
@@ -39,8 +39,8 @@ class BackgroundLike(object):
         self._time_bins = self._total_time_bins[self._total_mask]
 
         # Extract the counts from the data object. should be same size as time bins.
-        self._total_counts = self._data.counts[2:-2]
-        self._masked_counts = self._data.counts[2:-2][self._total_mask]
+        self._total_counts = self._data.counts
+        self._masked_counts = self._data.counts[self._total_mask]
 
         self._total_scale_factor = 1.
         self._grb_mask_calculated = False
@@ -335,8 +335,8 @@ class BackgroundLike(object):
         self._time_bins = self._total_time_bins[self._total_mask]
 
         # Extract the counts from the data object. should be same size as time bins.
-        self._masked_counts = self._data.counts[2:-2][self._total_mask]
-        self._total_counts = self._data.counts[2:-2]
+        self._masked_counts = self._data.counts[self._total_mask]
+        self._total_counts = self._data.counts
 
     def _parse_interval(self, time_interval):
         """
@@ -364,8 +364,8 @@ class BackgroundLike(object):
         self._time_bins = self._total_time_bins[self._total_mask]
 
         # Extract the counts from the data object. should be same size as time bins.
-        self._masked_counts = self._data.counts[2:-2][self._total_mask]
-        self._total_counts = self._data.counts[2:-2]
+        self._masked_counts = self._data.counts[self._total_mask]
+        self._total_counts = self._data.counts
 
     @property
     def data(self):

@@ -38,8 +38,8 @@ class DataExporter(object):
         self._echans = echans
         self._best_fit_values = best_fit_values
 
-        self._time_bins = self._data.time_bins[2:-2]
-        self._saa_mask = self._saa_object.saa_mask[2:-2]
+        self._time_bins = self._data.time_bins
+        self._saa_mask = self._saa_object.saa_mask
 
         self._total_scale_factor = 1.
         self._rebinner = None
@@ -54,7 +54,7 @@ class DataExporter(object):
 
         # Get the model counts
         model_counts = model.get_counts(
-            time_bins=self._time_bins[2:-2]
+            time_bins=self._time_bins
         )
 
 
@@ -207,7 +207,7 @@ class DataExporter(object):
         for i, parameter in enumerate(synth_model.free_parameters.values()):
             parameter.value = synth_parameters[i]
 
-        synth_data.counts[2:-2] = np.random.poisson(synth_model.get_counts(synth_data.time_bins[2:-2]))
+        synth_data.counts = np.random.poisson(synth_model.get_counts(synth_data.time_bins))
 
         return synth_data
 

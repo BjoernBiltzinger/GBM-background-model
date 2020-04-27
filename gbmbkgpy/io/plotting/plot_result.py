@@ -180,11 +180,11 @@ class ResultPlotGenerator(object):
         result_dict['echans'] = data.echans
         result_dict['day_start_times'] = data.day_start_times
         result_dict['day_stop_times'] = data.day_stop_times
-        result_dict['total_time_bins'] = data.time_bins[2:-2]
-        result_dict['saa_mask'] = saa_object.saa_mask[2:-2]
+        result_dict['total_time_bins'] = data.time_bins
+        result_dict['saa_mask'] = saa_object.saa_mask
 
         result_dict['observed_counts'] = set_saa_zero(
-                data.counts[2:-2],
+                data.counts,
                 saa_mask=result_dict['saa_mask']
         )
 
@@ -499,9 +499,9 @@ class ResultPlotGenerator(object):
                     self._result_dict['ppc_counts'][j], saa_mask=self._result_dict['saa_mask']
                 )
                 if rebin:
-                    rebinned_ppc_rates.append(this_rebinner.rebin(self._result_dict['ppc_counts'][j][2:-2]) / self._rebinned_time_bin_widths)
+                    rebinned_ppc_rates.append(this_rebinner.rebin(self._result_dict['ppc_counts'][j]) / self._rebinned_time_bin_widths)
                 else:
-                    rebinned_ppc_rates.append(self._result_dict['ppc_counts'][j][2:-2] / self._rebinned_time_bin_widths)
+                    rebinned_ppc_rates.append(self._result_dict['ppc_counts'][j] / self._rebinned_time_bin_widths)
 
                 p_bar.increase()
             rebinned_ppc_rates = np.array(rebinned_ppc_rates)

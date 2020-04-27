@@ -42,19 +42,29 @@ class SAA_calc(object):
         self._rebinned = False
         self._rebinned_saa_mask = None
 
+        self._valid_time_mask = np.ones(len(self._saa_mask), dtype=bool)
+
     @property
     def saa_mask(self):
         """
         Returns SAA mask
         """
         if self._rebinned:
-            return self._rebinned_saa_mask
+            return self._rebinned_saa_mask[self._valid_rebinned_time_mask]
         else:
-            return self._saa_mask
+            return self._saa_mask[self._valid_time_mask]
 
     def set_rebinned_saa_mask(self, rebinned_saa_mask):
         self._rebinned = True
         self._rebinned_saa_mask = rebinned_saa_mask
+
+        self._valid_rebinned_time_mask = np.ones(len(self._rebinned_saa_mask), dtype=bool)
+
+    def mask_invalid_bins(self, valid_time_mask, valid_rebinned_time_mask=None):
+        self._valid_time_mask = valid_time_mask
+
+        if valid_rebinned_time_mask is not None:
+            self._valid_rebinned_time_mask = valid_rebinned_time_mask
 
     @property
     def times_bins(self):
@@ -181,7 +191,6 @@ class SAA_calc(object):
             self._saa_mask = np.ones(len(self._time_bins), bool)
             self._saa_exit_time_bins = np.array([])
             self._num_saa = 0
-
 
     def slice_disjoint(self, arr):
         """
