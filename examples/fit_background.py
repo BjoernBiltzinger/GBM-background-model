@@ -49,9 +49,9 @@ with open(args.config_file) as f:
 ############# Overwrite config with BASH arguments ################
 if args.date is not None:
     config["general"]["dates"] = [args.date]
-if args.detector is not None:
-    config["general"]["detectors"] = args.detectors
-if args.echan is not None:
+if args.detectors is not None:
+    config["general"]["detectors"] = [args.detectors]
+if args.echans is not None:
     config["general"]["echans"] = [args.echans]
 
 ############## Generate the GBM-background-model ##################
