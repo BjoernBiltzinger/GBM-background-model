@@ -96,7 +96,7 @@ class DataExporter(object):
                     group_sources.create_dataset(source['label'], data=source['data'], compression="gzip", compression_opts=9)
 
                 if save_ppc:
-                    group_echan.create_dataset('ppc', data=ppc_counts, compression="gzip", compression_opts=9)
+                    f.create_dataset('ppc', data=ppc_counts, compression="gzip", compression_opts=9)
 
 
     def get_counts_of_sources(self, time_bins):
