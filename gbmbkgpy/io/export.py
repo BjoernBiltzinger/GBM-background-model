@@ -62,7 +62,7 @@ class DataExporter(object):
         #####################
 
         # Get the statistical error from the posterior samples
-        ppc_counts = self._ppc_data(result_dir)[:, 2:-2, :, :]
+        ppc_counts = self._ppc_data(result_dir)
 
         low = np.percentile(counts, 50 - 50 * 0.68, axis=0)[0]
         high = np.percentile(counts, 50 + 50 * 0.68, axis=0)[0]
