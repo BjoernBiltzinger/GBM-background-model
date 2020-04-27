@@ -177,8 +177,8 @@ class DataExporter(object):
 
             else:
                 for i, sample in enumerate(mn_posteriour_samples[a][points_lower_index:points_upper_index]):
-                    synth_data = self.get_synthetic_data(sample)
-                    counts.append(synth_data.counts)
+                    synth_counts = self.get_synthetic_data(sample)
+                    counts.append(synth_counts)
             counts = np.array(counts)
             counts_g = comm.gather(counts, root=0)
 
@@ -187,8 +187,8 @@ class DataExporter(object):
             counts = comm.bcast(counts_g, root=0)
         else:
             for i, sample in enumerate(analyzer.get_equal_weighted_posterior()[:, :-1][a]):
-                synth_data = self.get_synthetic_data(sample)
-                counts.append(synth_data.counts)
+                synth_counts = self.get_synthetic_data(sample)
+                counts.append(synth_counts)
             counts = np.array(counts)
         return counts
 
@@ -207,9 +207,9 @@ class DataExporter(object):
         for i, parameter in enumerate(synth_model.free_parameters.values()):
             parameter.value = synth_parameters[i]
 
-        synth_data.counts = np.random.poisson(synth_model.get_counts(synth_data.time_bins))
+        synth_counts = np.random.poisson(synth_model.get_counts(synth_data.time_bins))
 
-        return synth_data
+        return synth_counts
 
 
 class PHAExporter(DataExporter):
