@@ -123,49 +123,60 @@ class ResultPlotGenerator(object):
         result_dict = {}
 
         with h5py.File(result_data_file, 'r') as f:
-            keys = f.keys()
 
-            result_dict['det'] = np.array(f['general']['detector'])
-            result_dict['dates'] = np.array(f['general']['dates'])
-            result_dict['day_start_times'] = np.array(f['general']['day_start_times'])
-            result_dict['day_stop_times'] = np.array(f['general']['day_stop_times'])
-            result_dict['time_bins_start'] = np.array(f['general'].get('time_bins_start', None))
-            result_dict['time_bins_stop'] = np.array(f['general'].get('time_bins_stop', None))
+            result_dict['dates'] = f.attrs['dates']
+            result_dict['detectors'] = f.attrs['detector']
+            result_dict['echans'] = f.attrs['echans']
+            result_dict['param_names'] = f.attrs['echans']
+            result_dict['best_fit_values'] = f.attrs['best_fit_values']
+
+
+            result_dict['day_start_times'] = f['day_start_times'][()]
+            result_dict['day_stop_times'] = f['day_stop_times'][()]
+            result_dict['time_bins_start'] = f['time_bins_start'][()]
+            result_dict['time_bins_stop'] = f['time_bins_stop'][()]
             result_dict['total_time_bins'] = np.vstack((result_dict['time_bins_start'], result_dict['time_bins_stop'])).T
-            result_dict['saa_mask'] = np.array(f['general']['saa_mask'])
+            result_dict['saa_mask'] = f['saa_mask'][()]
 
-            result_dict['echans'] = {}
+            result_dict['model_counts'] = f['model_counts'][()]
+            result_dict['observed_counts'] = f['observed_counts'][()]
 
-            for key in keys:
-                if key == 'general':
-                    pass
-                else:
-                    echan = key.split(' ')[1]
+            result_dict['sources'] = {}
 
-                    result_dict['echans'][echan] = {}
-                    result_dict['echans'][echan]['echan'] = echan
+            for source_name in f['sources'].keys():
+                result_dict['sources'][source_name] = f['sources'][source_name][()]
 
-                    result_dict['echans'][echan]['model_counts'] = set_saa_zero(
-                        np.array(f[key]['total_model_counts']), saa_mask=result_dict['saa_mask']
-                    )
-                    result_dict['echans'][echan]['observed_counts'] = set_saa_zero(
-                        np.array(f[key]['observed_counts']), saa_mask=result_dict['saa_mask']
-                    )
-                    result_dict['echans'][echan]['ppc_counts'] = np.array(f[key]['ppc'])
+            result_dict['ppc'] = f['ppc'][()]
 
-                    # This is to keep it compatible to old data files
-                    if result_dict['time_bins_start'] is None:
-                        result_dict['time_bins_start'] = np.array(f[key].get('time_bins_start'))
-                        result_dict['time_bins_stop'] = np.array(f[key].get('time_bins_stop'))
+            result_dict['time_stamp'] = datetime.now().strftime('%y%m%d_%H%M')
 
-                    result_dict['echans'][echan]['sources'] = {}
+            # for key in keys:
+            #     if key == 'general':
+            #         pass
+            #     else:
+            #         echan = key.split(' ')[1]
 
-                    for key_inter in f[key]['sources']:
-                        result_dict['echans'][echan]['sources'][key_inter] = set_saa_zero(
-                            np.array(f[key]['sources'][key_inter]), saa_mask=result_dict['saa_mask']
-                        )
+            #         result_dict['echans'][echan] = {}
+            #         result_dict['echans'][echan]['echan'] = echan
 
-                    result_dict['echans'][echan]['time_stamp'] = datetime.now().strftime('%y%m%d_%H%M')
+            #         result_dict['echans'][echan]['model_counts'] = set_saa_zero(
+            #             np.array(f[key]['total_model_counts']), saa_mask=result_dict['saa_mask']
+            #         )
+            #         result_dict['echans'][echan]['observed_counts'] = set_saa_zero(
+            #             np.array(f[key]['observed_counts']), saa_mask=result_dict['saa_mask']
+            #         )
+            #         result_dict['echans'][echan]['ppc_counts'] = np.array(f[key]['ppc'])
+
+            #         # This is to keep it compatible to old data files
+            #         if result_dict['time_bins_start'] is None:
+            #             result_dict['time_bins_start'] = np.array(f[key].get('time_bins_start'))
+            #             result_dict['time_bins_stop'] = np.array(f[key].get('time_bins_stop'))
+
+            #         result_dict['echans'][echan]['sources'] = {}
+
+            #         y
+
+            #         result_dict['echans'][echan]['time_stamp'] = datetime.now().strftime('%y%m%d_%H%M')
 
         return cls(
             config_file=config_file, result_dict=result_dict
