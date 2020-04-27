@@ -95,9 +95,8 @@ data_exporter = DataExporter(
     data=model_generator.data,
     model=model_generator.model,
     saa_object=model_generator.saa_calc,
-    echan_list=config["general"]["echans"],
-    best_fit_values=minimizer.best_fit_values,
-    covariance_matrix=minimizer.cov_matrix,
+    echans=config["general"]["echans"],
+    best_fit_values=minimizer.best_fit_values
 )
 
 result_file_name = "fit_result_{}_{}_e{}.hdf5".format(

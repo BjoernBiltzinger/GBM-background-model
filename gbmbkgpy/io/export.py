@@ -53,7 +53,7 @@ class DataExporter(object):
         """
 
         # Get the model counts
-        model_counts = model.get_counts(
+        model_counts = self._model.get_counts(
             time_bins=self._time_bins
         )
 
