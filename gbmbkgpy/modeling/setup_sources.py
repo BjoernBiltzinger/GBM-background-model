@@ -194,7 +194,7 @@ def setup_SAA(data, saa_object, echan, index, nr_decays=1, decay_at_day_start=Tr
         )
 
         saa_dec.set_time_bins(
-            data.time_bins[2:-2]
+            data.time_bins
         )
 
         saa_dec.set_nr_detectors(
@@ -226,11 +226,11 @@ def setup_sun(cd, sun_object, saa_object, response_object, geom_object, echan_li
     )
 
     Sun.set_basis_function_array(
-        cd.time_bins[2:-2]
+        cd.time_bins
     )
 
     Sun.set_saa_zero(
-        saa_object.saa_mask[2:-2]
+        saa_object.saa_mask
     )
 
     Sun.set_interpolation_times(
@@ -251,17 +251,17 @@ def setup_Constant(data, saa_object, echan, index):
 
     Constant.set_function_array(
         np.ones((
-            len(data.time_bins[2:-2]),
+            len(data.time_bins),
             len(data._detectors),
             2
         ))
     )
 
-    Constant.set_saa_zero(saa_object.saa_mask[2:-2])
+    Constant.set_saa_zero(saa_object.saa_mask)
 
     # precalculate the integration over the time bins
     Constant.integrate_array(
-        data.time_bins[2:-2]
+        data.time_bins
     )
 
     Constant_Continuum = ContinuumSource(
@@ -287,17 +287,17 @@ def setup_CosmicRays(data, ep, saa_object, echan, index, bgo_cr_approximation):
         mag_con = Magnetic_Continuum(str(echan))
 
         mag_con.set_function_array(
-            ep.bgo_cr_approximation((data.time_bins[2:-2]))
+            ep.bgo_cr_approximation((data.time_bins))
         )
 
         mag_con.remove_vertical_movement()
 
         mag_con.set_saa_zero(
-            saa_object.saa_mask[2:-2]
+            saa_object.saa_mask
         )
 
         mag_con.integrate_array(
-            data.time_bins[2:-2]
+            data.time_bins
         )
 
         Source_Magnetic_Continuum = ContinuumSource(
@@ -312,18 +312,18 @@ def setup_CosmicRays(data, ep, saa_object, echan, index, bgo_cr_approximation):
         mag_con = Magnetic_Continuum(str(echan))
 
         mag_con.set_function_array(
-            ep.mc_l_rates((data.time_bins[2:-2])),
+            ep.mc_l_rates((data.time_bins)),
         )
 
         mag_con.set_saa_zero(
-            saa_object.saa_mask[2:-2]
+            saa_object.saa_mask
         )
 
         mag_con.remove_vertical_movement()
 
         # precalculate the integration over the time bins
         mag_con.integrate_array(
-            data.time_bins[2:-2]
+            data.time_bins
         )
 
         Source_Magnetic_Continuum = ContinuumSource(
@@ -389,11 +389,11 @@ def setup_ps(data, ep, saa_object, det_responses, det_geometries, echans,
             )
 
             PS_Continuum_dic['{}'.format(ps.name)].set_time_bins(
-                time_bins=data.time_bins[2:-2]
+                time_bins=data.time_bins
             )
 
             PS_Continuum_dic['{}'.format(ps.name)].set_saa_mask(
-                saa_mask=saa_object.saa_mask[2:-2]
+                saa_mask=saa_object.saa_mask
             )
 
             PS_Continuum_dic['{}'.format(ps.name)].set_interpolation_times(
@@ -417,15 +417,15 @@ def setup_ps(data, ep, saa_object, det_responses, det_geometries, echans,
             )
 
             PS_Continuum_dic['{}'.format(ps.name)].set_function_array(
-                ps.get_ps_rates(data.time_bins[2:-2])
+                ps.get_ps_rates(data.time_bins)
             )
 
             PS_Continuum_dic['{}'.format(ps.name)].set_saa_zero(
-                saa_object.saa_mask[2:-2]
+                saa_object.saa_mask
             )
 
             PS_Continuum_dic['{}'.format(ps.name)].integrate_array(
-                data.time_bins[2:-2]
+                data.time_bins
             )
 
             PS_Sources_list.append(
@@ -463,11 +463,11 @@ def setup_earth_free(data, albedo_cgb_object, saa_object, use_numba):
     )
 
     earth_albedo.set_time_bins(
-        time_bins=data.time_bins[2:-2]
+        time_bins=data.time_bins
     )
 
     earth_albedo.set_saa_mask(
-        saa_mask=saa_object.saa_mask[2:-2]
+        saa_mask=saa_object.saa_mask
     )
 
     earth_albedo.set_interpolation_times(
@@ -498,14 +498,14 @@ def setup_earth_fix(data, albedo_cgb_object, saa_object):
     earth_albedo = Earth_Albedo_Continuum()
 
     earth_albedo.set_function_array(
-        albedo_cgb_object.get_earth_rates(data.time_bins[2:-2])
+        albedo_cgb_object.get_earth_rates(data.time_bins)
     )
     earth_albedo.set_saa_zero(
-        saa_object.saa_mask[2:-2]
+        saa_object.saa_mask
     )
 
     earth_albedo.integrate_array(
-        data.time_bins[2:-2]
+        data.time_bins
     )
 
     Source_Earth_Albedo_Continuum = GlobalSource('Earth Albedo', earth_albedo)
@@ -537,11 +537,11 @@ def setup_cgb_free(data, albedo_cgb_object, saa_object, use_numba):
     )
 
     cgb.set_time_bins(
-        time_bins=data.time_bins[2:-2]
+        time_bins=data.time_bins
     )
 
     cgb.set_saa_mask(
-        saa_mask=saa_object.saa_mask[2:-2]
+        saa_mask=saa_object.saa_mask
     )
 
     cgb.set_interpolation_times(
@@ -571,15 +571,15 @@ def setup_cgb_fix(data, albedo_cgb_object, saa_object):
     cgb = Cosmic_Gamma_Ray_Background()
 
     cgb.set_function_array(
-        albedo_cgb_object.get_cgb_rates(data.time_bins[2:-2])
+        albedo_cgb_object.get_cgb_rates(data.time_bins)
     )
 
     cgb.set_saa_zero(
-        saa_object.saa_mask[2:-2]
+        saa_object.saa_mask
     )
 
     cgb.integrate_array(
-        data.time_bins[2:-2]
+        data.time_bins
     )
 
     Source_CGB_Albedo_Continuum = GlobalSource('CGB', cgb)

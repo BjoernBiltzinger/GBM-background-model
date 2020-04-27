@@ -80,6 +80,9 @@ class BackgroundModelGenerator(object):
 
         self._precalc_geometry(config)
 
+       
+        self._mask_valid_time_bins()
+
 
         self._setup_sources(config)
 
@@ -168,6 +171,17 @@ class BackgroundModelGenerator(object):
 
         print_progress('Done')
 
+
+    def _mask_valid_time_bins(self):
+
+        self._data.mask_invalid_bins(
+            geometry_times=self._geom.geometry_times
+        )
+
+        self._saa_calc.mask_invalid_bins(
+            valid_time_mask=self._data.valid_time_mask,
+            valid_rebinned_time_mask=self._data.valid_rebinned_time_mask
+        )
 
     def _setup_sources(self, config):
         # Create all individual sources and add them to a list
