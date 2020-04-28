@@ -23,14 +23,17 @@ import pytest
 def test_model_builder():
     path_of_tests = os.path.dirname(os.path.abspath(__file__))
 
-    data_path = os.path.join(get_path_of_external_data_dir(), 'ctime', '150126')
-    file_name = 'glg_ctime_n0_150126_test.pha'
+    data_path = os.path.join(get_path_of_external_data_dir(), "ctime", "150126")
+    file_name = "glg_ctime_n0_150126_test.pha"
 
-    shutil.copy(os.path.join(path_of_tests, 'datasets', file_name), os.path.join(data_path, file_name))
+    shutil.copy(
+        os.path.join(path_of_tests, "datasets", file_name),
+        os.path.join(data_path, file_name),
+    )
 
     model_generator = BackgroundModelGenerator()
 
-    model_generator.from_config_file(os.path.join(path_of_tests, 'config_test.yml'))
+    model_generator.from_config_file(os.path.join(path_of_tests, "config_test.yml"))
 
     # Check that all objects are instantiated correctly
     assert isinstance(model_generator.data, Data)
@@ -44,9 +47,9 @@ def test_model_builder():
     assert isinstance(model_generator.parameter_bounds, dict)
     assert isinstance(model_generator.config, dict)
 
-    echans = model_generator.config['general']['echans']
+    echans = model_generator.config["general"]["echans"]
     echans_idx = np.arange(len(echans))
-    detectors = model_generator.config['general']['detectors']
+    detectors = model_generator.config["general"]["detectors"]
 
     test_responses = {}
     test_geometries = {}
@@ -55,59 +58,60 @@ def test_model_builder():
     test_sources_continuum = {}
     test_sources_global = {}
 
-    with h5py.File(os.path.join(path_of_tests, 'datasets', '150126_test_comb.hd5'), 'r') as f:
-        test_time_bins = f['time_bins'][()]
-        test_counts = f['counts'][()]
+    with h5py.File(
+        os.path.join(path_of_tests, "datasets", "150126_test_comb.hd5"), "r"
+    ) as f:
+        test_time_bins = f["time_bins"][()]
+        test_counts = f["counts"][()]
 
-        test_rebinned_time_bins = f['rebinned_time_bins'][()]
-        test_rebinned_counts = f['rebinned_counts'][()]
+        test_rebinned_time_bins = f["rebinned_time_bins"][()]
+        test_rebinned_counts = f["rebinned_counts"][()]
 
-        test_saa_mask = f['saa_mask'][()]
-        test_rebinned_saa_mask = f['rebinned_saa_mask'][()]
+        test_saa_mask = f["saa_mask"][()]
+        test_rebinned_saa_mask = f["rebinned_saa_mask"][()]
 
-        for det in f['responses'].keys():
+        for det in f["responses"].keys():
             test_responses[det] = {}
 
-            test_responses[det]['response_array'] = \
-                f['responses'][det]['response_array'][()]
+            test_responses[det]["response_array"] = f["responses"][det][
+                "response_array"
+            ][()]
 
-
-        for det in f['geometries'].keys():
+        for det in f["geometries"].keys():
             test_geometries[det] = {}
 
-            test_geometries[det]['earth_az'] = \
-                f['geometries'][det]['earth_az'][()]
+            test_geometries[det]["earth_az"] = f["geometries"][det]["earth_az"][()]
 
-            test_geometries[det]['earth_zen'] = \
-                f['geometries'][det]['earth_zen'][()]
+            test_geometries[det]["earth_zen"] = f["geometries"][det]["earth_zen"][()]
 
-
-        for src_name in f['sources']['saa'].keys():
+        for src_name in f["sources"]["saa"].keys():
             test_sources_saa[src_name] = {}
 
-            test_sources_saa[src_name]['echan'] = \
-                f['sources']['saa'][src_name].attrs['echan']
+            test_sources_saa[src_name]["echan"] = f["sources"]["saa"][src_name].attrs[
+                "echan"
+            ]
 
-            test_sources_saa[src_name]['counts'] = \
-                f['sources']['saa'][src_name]['counts'][()]
+            test_sources_saa[src_name]["counts"] = f["sources"]["saa"][src_name][
+                "counts"
+            ][()]
 
-
-        for src_name in f['sources']['continuum'].keys():
+        for src_name in f["sources"]["continuum"].keys():
             test_sources_continuum[src_name] = {}
 
-            test_sources_continuum[src_name]['echan'] = \
-                f['sources']['continuum'][src_name].attrs['echan']
+            test_sources_continuum[src_name]["echan"] = f["sources"]["continuum"][
+                src_name
+            ].attrs["echan"]
 
-            test_sources_continuum[src_name]['counts'] = \
-                f['sources']['continuum'][src_name]['counts'][()]
+            test_sources_continuum[src_name]["counts"] = f["sources"]["continuum"][
+                src_name
+            ]["counts"][()]
 
-
-        for src_name in f['sources']['global'].keys():
+        for src_name in f["sources"]["global"].keys():
             test_sources_global[src_name] = {}
 
-            test_sources_global[src_name]['counts'] = \
-                f['sources']['global'][src_name]['counts'][()]
-
+            test_sources_global[src_name]["counts"] = f["sources"]["global"][src_name][
+                "counts"
+            ][()]
 
     # Get the test counts from the same echan specified in the config
     test_counts_echans = test_counts[:, :, echans].reshape(
@@ -132,95 +136,116 @@ def test_model_builder():
     assert np.array_equal(test_rebinned_saa_mask, model_generator.saa_calc.saa_mask)
 
     # Check if response precalculation is correct
-    for det in model_generator.config['general']['detectors']:
-
+    for det in model_generator.config["general"]["detectors"]:
+        print(test_responses[det]["response_array"].shape)
+        print(model_generator.response.responses[det].response_array.shape)
         assert np.allclose(
-            test_responses[det]['response_array'],
-            model_generator.response.responses[det].response_array,
-            rtol=1e-6
+            test_responses[det]["response_array"],
+            model_generator.response.responses[
+                det
+            ].response_array,  # .astype(np.float32),
+            rtol=1e-6,
         )
 
     # Check if geometry precalculation is correct
-    for det in model_generator.config['general']['detectors']:
+    for det in model_generator.config["general"]["detectors"]:
 
         assert np.array_equal(
-            test_geometries[det]['earth_az'],
+            test_geometries[det]["earth_az"],
             model_generator.geometry.geometries[det].earth_az,
         )
 
         assert np.array_equal(
-            test_geometries[det]['earth_zen'],
-            model_generator.geometry.geometries[det].earth_zen
+            test_geometries[det]["earth_zen"],
+            model_generator.geometry.geometries[det].earth_zen,
         )
-
 
     # Check the saa sources
     for saa_src in test_sources_saa.items():
 
-        assert saa_src[1]['echan'] == model_generator.model.saa_sources[saa_src[0]].echan
-
+        assert (
+            saa_src[1]["echan"] == model_generator.model.saa_sources[saa_src[0]].echan
+        )
+        print(saa_src[1]["counts"].shape)
+        print(
+            model_generator.model.saa_sources[saa_src[0]]
+            .get_counts(model_generator.data.time_bins)
+            .shape
+        )
         assert np.array_equal(
-            saa_src[1]['counts'],
+            saa_src[1]["counts"],
             model_generator.model.saa_sources[saa_src[0]].get_counts(
                 model_generator.data.time_bins
-            )[2:-2]
+            )[2:-2],
         )
-
 
     # Check the continuum sources
     for cont_src in test_sources_continuum.items():
 
-        assert cont_src[1]['echan'] == model_generator.model.continuum_sources[cont_src[0]].echan
+        assert (
+            cont_src[1]["echan"]
+            == model_generator.model.continuum_sources[cont_src[0]].echan
+        )
 
         assert np.array_equal(
-            cont_src[1]['counts'],
+            cont_src[1]["counts"],
             model_generator.model.continuum_sources[cont_src[0]].get_counts(
                 model_generator.data.time_bins
-            )[2:-2]
+            )[2:-2],
         )
 
     # Check the global sources
     for global_src in test_sources_global.items():
 
         assert np.allclose(
-            global_src[1]['counts'][:, :, echans],
+            global_src[1]["counts"][:, :, echans],
             model_generator.model.global_sources[global_src[0]].get_counts(
                 model_generator.data.time_bins
             )[:, echans_idx][2:-2],
-            rtol=1e-7
+            rtol=1e-7,
         )
 
     pytest._test_model_generator = model_generator
-
 
 
 @pytest.mark.run(order=2)
 def test_fitting():
     model_generator = pytest._test_model_generator
 
-    if model_generator.config['fit']['method'] == 'multinest':
+    if model_generator.config["fit"]["method"] == "multinest":
         minimizer = MultiNestFit(
             likelihood=model_generator.likelihood,
-            parameters=model_generator.model.free_parameters
+            parameters=model_generator.model.free_parameters,
         )
 
         # Fit with multinest and define the number of live points one wants to use
         minimizer.minimize_multinest(
-            n_live_points=model_generator.config['fit']['multinest']['num_live_points'],
-            const_efficiency_mode=model_generator.config['fit']['multinest']['constant_efficiency_mode']
+            n_live_points=model_generator.config["fit"]["multinest"]["num_live_points"],
+            const_efficiency_mode=model_generator.config["fit"]["multinest"][
+                "constant_efficiency_mode"
+            ],
         )
 
         # Plot Marginals
         minimizer.create_corner_plot()
     else:
-        raise KeyError('Invalid fit method')
+        raise KeyError("Invalid fit method")
 
-    true_values = np.array([5.03012970e+01, 8.78085840e-01, 1.10441586e+03, 1.56685886e-02, 4.15783951e-02, 8.69100647e-03, 7.81257334e-02])
+    true_values = np.array(
+        [
+            5.03012970e01,
+            8.78085840e-01,
+            1.10441586e03,
+            1.56685886e-02,
+            4.15783951e-02,
+            8.69100647e-03,
+            7.81257334e-02,
+        ]
+    )
     assert np.allclose(minimizer.best_fit_values, true_values, rtol=1e2)
 
     pytest._test_output_dir = minimizer.output_dir
     pytest._test_best_fit_values = minimizer.best_fit_values
-
 
 
 @pytest.mark.run(order=3)
@@ -230,26 +255,30 @@ def test_data_export():
         data=pytest._test_model_generator.data,
         model=pytest._test_model_generator.model,
         saa_object=pytest._test_model_generator.saa_calc,
-        echans=config['general']['echans'],
+        echans=config["general"]["echans"],
         best_fit_values=pytest._test_best_fit_values,
     )
 
-    result_file_name = "fit_result_{}_{}_e{}.hdf5".format(config['general']['dates'],
-                                                          config['general']['detectors'],
-                                                          config['general']['echans'])
+    result_file_name = "fit_result_{}_{}_e{}.hdf5".format(
+        config["general"]["dates"],
+        config["general"]["detectors"],
+        config["general"]["echans"],
+    )
 
     data_exporter.save_data(
         file_path=os.path.join(pytest._test_output_dir, result_file_name),
         result_dir=pytest._test_output_dir,
-        save_ppc=config['export']['save_ppc']
+        save_ppc=config["export"]["save_ppc"],
     )
-    assert file_existing_and_readable(os.path.join(pytest._test_output_dir, result_file_name))
+    assert file_existing_and_readable(
+        os.path.join(pytest._test_output_dir, result_file_name)
+    )
 
 
 @pytest.mark.run(order=4)
 def test_plotting():
     path_of_tests = os.path.dirname(os.path.abspath(__file__))
-    config = os.path.join(path_of_tests, 'config_plot_test.yml')
+    config = os.path.join(path_of_tests, "config_plot_test.yml")
 
     # Create Plotter object that creates the plots
     plot_generator = ResultPlotGenerator.from_result_instance(
@@ -259,9 +288,7 @@ def test_plotting():
         saa_object=pytest._test_model_generator.saa_calc,
     )
 
-    plot_generator.create_plots(
-        output_dir=pytest._test_output_dir
-    )
+    plot_generator.create_plots(output_dir=pytest._test_output_dir)
 
     for plot_path in plot_generator._plot_path_list:
         assert file_existing_and_readable(plot_path)
@@ -272,10 +299,10 @@ def test_plotting():
 @pytest.mark.run(order=5)
 def test_delete_outputs():
     if os.access(pytest._test_output_dir, os.F_OK):
-       shutil.rmtree(pytest._test_output_dir)
+        shutil.rmtree(pytest._test_output_dir)
 
-    data_path = os.path.join(get_path_of_external_data_dir(), 'ctime', '150126')
-    file_name = 'glg_ctime_n0_150126_test.pha'
+    data_path = os.path.join(get_path_of_external_data_dir(), "ctime", "150126")
+    file_name = "glg_ctime_n0_150126_test.pha"
     file_path = os.path.join(data_path, file_name)
 
     if file_existing_and_readable(file_path):
