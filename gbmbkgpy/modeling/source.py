@@ -1,4 +1,20 @@
-FLARE_SOURCE, CONTINUUM_SOURCE, POINT_SOURCE, SAA_SOURCE, GLOBAL_SOURCE, FIT_SPECTRUM_SOURCE, TRANSIENT_SOURCE = 'flare_source', 'continuum_source', 'point_source', 'saa_source', 'global_source', 'fit_spectrum_source', 'transient_source'
+(
+    FLARE_SOURCE,
+    CONTINUUM_SOURCE,
+    POINT_SOURCE,
+    SAA_SOURCE,
+    GLOBAL_SOURCE,
+    FIT_SPECTRUM_SOURCE,
+    TRANSIENT_SOURCE,
+) = (
+    "flare_source",
+    "continuum_source",
+    "point_source",
+    "saa_source",
+    "global_source",
+    "fit_spectrum_source",
+    "transient_source",
+)
 from scipy import integrate
 import numpy as np
 
@@ -10,7 +26,15 @@ class Source(object):
         self._shape = shape
         self._index = index
 
-        assert source_type in [POINT_SOURCE, CONTINUUM_SOURCE, FLARE_SOURCE, SAA_SOURCE, GLOBAL_SOURCE, FIT_SPECTRUM_SOURCE, TRANSIENT_SOURCE], 'improper source'
+        assert source_type in [
+            POINT_SOURCE,
+            CONTINUUM_SOURCE,
+            FLARE_SOURCE,
+            SAA_SOURCE,
+            GLOBAL_SOURCE,
+            FIT_SPECTRUM_SOURCE,
+            TRANSIENT_SOURCE,
+        ], "improper source"
 
     def __call__(self):
         return self._shape()
@@ -28,7 +52,9 @@ class Source(object):
         :return:
         """
         if bin_mask is None:
-            bin_mask = np.ones(len(time_bins), dtype=bool)  # np.full(len(time_bins), True)
+            bin_mask = np.ones(
+                len(time_bins), dtype=bool
+            )  # np.full(len(time_bins), True)
         return self._shape()[bin_mask]
 
     @property
@@ -54,7 +80,9 @@ class Source(object):
 
 class ContinuumSource(Source):
     def __init__(self, name, continuum_shape, index):
-        super(ContinuumSource, self).__init__(name, CONTINUUM_SOURCE, continuum_shape, index)
+        super(ContinuumSource, self).__init__(
+            name, CONTINUUM_SOURCE, continuum_shape, index
+        )
 
 
 class FlareSource(Source):
@@ -74,14 +102,20 @@ class SAASource(Source):
 
 class TransientSource(Source):
     def __init__(self, name, transient_shape, index):
-        super(TransientSource, self).__init__(name, TRANSIENT_SOURCE, transient_shape, index)
+        super(TransientSource, self).__init__(
+            name, TRANSIENT_SOURCE, transient_shape, index
+        )
 
 
 class GlobalSource(Source):
     def __init__(self, name, continuum_shape):
-        super(GlobalSource, self).__init__(name, GLOBAL_SOURCE, continuum_shape, -1)  # dummy value for echan index
+        super(GlobalSource, self).__init__(
+            name, GLOBAL_SOURCE, continuum_shape, -1
+        )  # dummy value for echan index
 
 
 class FitSpectrumSource(Source):
     def __init__(self, name, continuum_shape):
-        super(FitSpectrumSource, self).__init__(name, FIT_SPECTRUM_SOURCE, continuum_shape, -1)  # dummy value for echan index
+        super(FitSpectrumSource, self).__init__(
+            name, FIT_SPECTRUM_SOURCE, continuum_shape, -1
+        )  # dummy value for echan index
