@@ -12,7 +12,13 @@ from chainconsumer import ChainConsumer
 
 from gbmbkgpy.io.package_data import get_path_of_external_data_dir
 from gbmbkgpy.utils.statistics.stats_tools import compute_covariance_matrix
-from astromodels.functions.priors import Uniform_prior, Log_uniform_prior, Log_normal, Truncated_gaussian, Gaussian
+from astromodels.functions.priors import (
+    Uniform_prior,
+    Log_uniform_prior,
+    Log_normal,
+    Truncated_gaussian,
+    Gaussian,
+)
 
 try:
 
@@ -48,7 +54,6 @@ except:
     using_mpi = False
 
 
-
 class MultiNestFit(object):
     def __init__(self, likelihood, parameters):
 
@@ -61,8 +66,8 @@ class MultiNestFit(object):
         self._sampler = None
         self._param_names = None
         self.minimum = None
-        self._samples =  None
-        self.multinest_data =  None
+        self._samples = None
+        self.multinest_data = None
 
         # We need to wrap the function, because multinest maximizes instead of minimizing
         def func_wrapper(values, ndim, nparams):
@@ -85,9 +90,19 @@ class MultiNestFit(object):
 
         return self._samples
 
-    def minimize_multinest(self, loglike=None, prior=None, n_dim=None, n_live_points=400, const_efficiency_mode=False, output_dir=None):
+    def minimize_multinest(
+        self,
+        loglike=None,
+        prior=None,
+        n_dim=None,
+        n_live_points=400,
+        const_efficiency_mode=False,
+        output_dir=None,
+    ):
 
-        assert has_pymultinest, 'You need to have pymultinest installed to use this function'
+        assert (
+            has_pymultinest
+        ), "You need to have pymultinest installed to use this function"
 
         if loglike is None:
             loglike = self._loglike
@@ -102,17 +117,19 @@ class MultiNestFit(object):
 
         # Run PyMultiNest
 
-        sampler = pymultinest.run(loglike,
-                                  prior,
-                                  n_dim,
-                                  n_dim,
-                                  n_live_points=n_live_points,
-                                  outputfiles_basename=tmp_output_dir,
-                                  multimodal=True,  # True was default
-                                  resume=True,
-                                  verbose=True,  # False was default
-                                  importance_nested_sampling=False,
-                                  const_efficiency_mode=const_efficiency_mode)
+        sampler = pymultinest.run(
+            loglike,
+            prior,
+            n_dim,
+            n_dim,
+            n_live_points=n_live_points,
+            outputfiles_basename=tmp_output_dir,
+            multimodal=True,  # True was default
+            resume=True,
+            verbose=True,  # False was default
+            importance_nested_sampling=False,
+            const_efficiency_mode=const_efficiency_mode,
+        )
 
         # Store the sample for further use (if needed)
         self._sampler = sampler
@@ -128,13 +145,12 @@ class MultiNestFit(object):
 
                     shutil.move(tmp_output_dir, self._output_dir)
 
-
                 self.analyze_result()
 
             else:
 
                 self.best_fit_values = comm.bcast(self.best_fit_values, root=0)
-               
+
         else:
 
             # If we used a temporary output dir then move it to the final destination
@@ -142,7 +158,6 @@ class MultiNestFit(object):
             if tmp_output_dir != self._output_dir:
 
                 shutil.move(tmp_output_dir, self._output_dir)
-
 
             self.analyze_result()
 
@@ -160,12 +175,16 @@ class MultiNestFit(object):
 
                 try:
 
-                    params[i] = self._param_priors[parameter_name].from_unit_cube(params[i])
+                    params[i] = self._param_priors[parameter_name].from_unit_cube(
+                        params[i]
+                    )
 
                 except AttributeError:
 
-                    raise RuntimeError("The prior you are trying to use for parameter %s is "
-                                       "not compatible with multinest" % parameter_name)
+                    raise RuntimeError(
+                        "The prior you are trying to use for parameter %s is "
+                        "not compatible with multinest" % parameter_name
+                    )
 
                     # Give a test run to the prior to check that it is working. If it crashes while multinest is going
 
@@ -182,52 +201,73 @@ class MultiNestFit(object):
 
         for parameter_name in self.parameters:
 
-            min_value, max_value, mu, sigma = self.parameters[parameter_name].get_prior_parameter
+            min_value, max_value, mu, sigma = self.parameters[
+                parameter_name
+            ].get_prior_parameter
             prior_type = self.parameters[parameter_name].prior
 
-            assert min_value is not None, "Minimum value of parameter %s is None. In order to use the Multinest " \
-                                          "minimizer you need to define proper bounds for each " \
-                                          "free parameter" % parameter_name
+            assert min_value is not None, (
+                "Minimum value of parameter %s is None. In order to use the Multinest "
+                "minimizer you need to define proper bounds for each "
+                "free parameter" % parameter_name
+            )
 
-            assert max_value is not None, "Maximum value of parameter %s is None. In order to use the Multinest " \
-                                          "minimizer you need to define proper bounds for each " \
-                                          "free parameter" % parameter_name
+            assert max_value is not None, (
+                "Maximum value of parameter %s is None. In order to use the Multinest "
+                "minimizer you need to define proper bounds for each "
+                "free parameter" % parameter_name
+            )
 
             # Compute the difference in order of magnitudes between minimum and maximum
 
             if prior_type is not None:
-                if prior_type == 'uniform':
-                    self._param_priors[parameter_name] = Uniform_prior(lower_bound=min_value, upper_bound=max_value)
-                elif prior_type == 'log_uniform':
-                    self._param_priors[parameter_name] = Log_uniform_prior(lower_bound=min_value, upper_bound=max_value)
-                elif prior_type == 'gaussian':
+                if prior_type == "uniform":
+                    self._param_priors[parameter_name] = Uniform_prior(
+                        lower_bound=min_value, upper_bound=max_value
+                    )
+                elif prior_type == "log_uniform":
+                    self._param_priors[parameter_name] = Log_uniform_prior(
+                        lower_bound=min_value, upper_bound=max_value
+                    )
+                elif prior_type == "gaussian":
                     self._param_priors[parameter_name] = Gaussian(mu=mu, sigma=sigma)
-                elif prior_type == 'truncated_gaussian':
-                    self._param_priors[parameter_name] = Truncated_gaussian(mu=mu, sigma=sigma, lower_bound=min_value,
-                                                                            upper_bound=max_value)
-                elif prior_type == 'log_normal':
+                elif prior_type == "truncated_gaussian":
+                    self._param_priors[parameter_name] = Truncated_gaussian(
+                        mu=mu, sigma=sigma, lower_bound=min_value, upper_bound=max_value
+                    )
+                elif prior_type == "log_normal":
                     self._param_priors[parameter_name] = Log_normal(mu=mu, sigma=sigma)
                 else:
-                    raise TypeError('Unknown prior! Please choose uniform or log_uniform prior')
+                    raise TypeError(
+                        "Unknown prior! Please choose uniform or log_uniform prior"
+                    )
             else:
                 if min_value > 0:
 
-                    orders_of_magnitude_span = math.log10(max_value) - math.log10(min_value)
+                    orders_of_magnitude_span = math.log10(max_value) - math.log10(
+                        min_value
+                    )
 
                     if orders_of_magnitude_span > 2:
 
                         # Use a Log-uniform prior
-                        self._param_priors[parameter_name] = Log_uniform_prior(lower_bound=min_value, upper_bound=max_value)
+                        self._param_priors[parameter_name] = Log_uniform_prior(
+                            lower_bound=min_value, upper_bound=max_value
+                        )
 
                     else:
 
                         # Use a uniform prior
-                        self._param_priors[parameter_name] = Uniform_prior(lower_bound=min_value, upper_bound=max_value)
+                        self._param_priors[parameter_name] = Uniform_prior(
+                            lower_bound=min_value, upper_bound=max_value
+                        )
 
                 else:
 
                     # Can only use a uniform prior
-                    self._param_priors[parameter_name] = Uniform_prior(lower_bound=min_value, upper_bound=max_value)
+                    self._param_priors[parameter_name] = Uniform_prior(
+                        lower_bound=min_value, upper_bound=max_value
+                    )
 
     def analyze_result(self, output_dir=None):
         """
@@ -240,23 +280,23 @@ class MultiNestFit(object):
             output_dir = self._output_dir
 
             # Save parameter names
-            self._param_names = [parameter.name for parameter in self.parameters.values()]
-
+            self._param_names = [
+                parameter.name for parameter in self.parameters.values()
+            ]
 
             if using_mpi:
 
                 if rank == 0:
 
-                    json.dump(self._param_names, open(output_dir + 'params.json', 'w'))
+                    json.dump(self._param_names, open(output_dir + "params.json", "w"))
 
             else:
 
-                    json.dump(self._param_names, open(output_dir + 'params.json', 'w'))
-            
+                json.dump(self._param_names, open(output_dir + "params.json", "w"))
+
         ## Use PyMULTINEST analyzer to gather parameter info
         multinest_analyzer = pymultinest.analyse.Analyzer(
-            n_params=self._n_dim,
-            outputfiles_basename=output_dir
+            n_params=self._n_dim, outputfiles_basename=output_dir
         )
 
         # Get the function value from the chain
@@ -280,7 +320,9 @@ class MultiNestFit(object):
 
     def comp_covariance_matrix(self):
         if rank == 0:
-            self.cov_matrix = compute_covariance_matrix(self._likelihood.cov_call, self.best_fit_values)
+            self.cov_matrix = compute_covariance_matrix(
+                self._likelihood.cov_call, self.best_fit_values
+            )
 
         if using_mpi:
             self.cov_matrix = comm.bcast(self.cov_matrix, root=0)
@@ -291,9 +333,9 @@ class MultiNestFit(object):
 
             output_dir = os.path.join(
                 get_path_of_external_data_dir(),
-                'fits',
-                'mn_out',
-                datetime.now().strftime("%m-%d_%H-%M") + '/'
+                "fits",
+                "mn_out",
+                datetime.now().strftime("%m-%d_%H-%M") + "/",
             )
 
         # If the output path is to long (MultiNest only supports 100 chars)
@@ -303,9 +345,9 @@ class MultiNestFit(object):
 
             tmp_output_dir = os.path.join(
                 get_path_of_external_data_dir(),
-                'fits',
-                'mn_out',
-                str(random.getrandbits(16)) + '/'
+                "fits",
+                "mn_out",
+                str(random.getrandbits(16)) + "/",
             )
 
         else:
@@ -329,7 +371,6 @@ class MultiNestFit(object):
 
         return output_dir, tmp_output_dir
 
-
     def create_corner_plot(self):
 
         if using_mpi:
@@ -346,14 +387,17 @@ class MultiNestFit(object):
 
             create_plot = True
 
-
         if create_plot:
 
-            chain = np.loadtxt(os.path.join(self._output_dir, 'post_equal_weights.dat'), ndmin=2)
+            chain = np.loadtxt(
+                os.path.join(self._output_dir, "post_equal_weights.dat"), ndmin=2
+            )
 
             c2 = ChainConsumer()
 
-            safe_param_names = [name.replace('_', ' ') for name in list(self.parameters.keys())]
+            safe_param_names = [
+                name.replace("_", " ") for name in list(self.parameters.keys())
+            ]
 
             c2.add_chain(chain[:, :-1], parameters=safe_param_names).configure(
                 plot_hists=False,
@@ -363,6 +407,4 @@ class MultiNestFit(object):
                 max_ticks=3,
             )
 
-            c2.plotter.plot(
-                filename=os.path.join(self._output_dir, 'corner.pdf')
-            )
+            c2.plotter.plot(filename=os.path.join(self._output_dir, "corner.pdf"))
