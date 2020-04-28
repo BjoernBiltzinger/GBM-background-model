@@ -556,7 +556,7 @@ def _spectrum_pl_numba(energy, c, e_norm, index):
 
     return c / (energy/e_norm) ** index
 
-@njit(float64[:](float64[:], float64[:], float64, float64, float64), parallel=True, cache=True)
+@njit(float64[:](float64[:], float64[:], float64, float64, float64), cache=True)
 def _spec_integral_pl_numba(e1, e2, c, e_norm, index):
         """
         Calculates the flux of photons between two energies
@@ -572,7 +572,7 @@ def _spec_integral_pl_numba(e1, e2, c, e_norm, index):
                4 * _spectrum_pl_numba((e1[i] + e2[i]) / 2.0, c, e_norm, index) +
                 _spectrum_pl_numba(e2[i], c, e_norm, index))
         return res
-@njit(float64[:](float64[:], float64[:], float64, float64, float64, float64), parallel=True, cache=True)
+@njit(float64[:](float64[:], float64[:], float64, float64, float64, float64), cache=True)
 def _spec_integral_bpl_numba(e1, e2, c, break_energy, index1, index2):
         """
         Calculates the flux of photons between two energies
@@ -589,7 +589,7 @@ def _spec_integral_bpl_numba(e1, e2, c, break_energy, index1, index2):
         return res
 # Numba response folding
 
-@njit(parallel=True, cache=True)
+@njit(cache=True)
 def _dot_numba(vec, A):
     """
     :param vec: True flux; shape(j)
@@ -602,7 +602,7 @@ def _dot_numba(vec, A):
     return res
 
 # Numba trapz integration
-@njit([float64[:,:,:](float64[:,:,:,:], float64[:,:])], parallel=True, cache=True)  
+@njit([float64[:,:,:](float64[:,:,:,:], float64[:,:])], cache=True)  
 def _trapz_numba(y,x):
     res = np.zeros((y.shape[0], y.shape[1], y.shape[2]))
     for i in prange(len(y)):
