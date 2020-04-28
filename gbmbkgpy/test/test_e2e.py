@@ -163,7 +163,7 @@ def test_model_builder():
             saa_src[1]['counts'],
             model_generator.model.saa_sources[saa_src[0]].get_counts(
                 model_generator.data.time_bins
-            )
+            )[2:-2]
         )
 
 
@@ -176,7 +176,7 @@ def test_model_builder():
             cont_src[1]['counts'],
             model_generator.model.continuum_sources[cont_src[0]].get_counts(
                 model_generator.data.time_bins
-            )
+            )[2:-2]
         )
 
     # Check the global sources
@@ -186,7 +186,7 @@ def test_model_builder():
             global_src[1]['counts'][:, :, echans],
             model_generator.model.global_sources[global_src[0]].get_counts(
                 model_generator.data.time_bins
-            )[:, echans_idx],
+            )[:, echans_idx][2:-2],
             rtol=1e-7
         )
 
@@ -218,13 +218,8 @@ def test_fitting():
     true_values = np.array([5.03012970e+01, 8.78085840e-01, 1.10441586e+03, 1.56685886e-02, 4.15783951e-02, 8.69100647e-03, 7.81257334e-02])
     assert np.allclose(minimizer.best_fit_values, true_values, rtol=1e2)
 
-    minimizer.comp_covariance_matrix()
-
-    assert isinstance(minimizer.cov_matrix, np.ndarray)
-
     pytest._test_output_dir = minimizer.output_dir
     pytest._test_best_fit_values = minimizer.best_fit_values
-    pytest._test_cov_matrix = minimizer.cov_matrix
 
 
 
@@ -235,9 +230,8 @@ def test_data_export():
         data=pytest._test_model_generator.data,
         model=pytest._test_model_generator.model,
         saa_object=pytest._test_model_generator.saa_calc,
-        echan_list=config['general']['echan_list'],
+        echans=config['general']['echans'],
         best_fit_values=pytest._test_best_fit_values,
-        covariance_matrix=pytest._test_cov_matrix
     )
 
     result_file_name = "fit_result_{}_{}_e{}.hdf5".format(config['general']['dates'],
@@ -254,9 +248,10 @@ def test_data_export():
 
 @pytest.mark.run(order=4)
 def test_plotting():
-    config = pytest._test_model_generator.config
-    # Create Plotter object that creates the plots
+    path_of_tests = os.path.dirname(os.path.abspath(__file__))
+    config = os.path.join(path_of_tests, 'config_plot_test.yml')
 
+    # Create Plotter object that creates the plots
     plot_generator = ResultPlotGenerator.from_result_instance(
         config_file=config,
         data=pytest._test_model_generator.data,

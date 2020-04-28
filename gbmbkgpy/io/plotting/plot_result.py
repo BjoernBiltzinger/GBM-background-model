@@ -347,9 +347,9 @@ class ResultPlotGenerator(object):
                 self._result_dict['saa_mask']
             )
 
-            self._rebinned_observed_counts, _ = this_rebinner.rebin(self._result_dict['observed_counts'][:, det_idx, echan_idx])
+            self._rebinned_observed_counts = this_rebinner.rebin(self._result_dict['observed_counts'][:, det_idx, echan_idx])[0]
 
-            self._rebinned_model_counts, _ = this_rebinner.rebin(self._result_dict['model_counts'][:, det_idx, echan_idx])
+            self._rebinned_model_counts = this_rebinner.rebin(self._result_dict['model_counts'][:, det_idx, echan_idx])[0]
 
             self._rebinned_time_bins = this_rebinner.time_rebinned
 
