@@ -8,7 +8,6 @@ from gbmbkgpy.io.package_data import get_path_of_external_data_dir
 
 
 class Minimizer(object):
-
     def __init__(self, likelihood):
 
         self._likelihood = likelihood
@@ -19,8 +18,7 @@ class Minimizer(object):
         self._day = self._likelihood._data._day
         self._det = self._likelihood._data._det
 
-
-    def fit(self, n_interations = 3, method_1 = 'L-BFGS-B',  method_2 = 'Powell'):
+    def fit(self, n_interations=3, method_1="L-BFGS-B", method_2="Powell"):
         """
         Fits the model stepwise by calling the scipy.minimize in the following steps:
         1. Fit linear/normalization paramters
@@ -39,17 +37,25 @@ class Minimizer(object):
         # method_2 = 'Powell'
 
         # First do the linear fit for normalizations and fix the other parameters
-        self._likelihood.fix_parameters(self._likelihood.get_not_normalization_parameter_list)
+        self._likelihood.fix_parameters(
+            self._likelihood.get_not_normalization_parameter_list
+        )
         self._fit_with_bounds(method_1, type="linear", iter_nr=1)
 
         if self._likelihood.use_SAA:
             # Fix the normalizations and fit for the other parameters
-            self._likelihood.fix_parameters(self._likelihood.get_normalization_parameter_list[0:4])
-            self._likelihood.unfix_parameters(self._likelihood.get_not_normalization_parameter_list)
+            self._likelihood.fix_parameters(
+                self._likelihood.get_normalization_parameter_list[0:4]
+            )
+            self._likelihood.unfix_parameters(
+                self._likelihood.get_not_normalization_parameter_list
+            )
             self._fit_with_bounds(method_1, type="SAA", iter_nr=2)
 
         # Unfix all parameters and fit all with bounds
-        self._likelihood.unfix_parameters(self._likelihood.get_normalization_parameter_list)
+        self._likelihood.unfix_parameters(
+            self._likelihood.get_normalization_parameter_list
+        )
         self._fit_with_bounds(method_1, type="full constrained", iter_nr=3)
 
         # Fit all parameters without bounds in three runs to improve speed and accuracy
@@ -58,16 +64,19 @@ class Minimizer(object):
                 self._fit_without_bounds(method_2, iter_nr=i, options={})
 
             # Final run with improved accuracy
-            self._fit_without_bounds(method_2, iter_nr=n_interations, options={'xtol': 0.000001, 'ftol': 0.000001})
+            self._fit_without_bounds(
+                method_2,
+                iter_nr=n_interations,
+                options={"xtol": 0.000001, "ftol": 0.000001},
+            )
 
-        self.result = self._result_steps['%s' % n_interations]
+        self.result = self._result_steps["%s" % n_interations]
 
+        print("The total Optimization took: {}".format(datetime.now() - start))
 
-        print ("The total Optimization took: {}".format(datetime.now() - start))
+        print("The Optimization ended with message:  {}".format(self.result.message))
 
-        print ("The Optimization ended with message:  {}".format(self.result.message))
-
-        print ("Success = {}".format(self.result.success))
+        print("Success = {}".format(self.result.success))
 
         # save the fit results and errors
 
@@ -79,44 +88,68 @@ class Minimizer(object):
 
         return self.result
 
-    def _fit_with_bounds(self, method='L-BFGS-B', type='bounded', iter_nr=1, ftol=1e-12):
+    def _fit_with_bounds(
+        self, method="L-BFGS-B", type="bounded", iter_nr=1, ftol=1e-12
+    ):
 
         step = datetime.now()
         start_params = self._likelihood.get_free_parameter_values
         bounds = self._likelihood.get_free_parameter_bounds
-        self._result_steps[str(iter_nr)] = minimize(self._likelihood, start_params, method=method, bounds=bounds,
-                                           options={'maxiter': 15000, 'gtol': 1e-13, 'ftol': ftol})
+        self._result_steps[str(iter_nr)] = minimize(
+            self._likelihood,
+            start_params,
+            method=method,
+            bounds=bounds,
+            options={"maxiter": 15000, "gtol": 1e-13, "ftol": ftol},
+        )
 
-        self._build_fit_param_df('Fit-'+str(iter_nr))
-        print ("{}. The {} optimization took: {}".format(str(iter_nr), type, datetime.now() - step))
+        self._build_fit_param_df("Fit-" + str(iter_nr))
+        print(
+            "{}. The {} optimization took: {}".format(
+                str(iter_nr), type, datetime.now() - step
+            )
+        )
 
-    def _fit_without_bounds(self, method='Powell', iter_nr=1, options={}):
+    def _fit_without_bounds(self, method="Powell", iter_nr=1, options={}):
         step = datetime.now()
         start_params = self._likelihood.get_free_parameter_values
-        self._result_steps[str(iter_nr)] = minimize(self._likelihood, start_params, method=method, options=options)
-        self._build_fit_param_df('Fit-' + str(iter_nr))
-        print ("{}. The {}st unconstrained optimization took: {}".format(iter_nr, iter_nr - 3, datetime.now() - step))
+        self._result_steps[str(iter_nr)] = minimize(
+            self._likelihood, start_params, method=method, options=options
+        )
+        self._build_fit_param_df("Fit-" + str(iter_nr))
+        print(
+            "{}. The {}st unconstrained optimization took: {}".format(
+                iter_nr, iter_nr - 3, datetime.now() - step
+            )
+        )
 
     def _fit_basinhopping(self, iter_nr):
         step = datetime.now()
         start_params = self._likelihood.get_free_parameter_values
         self._result_steps[str(iter_nr)] = basinhopping(self._likelihood, start_params)
-        self._build_fit_param_df('Fit-' + str(iter_nr))
-        print ("{}. The basinhopping optimization took: {}".format(iter_nr, iter_nr - 3, datetime.now() - step))
+        self._build_fit_param_df("Fit-" + str(iter_nr))
+        print(
+            "{}. The basinhopping optimization took: {}".format(
+                iter_nr, iter_nr - 3, datetime.now() - step
+            )
+        )
 
     def _save_fits_file(self):
 
         data = {}
 
-        data['fitted-param-steps'] = {'param-names': self._param_index, 'param-values': self._fitted_params}
+        data["fitted-param-steps"] = {
+            "param-names": self._param_index,
+            "param-values": self._fitted_params,
+        }
 
-        data['fit-result'] = {'param-names': [], 'param-values': []}
+        data["fit-result"] = {"param-names": [], "param-values": []}
 
         for i, parameter in enumerate(self._likelihood._parameters.values()):
-            data['fit-result']['param-names'].append(parameter.name)
-            data['fit-result']['param-values'].append(parameter.value)
+            data["fit-result"]["param-names"].append(parameter.name)
+            data["fit-result"]["param-values"].append(parameter.value)
 
-        folder_path = os.path.join(get_path_of_external_data_dir(), 'fits')
+        folder_path = os.path.join(get_path_of_external_data_dir(), "fits")
 
         # create directory if it doesn't exist
         if not os.access(folder_path, os.F_OK):
@@ -124,18 +157,18 @@ class Minimizer(object):
             os.mkdir(folder_path)
 
         file_number = 0
-        file_name = 'Fit_{}_{}_{:d}.json'.format(self._day, self._det, file_number)
+        file_name = "Fit_{}_{}_{:d}.json".format(self._day, self._det, file_number)
 
         # If file already exists increase file number
         while os.path.isfile(os.path.join(folder_path, file_name)):
             file_number += 1
-            file_name = 'Fit_{}_{}_{:d}.json'.format(self._day, self._det, file_number)
+            file_name = "Fit_{}_{}_{:d}.json".format(self._day, self._det, file_number)
 
         # Writing JSON data
-        with open(os.path.join(folder_path, file_name), 'w') as f:
+        with open(os.path.join(folder_path, file_name), "w") as f:
             json.dump(data, f, sort_keys=True, indent=4)
 
-    def display(self, label = "fitted_value"):
+    def display(self, label="fitted_value"):
         """
         display the results using pandas series or dataframe
         
@@ -145,11 +178,11 @@ class Minimizer(object):
         """
 
         self._fit_params = {}
-        self._fit_params['parameter'] = []
+        self._fit_params["parameter"] = []
         self._fit_params[label] = []
 
         for i, parameter in enumerate(self._likelihood._parameters.values()):
-            self._fit_params['parameter'].append(parameter.name)
+            self._fit_params["parameter"].append(parameter.name)
             self._fit_params[label].append(parameter.value)
 
         self.fitted_params = pd.DataFrame(data=self._fit_params)
