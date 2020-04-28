@@ -6,7 +6,7 @@ from math import floor
 Partly taken from http://didattica.unibocconi.it/mypage/upload/49183_20180615_035144_INTERPOLATION.PY
 """
 
-@jit(nopython=True, cache=True)
+@jit(nopython=True)#, cache=True)
 def _interpolation_search(x, z):
     """
     Interpolation search: locate z on grid x.
@@ -85,7 +85,7 @@ class Interp1D(object):
             x = np.take(x, self._argsort)
         #  Locate xn on the grid x
         self._index, self._theta = _locate(xn, x)
-        self._set_optimal_interpolation(12)
+        self._set_optimal_interpolation(5)
         
     def _set_optimal_interpolation(self, val):
         if val>10:
