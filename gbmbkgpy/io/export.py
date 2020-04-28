@@ -171,8 +171,8 @@ class DataExporter(object):
                                   title='Calculating PPC') as p:
 
                     for i, sample in enumerate(mn_posteriour_samples[a][points_lower_index:points_upper_index]):
-                        synth_data = self.get_synthetic_data(sample)
-                        counts.append(synth_data.counts)
+                        synth_counts = self.get_synthetic_data(sample)
+                        counts.append(synth_counts)
                         p.increase()
 
             else:
