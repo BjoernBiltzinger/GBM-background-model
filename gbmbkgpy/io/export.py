@@ -168,7 +168,7 @@ class DataExporter(object):
             points_upper_index = int(np.floor(points_per_rank * (rank + 1)))
             if rank == 0:
                 with progress_bar(len(mn_posteriour_samples[a][points_lower_index:points_upper_index]),
-                                  title='Calculating PPC for echan {}'.format(echan)) as p:
+                                  title='Calculating PPC') as p:
 
                     for i, sample in enumerate(mn_posteriour_samples[a][points_lower_index:points_upper_index]):
                         synth_data = self.get_synthetic_data(sample)
