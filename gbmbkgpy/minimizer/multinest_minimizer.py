@@ -2,8 +2,10 @@ import numpy as np
 import os
 import sys
 import json
+import random
 import collections
 import math
+import shutil
 from datetime import datetime
 import matplotlib.pyplot as plt
 from chainconsumer import ChainConsumer
@@ -40,11 +42,11 @@ try:
     else:
 
         using_mpi = False
-        rank = 0
+
 except:
 
     using_mpi = False
-    rank = 0
+
 
 
 class MultiNestFit(object):
@@ -54,8 +56,6 @@ class MultiNestFit(object):
         self.parameters = parameters
         self._n_dim = len(self.parameters)
 
-        self._dates = self._likelihood.data.dates
-
         self.cov_matrix = None
         self.best_fit_values = None
         self._sampler = None
@@ -63,16 +63,6 @@ class MultiNestFit(object):
         self.minimum = None
         self._samples =  None
         self.multinest_data =  None
-
-        if using_mpi:
-            if rank == 0:
-                self.output_dir = self._create_output_dir()
-            else:
-                self.output_dir = None
-
-            self.output_dir = comm.bcast(self.output_dir, root=0)
-        else:
-            self.output_dir = self._create_output_dir()
 
         # We need to wrap the function, because multinest maximizes instead of minimizing
         def func_wrapper(values, ndim, nparams):
@@ -87,15 +77,15 @@ class MultiNestFit(object):
         self._loglike = func_wrapper
 
     @property
-    def output_directory(self):
-        return self.output_dir
+    def output_dir(self):
+        return self._output_dir
 
     @property
     def samples(self):
 
         return self._samples
 
-    def minimize_multinest(self, loglike=None, prior=None, n_dim=None, n_live_points=400, const_efficiency_mode=False):
+    def minimize_multinest(self, loglike=None, prior=None, n_dim=None, n_live_points=400, const_efficiency_mode=False, output_dir=None):
 
         assert has_pymultinest, 'You need to have pymultinest installed to use this function'
 
@@ -108,6 +98,8 @@ class MultiNestFit(object):
         if n_dim is None:
             n_dim = self._n_dim
 
+        self._output_dir, tmp_output_dir = self._create_output_dir(output_dir)
+
         # Run PyMultiNest
 
         sampler = pymultinest.run(loglike,
@@ -115,21 +107,44 @@ class MultiNestFit(object):
                                   n_dim,
                                   n_dim,
                                   n_live_points=n_live_points,
-                                  outputfiles_basename=self.output_dir,
+                                  outputfiles_basename=tmp_output_dir,
                                   multimodal=True,  # True was default
                                   resume=True,
                                   verbose=True,  # False was default
                                   importance_nested_sampling=False,
-                                  const_efficiency_mode=const_efficiency_mode)  # False was default
+                                  const_efficiency_mode=const_efficiency_mode)
+
         # Store the sample for further use (if needed)
         self._sampler = sampler
 
         # if using mpi only analyze in rank=0
-        if rank == 0:
-            self.analyze_result()
-
         if using_mpi:
-            self.best_fit_values = comm.bcast(self.best_fit_values, root=0)
+
+            if rank == 0:
+
+                # If we used a temporary output dir then move it to the final destination
+
+                if tmp_output_dir != self._output_dir:
+
+                    shutil.move(tmp_output_dir, self._output_dir)
+
+
+                self.analyze_result()
+
+            else:
+
+                self.best_fit_values = comm.bcast(self.best_fit_values, root=0)
+               
+        else:
+
+            # If we used a temporary output dir then move it to the final destination
+
+            if tmp_output_dir != self._output_dir:
+
+                shutil.move(tmp_output_dir, self._output_dir)
+
+
+            self.analyze_result()
 
     def _construct_multinest_prior(self):
         """
@@ -222,17 +237,27 @@ class MultiNestFit(object):
         :return:
         """
         if output_dir is None:
-            output_dir = self.output_dir
+            output_dir = self._output_dir
 
             # Save parameter names
             self._param_names = [parameter.name for parameter in self.parameters.values()]
 
-            if rank == 0:
-                json.dump(self._param_names, open(output_dir + 'params.json', 'w'))
 
+            if using_mpi:
+
+                if rank == 0:
+
+                    json.dump(self._param_names, open(output_dir + 'params.json', 'w'))
+
+            else:
+
+                    json.dump(self._param_names, open(output_dir + 'params.json', 'w'))
+            
         ## Use PyMULTINEST analyzer to gather parameter info
-        multinest_analyzer = pymultinest.analyse.Analyzer(n_params=self._n_dim,
-                                                          outputfiles_basename=output_dir)
+        multinest_analyzer = pymultinest.analyse.Analyzer(
+            n_params=self._n_dim,
+            outputfiles_basename=output_dir
+        )
 
         # Get the function value from the chain
         func_values = multinest_analyzer.get_equal_weighted_posterior()[:, -1]
@@ -260,36 +285,84 @@ class MultiNestFit(object):
         if using_mpi:
             self.cov_matrix = comm.bcast(self.cov_matrix, root=0)
 
-    def _create_output_dir(self):
-        current_time = datetime.now()
+    def _create_output_dir(self, output_dir):
 
-        multinest_out_base_dir = os.path.join(get_path_of_external_data_dir(), 'fits', 'mn_out/')
+        if output_dir is None:
 
-        output_dir = os.path.join(multinest_out_base_dir, self._dates[0], current_time.strftime("%m-%d_%H-%M") + '/')
+            output_dir = os.path.join(
+                get_path_of_external_data_dir(),
+                'fits',
+                'mn_out',
+                datetime.now().strftime("%m-%d_%H-%M") + '/'
+            )
+
+        # If the output path is to long (MultiNest only supports 100 chars)
+        # we will us a random directory name and move it when MultiNest finished.
+
+        if len(output_dir) > 76:
+
+            tmp_output_dir = os.path.join(
+                get_path_of_external_data_dir(),
+                'fits',
+                'mn_out',
+                str(random.getrandbits(16)) + '/'
+            )
+
+        else:
+
+            tmp_output_dir = output_dir
 
         # Create output dir for multinest if not existing
-        if not os.access(output_dir, os.F_OK):
-            print("Making New Directory")
-            os.makedirs(output_dir)
+        if using_mpi:
 
-        return output_dir
+            if rank == 0:
+
+                if not os.access(tmp_output_dir, os.F_OK):
+                    print("Making New Directory")
+                    os.makedirs(tmp_output_dir)
+
+        else:
+
+            if not os.access(tmp_output_dir, os.F_OK):
+                print("Making New Directory")
+                os.makedirs(tmp_output_dir)
+
+        return output_dir, tmp_output_dir
 
 
     def create_corner_plot(self):
-        chain = np.loadtxt(os.path.join(self.output_dir, 'post_equal_weights.dat'), ndmin=2)
 
-        c2 = ChainConsumer()
+        if using_mpi:
 
-        safe_param_names = [name.replace('_', ' ') for name in list(self.parameters.keys())]
+            if rank == 0:
 
-        c2.add_chain(chain[:, :-1], parameters=safe_param_names).configure(
-            plot_hists=False,
-            contour_labels="sigma",
-            colors="#cd5c5c",
-            flip=False,
-            max_ticks=3,
-        )
+                create_plot = True
 
-        c2.plotter.plot(
-            filename=os.path.join(self.output_dir, 'corner.pdf')
-        )
+            else:
+
+                create_plot = False
+
+        else:
+
+            create_plot = True
+
+
+        if create_plot:
+
+            chain = np.loadtxt(os.path.join(self._output_dir, 'post_equal_weights.dat'), ndmin=2)
+
+            c2 = ChainConsumer()
+
+            safe_param_names = [name.replace('_', ' ') for name in list(self.parameters.keys())]
+
+            c2.add_chain(chain[:, :-1], parameters=safe_param_names).configure(
+                plot_hists=False,
+                contour_labels="sigma",
+                colors="#cd5c5c",
+                flip=False,
+                max_ticks=3,
+            )
+
+            c2.plotter.plot(
+                filename=os.path.join(self._output_dir, 'corner.pdf')
+            )

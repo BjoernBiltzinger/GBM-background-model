@@ -6,6 +6,7 @@ import os
 import yaml
 from datetime import datetime
 
+from gbmbkgpy.io.package_data import get_path_of_external_data_dir
 from gbmbkgpy.utils.model_generator import BackgroundModelGenerator
 from gbmbkgpy.minimizer.multinest_minimizer import MultiNestFit
 from gbmbkgpy.io.plotting.plot_result import ResultPlotGenerator
@@ -59,7 +60,20 @@ model_generator = BackgroundModelGenerator()
 
 model_generator.from_config_dict(config)
 
+
 ############### Instantiate Minimizer #############################
+
+output_dir = os.path.join(
+    get_path_of_external_data_dir(),
+    'fits',
+    'mn_out',
+    '-'.join(config['general']['dates']),
+    'det_' + '-'.join(config["general"]["detectors"]),
+    'echan_' + '-'.join([str(e) for e in config["general"]["echans"]]),
+    datetime.now().strftime('%m-%d_%H-%M') + '/'
+)
+
+
 if config["fit"]["method"] == "multinest":
     minimizer = MultiNestFit(
         likelihood=model_generator.likelihood,
@@ -70,6 +84,7 @@ if config["fit"]["method"] == "multinest":
     minimizer.minimize_multinest(
         n_live_points=config["fit"]["multinest"]["num_live_points"],
         const_efficiency_mode=config["fit"]["multinest"]["constant_efficiency_mode"],
+        output_dir=output_dir
     )
 
     # Create corner plot
@@ -104,7 +119,7 @@ data_exporter = DataExporter(
 result_file_name = "fit_result_dates_{}_dets_{}_echans_{}.hdf5".format(
     '-'.join(config["general"]["dates"]),
     '-'.join(config["general"]["detectors"]),
-    '-'.join(config["general"]["echans"]),
+    '-'.join([str(e) for e in config["general"]["echans"]]),
 )
 
 data_exporter.save_data(
