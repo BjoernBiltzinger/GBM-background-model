@@ -230,7 +230,7 @@ class BackgroundLike(object):
 
                 def log_like_numba():
 
-                    M = selfelf._evaluate_model()
+                    M = self._evaluate_model()
 
                     counts = self._masked_counts
 

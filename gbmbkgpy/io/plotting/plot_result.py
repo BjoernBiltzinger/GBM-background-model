@@ -125,9 +125,9 @@ class ResultPlotGenerator(object):
         with h5py.File(result_data_file, 'r') as f:
 
             result_dict['dates'] = f.attrs['dates']
-            result_dict['detectors'] = f.attrs['detector']
+            result_dict['detectors'] = f.attrs['detectors']
             result_dict['echans'] = f.attrs['echans']
-            result_dict['param_names'] = f.attrs['echans']
+            result_dict['param_names'] = f.attrs['param_names']
             result_dict['best_fit_values'] = f.attrs['best_fit_values']
 
 

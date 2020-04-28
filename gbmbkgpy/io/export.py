@@ -47,30 +47,26 @@ class DataExporter(object):
         self._fit_rebinner = None
         self._grb_mask_calculated = False
 
+
     def save_data(self, file_path, result_dir, save_ppc=True):
         """
         Function to save the data needed to create the plots.
         """
-
         # Get the model counts
         model_counts = self._model.get_counts(
             time_bins=self._time_bins
         )
 
-
-        # TODO: Vectorize the stat_error and ppc calculation
-        #####################
-
         # Get the statistical error from the posterior samples
         ppc_counts = self._ppc_data(result_dir)
 
-        low = np.percentile(ppc_counts, 50 - 50 * 0.68, axis=0)[0]
-        high = np.percentile(ppc_counts, 50 + 50 * 0.68, axis=0)[0]
+        low = np.percentile(ppc_counts, 50 - 50 * 0.68, axis=0)
+        high = np.percentile(ppc_counts, 50 + 50 * 0.68, axis=0)
 
         stat_err= high - low
 
-       ####################
-
+        # Get the counts of the individual sources
+        source_list = self.get_counts_of_sources()
 
         if rank == 0:
             with h5py.File(file_path, "w") as f:
@@ -78,7 +74,7 @@ class DataExporter(object):
                 f.attrs['dates'] = self._data.dates
                 f.attrs['detectors'] = self._data.detectors
                 f.attrs['echans'] = self._data.echans
-                f.attrs['param_names'] = self._model.paramter_names
+                f.attrs['param_names'] = self._model.parameter_names
                 f.attrs['best_fit_values'] = self._best_fit_values
 
                 f.create_dataset('day_start_times', data=self._data.day_start_times)
@@ -99,7 +95,7 @@ class DataExporter(object):
                     f.create_dataset('ppc', data=ppc_counts, compression="gzip", compression_opts=9)
 
 
-    def get_counts_of_sources(self, time_bins):
+    def get_counts_of_sources(self):
         """
         Builds a list of the different model sources.
         Each source is a dict containing the label of the source, the data, and the plotting color
@@ -111,31 +107,31 @@ class DataExporter(object):
         i_index = 0
 
         for i, source_name in enumerate(self._model.continuum_sources):
-            data = self._model.get_continuum_counts(i, time_bins, self._saa_mask)
+            data = self._model.get_continuum_counts(i, self._data.time_bins, self._saa_mask)
             if np.sum(data) != 0:
                 source_list.append({"label": source_name, "data": data, "color": color_list[i_index]})
                 i_index += 1
 
         for i, source_name in enumerate(self._model._global_sources):
-            data = self._model.get_global_counts(i, time_bins, self._saa_mask)
+            data = self._model.get_global_counts(i, self._data.time_bins, self._saa_mask)
             source_list.append({"label": source_name, "data": data, "color": color_list[i_index]})
             i_index += 1
 
         for i, source_name in enumerate(self._model.fit_spectrum_sources):
-            data = self._model.get_fit_spectrum_counts(i, time_bins, self._saa_mask)
+            data = self._model.get_fit_spectrum_counts(i, self._data.time_bins, self._saa_mask)
             source_list.append({"label": source_name, "data": data, "color": color_list[i_index]})
             i_index += 1
 
-        saa_data = self._model.get_saa_counts(self._total_time_bins, self._saa_mask)
+        saa_data = self._model.get_saa_counts(self._data.time_bins, self._saa_mask)
         if np.sum(saa_data) != 0:
             source_list.append({"label": "SAA_decays", "data": saa_data, "color": color_list[i_index]})
             i_index += 1
 
-        point_source_data = self._model.get_point_source_counts(self._total_time_bins, self._saa_mask)
-        if np.sum(point_source_data) != 0:
-            source_list.append(
-                {"label": "Point_sources", "data": point_source_data, "color": color_list[i_index]})
-            i_index += 1
+        # point_source_data = self._model.get_point_source_counts(self._data.time_bins, self._saa_mask)
+        # if np.sum(point_source_data) != 0:
+        #     source_list.append(
+        #         {"label": "Point_sources", "data": point_source_data, "color": color_list[i_index]})
+        #     i_index += 1
 
         return source_list
 
