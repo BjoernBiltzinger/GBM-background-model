@@ -241,6 +241,9 @@ class ResultPlotGenerator(object):
 
         result_dict["time_stamp"] = datetime.now().strftime("%y%m%d_%H%M")
 
+        # TODO: Add PPC calc
+        result_dict['ppc_counts'] = []
+
         return cls(config_file=config_file, result_dict=result_dict)
 
     def create_plots(self, output_dir):
