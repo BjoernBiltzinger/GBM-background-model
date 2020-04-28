@@ -6,7 +6,7 @@ from gbmbkgpy.utils.pha import SPECTRUM
 import h5py
 from gbmbkgpy.utils.progress_bar import progress_bar
 
-NO_REBIN = 1E-99
+NO_REBIN = 1e-99
 
 try:
     # see if we have mpi and/or are upalsing parallel
@@ -32,27 +32,31 @@ class FitImporter(object):
     """
     This will be used to import a saved background fit for further analysis or trigger detection
     """
+
     def __init__(self, config, fit_result_hdf5):
         self._instantiate_model(config)
         self._load_result_file(fit_result_hdf5)
 
     def _load_result_file(self, fit_result_hdf5):
-        print('Load result file')
+        print("Load result file")
 
         if rank == 0:
-            with h5py.File(fit_result_hdf5, 'r') as f:
-                detectors =           f.attrs['detectors']
-                dates =               f.attrs['dates']
-                param_names =         f.attrs['param_names']
-                best_fit_values =     f.attrs['best_fit_values']
-                stat_err =            f['stat_err'][()]
+            with h5py.File(fit_result_hdf5, "r") as f:
+                detectors = f.attrs["detectors"]
+                dates = f.attrs["dates"]
+                param_names = f.attrs["param_names"]
+                best_fit_values = f.attrs["best_fit_values"]
+                stat_err = f["stat_err"][()]
 
-            assert np.array_equal(detectors, self.data.detectors), \
-                'Detector in fit result file is inconsistent with detector in config.yml'
-            assert np.array_equal(dates, self.data.dates), \
-                'Dates in fit result file is inconsistent with  dates in config.yml'
-            assert np.array_equal(param_names, self.model.parameter_names), \
-                'The parameters in the result files do not match the parameters of the model'
+            assert np.array_equal(
+                detectors, self.data.detectors
+            ), "Detector in fit result file is inconsistent with detector in config.yml"
+            assert np.array_equal(
+                dates, self.data.dates
+            ), "Dates in fit result file is inconsistent with  dates in config.yml"
+            assert np.array_equal(
+                param_names, self.model.parameter_names
+            ), "The parameters in the result files do not match the parameters of the model"
         else:
             best_fit_values = None
 
@@ -63,7 +67,7 @@ class FitImporter(object):
         self.likelihood.set_free_parameters(best_fit_values)
         self._best_fit_values = best_fit_values
 
-        print('Successfully loaded result file!')
+        print("Successfully loaded result file!")
 
     def _instantiate_model(self, config):
         self._model_generator = BackgroundModelGenerator()
