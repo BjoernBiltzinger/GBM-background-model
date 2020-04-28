@@ -478,6 +478,8 @@ def setup_earth_free(data, albedo_cgb_object, saa_object, use_numba):
         responses=albedo_cgb_object.responses
     )
 
+    earth_albedo.set_interpolation()
+    
     Source_Earth_Albedo_Continuum = FitSpectrumSource(
         name='Earth occultation',
         continuum_shape=earth_albedo
@@ -551,6 +553,8 @@ def setup_cgb_free(data, albedo_cgb_object, saa_object, use_numba):
     cgb.set_responses(
         responses=albedo_cgb_object.responses
     )
+
+    cgb.set_interpolation()
 
     Source_CGB_Continuum = FitSpectrumSource(
         name='CGB',
