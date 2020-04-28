@@ -101,10 +101,10 @@ data_exporter = DataExporter(
     best_fit_values=minimizer.best_fit_values
 )
 
-result_file_name = "fit_result_{}_{}_e{}.hdf5".format(
-    config["general"]["dates"],
-    config["general"]["detectors"],
-    config["general"]["echans"],
+result_file_name = "fit_result_dates_{}_dets_{}_echans_{}.hdf5".format(
+    '-'.join(config["general"]["dates"]),
+    '-'.join(config["general"]["detectors"]),
+    '-'.join(config["general"]["echans"]),
 )
 
 data_exporter.save_data(
