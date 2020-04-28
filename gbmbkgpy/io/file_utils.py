@@ -74,6 +74,7 @@ def if_directory_not_existing_then_make(directory):
     if not os.path.exists(sanitized_directory):
         os.makedirs(sanitized_directory)
 
+
 def if_dir_containing_file_not_existing_then_make(filename):
     """
     If the given directory does not exists, then make it
@@ -90,6 +91,7 @@ def if_dir_containing_file_not_existing_then_make(filename):
     if not os.path.exists(sanitized_directory):
         os.makedirs(sanitized_directory)
 
+
 def get_random_unique_name():
     """
     Returns a name which is random and (with extremely high probability) unique
@@ -100,7 +102,7 @@ def get_random_unique_name():
 
 
 @contextmanager
-def temporary_directory(prefix='', within_directory=None):
+def temporary_directory(prefix="", within_directory=None):
     """
     This context manager creates a temporary directory in the most secure possible way (with no race condition), and
     removes it at the end.

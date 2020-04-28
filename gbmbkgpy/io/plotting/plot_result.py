@@ -11,7 +11,7 @@ from gbmbkgpy.utils.statistics.stats_tools import Significance
 from gbmbkgpy.io.plotting.data_residual_plot import ResidualPlot
 from gbmbkgpy.utils.binner import Rebinner
 
-NO_REBIN = 1E-99
+NO_REBIN = 1e-99
 
 try:
     # see if we have mpi and/or are upalsing parallel
@@ -46,75 +46,77 @@ class ResultPlotGenerator(object):
 
         self._result_dict = result_dict
 
-        self.bin_width = config['plot'].get('bin_width', 10)
-        self.change_time = config['plot'].get('change_time', True)
-        self.time_since_midnight = config['plot'].get('time_since_midnight', True)
-        self.time_format = config['plot'].get('time_format', 'h')
-        self.time_t0 = config['plot'].get('time_t0', None)
-        self.set_axis_limits = config['plot'].get('set_axis_limits', False)
-        self.xlim = config['plot'].get('xlim', None)
-        self.ylim = config['plot'].get('ylim', None)
-        self.residual_ylim = config['plot'].get('residual_ylim', None)
-        self.xscale = config['plot'].get('xscale', 'linear')
-        self.yscale = config['plot'].get('yscale', 'linear')
-        self.xlabel = config['plot'].get('xlabel', None)
-        self.ylabel = config['plot'].get('ylabel', None)
-        self.dpi = config['plot'].get('dpi', 400)
-        self.show_legend = config['plot'].get('show_legend', True)
-        self.show_title = config['plot'].get('show_title', True)
-        self.axis_title = config['plot'].get('axis_title', None)
-        self.legend_outside = config['plot'].get('legend_outside', True)
+        self.bin_width = config["plot"].get("bin_width", 10)
+        self.change_time = config["plot"].get("change_time", True)
+        self.time_since_midnight = config["plot"].get("time_since_midnight", True)
+        self.time_format = config["plot"].get("time_format", "h")
+        self.time_t0 = config["plot"].get("time_t0", None)
+        self.set_axis_limits = config["plot"].get("set_axis_limits", False)
+        self.xlim = config["plot"].get("xlim", None)
+        self.ylim = config["plot"].get("ylim", None)
+        self.residual_ylim = config["plot"].get("residual_ylim", None)
+        self.xscale = config["plot"].get("xscale", "linear")
+        self.yscale = config["plot"].get("yscale", "linear")
+        self.xlabel = config["plot"].get("xlabel", None)
+        self.ylabel = config["plot"].get("ylabel", None)
+        self.dpi = config["plot"].get("dpi", 400)
+        self.show_legend = config["plot"].get("show_legend", True)
+        self.show_title = config["plot"].get("show_title", True)
+        self.axis_title = config["plot"].get("axis_title", None)
+        self.legend_outside = config["plot"].get("legend_outside", True)
 
         # Import component settings
-        self.show_data = config['component'].get('show_data', True)
-        self.show_model = config['component'].get('show_model', True)
-        self.show_ppc = config['component'].get('show_ppc', True)
-        self.show_residuals = config['component'].get('show_residuals', False)
-        self.show_all_sources = config['component'].get('show_all_sources', True)
-        self.show_earth = config['component'].get('show_earth', True)
-        self.show_cgb = config['component'].get('show_cgb', True)
-        self.show_sun = config['component'].get('show_sun', True)
-        self.show_saa = config['component'].get('show_saa', True)
-        self.show_cr = config['component'].get('show_cr', True)
-        self.show_constant = config['component'].get('show_constant', True)
-        self.show_crab = config['component'].get('show_crab', True)
-        self.show_occ_region = config['component'].get('show_occ_region', False)
-        self.show_grb_trigger = config['component'].get('show_grb_trigger', False)
+        self.show_data = config["component"].get("show_data", True)
+        self.show_model = config["component"].get("show_model", True)
+        self.show_ppc = config["component"].get("show_ppc", True)
+        self.show_residuals = config["component"].get("show_residuals", False)
+        self.show_all_sources = config["component"].get("show_all_sources", True)
+        self.show_earth = config["component"].get("show_earth", True)
+        self.show_cgb = config["component"].get("show_cgb", True)
+        self.show_sun = config["component"].get("show_sun", True)
+        self.show_saa = config["component"].get("show_saa", True)
+        self.show_cr = config["component"].get("show_cr", True)
+        self.show_constant = config["component"].get("show_constant", True)
+        self.show_crab = config["component"].get("show_crab", True)
+        self.show_occ_region = config["component"].get("show_occ_region", False)
+        self.show_grb_trigger = config["component"].get("show_grb_trigger", False)
 
         # Import style settings
-        self.model_styles = config['style']['model']
-        self.source_styles = config['style']['sources']
-        self.ppc_styles = config['style']['ppc']
-        self.data_styles = config['style']['data']
-        self.legend_kwargs = config['style'].get('legend_kwargs', None)
+        self.model_styles = config["style"]["model"]
+        self.source_styles = config["style"]["sources"]
+        self.ppc_styles = config["style"]["ppc"]
+        self.data_styles = config["style"]["data"]
+        self.legend_kwargs = config["style"].get("legend_kwargs", None)
 
-        if config['style']['mpl_style'] is not None:
-            plt.style.use(config['style']['mpl_style'])
+        if config["style"]["mpl_style"] is not None:
+            plt.style.use(config["style"]["mpl_style"])
 
         self._grb_triggers = {}
         self._occ_region = {}
 
-        if config.get('highlight', None) is not None:
-            if config['highlight']['grb_trigger'] is not None:
-                for grb_trigger in config['highlight']['grb_trigger']:
-                    self.add_grb_trigger(grb_name=grb_trigger['name'],
-                                         trigger_time=grb_trigger['trigger_time'],
-                                         time_format='UTC',
-                                         time_offset=grb_trigger['time_offset'],
-                                         color=grb_trigger.get('color', 'b'),
-                                         alpha=grb_trigger.get('alpha', 0.3),
-                                         linestyle=grb_trigger.get('linestyle', '-'),
-                                         linewidth=grb_trigger.get('linewidth', 0.8)
-                                         )
-            if config['highlight']['occ_region'] is not None:
-                for occ_region in config['highlight']['occ_region']:
-                    self.add_occ_region(occ_name=occ_region['name'],
-                                        time_start=occ_region['time_start'],
-                                        time_stop=occ_region['time_stop'],
-                                        time_format=occ_region.get('time_format', 'UTC'),
-                                        color=occ_region.get('color', 'grey'),
-                                        alpha=occ_region.get('alpha', 0.1)
-                                        )
+        if config.get("highlight", None) is not None:
+            if config["highlight"]["grb_trigger"] is not None:
+                for grb_trigger in config["highlight"]["grb_trigger"]:
+                    self.add_grb_trigger(
+                        grb_name=grb_trigger["name"],
+                        trigger_time=grb_trigger["trigger_time"],
+                        time_format="UTC",
+                        time_offset=grb_trigger["time_offset"],
+                        color=grb_trigger.get("color", "b"),
+                        alpha=grb_trigger.get("alpha", 0.3),
+                        linestyle=grb_trigger.get("linestyle", "-"),
+                        linewidth=grb_trigger.get("linewidth", 0.8),
+                    )
+            if config["highlight"]["occ_region"] is not None:
+                for occ_region in config["highlight"]["occ_region"]:
+                    self.add_occ_region(
+                        occ_name=occ_region["name"],
+                        time_start=occ_region["time_start"],
+                        time_stop=occ_region["time_stop"],
+                        time_format=occ_region.get("time_format", "UTC"),
+                        color=occ_region.get("color", "grey"),
+                        alpha=occ_region.get("alpha", 0.1),
+                    )
         self._plot_path_list = []
 
     @classmethod
@@ -122,33 +124,34 @@ class ResultPlotGenerator(object):
 
         result_dict = {}
 
-        with h5py.File(result_data_file, 'r') as f:
+        with h5py.File(result_data_file, "r") as f:
 
-            result_dict['dates'] = f.attrs['dates']
-            result_dict['detectors'] = f.attrs['detectors']
-            result_dict['echans'] = f.attrs['echans']
-            result_dict['param_names'] = f.attrs['param_names']
-            result_dict['best_fit_values'] = f.attrs['best_fit_values']
+            result_dict["dates"] = f.attrs["dates"]
+            result_dict["detectors"] = f.attrs["detectors"]
+            result_dict["echans"] = f.attrs["echans"]
+            result_dict["param_names"] = f.attrs["param_names"]
+            result_dict["best_fit_values"] = f.attrs["best_fit_values"]
 
+            result_dict["day_start_times"] = f["day_start_times"][()]
+            result_dict["day_stop_times"] = f["day_stop_times"][()]
+            result_dict["time_bins_start"] = f["time_bins_start"][()]
+            result_dict["time_bins_stop"] = f["time_bins_stop"][()]
+            result_dict["total_time_bins"] = np.vstack(
+                (result_dict["time_bins_start"], result_dict["time_bins_stop"])
+            ).T
+            result_dict["saa_mask"] = f["saa_mask"][()]
 
-            result_dict['day_start_times'] = f['day_start_times'][()]
-            result_dict['day_stop_times'] = f['day_stop_times'][()]
-            result_dict['time_bins_start'] = f['time_bins_start'][()]
-            result_dict['time_bins_stop'] = f['time_bins_stop'][()]
-            result_dict['total_time_bins'] = np.vstack((result_dict['time_bins_start'], result_dict['time_bins_stop'])).T
-            result_dict['saa_mask'] = f['saa_mask'][()]
+            result_dict["model_counts"] = f["model_counts"][()]
+            result_dict["observed_counts"] = f["observed_counts"][()]
 
-            result_dict['model_counts'] = f['model_counts'][()]
-            result_dict['observed_counts'] = f['observed_counts'][()]
+            result_dict["sources"] = {}
 
-            result_dict['sources'] = {}
+            for source_name in f["sources"].keys():
+                result_dict["sources"][source_name] = f["sources"][source_name][()]
 
-            for source_name in f['sources'].keys():
-                result_dict['sources'][source_name] = f['sources'][source_name][()]
+            result_dict["ppc"] = f["ppc"][()]
 
-            result_dict['ppc'] = f['ppc'][()]
-
-            result_dict['time_stamp'] = datetime.now().strftime('%y%m%d_%H%M')
+            result_dict["time_stamp"] = datetime.now().strftime("%y%m%d_%H%M")
 
             # for key in keys:
             #     if key == 'general':
@@ -178,95 +181,95 @@ class ResultPlotGenerator(object):
 
             #         result_dict['echans'][echan]['time_stamp'] = datetime.now().strftime('%y%m%d_%H%M')
 
-        return cls(
-            config_file=config_file, result_dict=result_dict
-        )
+        return cls(config_file=config_file, result_dict=result_dict)
 
     @classmethod
     def from_result_instance(cls, config_file, data, model, saa_object):
         result_dict = {}
 
-        result_dict['detectors'] = data.detectors
-        result_dict['dates'] = data.dates
-        result_dict['echans'] = data.echans
-        result_dict['day_start_times'] = data.day_start_times
-        result_dict['day_stop_times'] = data.day_stop_times
-        result_dict['total_time_bins'] = data.time_bins
-        result_dict['saa_mask'] = saa_object.saa_mask
+        result_dict["detectors"] = data.detectors
+        result_dict["dates"] = data.dates
+        result_dict["echans"] = data.echans
+        result_dict["day_start_times"] = data.day_start_times
+        result_dict["day_stop_times"] = data.day_stop_times
+        result_dict["total_time_bins"] = data.time_bins
+        result_dict["saa_mask"] = saa_object.saa_mask
 
-        result_dict['observed_counts'] = set_saa_zero(
-                data.counts,
-                saa_mask=result_dict['saa_mask']
+        result_dict["observed_counts"] = set_saa_zero(
+            data.counts, saa_mask=result_dict["saa_mask"]
         )
 
-        result_dict['model_counts'] = model.get_counts(
-            time_bins=result_dict['total_time_bins'],
-            saa_mask=result_dict['saa_mask']
+        result_dict["model_counts"] = model.get_counts(
+            time_bins=result_dict["total_time_bins"], saa_mask=result_dict["saa_mask"]
         )
 
-        result_dict['sources'] = {}
+        result_dict["sources"] = {}
 
         for i, source_name in enumerate(model.continuum_sources):
             data = model.get_continuum_counts(
-                i, result_dict['total_time_bins'], result_dict['saa_mask']
+                i, result_dict["total_time_bins"], result_dict["saa_mask"]
             )
             if np.sum(data) != 0:
-                result_dict['sources'][source_name] = data
+                result_dict["sources"][source_name] = data
 
         for i, source_name in enumerate(model.global_sources):
             data = model.get_global_counts(
-                i, result_dict['total_time_bins'], result_dict['saa_mask']
+                i, result_dict["total_time_bins"], result_dict["saa_mask"]
             )
             if np.sum(data) != 0:
-                result_dict['sources'][source_name] = data
+                result_dict["sources"][source_name] = data
 
         for i, source_name in enumerate(model.fit_spectrum_sources):
             data = model.get_fit_spectrum_counts(
-                i, result_dict['total_time_bins'], result_dict['saa_mask']
+                i, result_dict["total_time_bins"], result_dict["saa_mask"]
             )
             if np.sum(data) != 0:
-                result_dict['sources'][source_name] = data
+                result_dict["sources"][source_name] = data
 
         saa_data = model.get_saa_counts(
-            result_dict['total_time_bins'], result_dict['saa_mask']
+            result_dict["total_time_bins"], result_dict["saa_mask"]
         )
         if np.sum(saa_data) != 0:
-            result_dict['sources']['SAA_decays'] = saa_data
+            result_dict["sources"]["SAA_decays"] = saa_data
 
         for i, point_source in enumerate(model.point_sources):
             data = model.get_point_source_counts(
-                i, result_dict['total_time_bins'], result_dict['saa_mask']
+                i, result_dict["total_time_bins"], result_dict["saa_mask"]
             )
             if np.sum(data) != 0:
-                result_dict['sources'][point_source] = data
+                result_dict["sources"][point_source] = data
 
-        result_dict['time_stamp'] = datetime.now().strftime('%y%m%d_%H%M')
+        result_dict["time_stamp"] = datetime.now().strftime("%y%m%d_%H%M")
 
-        return cls(
-            config_file=config_file, result_dict=result_dict
-        )
+        return cls(config_file=config_file, result_dict=result_dict)
 
     def create_plots(self, output_dir):
 
-        for day_idx, day in enumerate(self._result_dict['dates']):
+        for day_idx, day in enumerate(self._result_dict["dates"]):
 
-            for det_idx, det in enumerate(self._result_dict['detectors']):
+            for det_idx, det in enumerate(self._result_dict["detectors"]):
 
-                for echan_idx, echan in enumerate(self._result_dict['echans']):
+                for echan_idx, echan in enumerate(self._result_dict["echans"]):
 
-                    total_steps = 12 if self.show_ppc is False else 12 + len(self._result_dict['ppc_counts'])
+                    total_steps = (
+                        12
+                        if self.show_ppc is False
+                        else 12 + len(self._result_dict["ppc_counts"])
+                    )
 
-                    time_stamp = datetime.now().strftime('%y%m%d_%H%M')
+                    time_stamp = datetime.now().strftime("%y%m%d_%H%M")
 
-                    plot_path = f'{output_dir}/' \
-                        f'plot_date_{day}_' \
-                        f'det_{det}_' \
-                        f'echan_{echan}__' \
-                        f'{time_stamp}.pdf'
+                    plot_path = (
+                        f"{output_dir}/"
+                        f"plot_date_{day}_"
+                        f"det_{det}_"
+                        f"echan_{echan}__"
+                        f"{time_stamp}.pdf"
+                    )
 
                     self._plot_path_list.append(plot_path)
 
-                    with progress_bar(total_steps, title='Create Result plot') as p:
+                    with progress_bar(total_steps, title="Create Result plot") as p:
                         self._create_model_plots(
                             p_bar=p,
                             det=det,
@@ -277,16 +280,17 @@ class ResultPlotGenerator(object):
                             savepath=plot_path,
                         )
 
-    def _create_model_plots(self,
-                            p_bar,
-                            det,
-                            det_idx,
-                            echan,
-                            echan_idx,
-                            day_idx=None,
-                            savepath='test.pdf',
-                            **kwargs
-                            ):
+    def _create_model_plots(
+        self,
+        p_bar,
+        det,
+        det_idx,
+        echan,
+        echan_idx,
+        day_idx=None,
+        savepath="test.pdf",
+        **kwargs,
+    ):
         """
         Plot the current model with or without the data and the residuals.
         :param echan:
@@ -309,13 +313,15 @@ class ResultPlotGenerator(object):
         """
 
         if self.time_since_midnight and self.time_t0 is not None:
-            raise ValueError('You selected time since midnight and passed a t0, you should choose one...')
+            raise ValueError(
+                "You selected time since midnight and passed a t0, you should choose one..."
+            )
 
         # Change time reference to seconds since beginning of the day
         if self.time_since_midnight and day_idx is not None:
-            assert day_idx < len(self._result_dict['dates']), 'Use a valid date...'
-            self._time_ref = self._result_dict['day_start_times'][day_idx]
-            time_frame = 'Time since midnight [{}]'.format(self.time_format)
+            assert day_idx < len(self._result_dict["dates"]), "Use a valid date..."
+            self._time_ref = self._result_dict["day_start_times"][day_idx]
+            time_frame = "Time since midnight [{}]".format(self.time_format)
 
         elif self.time_t0 is not None:
             # if it is of type string, assume we are dealing with a UTC timestamp
@@ -329,11 +335,11 @@ class ResultPlotGenerator(object):
             elif isinstance(self.time_t0, float):
                 self._time_ref = self.time_t0
 
-            time_frame = 't-t$_0$ [{}]'.format(self.time_format)
+            time_frame = "t-t$_0$ [{}]".format(self.time_format)
 
         else:
             self._time_ref = 0
-            time_frame = 'MET [s]'
+            time_frame = "MET [s]"
 
         p_bar.increase()
 
@@ -342,14 +348,18 @@ class ResultPlotGenerator(object):
         if self.bin_width > NO_REBIN:
 
             this_rebinner = Rebinner(
-                (self._result_dict['total_time_bins'] - self._time_ref),
+                (self._result_dict["total_time_bins"] - self._time_ref),
                 self.bin_width,
-                self._result_dict['saa_mask']
+                self._result_dict["saa_mask"],
             )
 
-            self._rebinned_observed_counts = this_rebinner.rebin(self._result_dict['observed_counts'][:, det_idx, echan_idx])[0]
+            self._rebinned_observed_counts = this_rebinner.rebin(
+                self._result_dict["observed_counts"][:, det_idx, echan_idx]
+            )[0]
 
-            self._rebinned_model_counts = this_rebinner.rebin(self._result_dict['model_counts'][:, det_idx, echan_idx])[0]
+            self._rebinned_model_counts = this_rebinner.rebin(
+                self._result_dict["model_counts"][:, det_idx, echan_idx]
+            )[0]
 
             self._rebinned_time_bins = this_rebinner.time_rebinned
 
@@ -357,11 +367,17 @@ class ResultPlotGenerator(object):
 
         else:
 
-            self._rebinned_observed_counts = self._result_dict['observed_counts'][:, det_idx, echan_idx]
+            self._rebinned_observed_counts = self._result_dict["observed_counts"][
+                :, det_idx, echan_idx
+            ]
 
-            self._rebinned_model_counts = self._result_dict['model_counts'][:, det_idx, echan_idx]
+            self._rebinned_model_counts = self._result_dict["model_counts"][
+                :, det_idx, echan_idx
+            ]
 
-            self._rebinned_time_bins = self._result_dict['total_time_bins'] - self._time_ref
+            self._rebinned_time_bins = (
+                self._result_dict["total_time_bins"] - self._time_ref
+            )
 
             rebin = False
 
@@ -374,7 +390,7 @@ class ResultPlotGenerator(object):
         significance_calc = Significance(
             self._rebinned_observed_counts,
             self._rebinned_background_counts + self._rebinned_model_counts,
-            1
+            1,
         )
 
         residual_errors = None
@@ -389,14 +405,16 @@ class ResultPlotGenerator(object):
             residual_yerr=residual_errors,
             yerr=None,
             xerr=None,
-            label='Obs. Count Rates' if self.data_styles.get('show_label', True) else None,
-            color=self.data_styles.get('color', 'black'),
-            alpha=self.data_styles.get('alpha', 0.6),
+            label="Obs. Count Rates"
+            if self.data_styles.get("show_label", True)
+            else None,
+            color=self.data_styles.get("color", "black"),
+            alpha=self.data_styles.get("alpha", 0.6),
             show_data=self.show_data,
-            marker_size=self.data_styles.get('marker_size', 0.5),
-            linewidth=self.data_styles.get('linewidth', 0.2),
-            elinewidth=self.data_styles.get('elinewidth', 0.5),
-            rasterized=self.data_styles.get('rasterized', False)
+            marker_size=self.data_styles.get("marker_size", 0.5),
+            linewidth=self.data_styles.get("linewidth", 0.2),
+            elinewidth=self.data_styles.get("elinewidth", 0.5),
+            rasterized=self.data_styles.get("rasterized", False),
         )
         p_bar.increase()
 
@@ -404,125 +422,154 @@ class ResultPlotGenerator(object):
             residual_plot.add_model(
                 self._rebinned_time_bin_mean,
                 self._rebinned_model_counts / self._rebinned_time_bin_widths,
-                label='Best Fit' if self.model_styles.get('show_label', True) else None,
-                color=self.model_styles.get('color', 'red'),
-                alpha=self.model_styles.get('alpha', 0.9),
-                linewidth=self.model_styles.get('linewidth', 0.8),
+                label="Best Fit" if self.model_styles.get("show_label", True) else None,
+                color=self.model_styles.get("color", "red"),
+                alpha=self.model_styles.get("alpha", 0.9),
+                linewidth=self.model_styles.get("linewidth", 0.8),
             )
 
         p_bar.increase()
 
         src_list = []
-        for i, (key, value) in enumerate(self._result_dict['sources'].items()):
-            if 'L-parameter' in key or 'BGO_CR_Approx' in key:
-                label = 'Cosmic Rays'
-                style_key = 'cr'
+        for i, (key, value) in enumerate(self._result_dict["sources"].items()):
+            if "L-parameter" in key or "BGO_CR_Approx" in key:
+                label = "Cosmic Rays"
+                style_key = "cr"
                 sort_idx = 0
                 if not self.show_all_sources and not self.show_cr:
                     continue
 
-            elif 'Earth' in key:
-                label = 'Earth Albedo'
-                style_key = 'earth'
+            elif "Earth" in key:
+                label = "Earth Albedo"
+                style_key = "earth"
                 sort_idx = 1
                 if not self.show_all_sources and not self.show_earth:
                     continue
 
-            elif 'CGB' in key:
-                label = 'CGB'
-                style_key = 'cgb'
+            elif "CGB" in key:
+                label = "CGB"
+                style_key = "cgb"
                 sort_idx = 2
                 if not self.show_all_sources and not self.show_cgb:
                     continue
 
-            elif 'Constant' in key:
-                label = 'Constant'
-                style_key = 'constant'
+            elif "Constant" in key:
+                label = "Constant"
+                style_key = "constant"
                 sort_idx = 3
                 if not self.show_all_sources and not self.show_constant:
                     continue
 
-            elif 'SAA_decays' in key:
-                label = 'SAA Exits'
-                style_key = 'saa'
+            elif "SAA_decays" in key:
+                label = "SAA Exits"
+                style_key = "saa"
                 sort_idx = 4
                 if not self.show_all_sources and not self.show_saa:
                     continue
 
-            elif 'CRAB' in key:
-                label = 'Crab'
-                style_key = 'crab'
+            elif "CRAB" in key:
+                label = "Crab"
+                style_key = "crab"
                 sort_idx = 5
                 if not self.show_all_sources and not self.show_crab:
                     continue
 
-            elif 'sun' in key:
-                label = 'Sun'
-                style_key = 'sun'
+            elif "sun" in key:
+                label = "Sun"
+                style_key = "sun"
                 sort_idx = 6
                 if not self.show_all_sources and not self.show_sun:
                     continue
 
             else:
                 label = key
-                style_key = 'default'
-                sort_idx = i + len(self._result_dict['sources'].items())
+                style_key = "default"
+                sort_idx = i + len(self._result_dict["sources"].items())
                 if not self.show_all_sources:
                     continue
 
             if rebin:
-                rebinned_source_counts = this_rebinner.rebin(self._result_dict['sources'][key][:, det_idx, echan_idx])[0]
+                rebinned_source_counts = this_rebinner.rebin(
+                    self._result_dict["sources"][key][:, det_idx, echan_idx]
+                )[0]
             else:
-                rebinned_source_counts = self._result_dict['sources'][key][:, det_idx, echan_idx]
+                rebinned_source_counts = self._result_dict["sources"][key][
+                    :, det_idx, echan_idx
+                ]
 
-            if np.sum(rebinned_source_counts) > 0.:
+            if np.sum(rebinned_source_counts) > 0.0:
 
-               src_list.append({
-                   'data': rebinned_source_counts / self._rebinned_time_bin_widths,
-                   'label': label if self.source_styles[style_key].get('show_label', True) or self.source_styles['use_global'] else None,
-                   'color': self.source_styles[style_key]['color'] if not self.source_styles['use_global'] else None,
-                   'alpha': self.source_styles[style_key]['alpha'] if not self.source_styles['use_global'] else None,
-                   'linewidth': self.source_styles[style_key]['linewidth'] if not self.source_styles['use_global'] else None,
-                   'sort_idx': sort_idx
-               })
+                src_list.append(
+                    {
+                        "data": rebinned_source_counts / self._rebinned_time_bin_widths,
+                        "label": label
+                        if self.source_styles[style_key].get("show_label", True)
+                        or self.source_styles["use_global"]
+                        else None,
+                        "color": self.source_styles[style_key]["color"]
+                        if not self.source_styles["use_global"]
+                        else None,
+                        "alpha": self.source_styles[style_key]["alpha"]
+                        if not self.source_styles["use_global"]
+                        else None,
+                        "linewidth": self.source_styles[style_key]["linewidth"]
+                        if not self.source_styles["use_global"]
+                        else None,
+                        "sort_idx": sort_idx,
+                    }
+                )
 
-        self._source_list = sorted(src_list, key=lambda src: src['sort_idx'])
+        self._source_list = sorted(src_list, key=lambda src: src["sort_idx"])
 
-        if self.source_styles['use_global']:
-            cmap = plt.get_cmap(self.source_styles['global']['cmap'])
+        if self.source_styles["use_global"]:
+            cmap = plt.get_cmap(self.source_styles["global"]["cmap"])
             colors = cmap(np.linspace(0, 1, len(self._source_list)))
 
             for i, source in enumerate(self._source_list):
-                source['color'] = colors[i]
-                source['alpha'] = self.source_styles['global']['alpha']
-                source['linewidth'] = self.source_styles['global']['linewidth']
-                source['label'] = source['label'] if self.source_styles['global']['show_label'] else None
+                source["color"] = colors[i]
+                source["alpha"] = self.source_styles["global"]["alpha"]
+                source["linewidth"] = self.source_styles["global"]["linewidth"]
+                source["label"] = (
+                    source["label"]
+                    if self.source_styles["global"]["show_label"]
+                    else None
+                )
 
         if len(self._source_list) > 0:
-            residual_plot.add_list_of_sources(self._rebinned_time_bin_mean, self._source_list)
+            residual_plot.add_list_of_sources(
+                self._rebinned_time_bin_mean, self._source_list
+            )
 
         p_bar.increase()
 
         if self.show_ppc:
             rebinned_ppc_rates = []
-            for j, ppc in enumerate(self._result_dict['ppc_counts']):
+            for j, ppc in enumerate(self._result_dict["ppc_counts"]):
                 set_saa_zero(
-                    self._result_dict['ppc_counts'][j], saa_mask=self._result_dict['saa_mask']
+                    self._result_dict["ppc_counts"][j],
+                    saa_mask=self._result_dict["saa_mask"],
                 )
                 if rebin:
-                    rebinned_ppc_rates.append(this_rebinner.rebin(self._result_dict['ppc_counts'][j]) / self._rebinned_time_bin_widths)
+                    rebinned_ppc_rates.append(
+                        this_rebinner.rebin(self._result_dict["ppc_counts"][j])
+                        / self._rebinned_time_bin_widths
+                    )
                 else:
-                    rebinned_ppc_rates.append(self._result_dict['ppc_counts'][j] / self._rebinned_time_bin_widths)
+                    rebinned_ppc_rates.append(
+                        self._result_dict["ppc_counts"][j]
+                        / self._rebinned_time_bin_widths
+                    )
 
                 p_bar.increase()
             rebinned_ppc_rates = np.array(rebinned_ppc_rates)
 
-            residual_plot.add_ppc(rebinned_ppc_rates=rebinned_ppc_rates,
-                                  rebinned_time_bin_mean=self._rebinned_time_bin_mean,
-                                  q_levels=[0.68, 0.95, 0.99],
-                                  colors=self.ppc_styles['color'],
-                                  alpha=self.ppc_styles['alpha']
-                                  )
+            residual_plot.add_ppc(
+                rebinned_ppc_rates=rebinned_ppc_rates,
+                rebinned_time_bin_mean=self._rebinned_time_bin_mean,
+                q_levels=[0.68, 0.95, 0.99],
+                colors=self.ppc_styles["color"],
+                alpha=self.ppc_styles["alpha"],
+            )
 
         # Add vertical lines for grb triggers
         if self.show_grb_trigger:
@@ -537,19 +584,23 @@ class ResultPlotGenerator(object):
                 self.xlim = xlim if self.xlim is None else self.xlim
                 self.ylim = ylim if self.ylim is None else self.ylim
 
-            if self.time_format == 'h':
+            if self.time_format == "h":
                 xticks = []
                 xtick_labels = []
-                for xstep in range(int(self.xlim[0] / 3600), int((self.xlim[1] + 500) / 3600) + 1, 4):
+                for xstep in range(
+                    int(self.xlim[0] / 3600), int((self.xlim[1] + 500) / 3600) + 1, 4
+                ):
                     xticks.append(xstep * 3600)
-                    xtick_labels.append('%s' % xstep)
+                    xtick_labels.append("%s" % xstep)
 
-            elif self.time_format == 's':
+            elif self.time_format == "s":
                 xticks = None
                 xtick_labels = None
 
             else:
-                raise NotImplementedError("Please provide a valid time format: ['h', 's']")
+                raise NotImplementedError(
+                    "Please provide a valid time format: ['h', 's']"
+                )
         else:
             xticks = None
             xtick_labels = None
@@ -559,9 +610,13 @@ class ResultPlotGenerator(object):
         xlabel = "{}".format(time_frame) if self.xlabel is None else self.xlabel
         ylabel = "Count Rate [counts s$^{-1}$]" if self.ylabel is None else self.ylabel
 
-        axis_title = "Detector: {} Date: {} Energy: {}".format(det,
-                                                               self._result_dict['dates'][day_idx],
-                                                               self._get_echan_str(echan)) if self.axis_title is None else self.axis_title
+        axis_title = (
+            "Detector: {} Date: {} Energy: {}".format(
+                det, self._result_dict["dates"][day_idx], self._get_echan_str(echan)
+            )
+            if self.axis_title is None
+            else self.axis_title
+        )
 
         final_plot = residual_plot.finalize(
             xlabel=xlabel,
@@ -577,7 +632,7 @@ class ResultPlotGenerator(object):
             legend_outside=self.legend_outside,
             legend_kwargs=self.legend_kwargs,
             axis_title=axis_title,
-            show_title=self.show_title
+            show_title=self.show_title,
         )
 
         p_bar.increase()
@@ -587,7 +642,17 @@ class ResultPlotGenerator(object):
 
         p_bar.increase()
 
-    def add_grb_trigger(self, grb_name, trigger_time, time_format='UTC', time_offset=0, color='b', alpha=0.3, linestyle='-', linewidth=1):
+    def add_grb_trigger(
+        self,
+        grb_name,
+        trigger_time,
+        time_format="UTC",
+        time_offset=0,
+        color="b",
+        alpha=0.3,
+        linestyle="-",
+        linewidth=1,
+    ):
         """
         Add a GRB Trigger to plot a vertical line
         The grb is added to a dictionary with the name as key and the time (met) and the color as values in a subdict
@@ -599,20 +664,34 @@ class ResultPlotGenerator(object):
         :param trigger_time: string in UTC '2008-01-01T00:23:11.997'
         :return:
         """
-        if time_format == 'UTC':
+        if time_format == "UTC":
             day_at = astro_time.Time("%s(UTC)" % trigger_time)
 
             met = GBMTime(day_at).met + time_offset
 
-        elif time_format == 'MET':
+        elif time_format == "MET":
             met = trigger_time
 
         else:
-            raise Exception('Not supported time format, please use MET or UTC')
+            raise Exception("Not supported time format, please use MET or UTC")
 
-        self._grb_triggers[grb_name] = {'met': met, 'color': color, 'alpha': alpha, 'linestyle': linestyle, 'linewidth': linewidth}
+        self._grb_triggers[grb_name] = {
+            "met": met,
+            "color": color,
+            "alpha": alpha,
+            "linestyle": linestyle,
+            "linewidth": linewidth,
+        }
 
-    def add_occ_region(self, occ_name, time_start, time_stop, time_format='UTC', color='grey', alpha=0.1):
+    def add_occ_region(
+        self,
+        occ_name,
+        time_start,
+        time_stop,
+        time_format="UTC",
+        color="grey",
+        alpha=0.1,
+    ):
         """
 
         :param time_format:
@@ -622,24 +701,28 @@ class ResultPlotGenerator(object):
         :param color:
         :return:
         """
-        if time_format == 'UTC':
+        if time_format == "UTC":
             t_start = astro_time.Time("%s(UTC)" % time_start)
             t_stop = astro_time.Time("%s(UTC)" % time_stop)
 
             met_start = GBMTime(t_start).met
             met_stop = GBMTime(t_stop).met
 
-        elif time_format == 'MET':
+        elif time_format == "MET":
             met_start = time_start
             met_stop = time_stop
         else:
-            raise Exception('Not supported time format, please use MET or UTC')
+            raise Exception("Not supported time format, please use MET or UTC")
 
-        self._occ_region[occ_name] = {'met': (met_start, met_stop), 'color': color, 'alpha': alpha}
+        self._occ_region[occ_name] = {
+            "met": (met_start, met_stop),
+            "color": color,
+            "alpha": alpha,
+        }
 
     def _calc_limits(self, which_day):
-        min_time = self._result_dict['day_start_times'][which_day] - self._time_ref
-        max_time = self._result_dict['day_stop_times'][which_day] - self._time_ref
+        min_time = self._result_dict["day_start_times"][which_day] - self._time_ref
+        max_time = self._result_dict["day_stop_times"][which_day] - self._time_ref
 
         day_mask_larger = self._rebinned_time_bin_mean > min_time
         day_mask_smaller = self._rebinned_time_bin_mean < max_time
@@ -662,8 +745,17 @@ class ResultPlotGenerator(object):
         if len(index_start) > len(index_stop):
             index_stop.append(-1)
         for i in range(len(index_stop) - 1):
-            if time_bins_masked[:, 1][index_start[i + 1]] - time_bins_masked[:, 0][index_stop[i]] < 1000:
-                zero_counts_mask[index_stop[i] - 5:index_start[i + 1] + 5] = np.ones_like(zero_counts_mask[index_stop[i] - 5:index_start[i + 1] + 5]) == 2
+            if (
+                time_bins_masked[:, 1][index_start[i + 1]]
+                - time_bins_masked[:, 0][index_stop[i]]
+                < 1000
+            ):
+                zero_counts_mask[index_stop[i] - 5 : index_start[i + 1] + 5] = (
+                    np.ones_like(
+                        zero_counts_mask[index_stop[i] - 5 : index_start[i + 1] + 5]
+                    )
+                    == 2
+                )
 
         time_bins_masked2 = time_bins_masked[zero_counts_mask]
 
@@ -678,12 +770,15 @@ class ResultPlotGenerator(object):
         xlim = time_bins_intervals[0]
 
         if self.show_data or self.show_model:
-            obs_rates_masked2 = obs_counts_masked[zero_counts_mask] / np.diff(time_bins_masked2, axis=1)[0]
+            obs_rates_masked2 = (
+                obs_counts_masked[zero_counts_mask]
+                / np.diff(time_bins_masked2, axis=1)[0]
+            )
             high_lim = 1.5 * np.percentile(obs_rates_masked2, 99)
         else:
-            high_lim = 0.
+            high_lim = 0.0
             for source in self._source_list:
-                source_rates_masked = source['data'][zero_counts_mask]
+                source_rates_masked = source["data"][zero_counts_mask]
                 h_lim = 1.5 * np.percentile(source_rates_masked, 99)
                 high_lim = h_lim if h_lim > high_lim else high_lim
 
@@ -693,19 +788,19 @@ class ResultPlotGenerator(object):
     def _get_echan_str(self, echan):
         # TODO: Add information for CSPEC
         echan_dict = {
-            '0': '4 keV - 12 keV',
-            '1': '12 keV - 27 keV',
-            '2': '27 keV - 50 keV',
-            '3': '50 keV - 102 keV',
-            '4': '102 keV - 295 keV',
-            '5': '295 keV - 540 keV',
-            '6': '540 keV - 985 keV',
-            '7': '985 keV - 2 MeV',
+            "0": "4 keV - 12 keV",
+            "1": "12 keV - 27 keV",
+            "2": "27 keV - 50 keV",
+            "3": "50 keV - 102 keV",
+            "4": "102 keV - 295 keV",
+            "5": "295 keV - 540 keV",
+            "6": "540 keV - 985 keV",
+            "7": "985 keV - 2 MeV",
         }
 
         return echan_dict[str(echan)]
 
 
 def set_saa_zero(vector, saa_mask):
-    vector[np.where(~saa_mask)] = 0.
+    vector[np.where(~saa_mask)] = 0.0
     return vector
