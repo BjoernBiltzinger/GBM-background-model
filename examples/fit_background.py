@@ -86,7 +86,9 @@ if config["export"]["save_unbinned"]:
     model_generator = BackgroundModelGenerator()
     model_generator.from_config_dict(config)
 
-    model_generator.likelihood.set_free_parameters(minimizer.best_fit_values)
+    model_generator.likelihood.set_free_parameters(
+        minimizer.best_fit_values
+    )
 
 if config["export"]["save_cov_matrix"]:
     minimizer.comp_covariance_matrix()
