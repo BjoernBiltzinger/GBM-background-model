@@ -3,7 +3,10 @@ from gbm_drm_gen.drmgen import DRMGen
 import os
 import h5py
 from gbmbkgpy.io.package_data import get_path_of_external_data_dir
-from gbmbkgpy.io.file_utils import file_existing_and_readable, if_dir_containing_file_not_existing_then_make
+from gbmbkgpy.io.file_utils import (
+    file_existing_and_readable,
+    if_dir_containing_file_not_existing_then_make,
+)
 import astropy.io.fits as fits
 from gbmbkgpy.utils.progress_bar import progress_bar
 
@@ -27,18 +30,41 @@ except:
 
     using_mpi = False
 
-valid_det_names = ['n0', 'n1', 'n2', 'n3', 'n4', 'n5', 'n6', 'n7', 'n8', 'n9', 'na', 'nb']
+valid_det_names = [
+    "n0",
+    "n1",
+    "n2",
+    "n3",
+    "n4",
+    "n5",
+    "n6",
+    "n7",
+    "n8",
+    "n9",
+    "na",
+    "nb",
+]
 
 
 class Response_Precalculation(object):
-
-    def __init__(self, detectors, dates, echans, Ngrid=40000, Ebin_edge_incoming=None, data_type='ctime', trigger=None):
+    def __init__(
+        self,
+        detectors,
+        dates,
+        echans,
+        Ngrid=40000,
+        Ebin_edge_incoming=None,
+        data_type="ctime",
+        trigger=None,
+    ):
         self._echans = echans
 
         responses = {}
 
         for det in detectors:
-            responses[det] = Det_Response_Precalculation(det, dates, echans, Ngrid, Ebin_edge_incoming, data_type, trigger)
+            responses[det] = Det_Response_Precalculation(
+                det, dates, echans, Ngrid, Ebin_edge_incoming, data_type, trigger
+            )
 
         self._responses = responses
 
@@ -58,7 +84,16 @@ class Det_Response_Precalculation(object):
     like the earth or the CGB
     """
 
-    def __init__(self, det, dates, echans, Ngrid=40000, Ebin_edge_incoming=None, data_type='ctime', trigger=None):
+    def __init__(
+        self,
+        det,
+        dates,
+        echans,
+        Ngrid=40000,
+        Ebin_edge_incoming=None,
+        data_type="ctime",
+        trigger=None,
+    ):
         """
         initialize the grid around the detector and set the values for the Ebins of incoming and detected photons
         :param det: which detector is used
@@ -66,37 +101,60 @@ class Det_Response_Precalculation(object):
         :param Ebin_edge_incoming: Ebins edges of incomming photons
         :param Ebin_edge_detector: Ebins edges of detector
         """
-        assert det in valid_det_names, \
-            'Invalid det name. Must be one of these {} but is {}.'.format(valid_det_names, det)
+        assert (
+            det in valid_det_names
+        ), "Invalid det name. Must be one of these {} but is {}.".format(
+            valid_det_names, det
+        )
 
-        assert type(dates[0]) == str and len(dates[0]) == 6, \
-            'Day must be a string of the format YYMMDD, but is {}'.format(dates[0])
+        assert (
+            type(dates[0]) == str and len(dates[0]) == 6
+        ), "Day must be a string of the format YYMMDD, but is {}".format(dates[0])
 
-        assert type(Ngrid) == int, 'Ngrid has to be an integer, but is a {}.'.format(type(Ngrid))
+        assert type(Ngrid) == int, "Ngrid has to be an integer, but is a {}.".format(
+            type(Ngrid)
+        )
 
         if Ebin_edge_incoming is not None:
-            assert type(Ebin_edge_incoming) == np.ndarray, \
-                'Invalid type for mean_time. Must be an array but is {}.'.format(type(Ebin_edge_incoming))
+            assert (
+                type(Ebin_edge_incoming) == np.ndarray
+            ), "Invalid type for mean_time. Must be an array but is {}.".format(
+                type(Ebin_edge_incoming)
+            )
 
-        assert data_type == 'ctime' or data_type == 'cspec ' or data_type == 'trigdat', \
-            'Please use a valid data_type (ctime, cspec or trigdat). Your input is {}.'.format(data_type)
+        assert (
+            data_type == "ctime" or data_type == "cspec " or data_type == "trigdat"
+        ), "Please use a valid data_type (ctime, cspec or trigdat). Your input is {}.".format(
+            data_type
+        )
 
-        if data_type == 'ctime':
-            assert type(echans) and max(echans) <= 7 and min(echans) >= 0 \
-                   and all(isinstance(x, int) for x in echans), \
-                   'Echan_list variable must be a list and can only have integer entries between 0 and 7'
+        if data_type == "ctime":
+            assert (
+                type(echans)
+                and max(echans) <= 7
+                and min(echans) >= 0
+                and all(isinstance(x, int) for x in echans)
+            ), "Echan_list variable must be a list and can only have integer entries between 0 and 7"
 
-        if data_type == 'cspec':
-            assert type(echans) and max(echans) <= 127 and min(echans) >= 0 \
-                   and all(isinstance(x, int) for x in echans), \
-                   'Echan_list variable must be a list and can only have integer entries between 0 and 7'
+        if data_type == "cspec":
+            assert (
+                type(echans)
+                and max(echans) <= 127
+                and min(echans) >= 0
+                and all(isinstance(x, int) for x in echans)
+            ), "Echan_list variable must be a list and can only have integer entries between 0 and 7"
 
-        if data_type == 'trigdat':
-            assert type(echans) and max(echans) <= 7 and min(echans) >= 0 \
-                   and all(isinstance(x, int) for x in echans), \
-                   'Echan_list variable must be a list and can only have integer entries between 0 and 7'
+        if data_type == "trigdat":
+            assert (
+                type(echans)
+                and max(echans) <= 7
+                and min(echans) >= 0
+                and all(isinstance(x, int) for x in echans)
+            ), "Echan_list variable must be a list and can only have integer entries between 0 and 7"
 
-            assert trigger is not None, 'If you use trigdat data you have to provide a trigger.'
+            assert (
+                trigger is not None
+            ), "If you use trigdat data you have to provide a trigger."
 
         self._data_type = data_type
 
@@ -110,11 +168,11 @@ class Det_Response_Precalculation(object):
         # by the response generator
         self._det = valid_det_names.index(det)
 
-        if self._data_type == 'ctime' or self._data_type == 'trigdat':
+        if self._data_type == "ctime" or self._data_type == "trigdat":
             self._echan_mask = np.zeros(8, dtype=bool)
             self._echan_mask[self._echans] = True
 
-        elif self._data_type == 'cspec':
+        elif self._data_type == "cspec":
             self._echan_mask = np.zeros(128, dtype=bool)
             self._echan_mask[self._echans] = True
 
@@ -129,26 +187,30 @@ class Det_Response_Precalculation(object):
         # TODO: should we calculate a seperate response for each day?
 
         # Read in the datafile to get the energy boundaries
-        if data_type == 'trigdat':
+        if data_type == "trigdat":
             self._Ebin_out_edge = np.array(
-                [3.4, 10.0, 22.0, 44.0, 95.0, 300.0, 500.0, 800.0, 2000.],
-                dtype=np.float64)
+                [3.4, 10.0, 22.0, 44.0, 95.0, 300.0, 500.0, 800.0, 2000.0],
+                dtype=np.float64,
+            )
 
             response_cache_file = os.path.join(
-                get_path_of_external_data_dir(), 'response', 'trigdat', f'effective_response_{det}.hd5'
+                get_path_of_external_data_dir(),
+                "response",
+                "trigdat",
+                f"effective_response_{det}.hd5",
             )
 
             if file_existing_and_readable(response_cache_file):
 
-                print(f'Load response cache for detector {det}')
+                print(f"Load response cache for detector {det}")
 
-                self._load_response_cache(
-                    response_cache_file
-                )
+                self._load_response_cache(response_cache_file)
 
             else:
 
-                print(f'No response cache existing for detector {det}. We will build it from scratch!')
+                print(
+                    f"No response cache existing for detector {det}. We will build it from scratch!"
+                )
 
                 # Create the points on the unit sphere
                 self._points = np.array(self._fibonacci_sphere(samples=Ngrid))
@@ -156,17 +218,17 @@ class Det_Response_Precalculation(object):
                 # Calculate the reponse for all points on the unit sphere
                 self._calculate_responses()
 
-                self._save_response_cache(
-                    response_cache_file
-                )
+                self._save_response_cache(response_cache_file)
 
         else:
-            datafile_name = 'glg_{0}_{1}_{2}_v00.pha'.format(data_type, det, dates[0])
-            datafile_path = os.path.join(get_path_of_external_data_dir(), data_type, dates[0], datafile_name)
+            datafile_name = "glg_{0}_{1}_{2}_v00.pha".format(data_type, det, dates[0])
+            datafile_path = os.path.join(
+                get_path_of_external_data_dir(), data_type, dates[0], datafile_name
+            )
 
             with fits.open(datafile_path) as f:
-                edge_start = f['EBOUNDS'].data['E_MIN']
-                edge_stop = f['EBOUNDS'].data['E_MAX']
+                edge_start = f["EBOUNDS"].data["E_MIN"]
+                edge_stop = f["EBOUNDS"].data["E_MAX"]
 
             self._Ebin_out_edge = np.append(edge_start, edge_stop[-1])
 
@@ -226,23 +288,23 @@ class Det_Response_Precalculation(object):
 
     def _load_response_cache(self, cache_file):
         with h5py.File(cache_file, "r") as f:
-            detector = f.attrs['detector']
-            det = f.attrs['det']
-            data_type = f.attrs['data_type']
-            n_grid = f.attrs['ngrid']
+            detector = f.attrs["detector"]
+            det = f.attrs["det"]
+            data_type = f.attrs["data_type"]
+            n_grid = f.attrs["ngrid"]
 
-            ebin_in_edge = f['ebin_in_edge'][()]
-            ebin_out_edge = f['ebin_out_edge'][()]
-            points = f['points'][()]
-            response_array = f['response_array'][()]
+            ebin_in_edge = f["ebin_in_edge"][()]
+            ebin_out_edge = f["ebin_out_edge"][()]
+            points = f["points"][()]
+            response_array = f["response_array"][()]
 
-        assert(detector == self.detector)
-        assert(det == self.det)
-        assert(data_type == self.data_type)
-        assert(n_grid == self.Ngrid)
+        assert detector == self.detector
+        assert det == self.det
+        assert data_type == self.data_type
+        assert n_grid == self.Ngrid
 
-        assert(np.array_equal(ebin_in_edge, self.Ebin_in_edge))
-        assert(np.array_equal(ebin_out_edge, self.Ebin_out_edge))
+        assert np.array_equal(ebin_in_edge, self.Ebin_in_edge)
+        assert np.array_equal(ebin_out_edge, self.Ebin_out_edge)
 
         self._points = points
         self._response_array = response_array
@@ -251,22 +313,22 @@ class Det_Response_Precalculation(object):
         if_dir_containing_file_not_existing_then_make(cache_file)
 
         with h5py.File(cache_file, "w") as f:
-            f.attrs['detector'] = self.detector
-            f.attrs['det'] = self.det
-            f.attrs['data_type'] = self.data_type
-            f.attrs['ngrid'] = self.Ngrid
+            f.attrs["detector"] = self.detector
+            f.attrs["det"] = self.det
+            f.attrs["data_type"] = self.data_type
+            f.attrs["ngrid"] = self.Ngrid
 
-            f.create_dataset('ebin_in_edge', data=self.Ebin_in_edge,
-                             compression="gzip")
+            f.create_dataset("ebin_in_edge", data=self.Ebin_in_edge, compression="gzip")
 
-            f.create_dataset('ebin_out_edge', data=self.Ebin_out_edge,
-                             compression="gzip")
+            f.create_dataset(
+                "ebin_out_edge", data=self.Ebin_out_edge, compression="gzip"
+            )
 
-            f.create_dataset('points', data=self.points,
-                             compression="gzip")
+            f.create_dataset("points", data=self.points, compression="gzip")
 
-            f.create_dataset('response_array', data=self.response_array,
-                             compression="gzip")
+            f.create_dataset(
+                "response_array", data=self.response_array, compression="gzip"
+            )
 
     def _response(self, x, y, z, DRM):
         """
@@ -291,9 +353,14 @@ class Det_Response_Precalculation(object):
         # Create the DRM object (quaternions and sc_pos are dummy values, not important
         # as we calculate everything in the sat frame
 
-        DRM = DRMGen(np.array([0.0745, -0.105, 0.0939, 0.987]),
-                     np.array([-5.88 * 10 ** 6, -2.08 * 10 ** 6, 2.97 * 10 ** 6]), self._det,
-                     self.Ebin_in_edge, mat_type=0, ebin_edge_out=self._Ebin_out_edge)
+        DRM = DRMGen(
+            np.array([0.0745, -0.105, 0.0939, 0.987]),
+            np.array([-5.88 * 10 ** 6, -2.08 * 10 ** 6, 2.97 * 10 ** 6]),
+            self._det,
+            self.Ebin_in_edge,
+            mat_type=0,
+            ebin_edge_out=self._Ebin_out_edge,
+        )
 
         # If MPI is used split up the points among the used cores to speed up
         if using_mpi:
@@ -302,7 +369,11 @@ class Det_Response_Precalculation(object):
             # Therefore we have to separate the calculation and broadcasting in several runs of smaller arrays
 
             # If Ngrid is smaller than 5000 or we are using ctime data everything is fine and mpi works in a single run
-            if self._Ngrid <= 5000 or self._data_type == 'ctime' or self._data_type == 'trigdat':
+            if (
+                self._Ngrid <= 5000
+                or self._data_type == "ctime"
+                or self._data_type == "trigdat"
+            ):
 
                 points_per_rank = float(self._Ngrid) / float(size)
                 points_lower_index = int(np.floor(points_per_rank * rank))
@@ -310,13 +381,21 @@ class Det_Response_Precalculation(object):
 
                 if rank == 0:
 
-                    with progress_bar(points_upper_index - points_lower_index,
-                                      title='Calculating response on a grid around detector {}. '
-                                            'This shows the progress of rank 0. All other should be about the same.'.format(self.detector)) as p:
+                    with progress_bar(
+                        points_upper_index - points_lower_index,
+                        title="Calculating response on a grid around detector {}. "
+                        "This shows the progress of rank 0. All other should be about the same.".format(
+                            self.detector
+                        ),
+                    ) as p:
 
-                        for point in self._points[points_lower_index:points_upper_index]:
+                        for point in self._points[
+                            points_lower_index:points_upper_index
+                        ]:
                             # get the response of every point
-                            matrix = self._response(point[0], point[1], point[2], DRM).matrix[self._echan_mask]
+                            matrix = self._response(
+                                point[0], point[1], point[2], DRM
+                            ).matrix[self._echan_mask]
                             responses.append(matrix.T)
 
                             p.increase()
@@ -325,7 +404,9 @@ class Det_Response_Precalculation(object):
 
                     for point in self._points[points_lower_index:points_upper_index]:
                         # get the response of every point
-                        matrix = self._response(point[0], point[1], point[2], DRM).matrix[self._echan_mask]
+                        matrix = self._response(
+                            point[0], point[1], point[2], DRM
+                        ).matrix[self._echan_mask]
                         responses.append(matrix.T)
 
                 # Collect all results in rank=0 and broadcast the final array to all ranks in the end
@@ -339,7 +420,7 @@ class Det_Response_Precalculation(object):
 
             else:
                 # Split the grid points in runs with 4000 points each
-                num_split = int(np.ceil(self._Ngrid / 4000.))
+                num_split = int(np.ceil(self._Ngrid / 4000.0))
 
                 # Save start and stop index of every run
                 N_grid_start = np.arange(0, num_split * 4000, 4000)
@@ -360,28 +441,43 @@ class Det_Response_Precalculation(object):
                     # Split up the points of this run among the mpi ranks
                     points_per_rank = float(n_stop - n_start) / float(size)
                     points_lower_index = int(np.floor(points_per_rank * rank) + n_start)
-                    points_upper_index = int(np.floor(points_per_rank * (rank + 1)) + n_start)
+                    points_upper_index = int(
+                        np.floor(points_per_rank * (rank + 1)) + n_start
+                    )
 
                     if rank == 0:
-                        print('We have to split up the response precalculation in {} runs.'
-                              ' MPI can not handle everything at once.'.format(num_split))
+                        print(
+                            "We have to split up the response precalculation in {} runs."
+                            " MPI can not handle everything at once.".format(num_split)
+                        )
 
-                        with progress_bar(points_upper_index - points_lower_index,
-                                          title='Calculating response on a grid around detector {}, run {} of {}.'
-                                                ' This shows the progress of rank 0. All other should be about the same.'
-                                                .format(self.detector, j + 1, num_split)) as p:
+                        with progress_bar(
+                            points_upper_index - points_lower_index,
+                            title="Calculating response on a grid around detector {}, run {} of {}."
+                            " This shows the progress of rank 0. All other should be about the same.".format(
+                                self.detector, j + 1, num_split
+                            ),
+                        ) as p:
 
-                            for point in self._points[points_lower_index:points_upper_index]:
+                            for point in self._points[
+                                points_lower_index:points_upper_index
+                            ]:
                                 # get the response of every point
-                                matrix = self._response(point[0], point[1], point[2], DRM).matrix[self._echan_mask]
+                                matrix = self._response(
+                                    point[0], point[1], point[2], DRM
+                                ).matrix[self._echan_mask]
                                 responses_split.append(matrix.T)
                                 p.increase()
 
                     else:
 
-                        for point in self._points[points_lower_index:points_upper_index]:
+                        for point in self._points[
+                            points_lower_index:points_upper_index
+                        ]:
                             # get the response of every point
-                            matrix = self._response(point[0], point[1], point[2], DRM).matrix[self._echan_mask]
+                            matrix = self._response(
+                                point[0], point[1], point[2], DRM
+                            ).matrix[self._echan_mask]
                             responses_split.append(matrix.T)
 
                     # Collect all results in rank=0 and broadcast the final array to all ranks in the end
@@ -401,12 +497,18 @@ class Det_Response_Precalculation(object):
                 responses = np.concatenate(responses_all_split)
 
         else:
-            with progress_bar(len(self._points),
-                              title='Calculating response on a grid around detector {}. '
-                                    'This shows the progress of rank 0. All other should be about the same.'.format(self.detector)) as p:
+            with progress_bar(
+                len(self._points),
+                title="Calculating response on a grid around detector {}. "
+                "This shows the progress of rank 0. All other should be about the same.".format(
+                    self.detector
+                ),
+            ) as p:
                 for point in self._points:
                     # get the response of every point
-                    matrix = self._response(point[0], point[1], point[2], DRM).matrix[self._echan_mask]
+                    matrix = self._response(point[0], point[1], point[2], DRM).matrix[
+                        self._echan_mask
+                    ]
                     responses.append(matrix.T)
                     p.increase()
 
@@ -417,14 +519,14 @@ class Det_Response_Precalculation(object):
         Calculate equally distributed points on a unit sphere using fibonacci
         :params samples: number of points
         """
-        rnd = 1.
+        rnd = 1.0
 
         points = []
-        offset = 2. / samples
-        increment = np.pi * (3. - np.sqrt(5.));
+        offset = 2.0 / samples
+        increment = np.pi * (3.0 - np.sqrt(5.0))
 
         for i in range(samples):
-            y = ((i * offset) - 1) + (offset / 2);
+            y = ((i * offset) - 1) + (offset / 2)
             r = np.sqrt(1 - pow(y, 2))
 
             phi = ((i + rnd) % samples) * increment

@@ -13,8 +13,10 @@ class Rebinner(object):
 
             mask = np.array(mask, bool)
 
-            assert mask.shape[0] == len(vector_to_rebin_on), "The provided mask must have the same number of " \
-                                                             "elements as the vector to rebin on"
+            assert mask.shape[0] == len(vector_to_rebin_on), (
+                "The provided mask must have the same number of "
+                "elements as the vector to rebin on"
+            )
 
         else:
             mask = np.ones_like(vector_to_rebin_on[:, 0], dtype=bool)
@@ -26,7 +28,7 @@ class Rebinner(object):
         self._grouping = []
         self._saa_idx = []
 
-        sum_bin_width = 0.
+        sum_bin_width = 0.0
         bin_open = False
 
         for index, bin in enumerate(vector_to_rebin_on):
@@ -44,7 +46,7 @@ class Rebinner(object):
 
                     self._stops.append(index)
 
-                    sum_bin_width = 0.
+                    sum_bin_width = 0.0
                     bin_open = False
 
                     # add the first bin including a SAA passage to the SAA index
@@ -60,7 +62,7 @@ class Rebinner(object):
                     bin_open = True
 
                     self._starts.append(index)
-                    sum_bin_width = 0.
+                    sum_bin_width = 0.0
 
                     # Add the first bin after SAA exit to SAA idx
                     if index > 0 and not mask[index - 1]:
@@ -89,14 +91,18 @@ class Rebinner(object):
         if bin_open:
             self._stops.append(len(vector_to_rebin_on) - 1)
 
-        assert len(self._starts) == len(self._stops), "This is a bug: the starts and stops of the bins are not in " \
-                                                      "equal number"
+        assert len(self._starts) == len(self._stops), (
+            "This is a bug: the starts and stops of the bins are not in " "equal number"
+        )
 
         self._min_bin_width = min_bin_width
 
         self._rebinned_vector_idx = np.array(zip(self._starts, self._stops))
 
-        self._time_rebinned = np.stack((vector_to_rebin_on[self._starts, 0], vector_to_rebin_on[self._stops, 0]), axis=-1)
+        self._time_rebinned = np.stack(
+            (vector_to_rebin_on[self._starts, 0], vector_to_rebin_on[self._stops, 0]),
+            axis=-1,
+        )
 
         self._starts = np.array(self._starts)
         self._stops = np.array(self._stops)
@@ -138,9 +144,10 @@ class Rebinner(object):
 
         for vector in vectors:
 
-            assert len(vector) == len(
-                self._mask), "The vector to rebin must have the same number of elements of the" \
-                             "original (not-rebinned) vector"
+            assert len(vector) == len(self._mask), (
+                "The vector to rebin must have the same number of elements of the"
+                "original (not-rebinned) vector"
+            )
 
             # Transform in array because we need to use the mask
             vector_a = np.array(vector)
@@ -152,7 +159,7 @@ class Rebinner(object):
 
             # If the last time_bin is the last rebinned time bin fix the sum
             if self._starts[-1] == self._stops[-1]:
-                rebinned_vector[-1] = np.sum(vector_a[self._starts[-1]:])
+                rebinned_vector[-1] = np.sum(vector_a[self._starts[-1] :])
 
             # if self._starts
 
@@ -164,13 +171,22 @@ class Rebinner(object):
             # TODO: Only took out assert to run multi day fit withouth assertion error!!!
             # assert abs((np.sum(rebinned_vector) + 1e-100) / (np.sum(vector_a[self._mask]) + 1e-100) - 1) < 1e-4
 
-            if abs((np.sum(rebinned_vector) + 1e-100) / (np.sum(vector_a[self._mask]) + 1e-100) - 1) > 1e-4:
-                print ("The sum of rebinned counts is not equal to the sum of unbinned counts!!!")
+            if (
+                abs(
+                    (np.sum(rebinned_vector) + 1e-100)
+                    / (np.sum(vector_a[self._mask]) + 1e-100)
+                    - 1
+                )
+                > 1e-4
+            ):
+                print(
+                    "The sum of rebinned counts is not equal to the sum of unbinned counts!!!"
+                )
 
             rebinned_vector = np.array(rebinned_vector)
 
             # Set last bin before and first bin after SAA to zero for plotting (this gets rid of glitches when plotting count-rates)
-            rebinned_vector[np.where(~self._rebinned_saa_mask)] = 0.
+            rebinned_vector[np.where(~self._rebinned_saa_mask)] = 0.0
 
             rebinned_vectors.append(rebinned_vector)
 
@@ -189,8 +205,10 @@ class Rebinner(object):
 
         for vector in vectors:  # type: np.ndarray[np.ndarray]
 
-            assert len(vector) == len(self._mask), "The vector to rebin must have the same number of elements of the" \
-                                                   "original (not-rebinned) vector"
+            assert len(vector) == len(self._mask), (
+                "The vector to rebin must have the same number of elements of the"
+                "original (not-rebinned) vector"
+            )
 
             rebinned_vector = []
 

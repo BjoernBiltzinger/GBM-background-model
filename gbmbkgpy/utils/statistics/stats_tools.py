@@ -42,11 +42,13 @@ class PoissonResiduals(object):
     # Make the interpolator here so we do it only once. Also use ext=3 so that the interpolation
     # will return the maximum value instead of extrapolating
 
-    _interpolator = scipy.interpolate.InterpolatedUnivariateSpline(_logy[::-1], _x[::-1], k=1, ext=3)
+    _interpolator = scipy.interpolate.InterpolatedUnivariateSpline(
+        _logy[::-1], _x[::-1], k=1, ext=3
+    )
 
     def __init__(self, Non, Noff, alpha=1.0):
 
-        assert alpha > 0 and alpha <= 1, 'alpha was %f' % alpha
+        assert alpha > 0 and alpha <= 1, "alpha was %f" % alpha
 
         self.Non = np.array(Non, dtype=float, ndmin=1)
 
@@ -101,7 +103,7 @@ class PoissonResiduals(object):
 
         out = np.zeros_like(x)
 
-        idx = (cdf >= 2 * self._epsilon)
+        idx = cdf >= 2 * self._epsilon
 
         # We can do a direct computation, because the numerical precision is sufficient
         # for this computation, as -sf = cdf - 1 is a representable number
@@ -124,7 +126,7 @@ class Significance(object):
 
     def __init__(self, Non, Noff, alpha=1):
 
-        assert alpha > 0 and alpha <= 1, 'alpha was %f' % alpha
+        assert alpha > 0 and alpha <= 1, "alpha was %f" % alpha
 
         self.Non = np.array(Non, dtype=float, ndmin=1)
 
@@ -155,7 +157,9 @@ class Significance(object):
 
         # Poisson probability of obtaining Non given Noff * alpha, in sigma units
 
-        poisson_probability = PoissonResiduals(self.Non, self.Noff, self.alpha).significance_one_side()
+        poisson_probability = PoissonResiduals(
+            self.Non, self.Noff, self.alpha
+        ).significance_one_side()
 
         return poisson_probability
 
@@ -173,12 +177,17 @@ class Significance(object):
 
         idx = self.Non > 0
 
-        one[idx] = self.Non[idx] * np.log(old_div((1 + self.alpha), self.alpha) *
-                                          (old_div(self.Non[idx], (self.Non[idx] + self.Noff[idx]))))
+        one[idx] = self.Non[idx] * np.log(
+            old_div((1 + self.alpha), self.alpha)
+            * (old_div(self.Non[idx], (self.Non[idx] + self.Noff[idx])))
+        )
 
         two = np.zeros_like(self.Noff, dtype=float)
 
-        two[idx] = self.Noff[idx] * np.log((1 + self.alpha) * (old_div(self.Noff[idx], (self.Non[idx] + self.Noff[idx]))))
+        two[idx] = self.Noff[idx] * np.log(
+            (1 + self.alpha)
+            * (old_div(self.Noff[idx], (self.Non[idx] + self.Noff[idx])))
+        )
 
         if assign_sign:
 
@@ -209,9 +218,18 @@ class Significance(object):
         b = self.expected
         o = self.Non
 
-        b0 = 0.5 * (np.sqrt(b ** 2 - 2 * sigma_b ** 2 * (b - 2 * o) + sigma_b ** 4) + b - sigma_b ** 2)
+        b0 = 0.5 * (
+            np.sqrt(b ** 2 - 2 * sigma_b ** 2 * (b - 2 * o) + sigma_b ** 4)
+            + b
+            - sigma_b ** 2
+        )
 
-        S = sqrt(2) * np.sqrt(o * np.log(old_div(o, b0)) + old_div((b0 - b) ** 2, (2 * sigma_b ** 2)) + b0 - o)
+        S = sqrt(2) * np.sqrt(
+            o * np.log(old_div(o, b0))
+            + old_div((b0 - b) ** 2, (2 * sigma_b ** 2))
+            + b0
+            - o
+        )
 
         sign = np.where(o > b, 1, -1)
 
@@ -235,8 +253,11 @@ def compute_covariance_matrix(function, best_fit_parameters):
 
     except ParameterOnBoundary:
 
-        custom_warnings.warn("One or more of the parameters are at their boundaries. Cannot compute covariance and"
-                             " errors", CannotComputeCovariance)
+        custom_warnings.warn(
+            "One or more of the parameters are at their boundaries. Cannot compute covariance and"
+            " errors",
+            CannotComputeCovariance,
+        )
 
         n_dim = len(best_fit_parameters)
 
@@ -250,11 +271,11 @@ def compute_covariance_matrix(function, best_fit_parameters):
 
         cov_matrix = covariance_matrix
 
-
-
     except:
 
-        custom_warnings.warn("Cannot invert Hessian matrix, looks like the matrix is singluar")
+        custom_warnings.warn(
+            "Cannot invert Hessian matrix, looks like the matrix is singluar"
+        )
 
         n_dim = len(best_fit_parameters)
 
