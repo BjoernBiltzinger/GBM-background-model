@@ -65,12 +65,12 @@ model_generator.from_config_dict(config)
 
 output_dir = os.path.join(
     get_path_of_external_data_dir(),
-    'fits',
-    'mn_out',
-    '-'.join(config['general']['dates']),
-    'det_' + '-'.join(config["general"]["detectors"]),
-    'echan_' + '-'.join([str(e) for e in config["general"]["echans"]]),
-    datetime.now().strftime('%m-%d_%H-%M') + '/'
+    "fits",
+    "mn_out",
+    "-".join(config["general"]["dates"]),
+    "det_" + "-".join(config["general"]["detectors"]),
+    "echan_" + "-".join([str(e) for e in config["general"]["echans"]]),
+    datetime.now().strftime("%m-%d_%H-%M") + "/",
 )
 
 
@@ -84,7 +84,7 @@ if config["fit"]["method"] == "multinest":
     minimizer.minimize_multinest(
         n_live_points=config["fit"]["multinest"]["num_live_points"],
         const_efficiency_mode=config["fit"]["multinest"]["constant_efficiency_mode"],
-        output_dir=output_dir
+        output_dir=output_dir,
     )
 
     # Create corner plot
@@ -101,9 +101,7 @@ if config["export"]["save_unbinned"]:
     model_generator = BackgroundModelGenerator()
     model_generator.from_config_dict(config)
 
-    model_generator.likelihood.set_free_parameters(
-        minimizer.best_fit_values
-    )
+    model_generator.likelihood.set_free_parameters(minimizer.best_fit_values)
 
 if config["export"]["save_cov_matrix"]:
     minimizer.comp_covariance_matrix()
@@ -113,13 +111,13 @@ data_exporter = DataExporter(
     model=model_generator.model,
     saa_object=model_generator.saa_calc,
     echans=config["general"]["echans"],
-    best_fit_values=minimizer.best_fit_values
+    best_fit_values=minimizer.best_fit_values,
 )
 
 result_file_name = "fit_result_dates_{}_dets_{}_echans_{}.hdf5".format(
-    '-'.join(config["general"]["dates"]),
-    '-'.join(config["general"]["detectors"]),
-    '-'.join([str(e) for e in config["general"]["echans"]]),
+    "-".join(config["general"]["dates"]),
+    "-".join(config["general"]["detectors"]),
+    "-".join([str(e) for e in config["general"]["echans"]]),
 )
 
 data_exporter.save_data(
