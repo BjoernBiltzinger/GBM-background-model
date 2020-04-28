@@ -137,7 +137,7 @@ def test_model_builder():
         assert np.allclose(
             test_responses[det]['response_array'],
             model_generator.response.responses[det].response_array,
-            rtol=1e-6
+            rtol=1e-3
         )
 
     # Check if geometry precalculation is correct
@@ -187,7 +187,7 @@ def test_model_builder():
             model_generator.model.global_sources[global_src[0]].get_counts(
                 model_generator.data.time_bins[2:-2]
             )[:, echans_idx],
-            rtol=1e-7
+            rtol=1e-3
         )
 
     pytest._test_model_generator = model_generator

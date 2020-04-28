@@ -1,46 +1,54 @@
 import collections
 from gbmbkgpy.modeling.parameter import Parameter
+from gbmbkgpy.utils.interpolation import Interp1D
 import numpy as np
 import scipy.integrate as integrate
 import numexpr as ne
 import scipy.interpolate as interpolate
 
 try:
-    from numba import njit, float64
+    from numba import njit, float64, prange
     has_numba = True
 except:
     has_numba = False
 
 if has_numba:
-    @njit([float64[:](float64[:,::1], float64[:,::1])])
-    def trapz(y,x):
-        """
-        Fast trapz integration with numba
-        :param x: x values
-        :param y: y values
-        :return: Trapz integrated
-        """
-        return np.trapz(y,x)
+    from numba import njit, float64, prange
+    #@njit([float64[:](float64[:,::1], float64[:,::1])])
+    #def trapz(y,x):
+    #    """
+    #    Fast trapz integration with numba
+    #    :param x: x values
+    #    :param y: y values
+    #    :return: Trapz integrated
+    #    """
+    #    res = np.zeros(y.shape[:3])
+    #    for i in range(len(y)):
+    #        for j in range(len(y[0])):
+    #            for k in range(len(y[0,0])):
+    #                res[i,j,k] = (x[i,j,k,1]-x[i,j,k,0])*(y[i,j,k,1]+y[i,j,k,0])/2
+    #    return res
 
-    @njit(float64[:](float64[:],float64[:],float64[:]))
-    def log_interp1d(x_new, x_old, y_old):
-        """
-        Linear interpolation in log space for base value pairs (x_old, y_old)
-        for new x_values x_new
-        :param x_old: Old x values used for interpolation
-        :param y_old: Old y values used for interpolation
-        :param x_new: New x values
-        :retrun: y_new from liner interpolation in log space
-        """
-        # log of all
-        logx = np.log10(x_old)
-        logxnew = np.log10(x_new)
-        # Avoid nan entries for yy=0 entries
-        logy = np.log10(np.where(y_old<=0, 1e-99, y_old))
 
-        lin_interp = np.interp(logxnew,logx, logy)
+    #@njit(float64[:](float64[:],float64[:],float64[:]))
+    #def log_interp1d(x_new, x_old, y_old):
+    #    """
+    #    Linear interpolation in log space for base value pairs (x_old, y_old)
+    #    for new x_values x_new
+    #    :param x_old: Old x values used for interpolation
+    #    :param y_old: Old y values used for interpolation
+    #    :param x_new: New x values
+    #    :retrun: y_new from liner interpolation in log space
+    #    """
+    #    # log of all
+    #    logx = np.log10(x_old)
+    #    logxnew = np.log10(x_new)
+    #    # Avoid nan entries for yy=0 entries
+    #    logy = np.log10(np.where(y_old<=0, 1e-99, y_old))
 
-        return 10**lin_interp
+    #    lin_interp = np.interp(logxnew,logx, logy)
+
+    #    return 10**lin_interp
 
 else:
 
@@ -185,7 +193,7 @@ class ContinuumFunction(Function):
 
         tiled_time_bins = np.swapaxes(tiled_time_bins, 0, 1)
 
-        self._source_counts = integrate.cumtrapz(self._function_array, tiled_time_bins)[:, :, 0]
+        self._source_counts = np.trapz(self._function_array, tiled_time_bins)
 
     def _evaluate(self, K):
         """
@@ -262,7 +270,7 @@ class GlobalFunction(Function):
         tiled_time_bins = np.swapaxes(tiled_time_bins, 0, 2)
         tiled_time_bins = np.swapaxes(tiled_time_bins, 1, 2)
 
-        self._source_counts = integrate.cumtrapz(self._function_array, tiled_time_bins)[:, :, :, 0]
+        self._source_counts = np.trapz(self._function_array, tiled_time_bins)
 
     def _evaluate(self, K):
         """
@@ -316,7 +324,7 @@ class GlobalFunctionSpectrumFit(Function):
         else:
 
             raise ValueError('Spectrum must be bpl or pl at the moment. But is {}'.format(self._spec))
-
+        
     def set_dets_echans(self, detectors, echans):
 
         self._detectors = detectors
@@ -356,6 +364,9 @@ class GlobalFunctionSpectrumFit(Function):
 
         self._tiled_time_bins = tiled_time_bins
 
+    def set_interpolation(self):
+        self._interp1d = Interp1D(self._time_bins, self._interpolation_times)
+        
     def set_saa_mask(self, saa_mask):
         """
         Set the SAA sections in the function array to zero
@@ -380,8 +391,10 @@ class GlobalFunctionSpectrumFit(Function):
         :return:
         """
         # Get the flux for all times
-        folded_flux_all_dets = self._folded_flux_inter(self._time_bins)
-
+        if has_numba:
+            folded_flux_all_dets = self._folded_flux_inter#(self._time_bins)
+        else:
+            folded_flux_all_dets = self._folded_flux_inter(self._time_bins)
         # The interpolated flux has the dimensions (len(time_bins), 2, len(detectors), len(echans))
         # We want (len(time_bins), len(detectors), len(echans), 2) so we net to swap axes
         # The 2 is the start stop in the time_bins
@@ -389,8 +402,10 @@ class GlobalFunctionSpectrumFit(Function):
         folded_flux_all_dets = np.swapaxes(folded_flux_all_dets, 1, 2)
         folded_flux_all_dets = np.swapaxes(folded_flux_all_dets, 2, 3)
 
-        self._source_counts = integrate.cumtrapz(folded_flux_all_dets, self._tiled_time_bins)[:, :, :, 0]
-
+        if has_numba:
+            self._source_counts = _trapz_numba(folded_flux_all_dets, self._time_bins)
+        else:
+            self._source_counts = integrate.trapz(folded_flux_all_dets, self._tiled_time_bins)
         self._source_counts[~self._saa_mask] = 0.
 
     def build_spec_integral(self, use_numba=False):
@@ -464,14 +479,19 @@ class GlobalFunctionSpectrumFit(Function):
                 self._responses[det].Ebin_in_edge[:-1],
                 self._responses[det].Ebin_in_edge[1:]
             )
-
-            folded_flux[:, det_idx, :] = np.dot(true_flux, self._effective_responses[det])
-
-        self._folded_flux_inter = interpolate.interp1d(
-            self._interpolation_times,
-            folded_flux,
-            axis=0
-        )
+            if has_numba:
+                folded_flux[:, det_idx, :] = _dot_numba(true_flux, self._effective_responses[det])
+            else:
+                folded_flux[:, det_idx, :] = np.dot(true_flux, self._effective_responses[det])
+        if has_numba:
+            self._folded_flux_inter = self._interp1d(
+                folded_flux
+            )
+        else:
+            self._folded_flux_inter = interpolate.interp1d(
+                self._interpolation_times,
+                folded_flux,
+                axis=0)
 
         self.integrate_array()
 
@@ -526,17 +546,17 @@ def _spec_integral_bpl(e1, e2, c, break_energy, index1, index2):
 
 
 # Numba Implementation
-@njit(float64[:](float64[:], float64, float64, float64, float64))
+@njit(float64(float64, float64, float64, float64, float64), cache=True)
 def _spectrum_bpl_numba(energy, c, break_energy, index1, index2):
 
     return c / ((energy / break_energy) ** index1 + (energy / break_energy) ** index2)
 
-@njit(float64[:](float64[:], float64, float64, float64))
+@njit(float64(float64, float64, float64, float64), cache=True)
 def _spectrum_pl_numba(energy, c, e_norm, index):
 
     return c / (energy/e_norm) ** index
 
-@njit(float64[:](float64[:], float64[:], float64, float64, float64))
+@njit(float64[:](float64[:], float64[:], float64, float64, float64), parallel=True, cache=True)
 def _spec_integral_pl_numba(e1, e2, c, e_norm, index):
         """
         Calculates the flux of photons between two energies
@@ -544,12 +564,15 @@ def _spec_integral_pl_numba(e1, e2, c, e_norm, index):
         :param e2: upper e bound
         :return:
         """
-        return (e2 - e1) / 6.0 * (
-                _spectrum_pl_numba(e1, c, e_norm, index) +
-               4 * _spectrum_pl_numba((e1 + e2) / 2.0, c, e_norm, index) +
-                _spectrum_pl_numba(e2, c, e_norm, index))
-
-@njit(float64[:](float64[:], float64[:], float64, float64, float64, float64))
+        res = np.zeros(len(e1))
+        for i in prange(len(e1)):
+            
+            res[i] = (e2[i] - e1[i]) / 6.0 * (
+                _spectrum_pl_numba(e1[i], c, e_norm, index) +
+               4 * _spectrum_pl_numba((e1[i] + e2[i]) / 2.0, c, e_norm, index) +
+                _spectrum_pl_numba(e2[i], c, e_norm, index))
+        return res
+@njit(float64[:](float64[:], float64[:], float64, float64, float64, float64), parallel=True, cache=True)
 def _spec_integral_bpl_numba(e1, e2, c, break_energy, index1, index2):
         """
         Calculates the flux of photons between two energies
@@ -557,7 +580,34 @@ def _spec_integral_bpl_numba(e1, e2, c, break_energy, index1, index2):
         :param e2: upper e bound
         :return:
         """
-        return (e2 - e1) / 6.0 * (
-                _spectrum_bpl_numba(e1, c, break_energy, index1, index2) +
-                4 * _spectrum_bpl_numba((e1 + e2) / 2.0, c, break_energy, index1, index2) +
-                _spectrum_bpl_numba(e2, c, break_energy, index1, index2))
+        res = np.zeros(len(e1))
+        for i in prange(len(e1)):
+            res[i] = (e2[i] - e1[i]) / 6.0 * (
+                _spectrum_bpl_numba(e1[i], c, break_energy, index1, index2) +
+                4 * _spectrum_bpl_numba((e1[i] + e2[i]) / 2.0, c, break_energy, index1, index2) +
+                _spectrum_bpl_numba(e2[i], c, break_energy, index1, index2))
+        return res
+# Numba response folding
+
+@njit(parallel=True, cache=True)
+def _dot_numba(vec, A):
+    """
+    :param vec: True flux; shape(j)
+    :param A: array of response arrays; shape (i,j,k)
+    """
+    res = np.zeros((A.shape[0], A.shape[2]))
+    for i in prange(A.shape[0]):
+        #for j in range(A.shape[2]):
+        res[i] = np.dot(vec,A[i])
+    return res
+
+# Numba trapz integration
+@njit([float64[:,:,:](float64[:,:,:,:], float64[:,:])], parallel=True, cache=True)  
+def _trapz_numba(y,x):
+    res = np.zeros((y.shape[0], y.shape[1], y.shape[2]))
+    for i in prange(len(y)):
+        for j in prange(len(y[0])):
+            for k in prange(len(y[0,0])):
+                res[i,j,k] = (x[i,1]-x[i,0])*(y[i,j,k,1]+y[i,j,k,0])/2
+    return res
+
