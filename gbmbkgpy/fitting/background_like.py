@@ -8,7 +8,6 @@ from gbmbkgpy.modeling.model import Model
 
 
 class BackgroundLike(object):
-
     def __init__(self, data, model, saa_object, use_numba=False):
         """
         Init backgroundlike that compares the data with the model
@@ -31,9 +30,11 @@ class BackgroundLike(object):
 
         # Get the SAA and GRB mask:
         self._saa_mask = saa_object.saa_mask
-        self._grb_mask = np.ones(len(self._total_time_bins), dtype=bool)  # np.full(len(self._total_time_bins), True)
+        self._grb_mask = np.ones(
+            len(self._total_time_bins), dtype=bool
+        )  # np.full(len(self._total_time_bins), True)
         # An entry in the total mask is False when one of the two masks is False
-        self._total_mask = ~ np.logical_xor(self._saa_mask, self._grb_mask)
+        self._total_mask = ~np.logical_xor(self._saa_mask, self._grb_mask)
 
         # Get the valid time bins by including the total_mask
         self._time_bins = self._total_time_bins[self._total_mask]
@@ -42,12 +43,11 @@ class BackgroundLike(object):
         self._total_counts = self._data.counts
         self._masked_counts = self._data.counts[self._total_mask]
 
-        self._total_scale_factor = 1.
+        self._total_scale_factor = 1.0
         self._grb_mask_calculated = False
 
         self._get_sources_fit_spectrum()
         self._build_log_like()
-
 
     def _set_free_parameters(self, new_parameters):
         """
@@ -126,7 +126,7 @@ class BackgroundLike(object):
                     # print ("Parameter {0} has been fixed".format(param_name))
 
             if not parameter_exits:
-                print ("Parameter does not exist in parameter list")
+                print("Parameter does not exist in parameter list")
 
         self.update_free_parameters()
 
@@ -151,7 +151,7 @@ class BackgroundLike(object):
                     # print ("Parameter {0} has been unfixed".format(param_name))
 
             if parameter_exits == False:
-                print ("Parameter does not exist in parameter list")
+                print("Parameter does not exist in parameter list")
 
         self.update_free_parameters()
 
@@ -191,7 +191,6 @@ class BackgroundLike(object):
         self._sources_fit_spectrum = self._model.fit_spectrum_sources.values()
 
     def _build_cov_call(self):
-
         def cov_call(*parameters):
             return self.__call__(parameters)
 
@@ -210,14 +209,13 @@ class BackgroundLike(object):
 
         return self._get_log_likelihood()
 
-
     def _build_log_like(self):
 
         if self._use_numba:
 
-            print('Use numba likelihood')
+            print("Use numba likelihood")
 
-            if self._data.data_type == 'trigdat':
+            if self._data.data_type == "trigdat":
 
                 def log_like_numba():
 
@@ -226,6 +224,7 @@ class BackgroundLike(object):
                     counts = self._masked_counts
 
                     return _log_likelihood_numba_trigdat(M, counts)
+
             else:
 
                 def log_like_numba():
@@ -240,7 +239,7 @@ class BackgroundLike(object):
 
         else:
 
-            print('Use vectorized likelihood')
+            print("Use vectorized likelihood")
 
             def log_like_vector():
 
@@ -261,14 +260,15 @@ class BackgroundLike(object):
 
             self._get_log_likelihood = log_like_vector
 
-
     def _evaluate_model(self):
         """
         Loops over time bins and extracts the model counts and returns this array
         :return:
         """
 
-        return self._model.get_counts(time_bins=self._time_bins, bin_mask=self._total_mask)
+        return self._model.get_counts(
+            time_bins=self._time_bins, bin_mask=self._total_mask
+        )
 
     def _evaluate_logM(self, M):
         # Evaluate the logarithm with protection for negative or small
@@ -276,11 +276,11 @@ class BackgroundLike(object):
         # cutoff)
         tiny = np.float64(np.finfo(M[0][0][0]).tiny)
 
-        non_tiny_mask = (M > 2.0 * tiny)
+        non_tiny_mask = M > 2.0 * tiny
 
         tink_mask = np.logical_not(non_tiny_mask)
 
-        if (len(tink_mask.nonzero()[0]) > 0):
+        if len(tink_mask.nonzero()[0]) > 0:
             logM = np.zeros_like(M)
             logM[tink_mask] = np.abs(M[tink_mask]) / tiny + np.log(tiny) - 1
             logM[non_tiny_mask] = np.log(M[non_tiny_mask])
@@ -303,8 +303,8 @@ class BackgroundLike(object):
         """
 
         tiny = np.float64(np.finfo(v[0]).tiny)
-        zero_mask = (np.abs(v) <= tiny)
-        if (len(zero_mask.nonzero()[0]) > 0):
+        zero_mask = np.abs(v) <= tiny
+        if len(zero_mask.nonzero()[0]) > 0:
             v[zero_mask] = np.sign(v[zero_mask]) * tiny
 
         return v, tiny
@@ -324,12 +324,14 @@ class BackgroundLike(object):
 
             list_of_intervals.append([imin, imax])
 
-            bin_exclude = np.logical_and(self._total_time_bins[:, 0] > imin, self._total_time_bins[:, 1] < imax)
+            bin_exclude = np.logical_and(
+                self._total_time_bins[:, 0] > imin, self._total_time_bins[:, 1] < imax
+            )
 
             self._grb_mask[np.where(bin_exclude)] = False
 
         # An entry in the total mask is False when one of the two masks is False
-        self._total_mask = ~ np.logical_xor(self._saa_mask, self._grb_mask)
+        self._total_mask = ~np.logical_xor(self._saa_mask, self._grb_mask)
 
         # Get the valid time bins by including the total_mask
         self._time_bins = self._total_time_bins[self._total_mask]
@@ -346,7 +348,9 @@ class BackgroundLike(object):
         :param time_interval:
         :return:
         """
-        tokens = re.match('(\-?\+?[0-9]+\.?[0-9]*)\s*-\s*(\-?\+?[0-9]+\.?[0-9]*)', time_interval).groups()
+        tokens = re.match(
+            "(\-?\+?[0-9]+\.?[0-9]*)\s*-\s*(\-?\+?[0-9]+\.?[0-9]*)", time_interval
+        ).groups()
 
         return map(float, tokens)
 
@@ -358,7 +362,7 @@ class BackgroundLike(object):
         self._grb_mask = np.ones(len(self._total_time_bins), dtype=bool)
 
         # An entry in the total mask is False when one of the two masks is False
-        self._total_mask = ~ np.logical_xor(self._saa_mask, self._grb_mask)
+        self._total_mask = ~np.logical_xor(self._saa_mask, self._grb_mask)
 
         # Get the valid time bins by including the total_mask
         self._time_bins = self._total_time_bins[self._total_mask]
@@ -372,24 +376,27 @@ class BackgroundLike(object):
         return self._data
 
 
-@numba.njit(numba.float64(numba.float64[:,:,:], numba.int64[:,:,:]), parallel=True)
+@numba.njit(numba.float64(numba.float64[:, :, :], numba.int64[:, :, :]), parallel=True)
 def _log_likelihood_numba(M, counts):
     # Poisson loglikelihood statistic (Cash) is:
     # L = Sum ( M_i - D_i * log(M_i))
-    val = 0.
+    val = 0.0
     for i in numba.prange(M.shape[0]):
         for j in numba.prange(M.shape[1]):
             for k in numba.prange(M.shape[2]):
-                val += M[i,j,k]-counts[i,j,k]*np.log(M[i,j,k])
+                val += M[i, j, k] - counts[i, j, k] * np.log(M[i, j, k])
     return val
 
-@numba.njit(numba.float64(numba.float64[:,:,:], numba.float64[:,:,:]), parallel=True)
+
+@numba.njit(
+    numba.float64(numba.float64[:, :, :], numba.float64[:, :, :]), parallel=True
+)
 def _log_likelihood_numba_trigdat(M, counts):
     # Poisson loglikelihood statistic (Cash) is:
     # L = Sum ( M_i - D_i * log(M_i))
-    val = 0.
+    val = 0.0
     for i in numba.prange(M.shape[0]):
         for j in numba.prange(M.shape[1]):
             for k in numba.prange(M.shape[2]):
-                val += M[i,j,k]-counts[i,j,k]*np.log(M[i,j,k])
+                val += M[i, j, k] - counts[i, j, k] * np.log(M[i, j, k])
     return val
