@@ -41,15 +41,18 @@ class FitImporter(object):
 
         if rank == 0:
             with h5py.File(fit_result_hdf5, 'r') as f:
-                det =                 np.array(f['general']['detector'])
-                dates =               [d.decode() for d in f['general']['dates']]
-                param_names =         [n.decode() for n in f['general']['param_names']]
-                best_fit_values =     np.array(f['general']['best_fit_values'])
-                stat_err =            np.array(f['general']['stat_err'])
+                detectors =           f.attrs['detectors']
+                dates =               f.attrs['dates']
+                param_names =         f.attrs['param_names']
+                best_fit_values =     f.attrs['best_fit_values']
+                stat_err =            f['stat_err'][()]
 
-            assert det == self.data.det, 'Detector in fit result file is inconsistent with detector in config.yml'
-            assert np.array_equal(dates, self.data.day), 'Dates in fit result file is inconsistent with  dates in config.yml'
-            assert np.array_equal(param_names, self.model.parameter_names), 'The parameters in the result files do not match the parameters of the model'
+            assert np.array_equal(detectors, self.data.detectors), \
+                'Detector in fit result file is inconsistent with detector in config.yml'
+            assert np.array_equal(dates, self.data.dates), \
+                'Dates in fit result file is inconsistent with  dates in config.yml'
+            assert np.array_equal(param_names, self.model.parameter_names), \
+                'The parameters in the result files do not match the parameters of the model'
         else:
             best_fit_values = None
 
