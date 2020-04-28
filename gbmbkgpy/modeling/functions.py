@@ -1,4 +1,9 @@
-from gbmbkgpy.modeling.function import Function, ContinuumFunction, GlobalFunction, GlobalFunctionSpectrumFit
+from gbmbkgpy.modeling.function import (
+    Function,
+    ContinuumFunction,
+    GlobalFunction,
+    GlobalFunctionSpectrumFit,
+)
 from gbmbkgpy.modeling.parameter import Parameter
 import numpy as np
 import numexpr as ne
@@ -25,10 +30,18 @@ except:
 
 
 class Solar_Flare(Function):
-
     def __init__(self):
-        K = Parameter('norm_flare', initial_value=1., min_value=0, max_value=None, delta=0.1, normalization=True)
-        decay_constant = Parameter('decay_flare', initial_value=-0.01, min_value=-1, max_value=0, delta=0.1)
+        K = Parameter(
+            "norm_flare",
+            initial_value=1.0,
+            min_value=0,
+            max_value=None,
+            delta=0.1,
+            normalization=True,
+        )
+        decay_constant = Parameter(
+            "decay_flare", initial_value=-0.01, min_value=-1, max_value=0, delta=0.1
+        )
 
         super(Solar_Flare, self).__init__(K, decay_constant)
 
@@ -37,10 +50,24 @@ class Solar_Flare(Function):
 
 
 class SAA_Decay(Function):
-
     def __init__(self, saa_number, echan):
-        A = Parameter("norm_saa-{}_echan-{}".format(saa_number, echan), initial_value=1., min_value=0, max_value=None, delta=0.1, normalization=True, prior='log_uniform')
-        saa_decay_constant = Parameter("decay_saa-{}_echan-{}".format(saa_number, echan), initial_value=0.01, min_value=0., max_value=1., delta=0.1, prior='log_uniform')
+        A = Parameter(
+            "norm_saa-{}_echan-{}".format(saa_number, echan),
+            initial_value=1.0,
+            min_value=0,
+            max_value=None,
+            delta=0.1,
+            normalization=True,
+            prior="log_uniform",
+        )
+        saa_decay_constant = Parameter(
+            "decay_saa-{}_echan-{}".format(saa_number, echan),
+            initial_value=0.01,
+            min_value=0.0,
+            max_value=1.0,
+            delta=0.1,
+            prior="log_uniform",
+        )
 
         super(SAA_Decay, self).__init__(A, saa_decay_constant)
 
@@ -86,14 +113,10 @@ class SAA_Decay(Function):
             "-A / saa_decay_constant*(exp((t0-tstop)*abs(saa_decay_constant)) - exp((t0 - tstart)*abs(saa_decay_constant)))"
         )
 
-        return np.tile(
-            self._out,
-            (self._nr_detectors, 1)
-        ).T
+        return np.tile(self._out, (self._nr_detectors, 1)).T
 
 
 class GRB(Function):
-
     def __init__(self):
         super(GRB, self).__init__()
 
@@ -125,31 +148,34 @@ class GRB(Function):
         t_rise = self._t_rise
         t_decay = self._t_decay
 
-        out[idx_start] = ne.evaluate("A * exp(2*sqrt(t_rise/t_decay)) * exp(-t_rise/t - t/t_decay) ")
+        out[idx_start] = ne.evaluate(
+            "A * exp(2*sqrt(t_rise/t_decay)) * exp(-t_rise/t - t/t_decay) "
+        )
 
         return out
 
 
 # The continuums
 
+
 class Cosmic_Gamma_Ray_Background(GlobalFunction):
     def __init__(self):
-        super(Cosmic_Gamma_Ray_Background, self).__init__('norm_cgb')
+        super(Cosmic_Gamma_Ray_Background, self).__init__("norm_cgb")
 
 
 class Magnetic_Continuum(ContinuumFunction):
     def __init__(self, echan):
-        super(Magnetic_Continuum, self).__init__('norm_magnetic_echan-' + echan)
+        super(Magnetic_Continuum, self).__init__("norm_magnetic_echan-" + echan)
 
 
 class Solar_Continuum(ContinuumFunction):
     def __init__(self, echan):
-        super(Solar_Continuum, self).__init__('norm_solar_echan-' + echan)
+        super(Solar_Continuum, self).__init__("norm_solar_echan-" + echan)
 
 
 class Earth_Albedo_Continuum(GlobalFunction):
     def __init__(self):
-        super(Earth_Albedo_Continuum, self).__init__('norm_earth_albedo')
+        super(Earth_Albedo_Continuum, self).__init__("norm_earth_albedo")
 
 
 class Point_Source_Continuum(GlobalFunction):
@@ -159,46 +185,53 @@ class Point_Source_Continuum(GlobalFunction):
 
 class Offset(ContinuumFunction):
     def __init__(self, echan):
-        super(Offset, self).__init__('constant_echan-' + echan)
+        super(Offset, self).__init__("constant_echan-" + echan)
 
 
 class Magnetic_Continuum_Global(GlobalFunction):
     def __init__(self):
-        super(Magnetic_Continuum_Global, self).__init__('norm_magnetic_global')
+        super(Magnetic_Continuum_Global, self).__init__("norm_magnetic_global")
 
 
 class Magnetic_Constant_Global(GlobalFunction):
     def __init__(self):
-        super(Magnetic_Constant_Global, self).__init__('constant_magnetic_global')
+        super(Magnetic_Constant_Global, self).__init__("constant_magnetic_global")
 
 
 class Earth_Albedo_Continuum_Fit_Spectrum(GlobalFunctionSpectrumFit):
     def __init__(self):
-        super(Earth_Albedo_Continuum_Fit_Spectrum, self).__init__('earth_albedo_spectrum_fitted', spectrum='bpl')
+        super(Earth_Albedo_Continuum_Fit_Spectrum, self).__init__(
+            "earth_albedo_spectrum_fitted", spectrum="bpl"
+        )
 
 
 class Cosmic_Gamma_Ray_Background_Fit_Spectrum(GlobalFunctionSpectrumFit):
     def __init__(self):
-        super(Cosmic_Gamma_Ray_Background_Fit_Spectrum, self).__init__('CGB_spectrum_fitted', spectrum='bpl')
+        super(Cosmic_Gamma_Ray_Background_Fit_Spectrum, self).__init__(
+            "CGB_spectrum_fitted", spectrum="bpl"
+        )
 
 
 class Point_Source_Continuum_Fit_Spectrum(GlobalFunctionSpectrumFit):
     def __init__(self, name, E_norm=1):
-        super(Point_Source_Continuum_Fit_Spectrum, self).__init__(name, spectrum='pl', E_norm=E_norm)
+        super(Point_Source_Continuum_Fit_Spectrum, self).__init__(
+            name, spectrum="pl", E_norm=E_norm
+        )
 
 
 class SAA_Decay_Linear(ContinuumFunction):
     def __init__(self, echan):
-        super(SAA_Decay_Linear, self).__init__('saa_decay_long_echan-' + echan)
+        super(SAA_Decay_Linear, self).__init__("saa_decay_long_echan-" + echan)
 
 
 # Testing secondary earth
 
+
 class Magnetic_Secondary_Continuum(ContinuumFunction):
     def __init__(self, echan):
-        super(Magnetic_Secondary_Continuum, self).__init__('secondary_echan-' + echan)
+        super(Magnetic_Secondary_Continuum, self).__init__("secondary_echan-" + echan)
 
 
 class West_Effect_Continuum(ContinuumFunction):
     def __init__(self, echan):
-        super(West_Effect_Continuum, self).__init__('west_effect-' + echan)
+        super(West_Effect_Continuum, self).__init__("west_effect-" + echan)
