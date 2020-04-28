@@ -32,31 +32,63 @@ except:
 
     using_mpi = False
 
-valid_det_names = ['n0', 'n1', 'n2', 'n3', 'n4', 'n5', 'n6', 'n7', 'n8', 'n9', 'na', 'nb', 'b0', 'b1']
+valid_det_names = [
+    "n0",
+    "n1",
+    "n2",
+    "n3",
+    "n4",
+    "n5",
+    "n6",
+    "n7",
+    "n8",
+    "n9",
+    "na",
+    "nb",
+    "b0",
+    "b1",
+]
 
 
 class Data(object):
-
     def __init__(self, dates, detectors, data_type, echans, test=False):
         """
         Initalize the ContinousData Class, which contains the information about the time bins 
         and counts of the data.
         """
 
-        assert data_type == 'ctime' or data_type == 'cspec', 'Please use a valid data type: ctime or cspec'
+        assert (
+            data_type == "ctime" or data_type == "cspec"
+        ), "Please use a valid data type: ctime or cspec"
         for det in detectors:
-            assert det in valid_det_names, 'Please use a valid det name. One of these: {}'.format(valid_det_names)
-        assert type(dates) == list and len(dates[0]) == 6, 'Date variable has to be a list and every entry must have ' \
-                                                         'the format YYMMDD'
-        if data_type == 'ctime':
-            assert type(echans) and max(echans) <= 7 and min(echans) >= 0 \
-                   and all(isinstance(x, int) for x in echans), 'Echan_list variable must be a list and can only ' \
-                                                                    'have integer entries between 0 and 7'
+            assert (
+                det in valid_det_names
+            ), "Please use a valid det name. One of these: {}".format(valid_det_names)
+        assert type(dates) == list and len(dates[0]) == 6, (
+            "Date variable has to be a list and every entry must have "
+            "the format YYMMDD"
+        )
+        if data_type == "ctime":
+            assert (
+                type(echans)
+                and max(echans) <= 7
+                and min(echans) >= 0
+                and all(isinstance(x, int) for x in echans)
+            ), (
+                "Echan_list variable must be a list and can only "
+                "have integer entries between 0 and 7"
+            )
 
-        if data_type == 'cspec':
-            assert type(echans) and max(echans) <= 127 and min(echans) >= 0 \
-                   and all(isinstance(x, int) for x in echans), 'Echan_list variable must be a list and can only ' \
-                                                                    'have integer entries between 0 and 127'
+        if data_type == "cspec":
+            assert (
+                type(echans)
+                and max(echans) <= 127
+                and min(echans) >= 0
+                and all(isinstance(x, int) for x in echans)
+            ), (
+                "Echan_list variable must be a list and can only "
+                "have integer entries between 0 and 127"
+            )
 
         self._data_type = data_type
         self._detectors = sorted(detectors)
@@ -64,11 +96,11 @@ class Data(object):
         self._echans = sorted(echans)
         self._test = test
 
-        if self._data_type == 'ctime':
+        if self._data_type == "ctime":
             self._echan_mask = np.zeros(8, dtype=bool)
             self._echan_mask[self._echans] = True
 
-        elif self._data_type == 'cspec':
+        elif self._data_type == "cspec":
             self._echan_mask = np.zeros(128, dtype=bool)
             self._echan_mask[self._echans] = True
 
@@ -94,22 +126,24 @@ class Data(object):
 
         self._rebinned_saa_mask = self._data_rebinner.rebinned_saa_mask
 
-        rebinned_counts = np.zeros((
-            len(self._rebinned_time_bins),
-            len(self._detectors),
-            len(self._echans)
-        ))
+        rebinned_counts = np.zeros(
+            (len(self._rebinned_time_bins), len(self._detectors), len(self._echans))
+        )
 
         for det_idx, det in enumerate(self._detectors):
 
             for echan_idx, echan in enumerate(self._echans):
 
-                rebinned_counts[:, det_idx, echan_idx] = self._data_rebinner.rebin(self._counts[:, det_idx, echan_idx])[0]
+                rebinned_counts[:, det_idx, echan_idx] = self._data_rebinner.rebin(
+                    self._counts[:, det_idx, echan_idx]
+                )[0]
 
         self._rebinned_counts = rebinned_counts.astype(np.uint16)
 
         # Initialize the valid bin mask to all True
-        self._valid_rebinned_time_mask = np.ones(len(self._rebinned_time_bins), dtype=bool)
+        self._valid_rebinned_time_mask = np.ones(
+            len(self._rebinned_time_bins), dtype=bool
+        )
 
     @property
     def counts(self):
@@ -138,7 +172,9 @@ class Data(object):
         if self._rebinned:
             return self._rebinned_saa_mask
         else:
-            raise Exception('Data is unbinned, the saa mask has to be obtained from the SAA_calc object')
+            raise Exception(
+                "Data is unbinned, the saa mask has to be obtained from the SAA_calc object"
+            )
 
     @property
     def valid_time_mask(self):
@@ -155,7 +191,7 @@ class Data(object):
         :return:
         """
         return self._detectors
-            
+
     @property
     def day_start_times(self):
         """
@@ -254,7 +290,9 @@ class Data(object):
                     day_stop_times = np.array([time_bins[-1, 1]])
 
                 else:
-                    start_index = np.searchsorted(time_bins[:, 0], time_bins_array[-1, 1], side='right')
+                    start_index = np.searchsorted(
+                        time_bins[:, 0], time_bins_array[-1, 1], side="right"
+                    )
 
                     if time_bins_array[start_index, 0] < time_bins[-1, 1] + 1000:
                         following_day = np.append(following_day, True)
@@ -262,17 +300,19 @@ class Data(object):
                         following_day = np.append(following_day, False)
 
                     count_array = np.append(count_array, counts[start_index:], axis=0)
-                    time_bins_array = np.append(time_bins_array, time_bins[start_index:], axis=0)
-                    day_start_times = np.append(day_start_times, time_bins[start_index, 0])
+                    time_bins_array = np.append(
+                        time_bins_array, time_bins[start_index:], axis=0
+                    )
+                    day_start_times = np.append(
+                        day_start_times, time_bins[start_index, 0]
+                    )
                     day_stop_times = np.append(day_stop_times, time_bins[-1, 1])
                     day_met_array = np.append(day_met_array, day_met)
 
             if det_idx == 0:
-                count_total = np.zeros((
-                    len(time_bins_array),
-                    len(self._detectors),
-                    len(self._echans)
-                ))
+                count_total = np.zeros(
+                    (len(time_bins_array), len(self._detectors), len(self._echans))
+                )
                 count_total[:, det_idx, :] = count_array
                 time_bins_total = time_bins_array
                 day_start_times_total = day_start_times
@@ -301,14 +341,20 @@ class Data(object):
         :param day:
         :return:
         """
-        version = 'v00' if not self._test else 'test'
+        version = "v00" if not self._test else "test"
 
         # Download data-file and poshist file if not existing:
-        datafile_name = 'glg_{0}_{1}_{2}_{3}.pha'.format(self._data_type, det, day, version)
-        datafile_path = os.path.join(get_path_of_external_data_dir(), self._data_type, day, datafile_name)
+        datafile_name = "glg_{0}_{1}_{2}_{3}.pha".format(
+            self._data_type, det, day, version
+        )
+        datafile_path = os.path.join(
+            get_path_of_external_data_dir(), self._data_type, day, datafile_name
+        )
 
-        poshistfile_name = 'glg_{0}_all_{1}_v00.fit'.format('poshist', day)
-        poshistfile_path = os.path.join(get_path_of_external_data_dir(), 'poshist', poshistfile_name)
+        poshistfile_name = "glg_{0}_all_{1}_v00.fit".format("poshist", day)
+        poshistfile_path = os.path.join(
+            get_path_of_external_data_dir(), "poshist", poshistfile_name
+        )
 
         # If MPI is used only one rank should download the data; the others wait
         if using_mpi:
@@ -317,45 +363,47 @@ class Data(object):
                     download_data_file(day, self._data_type, det)
 
                 if not file_existing_and_readable(poshistfile_path):
-                    download_data_file(day, 'poshist')
+                    download_data_file(day, "poshist")
             comm.Barrier()
         else:
             if not file_existing_and_readable(datafile_path):
                 download_data_file(day, self._data_type, det)
 
             if not file_existing_and_readable(poshistfile_path):
-                download_data_file(day, 'poshist')
+                download_data_file(day, "poshist")
 
         # Save poshistfile_path for later usage
         self._pos_hist = poshistfile_path
 
         # Open the datafile of the CTIME/CSPEC data and read in all needed quantities
         with fits.open(datafile_path) as f:
-            counts = f['SPECTRUM'].data['COUNTS']
-            bin_start = f['SPECTRUM'].data['TIME']
-            bin_stop = f['SPECTRUM'].data['ENDTIME']
+            counts = f["SPECTRUM"].data["COUNTS"]
+            bin_start = f["SPECTRUM"].data["TIME"]
+            bin_stop = f["SPECTRUM"].data["ENDTIME"]
 
         # Sometimes there are corrupt time bins where the time bin start = time bin stop
         # So we have to delete these times bins
-        idx_zero_bins = np.where(bin_start==bin_stop)[0]
+        idx_zero_bins = np.where(bin_start == bin_stop)[0]
 
         bin_start = np.delete(bin_start, idx_zero_bins)
         bin_stop = np.delete(bin_stop, idx_zero_bins)
         counts = np.delete(counts, idx_zero_bins, axis=0)
 
         # Sometimes the poshist file does not cover the whole time covered by the CTIME/CSPEC file.
-        # So we have to delete these time bins 
+        # So we have to delete these time bins
 
         # Get boundary for time interval covered by the poshist file
         with fits.open(poshistfile_path) as f:
-            pos_times = f['GLAST POS HIST'].data['SCLK_UTC']
+            pos_times = f["GLAST POS HIST"].data["SCLK_UTC"]
         min_time_pos = pos_times[0]
         max_time_pos = pos_times[-1]
 
         # check for all time bins if they are outside of this interval
         idx_below_min_time = np.where(bin_start < min_time_pos)
         idx_above_max_time = np.where(bin_start > max_time_pos)
-        idx_out_of_bounds =  np.unique(np.hstack((idx_below_min_time, idx_above_max_time)))
+        idx_out_of_bounds = np.unique(
+            np.hstack((idx_below_min_time, idx_above_max_time))
+        )
 
         bin_start = np.delete(bin_start, idx_out_of_bounds)
         bin_stop = np.delete(bin_stop, idx_out_of_bounds)
@@ -363,7 +411,7 @@ class Data(object):
 
         # Calculate the MET time for the day
         day = day
-        year = '20%s' % day[:2]
+        year = "20%s" % day[:2]
         month = day[2:-2]
         dd = day[-2:]
         day_at = astro_time.Time("%s-%s-%s" % (year, month, dd))
@@ -383,13 +431,13 @@ class Data(object):
 
         self._valid_time_mask = np.logical_and(
             (self._time_bins[:, 0] >= geometry_times[0]),
-            (self._time_bins[:, 1]) <= geometry_times[-1]
+            (self._time_bins[:, 1]) <= geometry_times[-1],
         )
 
         if self._rebinned:
-            self._valid_rebinned_time_mask =  np.logical_and(
+            self._valid_rebinned_time_mask = np.logical_and(
                 (self._rebinned_time_bins[:, 0] >= geometry_times[0]),
-                (self._rebinned_time_bins[:, 1]) <= geometry_times[-1]
+                (self._rebinned_time_bins[:, 1]) <= geometry_times[-1],
             )
         else:
             self._valid_rebinned_time_mask = None

@@ -56,10 +56,13 @@ class TrigData(object):
         assert data_type == "trigdat", "Please use a valid data type: trigdat"
 
         for det in detectors:
-            assert det in valid_det_names, 'Please use a valid det name. One of these: {}'.format(valid_det_names)
+            assert (
+                det in valid_det_names
+            ), "Please use a valid det name. One of these: {}".format(valid_det_names)
 
-        assert len(trigger) == 11, \
-                "Please provide a valid trigger in the format bnYYMMDDxxx"
+        assert (
+            len(trigger) == 11
+        ), "Please provide a valid trigger in the format bnYYMMDDxxx"
 
         if data_type == "trigdat":
             assert (
@@ -102,17 +105,17 @@ class TrigData(object):
 
         self._rebinned_saa_mask = self._data_rebinner.rebinned_saa_mask
 
-        rebinned_counts = np.zeros((
-            len(self._rebinned_time_bins),
-            len(self._detectors),
-            len(self._echans)
-        ))
+        rebinned_counts = np.zeros(
+            (len(self._rebinned_time_bins), len(self._detectors), len(self._echans))
+        )
 
         for det_idx, det in enumerate(self._detectors):
 
             for echan_idx, echan in enumerate(self._echans):
 
-                rebinned_counts[:, det_idx, echan_idx] = self._data_rebinner.rebin(self._counts[:, det_idx, echan_idx])[0]
+                rebinned_counts[:, det_idx, echan_idx] = self._data_rebinner.rebin(
+                    self._counts[:, det_idx, echan_idx]
+                )[0]
 
         self._rebinned_counts = rebinned_counts.astype(np.uint16)
 
@@ -248,7 +251,6 @@ class TrigData(object):
         :return:
         """
         return self._trigdata_path
-
 
     def _build_arrays(self):
         year = "20%s" % self._trigger[2:4]
@@ -397,18 +399,15 @@ class TrigData(object):
 
         # Calculate the photon counts by multiplying the count-rate with the bin_width
 
-        counts = np.zeros((
-            len(time_bins),
-            len(self._detectors),
-            len(self._echans)
-        ))
-
+        counts = np.zeros((len(time_bins), len(self._detectors), len(self._echans)))
 
         for det_idx, det_data_idx in enumerate(self._detectors_idx):
 
             for echan_idx, echan_data_idx in enumerate(self._echans):
 
-                counts[:, det_idx, echan_idx] = rates[:, det_data_idx, echan_data_idx] * time_bin_widths
+                counts[:, det_idx, echan_idx] = (
+                    rates[:, det_data_idx, echan_data_idx] * time_bin_widths
+                )
 
         self._counts = np.array(counts)
         self._time_bins = time_bins
