@@ -124,7 +124,7 @@ class DataExporter(object):
 
                 if save_ppc:
                     f.create_dataset(
-                        "ppc", data=ppc_counts, compression="gzip", compression_opts=9
+                        "ppc_counts", data=ppc_counts, compression="gzip", compression_opts=9
                     )
         print('File sucessfully saved!')
 
