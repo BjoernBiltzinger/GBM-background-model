@@ -127,6 +127,7 @@ data_exporter.save_data(
 )
 
 ################## Plotting ########################################
+print('Start plotting')
 if rank == 0:
     plot_generator = ResultPlotGenerator.from_result_file(
         config_file=args.config_plot_file,

@@ -51,21 +51,23 @@ class DataExporter(object):
         """
         Function to save the data needed to create the plots.
         """
-        # Get the model counts
-        model_counts = self._model.get_counts(time_bins=self._time_bins)
-
-        # Get the statistical error from the posterior samples
+        # Calculate the PPC
         ppc_counts = self._ppc_data(result_dir)
 
-        low = np.percentile(ppc_counts, 50 - 50 * 0.68, axis=0)
-        high = np.percentile(ppc_counts, 50 + 50 * 0.68, axis=0)
-
-        stat_err = high - low
-
-        # Get the counts of the individual sources
-        source_list = self.get_counts_of_sources()
+        print('Save fit result to: {}'.format(file_path))
 
         if rank == 0:
+            # Get the model counts
+            model_counts = self._model.get_counts(time_bins=self._time_bins)
+
+            # Get the counts of the individual sources
+            source_list = self.get_counts_of_sources()
+
+            # Get the statistical error from the posterior samples
+            low = np.percentile(ppc_counts, 50 - 50 * 0.68, axis=0)
+            high = np.percentile(ppc_counts, 50 + 50 * 0.68, axis=0)
+            stat_err = high - low
+
             with h5py.File(file_path, "w") as f:
 
                 f.attrs["dates"] = self._data.dates
@@ -124,6 +126,7 @@ class DataExporter(object):
                     f.create_dataset(
                         "ppc", data=ppc_counts, compression="gzip", compression_opts=9
                     )
+        print('File sucessfully saved!')
 
     def get_counts_of_sources(self):
         """
@@ -200,10 +203,10 @@ class DataExporter(object):
             else int(len(mn_posteriour_samples) / 100) * 100
         )
 
-        a = np.zeros(len(mn_posteriour_samples), dtype=int)
-        a[:N_samples] = 1
-        np.random.shuffle(a)
-        a = a.astype(bool)
+        random_mask = np.zeros(len(mn_posteriour_samples), dtype=int)
+        random_mask[:N_samples] = 1
+        np.random.shuffle(random_mask)
+        random_mask = random_mask.astype(bool)
 
         # For these N_samples random samples calculate the corresponding rates for all time bins
         # with the parameters of this sample
@@ -214,13 +217,17 @@ class DataExporter(object):
             if rank == 0:
                 with progress_bar(
                     len(
-                        mn_posteriour_samples[a][points_lower_index:points_upper_index]
+                        mn_posteriour_samples[random_mask][
+                            points_lower_index:points_upper_index
+                        ]
                     ),
                     title="Calculating PPC",
                 ) as p:
 
                     for i, sample in enumerate(
-                        mn_posteriour_samples[a][points_lower_index:points_upper_index]
+                        mn_posteriour_samples[random_mask][
+                            points_lower_index:points_upper_index
+                        ]
                     ):
                         synth_counts = self.get_synthetic_data(sample)
                         counts.append(synth_counts)
@@ -228,7 +235,9 @@ class DataExporter(object):
 
             else:
                 for i, sample in enumerate(
-                    mn_posteriour_samples[a][points_lower_index:points_upper_index]
+                    mn_posteriour_samples[random_mask][
+                        points_lower_index:points_upper_index
+                    ]
                 ):
                     synth_counts = self.get_synthetic_data(sample)
                     counts.append(synth_counts)
@@ -239,11 +248,16 @@ class DataExporter(object):
                 counts_g = np.concatenate(counts_g, axis=0)
             counts = comm.bcast(counts_g, root=0)
         else:
-            for i, sample in enumerate(
-                analyzer.get_equal_weighted_posterior()[:, :-1][a]
-            ):
-                synth_counts = self.get_synthetic_data(sample)
-                counts.append(synth_counts)
+            with progress_bar(
+                len(mn_posteriour_samples[random_mask]), title="Calculation PPC",
+            ) as p:
+
+                for i, sample in enumerate(mn_posteriour_samples[random_mask]):
+                    synth_counts = self.get_synthetic_data(sample)
+                    counts.append(synth_counts)
+
+                    p.increase()
+
             counts = np.array(counts)
         return counts
 

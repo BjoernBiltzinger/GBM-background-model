@@ -115,8 +115,6 @@ class MultiNestFit(object):
 
         self._output_dir, tmp_output_dir = self._create_output_dir(output_dir)
 
-        output_file_basename = tmp_output_dir + 'fit-'
-
         # Run PyMultiNest
         sampler = pymultinest.run(
             loglike,
@@ -280,20 +278,20 @@ class MultiNestFit(object):
         if output_dir is None:
             output_dir = self._output_dir
 
-            # Save parameter names
-            self._param_names = [
-                parameter.name for parameter in self.parameters.values()
-            ]
+        # Save parameter names
+        self._param_names = [
+            parameter.name for parameter in self.parameters.values()
+        ]
 
-            if using_mpi:
+        if using_mpi:
 
-                if rank == 0:
-
-                    json.dump(self._param_names, open(output_dir + "params.json", "w"))
-
-            else:
+            if rank == 0:
 
                 json.dump(self._param_names, open(output_dir + "params.json", "w"))
+
+        else:
+
+            json.dump(self._param_names, open(output_dir + "params.json", "w"))
 
         ## Use PyMULTINEST analyzer to gather parameter info
         multinest_analyzer = pymultinest.analyse.Analyzer(
