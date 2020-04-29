@@ -95,6 +95,7 @@ else:
 # Minimizer Output dir
 output_dir = minimizer.output_dir
 
+comm.barrier()
 ################# Data Export ######################################
 if config["export"]["save_unbinned"]:
     config["general"]["min_bin_width"] = 1e-99
@@ -136,6 +137,7 @@ if rank == 0:
 
     plot_generator.create_plots(output_dir=output_dir)
 
+comm.barrier()
 ################## Save Config ########################################
 if rank == 0:
     # Save used config file to output directory
