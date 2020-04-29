@@ -81,36 +81,31 @@ class DataExporter(object):
                 f.create_dataset(
                     "saa_mask",
                     data=self._saa_mask,
-                    compression="gzip",
-                    compression_opts=9,
+                    compression="lzf",
                 )
                 f.create_dataset(
                     "time_bins_start",
                     data=self._time_bins[:, 0],
-                    compression="gzip",
-                    compression_opts=9,
+                    compression="lzf",
                 )
                 f.create_dataset(
                     "time_bins_stop",
                     data=self._time_bins[:, 1],
-                    compression="gzip",
-                    compression_opts=9,
+                    compression="lzf",
                 )
                 f.create_dataset(
                     "observed_counts",
                     data=self._data.counts,
-                    compression="gzip",
-                    compression_opts=9,
+                    compression="lzf",
                 )
 
                 f.create_dataset(
                     "model_counts",
                     data=model_counts,
-                    compression="gzip",
-                    compression_opts=9,
+                    compression="lzf",
                 )
                 f.create_dataset(
-                    "stat_err", data=stat_err, compression="gzip", compression_opts=9
+                    "stat_err", data=stat_err, compression="lzf"
                 )
 
                 group_sources = f.create_group("sources")
@@ -118,13 +113,12 @@ class DataExporter(object):
                     group_sources.create_dataset(
                         source["label"],
                         data=source["data"],
-                        compression="gzip",
-                        compression_opts=9,
+                        compression="lzf",
                     )
 
                 if save_ppc:
                     f.create_dataset(
-                        "ppc_counts", data=ppc_counts, compression="gzip", compression_opts=9
+                        "ppc_counts", data=ppc_counts, compression="lzf"
                     )
 
             print('File sucessfully saved!')

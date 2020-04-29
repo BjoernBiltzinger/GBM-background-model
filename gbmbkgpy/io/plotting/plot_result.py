@@ -155,34 +155,6 @@ class ResultPlotGenerator(object):
 
             result_dict["time_stamp"] = datetime.now().strftime("%y%m%d_%H%M")
 
-            # for key in keys:
-            #     if key == 'general':
-            #         pass
-            #     else:
-            #         echan = key.split(' ')[1]
-
-            #         result_dict['echans'][echan] = {}
-            #         result_dict['echans'][echan]['echan'] = echan
-
-            #         result_dict['echans'][echan]['model_counts'] = set_saa_zero(
-            #             np.array(f[key]['total_model_counts']), saa_mask=result_dict['saa_mask']
-            #         )
-            #         result_dict['echans'][echan]['observed_counts'] = set_saa_zero(
-            #             np.array(f[key]['observed_counts']), saa_mask=result_dict['saa_mask']
-            #         )
-            #         result_dict['echans'][echan]['ppc_counts'] = np.array(f[key]['ppc'])
-
-            #         # This is to keep it compatible to old data files
-            #         if result_dict['time_bins_start'] is None:
-            #             result_dict['time_bins_start'] = np.array(f[key].get('time_bins_start'))
-            #             result_dict['time_bins_stop'] = np.array(f[key].get('time_bins_stop'))
-
-            #         result_dict['echans'][echan]['sources'] = {}
-
-            #         y
-
-            #         result_dict['echans'][echan]['time_stamp'] = datetime.now().strftime('%y%m%d_%H%M')
-
         return cls(config_file=config_file, result_dict=result_dict)
 
     @classmethod
