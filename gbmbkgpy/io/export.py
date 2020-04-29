@@ -54,9 +54,9 @@ class DataExporter(object):
         # Calculate the PPC
         ppc_counts = self._ppc_data(result_dir)
 
-        print('Save fit result to: {}'.format(file_path))
-
         if rank == 0:
+            print('Save fit result to: {}'.format(file_path))
+
             # Get the model counts
             model_counts = self._model.get_counts(time_bins=self._time_bins)
 
@@ -126,7 +126,8 @@ class DataExporter(object):
                     f.create_dataset(
                         "ppc_counts", data=ppc_counts, compression="gzip", compression_opts=9
                     )
-        print('File sucessfully saved!')
+
+            print('File sucessfully saved!')
 
     def get_counts_of_sources(self):
         """

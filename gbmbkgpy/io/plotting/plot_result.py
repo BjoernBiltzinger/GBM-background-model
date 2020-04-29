@@ -124,6 +124,8 @@ class ResultPlotGenerator(object):
 
         result_dict = {}
 
+        print('Load result file for plotting from: {}'.format(result_data_file))
+
         with h5py.File(result_data_file, "r") as f:
 
             result_dict["dates"] = f.attrs["dates"]
