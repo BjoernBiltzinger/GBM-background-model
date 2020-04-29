@@ -62,10 +62,10 @@ class MultiNestFit(object):
         self._n_dim = len(self.parameters)
 
         self.cov_matrix = None
-        self.best_fit_values = None
+        self._best_fit_values = None
         self._sampler = None
         self._param_names = None
-        self.minimum = None
+        self._minimum = None
         self._samples = None
         self.multinest_data = None
 
@@ -89,6 +89,14 @@ class MultiNestFit(object):
     def samples(self):
 
         return self._samples
+
+    @property
+    def best_fit_values(self):
+        return self._best_fit_values
+
+    @property
+    def minimum(self):
+        return self._minimum
 
     def minimize_multinest(
         self,
@@ -139,16 +147,15 @@ class MultiNestFit(object):
             if rank == 0:
 
                 # If we used a temporary output dir then move it to the final destination
-
                 if tmp_output_dir != self._output_dir:
 
                     shutil.move(tmp_output_dir, self._output_dir)
 
                 self.analyze_result()
 
-            else:
-
-                self.best_fit_values = comm.bcast(self.best_fit_values, root=0)
+            # Cast the results to all ranks
+            self._best_fit_values = comm.bcast(self._best_fit_values, root=0)
+            self._minimum = comm.bcast(self._minimum, root=0)
 
         else:
 
@@ -307,15 +314,20 @@ class MultiNestFit(object):
         # Find the minimum of the function (i.e. the maximum of func_wrapper)
         idx = func_values.argmax()
 
-        self.best_fit_values = _raw_samples[idx]
+        best_fit_values = _raw_samples[idx]
 
-        self.minimum = func_values[idx] * (-1)
+        minimum = func_values[idx] * (-1)
+
         self._samples = _raw_samples
         self.multinest_data = multinest_analyzer.get_data()
 
         # set parameters to best fit values
-        self._likelihood.set_free_parameters(self.best_fit_values)
-        return self.best_fit_values, self.minimum
+        self._likelihood.set_free_parameters(best_fit_values)
+
+        self._best_fit_values = best_fit_values
+        self._minimum = minimum
+
+        return best_fit_values, minimum
 
     def comp_covariance_matrix(self):
         if rank == 0:
