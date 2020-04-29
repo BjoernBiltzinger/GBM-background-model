@@ -149,7 +149,7 @@ class ResultPlotGenerator(object):
             for source_name in f["sources"].keys():
                 result_dict["sources"][source_name] = f["sources"][source_name][()]
 
-            result_dict["ppc"] = f["ppc"][()]
+            result_dict["ppc_counts"] = f["ppc_counts"][()]
 
             result_dict["time_stamp"] = datetime.now().strftime("%y%m%d_%H%M")
 
