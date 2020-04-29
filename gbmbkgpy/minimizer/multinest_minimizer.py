@@ -115,8 +115,9 @@ class MultiNestFit(object):
 
         self._output_dir, tmp_output_dir = self._create_output_dir(output_dir)
 
-        # Run PyMultiNest
+        output_file_basename = tmp_output_dir + 'fit-'
 
+        # Run PyMultiNest
         sampler = pymultinest.run(
             loglike,
             prior,
@@ -341,7 +342,7 @@ class MultiNestFit(object):
         # If the output path is to long (MultiNest only supports 100 chars)
         # we will us a random directory name and move it when MultiNest finished.
 
-        if len(output_dir) > 76:
+        if len(output_dir) > 72:
 
             tmp_output_dir = os.path.join(
                 get_path_of_external_data_dir(),
