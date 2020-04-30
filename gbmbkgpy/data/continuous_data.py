@@ -261,9 +261,9 @@ class Data(object):
         :return:
         """
         if self._rebinned:
-            return np.diff(self._rebinned_time_bins, axis=1)[:, 0]
+            return np.diff(self._rebinned_time_bins[self._valid_rebinned_time_mask], axis=1)[:, 0]
         else:
-            return np.diff(self._time_bins, axis=1)[:, 0]
+            return np.diff(self._time_bins[self._valid_time_mask], axis=1)[:, 0]
 
     @property
     def mean_time(self):
@@ -272,9 +272,9 @@ class Data(object):
         :return:
         """
         if self._rebinned:
-            return np.mean(self._rebinned_time_bins, axis=1)
+            return np.mean(self._rebinned_time_bins[self._valid_rebinned_time_mask], axis=1)
         else:
-            return np.mean(self._time_bins, axis=1)
+            return np.mean(self._time_bins[self._valid_time_mask], axis=1)
 
     def _build_arrays(self):
         """
