@@ -119,6 +119,11 @@ class TrigData(object):
 
         self._rebinned_counts = rebinned_counts.astype(np.uint16)
 
+        # Initialize the valid bin mask to all True
+        self._valid_rebinned_time_mask = np.ones(
+            len(self._rebinned_time_bins), dtype=bool
+        )
+
     @property
     def counts(self):
         """
@@ -126,9 +131,9 @@ class TrigData(object):
         :return:
         """
         if self._rebinned:
-            return self._rebinned_counts
+            return self._rebinned_counts[self._valid_rebinned_time_mask]
         else:
-            return self._counts
+            return self._counts[self._valid_time_mask]
 
     @property
     def time_bins(self):
@@ -137,9 +142,9 @@ class TrigData(object):
         :return:
         """
         if self._rebinned:
-            return self._rebinned_time_bins
+            return self._rebinned_time_bins[self._valid_rebinned_time_mask]
         else:
-            return self._time_bins
+            return self._time_bins[self._valid_time_mask]
 
     @property
     def time_bin_width(self):
@@ -148,9 +153,9 @@ class TrigData(object):
         :return:
         """
         if self._rebinned:
-            return np.diff(self._rebinned_time_bins, axis=1)[:, 0]
+            return np.diff(self._rebinned_time_bins[self._valid_rebinned_time_mask], axis=1)[:, 0]
         else:
-            return np.diff(self._time_bins, axis=1)[:, 0]
+            return np.diff(self._time_bins[self._valid_time_mask], axis=1)[:, 0]
 
     @property
     def mean_time(self):
@@ -159,9 +164,9 @@ class TrigData(object):
         :return:
         """
         if self._rebinned:
-            return np.mean(self._rebinned_time_bins, axis=1)
+            return np.mean(self._rebinned_time_bins[self._valid_rebinned_time_mask], axis=1)
         else:
-            return np.mean(self._time_bins, axis=1)
+            return np.mean(self._time_bins[self._valid_time_mask], axis=1)
 
     @property
     def day_start_times(self):
@@ -203,6 +208,14 @@ class TrigData(object):
             raise Exception(
                 "Data is unbinned, the saa mask has to be obtained from the SAA_calc object"
             )
+
+    @property
+    def valid_time_mask(self):
+        return self._valid_time_mask
+
+    @property
+    def valid_rebinned_time_mask(self):
+        return self._valid_rebinned_time_mask
 
     @property
     def detectors(self):
@@ -411,3 +424,24 @@ class TrigData(object):
 
         self._counts = np.array(counts)
         self._time_bins = time_bins
+
+        self._valid_time_mask = np.ones(len(self._time_bins), dtype=bool)
+
+
+    def mask_invalid_bins(self, geometry_times):
+        """
+       This function mask the bins that are out of range for the interpolations
+       """
+
+        self._valid_time_mask = np.logical_and(
+            (self._time_bins[:, 0] >= geometry_times[0]),
+            (self._time_bins[:, 1]) <= geometry_times[-1],
+        )
+
+        if self._rebinned:
+            self._valid_rebinned_time_mask = np.logical_and(
+                (self._rebinned_time_bins[:, 0] >= geometry_times[0]),
+                (self._rebinned_time_bins[:, 1]) <= geometry_times[-1],
+            )
+        else:
+            self._valid_rebinned_time_mask = None
