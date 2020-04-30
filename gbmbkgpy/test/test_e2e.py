@@ -137,8 +137,6 @@ def test_model_builder():
 
     # Check if response precalculation is correct
     for det in model_generator.config["general"]["detectors"]:
-        print(test_responses[det]["response_array"].shape)
-        print(model_generator.response.responses[det].response_array.shape)
         assert np.allclose(
             test_responses[det]["response_array"],
             model_generator.response.responses[

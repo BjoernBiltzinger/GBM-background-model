@@ -142,10 +142,10 @@ def Setup(
                 det_responses=det_responses,
                 det_geometries=det_geometries,
                 echans=echans,
-                use_numba=use_numba,
                 include_all_ps=use_all_ps,
                 point_source_list=point_source_list,
                 free_spectrum=np.logical_not(fix_ps),
+                use_numba=use_numba
             )
         )
 
@@ -156,7 +156,7 @@ def Setup(
 
         else:
             total_sources.append(
-                setup_earth_free(data, albedo_cgb_object, saa_object, use_numba)
+                setup_earth_free(data, albedo_cgb_object, saa_object, use_numba=use_numba)
             )
 
     if use_cgb:
@@ -166,7 +166,7 @@ def Setup(
 
         else:
             total_sources.append(
-                setup_cgb_free(data, albedo_cgb_object, saa_object, use_numba)
+                setup_cgb_free(data, albedo_cgb_object, saa_object, use_numba=use_numba)
             )
 
     return total_sources
@@ -298,19 +298,8 @@ def setup_CosmicRays(data, ep, saa_object, echan, index, bgo_cr_approximation):
         )
         return Source_Magnetic_Continuum
 
-
-def setup_ps(
-    data,
-    ep,
-    saa_object,
-    det_responses,
-    det_geometries,
-    echans,
-    use_numba,
-    include_all_ps,
-    point_source_list,
-    free_spectrum=[],
-):
+def setup_ps(data, ep, saa_object, det_responses, det_geometries, echans,
+             include_all_ps, point_source_list, free_spectrum=[], use_numba=False):
     """
     Set up the global sources which are the same for all echans.
     At the moment the Earth Albedo and the CGB.
@@ -346,17 +335,16 @@ def setup_ps(
     for i, ps in enumerate(ep.point_sources.values()):
 
         if len(free_spectrum) > 0 and free_spectrum[i]:
-            PS_Continuum_dic[
-                "{}".format(ps.name)
-            ] = Point_Source_Continuum_Fit_Spectrum(
-                "ps_{}_spectrum_fitted".format(ps.name), E_norm=25.0
-            )
 
-            PS_Continuum_dic["{}".format(ps.name)].build_spec_integral(
+            PS_Continuum_dic['{}'.format(ps.name)] = Point_Source_Continuum_Fit_Spectrum(
+                'ps_{}_spectrum_fitted'.format(ps.name),
+                E_norm=25.,
                 use_numba=use_numba
             )
 
-            PS_Continuum_dic["{}".format(ps.name)].set_effective_responses(
+            PS_Continuum_dic['{}'.format(ps.name)].build_spec_integral()
+
+            PS_Continuum_dic['{}'.format(ps.name)].set_effective_responses(
                 effective_responses=ps.ps_effective_response
             )
 
@@ -408,7 +396,7 @@ def setup_ps(
     return PS_Sources_list
 
 
-def setup_earth_free(data, albedo_cgb_object, saa_object, use_numba):
+def setup_earth_free(data, albedo_cgb_object, saa_object, use_numba=False):
     """
     Setup Earth Albedo source with free spectrum
     :param data:
@@ -417,9 +405,9 @@ def setup_earth_free(data, albedo_cgb_object, saa_object, use_numba):
     :return:
     """
 
-    earth_albedo = Earth_Albedo_Continuum_Fit_Spectrum()
+    earth_albedo = Earth_Albedo_Continuum_Fit_Spectrum(use_numba=use_numba)
 
-    earth_albedo.build_spec_integral(use_numba=use_numba)
+    earth_albedo.build_spec_integral()
 
     earth_albedo.set_dets_echans(detectors=data.detectors, echans=data.echans)
 
@@ -435,8 +423,9 @@ def setup_earth_free(data, albedo_cgb_object, saa_object, use_numba):
         interpolation_times=albedo_cgb_object.geometry_times
     )
 
-    earth_albedo.set_responses(responses=albedo_cgb_object.responses)
-
+    earth_albedo.set_responses(
+        responses=albedo_cgb_object.responses
+    )
     Source_Earth_Albedo_Continuum = FitSpectrumSource(
         name="Earth occultation", continuum_shape=earth_albedo
     )
@@ -465,7 +454,7 @@ def setup_earth_fix(data, albedo_cgb_object, saa_object):
     return Source_Earth_Albedo_Continuum
 
 
-def setup_cgb_free(data, albedo_cgb_object, saa_object, use_numba):
+def setup_cgb_free(data, albedo_cgb_object, saa_object, use_numba=False):
     """
     Setup CGB source with free spectrum
     :param data:
@@ -473,9 +462,9 @@ def setup_cgb_free(data, albedo_cgb_object, saa_object, use_numba):
     :param saa_object:
     :return:
     """
-    cgb = Cosmic_Gamma_Ray_Background_Fit_Spectrum()
+    cgb = Cosmic_Gamma_Ray_Background_Fit_Spectrum(use_numba=use_numba)
 
-    cgb.build_spec_integral(use_numba=use_numba)
+    cgb.build_spec_integral()
 
     cgb.set_dets_echans(detectors=data.detectors, echans=data.echans)
 

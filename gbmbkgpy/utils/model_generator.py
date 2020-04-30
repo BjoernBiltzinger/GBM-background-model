@@ -36,8 +36,7 @@ except:
     rank = 0
 
 
-NO_REBIN = 1e-99
-
+NO_REBIN = 1E-9
 
 def print_progress(text):
     """
