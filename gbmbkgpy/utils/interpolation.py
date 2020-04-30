@@ -6,7 +6,8 @@ from math import floor
 Partly taken from http://didattica.unibocconi.it/mypage/upload/49183_20180615_035144_INTERPOLATION.PY
 """
 
-@jit(nopython=True)#, cache=True)
+
+@jit(nopython=True, cache=True)
 def _interpolation_search(x, z):
     """
     Interpolation search: locate z on grid x.
@@ -31,7 +32,10 @@ def _interpolation_search(x, z):
             return j
     return imin
 
-@guvectorize('(f8[:],f8[:],i8[:],f8[:])', '(),(n)->(),()', cache=True, target='parallel')
+
+@guvectorize('(f8[:],f8[:],i8[:],f8[:])', '(),(n)->(),()',
+             cache=True,
+             target='parallel')
 def _locate(xn, x, index, theta):
     """
     Locates the elements of xn on the grid x, with multithreading.
@@ -40,24 +44,28 @@ def _locate(xn, x, index, theta):
     theta[0] = (xn[0]-x[i])/(x[i+1]-x[i])
 
 
-@njit('float64[:,:,:](int64[:], float64[:], float64[:,:,:])', parallel=True, cache=True)
+@njit('float64[:,:,:](int64[:], float64[:], float64[:,:,:])',
+      parallel=True,
+      cache=True)
 def _linear_numba(index, theta, y):
     """
     Computes linear interpolation for an array y. Uses numba.
     """
-    yn=np.zeros((index.shape[0], y.shape[1], y.shape[2]))
+    yn = np.zeros((index.shape[0], y.shape[1], y.shape[2]))
     for j in prange(yn.shape[0]):
-        yn[j] = (1-theta[j])*y[index[j],...] + theta[j]*y[index[j]+1,...]
+        yn[j] = (1-theta[j])*y[index[j], ...] + theta[j]*y[index[j]+1, ...]
     return yn
+
 
 def _linear_numpy(index, theta, y):
     """
     Computes linear interpolation for an array y.
     Vectorized Numpy.
     """
-    yt1 = y[index,...]
-    yt2 = y[index+1,...]
+    yt1 = y[index, ...]
+    yt2 = y[index+1, ...]
     return ((1-theta)*yt1.T+theta*yt2.T).T
+
 
 class Interp1D(object):
 
@@ -85,38 +93,19 @@ class Interp1D(object):
             x = np.take(x, self._argsort)
         #  Locate xn on the grid x
         self._index, self._theta = _locate(xn, x)
-        self._set_optimal_interpolation(5)
-        
-    def _set_optimal_interpolation(self, val):
-        if val>10:
-            self._linear = _linear_numba
-        else:
-            self._linear = _linear_numpy
-        
+        self._set_optimal_interpolation()
+
+    def _set_optimal_interpolation(self):
+        #if val>10:
+        #    self._linear = _linear_numba
+        #else:
+        self._linear = _linear_numpy
+
     def __call__(self, y):
         """
-        Input:
-            
-        y: function values at nodes x
-           (at most 2-D numpy array of shape (q, n)).
-        
-        Output:
-            
-        yn: interpolated values
-            (at most 2-D numpy array of shape (q, m))
-        
-        Example:
-
-            n = 1000
-            m = 2000
-            q = 8
-            def f(x): return 3*x**3+2*x**2+x
-            x = np.linspace(-5, 5, n, endpoint=True)
-            y = np.vstack(repeat(f(x), q))
-            xnew = np.linspace(-5, 5, m, endpoint=False)
-            f = Interp1D(xnew, x, assume_sorted=True)
-            ynew = f(y)
-            
+        Get interpolation for defined nodes x and wanted xn for given y's at x's
+        :param y: function values at nodes x
+        :return: interpolated values
         """
         #  Sanity check
         if y.shape[0] != self._x_size:
