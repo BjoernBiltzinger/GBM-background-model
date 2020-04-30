@@ -112,7 +112,7 @@ class Data(object):
         self._rebinned_time_bins = None
         self._rebinned_saa_mask = None
 
-    def rebinn_data(self, min_bin_width, saa_mask):
+    def rebinn_data(self, min_bin_width, saa_mask, save_memory=False):
         """
         Rebins the time bins to a min bin width
         :param min_bin_width:
@@ -144,6 +144,11 @@ class Data(object):
         self._valid_rebinned_time_mask = np.ones(
             len(self._rebinned_time_bins), dtype=bool
         )
+
+        if save_memory:
+            self._time_bins = None
+            self._counts = None
+
 
     @property
     def counts(self):
