@@ -219,7 +219,8 @@ class Data(object):
     @property
     def following_day(self):
         """
-        Returns array which gives which of the days are following days (len(self._following_day)=num_days-1)
+        Returns array which gives which of the days are following days
+        (len(self._following_day)=num_days-1)
         :return:
         """
         return self._following_day
