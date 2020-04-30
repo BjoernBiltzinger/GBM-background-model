@@ -5,7 +5,7 @@ from gbmbkgpy.utils.pha import SPECTRUM, PHAII
 import h5py
 from gbmbkgpy.utils.progress_bar import progress_bar
 
-NO_REBIN = 1e-99
+NO_REBIN = 1e-9
 
 try:
     # see if we have mpi and/or are upalsing parallel
