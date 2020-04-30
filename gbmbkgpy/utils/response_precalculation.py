@@ -218,10 +218,19 @@ class Det_Response_Precalculation(object):
                 # Calculate the reponse for all points on the unit sphere
                 self._calculate_responses()
 
-                self._save_response_cache(response_cache_file)
+                if using_mpi:
+
+                    if rank == 0:
+
+                        self._save_response_cache(response_cache_file)
+
+                else:
+
+                    self._save_response_cache(response_cache_file)
 
         else:
             datafile_name = "glg_{0}_{1}_{2}_v00.pha".format(data_type, det, dates[0])
+
             datafile_path = os.path.join(
                 get_path_of_external_data_dir(), data_type, dates[0], datafile_name
             )
@@ -318,16 +327,16 @@ class Det_Response_Precalculation(object):
             f.attrs["data_type"] = self.data_type
             f.attrs["ngrid"] = self.Ngrid
 
-            f.create_dataset("ebin_in_edge", data=self.Ebin_in_edge, compression="gzip")
+            f.create_dataset("ebin_in_edge", data=self.Ebin_in_edge, compression="lzf")
 
             f.create_dataset(
-                "ebin_out_edge", data=self.Ebin_out_edge, compression="gzip"
+                "ebin_out_edge", data=self.Ebin_out_edge, compression="lzf"
             )
 
-            f.create_dataset("points", data=self.points, compression="gzip")
+            f.create_dataset("points", data=self.points, compression="lzf")
 
             f.create_dataset(
-                "response_array", data=self.response_array, compression="gzip"
+                "response_array", data=self.response_array, compression="lzf"
             )
 
     def _response(self, x, y, z, DRM):
