@@ -521,19 +521,22 @@ class ResultPlotGenerator(object):
 
         if self.show_ppc:
             rebinned_ppc_rates = []
-            for j, ppc in enumerate(self._result_dict["ppc_counts"]):
+
+            ppc_counts_det_echan = self._result_dict["ppc_counts"][:, :, det_idx, echan_idx]
+
+            for j, ppc in enumerate(ppc_counts_det_echan):
                 set_saa_zero(
-                    self._result_dict["ppc_counts"][j],
+                    ppc_counts_det_echan[j],
                     saa_mask=self._result_dict["saa_mask"],
                 )
                 if rebin:
                     rebinned_ppc_rates.append(
-                        this_rebinner.rebin(self._result_dict["ppc_counts"][j])
+                        this_rebinner.rebin(ppc_counts_det_echan[j])
                         / self._rebinned_time_bin_widths
                     )
                 else:
                     rebinned_ppc_rates.append(
-                        self._result_dict["ppc_counts"][j]
+                        ppc_counts_det_echan[j]
                         / self._rebinned_time_bin_widths
                     )
 
