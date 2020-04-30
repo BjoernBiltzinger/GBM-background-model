@@ -286,9 +286,7 @@ class MultiNestFit(object):
             output_dir = self._output_dir
 
         # Save parameter names
-        self._param_names = [
-            parameter.name for parameter in self.parameters.values()
-        ]
+        self._param_names = [parameter.name for parameter in self.parameters.values()]
 
         if using_mpi:
 

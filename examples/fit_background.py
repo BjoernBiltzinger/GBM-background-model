@@ -24,9 +24,11 @@
 ##################################################################
 
 from datetime import datetime
+
 start = datetime.now()
 
 import matplotlib
+
 matplotlib.use("Agg")
 
 import os
@@ -49,9 +51,7 @@ size = comm.Get_size()
 
 ############## Argparse for parsing bash arguments ################
 
-parser = argparse.ArgumentParser(
-    formatter_class=argparse.ArgumentDefaultsHelpFormatter
-)
+parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 parser.add_argument(
     "-c",
@@ -69,9 +69,9 @@ parser.add_argument(
     default="config_plot_default.yml",
 )
 
-parser.add_argument("-dates", "--dates", type=str, nargs='+', help="Date string")
-parser.add_argument("-dets", "--detectors", type=str, nargs='+', help="Name detector")
-parser.add_argument("-e", "--echans", type=int,  nargs='+', help="Echan number")
+parser.add_argument("-dates", "--dates", type=str, nargs="+", help="Date string")
+parser.add_argument("-dets", "--detectors", type=str, nargs="+", help="Name detector")
+parser.add_argument("-e", "--echans", type=int, nargs="+", help="Echan number")
 parser.add_argument("-trig", "--trigger", type=str, help="Name of trigger")
 
 args = parser.parse_args()
@@ -92,13 +92,13 @@ if args.echans is not None:
     config["general"]["echans"] = args.echans
 
 if args.trigger is not None:
-    config['general']['trigger'] = args.trigger
+    config["general"]["trigger"] = args.trigger
 
 ############## Generate the GBM-background-model ##################
 
 start_precalc = datetime.now()
 
-if config['general']['data_type'] in ['ctime', 'cspec']:
+if config["general"]["data_type"] in ["ctime", "cspec"]:
 
     model_generator_class = BackgroundModelGenerator
 
@@ -106,7 +106,7 @@ if config['general']['data_type'] in ['ctime', 'cspec']:
 
     model_generator.from_config_dict(config)
 
-elif config['general']['data_type'] == 'trigdat':
+elif config["general"]["data_type"] == "trigdat":
 
     model_generator_class = TrigdatBackgroundModelGenerator
 
@@ -115,7 +115,7 @@ elif config['general']['data_type'] == 'trigdat':
     model_generator.from_config_dict(config)
 
     model_generator.likelihood.set_grb_mask(
-        f'{model_generator.data.trigtime - 15}-{model_generator.data.trigtime + 100}'
+        f"{model_generator.data.trigtime - 15}-{model_generator.data.trigtime + 100}"
     )
 
 comm.barrier()
@@ -130,7 +130,7 @@ output_dir = os.path.join(
     get_path_of_external_data_dir(),
     "fits",
     "mn_out",
-    config['general'].get('trigger', "-".join(config["general"]["dates"])),
+    config["general"].get("trigger", "-".join(config["general"]["dates"])),
     "det_" + "-".join(config["general"]["detectors"]),
     "echan_" + "-".join([str(e) for e in config["general"]["echans"]]),
     datetime.now().strftime("%m-%d_%H-%M") + "/",
@@ -168,7 +168,7 @@ stop_fit = datetime.now()
 
 start_export = datetime.now()
 
-if config["export"]["save_unbinned"] and config['general']['min_bin_width'] > 1e-99:
+if config["export"]["save_unbinned"] and config["general"]["min_bin_width"] > 1e-99:
 
     # Create copy of config dictionary
     config_export = config
@@ -209,7 +209,7 @@ stop_export = datetime.now()
 start_plotting = datetime.now()
 
 if rank == 0:
-    print('Start plotting')
+    print("Start plotting")
 
     plot_generator = ResultPlotGenerator.from_result_file(
         config_file=args.config_file_plot,
@@ -218,14 +218,14 @@ if rank == 0:
 
     # If we fit the background of a GRB then we will highlight the active
     # time, the we excluded from the fit in the plot
-    if config['general']['data_type'] == 'trigdat':
+    if config["general"]["data_type"] == "trigdat":
         plot_generator.add_occ_region(
-            occ_name='Active Time',
+            occ_name="Active Time",
             time_start=model_generator.data.trigtime - 15,
             time_stop=model_generator.data.trigtime + 150,
-            time_format='MET',
-            color='red',
-            alpha=0.1
+            time_format="MET",
+            color="red",
+            alpha=0.1,
         )
 
     plot_generator.create_plots(output_dir=output_dir)

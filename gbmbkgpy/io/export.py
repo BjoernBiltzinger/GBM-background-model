@@ -55,7 +55,7 @@ class DataExporter(object):
         ppc_counts = self._ppc_data(result_dir)
 
         if rank == 0:
-            print('Save fit result to: {}'.format(file_path))
+            print("Save fit result to: {}".format(file_path))
 
             # Get the model counts
             model_counts = self._model.get_counts(time_bins=self._time_bins)
@@ -79,49 +79,33 @@ class DataExporter(object):
                 f.create_dataset("day_start_times", data=self._data.day_start_times)
                 f.create_dataset("day_stop_times", data=self._data.day_stop_times)
                 f.create_dataset(
-                    "saa_mask",
-                    data=self._saa_mask,
-                    compression="lzf",
+                    "saa_mask", data=self._saa_mask, compression="lzf",
                 )
                 f.create_dataset(
-                    "time_bins_start",
-                    data=self._time_bins[:, 0],
-                    compression="lzf",
+                    "time_bins_start", data=self._time_bins[:, 0], compression="lzf",
                 )
                 f.create_dataset(
-                    "time_bins_stop",
-                    data=self._time_bins[:, 1],
-                    compression="lzf",
+                    "time_bins_stop", data=self._time_bins[:, 1], compression="lzf",
                 )
                 f.create_dataset(
-                    "observed_counts",
-                    data=self._data.counts,
-                    compression="lzf",
+                    "observed_counts", data=self._data.counts, compression="lzf",
                 )
 
                 f.create_dataset(
-                    "model_counts",
-                    data=model_counts,
-                    compression="lzf",
+                    "model_counts", data=model_counts, compression="lzf",
                 )
-                f.create_dataset(
-                    "stat_err", data=stat_err, compression="lzf"
-                )
+                f.create_dataset("stat_err", data=stat_err, compression="lzf")
 
                 group_sources = f.create_group("sources")
                 for source in source_list:
                     group_sources.create_dataset(
-                        source["label"],
-                        data=source["data"],
-                        compression="lzf",
+                        source["label"], data=source["data"], compression="lzf",
                     )
 
                 if save_ppc:
-                    f.create_dataset(
-                        "ppc_counts", data=ppc_counts, compression="lzf"
-                    )
+                    f.create_dataset("ppc_counts", data=ppc_counts, compression="lzf")
 
-            print('File sucessfully saved!')
+            print("File sucessfully saved!")
 
     def get_counts_of_sources(self):
         """

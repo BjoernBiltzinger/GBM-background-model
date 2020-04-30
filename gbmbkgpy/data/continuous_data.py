@@ -149,7 +149,6 @@ class Data(object):
             self._time_bins = None
             self._counts = None
 
-
     @property
     def counts(self):
         """
@@ -261,7 +260,9 @@ class Data(object):
         :return:
         """
         if self._rebinned:
-            return np.diff(self._rebinned_time_bins[self._valid_rebinned_time_mask], axis=1)[:, 0]
+            return np.diff(
+                self._rebinned_time_bins[self._valid_rebinned_time_mask], axis=1
+            )[:, 0]
         else:
             return np.diff(self._time_bins[self._valid_time_mask], axis=1)[:, 0]
 
@@ -272,7 +273,9 @@ class Data(object):
         :return:
         """
         if self._rebinned:
-            return np.mean(self._rebinned_time_bins[self._valid_rebinned_time_mask], axis=1)
+            return np.mean(
+                self._rebinned_time_bins[self._valid_rebinned_time_mask], axis=1
+            )
         else:
             return np.mean(self._time_bins[self._valid_time_mask], axis=1)
 
