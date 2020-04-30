@@ -113,31 +113,36 @@ class Plotter(object):
 
         # Create a rebinner if either a min_rate has been given, or if the current data set has no rebinned on its own
 
-        if (min_bin_width is not NO_REBIN) or (self._rebinner is None):
-
+        if min_bin_width != NO_REBIN:
             this_rebinner = Rebinner((self._total_time_bins - time_ref), min_bin_width, self._saa_mask)
 
-        else:
+            # we need to get the rebinned counts
 
-            # Use the rebinner already in the data
-            this_rebinner = self._rebinner
+            self._rebinned_observed_counts, = this_rebinner.rebin(self._total_counts_all_echan[:, index])
+
+            # the rebinned counts expected from the model
+            self._rebinned_model_counts, = this_rebinner.rebin(self._model.get_counts(self._total_time_bins, index,
+                                                                                      saa_mask=self._saa_mask))
+
+            self._rebinned_background_counts = np.zeros_like(self._rebinned_observed_counts)
+
+            self._rebinned_time_bins = this_rebinner.time_rebinned
+
+            self._rebinned_time_bin_widths = np.diff(self._rebinned_time_bins, axis=1)[:, 0]
+
+        else:
+            self._rebinned_observed_counts = self._total_counts_all_echan[:, index]
+
+            # the rebinned counts expected from the model
+            self._rebinned_model_counts = self._model.get_counts(self._total_time_bins, index, saa_mask=self._saa_mask)
+
+            self._rebinned_background_counts = np.zeros_like(self._rebinned_observed_counts)
+
+            self._rebinned_time_bins = self._total_time_bins - time_ref
+
+            self._rebinned_time_bin_widths = self._total_time_bin_widths
 
         # Residuals
-
-        # we need to get the rebinned counts
-
-        self._rebinned_observed_counts, = this_rebinner.rebin(self._total_counts_all_echan[:, index])
-
-        # the rebinned counts expected from the model
-        self._rebinned_model_counts, = this_rebinner.rebin(self._model.get_counts(self._total_time_bins, index,
-                                                                                  saa_mask=self._saa_mask))
-
-        self._rebinned_background_counts = np.zeros_like(self._rebinned_observed_counts)
-
-        self._rebinned_time_bins = this_rebinner.time_rebinned
-
-        self._rebinned_time_bin_widths = np.diff(self._rebinned_time_bins, axis=1)[:, 0]
-
         significance_calc = Significance(self._rebinned_observed_counts,
                                          self._rebinned_background_counts + self._rebinned_model_counts / self._total_scale_factor,
                                          self._total_scale_factor)

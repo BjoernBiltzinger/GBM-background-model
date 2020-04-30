@@ -77,7 +77,10 @@ class SAA_calc(object):
         Returns the times of the SAA exit times
         :return:
         """
-        return self._saa_exit_time_bins[:, 1]
+        if len(self._saa_exit_time_bins) > 0:
+            return self._saa_exit_time_bins[:, 1]
+        else:
+            return np.array([])
 
     def _build_masks(self, bins_to_add, time_after_SAA, short_time_intervals, nr_decays):
         """
@@ -97,81 +100,88 @@ class SAA_calc(object):
         # between the first time bin and the time bin before that one)
         idx = jump_large.nonzero()[0] + 1
 
-        # Build slices, that have as first entry start of SAA and as second end of SAA
-        slice_idx = np.array(self.slice_disjoint(idx))
+        if idx.shape[0] > 0:
+            # Build slices, that have as first entry start of SAA and as second end of SAA
+            slice_idx = np.array(self.slice_disjoint(idx))
 
-        # Add bins_to_add before and after SAAs
-        slice_idx[:, 0][np.where(slice_idx[:, 0] >= bins_to_add)] = \
-            slice_idx[:, 0][np.where(slice_idx[:, 0] >= bins_to_add)] - bins_to_add
+            # Add bins_to_add before and after SAAs
+            slice_idx[:, 0][np.where(slice_idx[:, 0] >= bins_to_add)] = \
+                slice_idx[:, 0][np.where(slice_idx[:, 0] >= bins_to_add)] - bins_to_add
 
-        slice_idx[:, 1][np.where(slice_idx[:, 1] <= len(self._time_bins) - 1 - bins_to_add)] = \
-            slice_idx[:, 1][np.where(slice_idx[:, 1] <= len(self._time_bins) - 1 - bins_to_add)] + bins_to_add
+            slice_idx[:, 1][np.where(slice_idx[:, 1] <= len(self._time_bins) - 1 - bins_to_add)] = \
+                slice_idx[:, 1][np.where(slice_idx[:, 1] <= len(self._time_bins) - 1 - bins_to_add)] + bins_to_add
 
-        # Find the times of the exits
-        if slice_idx[-1, 1] == len(self._time_bins) - 1:
-            # the last exit is just the end of the array
-            saa_exit_idx = slice_idx[:-1, 1]
+            # Find the times of the exits
+            if slice_idx[-1, 1] == len(self._time_bins) - 1:
+                # the last exit is just the end of the array
+                saa_exit_idx = slice_idx[:-1, 1]
+            else:
+                saa_exit_idx = slice_idx[:, 1]
+
+            self._saa_exit_time_bins = self._time_bins[saa_exit_idx]
+
+            for i in range(1, nr_decays):
+                self._saa_exit_time_bins = np.append(self._saa_exit_time_bins, self._time_bins[saa_exit_idx], axis=0)
+
+            self._num_saa = len(self._saa_exit_time_bins)
+
+            # make a saa mask from the slices:
+            self._saa_mask = np.ones(len(self._time_bins), bool)
+            for sl in slice_idx:
+                self._saa_mask[sl[0]:sl[1] + 1] = False
+            # If time_after_SAA is not send to None we add time_after_SAA seconds after every SAA exit to the mask
+            # Useful to ignore the times with a large influence by the SAA
+            if time_after_SAA is not None:
+                # Set first time_after_SAA seconds False
+                j = 0
+                while time_after_SAA > self._time_bins[j, 1] - self._time_bins[0, 0]:
+                    j += 1
+                self._saa_mask[0:j] = False
+
+                # Do the same for every SAA exit. We have to be careful to not cause an error when the time
+                # after a SAA is less than time_after_SAA seconds
+                for i in range(len(slice_idx)):
+
+                    if self._time_bins[:, 0][slice_idx[i, 1]] + time_after_SAA > self._time_bins[-1, 0]:
+
+                        self._saa_mask[slice_idx[i, 1]:len(self._time_bins)] = False
+
+                    else:
+
+                        j = 0
+                        while time_after_SAA > self._time_bins[:, 1][slice_idx[i, 1] + j] - self._time_bins[:, 0][slice_idx[i, 1]]:
+                            j += 1
+
+                        self._saa_mask[slice_idx[i, 1]:slice_idx[i, 1] + j] = False
+
+            # If wanted delete separeted time intervals shorter than 1000 seconds (makes plots nicer)
+            if not short_time_intervals:
+                # get index intervals of SAA mask
+                index_start = [0]
+                index_stop = []
+
+                for i in range(len(self._saa_mask) - 1):
+                    if self._saa_mask[i] == False and self._saa_mask[i + 1] == True:
+                        index_stop.append(i - 1)
+                    if self._saa_mask[i] == True and self._saa_mask[i + 1] == False:
+                        index_start.append(i)
+
+                if len(index_start) > len(index_stop):
+                    index_stop.append(-1)
+
+                assert len(index_start) == len(index_stop), 'Something is wrong, index_start and index_stop must have same length.' \
+                                                            ' But index_start as length {} and index_stop has length {}.'.format(len(index_start), len(index_stop))
+
+                # set saa_mask=False between end and next start if time is <min_duration
+                for i in range(len(index_stop) - 1):
+                    if self._time_bins[:, 1][index_start[i + 1]] - self._time_bins[:, 0][index_stop[i]] < 1000:
+                        self._saa_mask[index_stop[i] - 5:index_start[i + 1] + 5] = np.ones_like(self._saa_mask[index_stop[i] - 5:index_start[i + 1] + 5]) == 2
+
         else:
-            saa_exit_idx = slice_idx[:, 1]
+            self._saa_mask = np.ones(len(self._time_bins), bool)
+            self._saa_exit_time_bins = np.array([])
+            self._num_saa = 0
 
-        self._saa_exit_time_bins = self._time_bins[saa_exit_idx]
-
-        for i in range(1, nr_decays):
-            self._saa_exit_time_bins = np.append(self._saa_exit_time_bins, self._time_bins[saa_exit_idx], axis=0)
-
-        self._num_saa = len(self._saa_exit_time_bins)
-
-        # make a saa mask from the slices:
-        self._saa_mask = np.ones(len(self._time_bins), bool)
-        for sl in slice_idx:
-            self._saa_mask[sl[0]:sl[1] + 1] = False
-        # If time_after_SAA is not send to None we add time_after_SAA seconds after every SAA exit to the mask
-        # Useful to ignore the times with a large influence by the SAA
-        if time_after_SAA is not None:
-            # Set first time_after_SAA seconds False
-            j = 0
-            while time_after_SAA > self._time_bins[j, 1] - self._time_bins[0, 0]:
-                j += 1
-            self._saa_mask[0:j] = False
-
-            # Do the same for every SAA exit. We have to be careful to not cause an error when the time
-            # after a SAA is less than time_after_SAA seconds
-            for i in range(len(slice_idx)):
-
-                if self._time_bins[:, 0][slice_idx[i, 1]] + time_after_SAA > self._time_bins[-1, 0]:
-
-                    self._saa_mask[slice_idx[i, 1]:len(self._time_bins)] = False
-
-                else:
-
-                    j = 0
-                    while time_after_SAA > self._time_bins[:, 1][slice_idx[i, 1] + j] - self._time_bins[:, 0][slice_idx[i, 1]]:
-                        j += 1
-
-                    self._saa_mask[slice_idx[i, 1]:slice_idx[i, 1] + j] = False
-
-        # If wanted delete separeted time intervals shorter than 1000 seconds (makes plots nicer)
-        if not short_time_intervals:
-            # get index intervals of SAA mask
-            index_start = [0]
-            index_stop = []
-
-            for i in range(len(self._saa_mask) - 1):
-                if self._saa_mask[i] == False and self._saa_mask[i + 1] == True:
-                    index_stop.append(i - 1)
-                if self._saa_mask[i] == True and self._saa_mask[i + 1] == False:
-                    index_start.append(i)
-
-            if len(index_start) > len(index_stop):
-                index_stop.append(-1)
-
-            assert len(index_start) == len(index_stop), 'Something is wrong, index_start and index_stop must have same length.' \
-                                                        ' But index_start as length {} and index_stop has length {}.'.format(len(index_start), len(index_stop))
-
-            # set saa_mask=False between end and next start if time is <min_duration
-            for i in range(len(index_stop) - 1):
-                if self._time_bins[:, 1][index_start[i + 1]] - self._time_bins[:, 0][index_stop[i]] < 1000:
-                    self._saa_mask[index_stop[i] - 5:index_start[i + 1] + 5] = np.ones_like(self._saa_mask[index_stop[i] - 5:index_start[i + 1] + 5]) == 2
 
     def slice_disjoint(self, arr):
         """
