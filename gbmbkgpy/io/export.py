@@ -8,7 +8,6 @@ from gbmbkgpy.utils.progress_bar import progress_bar
 NO_REBIN = 1E-99
 
 try:
-
     # see if we have mpi and/or are upalsing parallel
 
     from mpi4py import MPI
@@ -25,7 +24,6 @@ try:
         using_mpi = False
         rank = 0
 except:
-
     using_mpi = False
     rank = 0
 
@@ -113,13 +111,13 @@ class DataExporter(object):
                     group_echan.create_dataset('total_model_counts', data=model_counts, compression="gzip", compression_opts=9)
                     group_echan.create_dataset('observed_counts', data=observed_counts, compression="gzip", compression_opts=9)
 
-                    group_sources = group_echan.create_group('Sources')
+                    group_sources = group_echan.create_group('sources')
                     for source in source_list:
                         group_sources.create_dataset(source['label'], data=source['data'], compression="gzip", compression_opts=9)
 
                     if save_ppc:
                         ppc_counts = ppc_counts_all[j]
-                        group_echan.create_dataset('PPC', data=ppc_counts, compression="gzip", compression_opts=9)
+                        group_echan.create_dataset('ppc', data=ppc_counts, compression="gzip", compression_opts=9)
 
 
     def get_counts_of_sources(self, time_bins, echan):
@@ -132,11 +130,13 @@ class DataExporter(object):
         source_list = []
         color_list = ['b', 'g', 'c', 'm', 'y', 'k', 'navy', 'darkgreen', 'cyan']
         i_index = 0
+
         for i, source_name in enumerate(self._model.continuum_sources):
             data = self._model.get_continuum_counts(i, time_bins, self._saa_mask, echan)
             if np.sum(data) != 0:
                 source_list.append({"label": source_name, "data": data, "color": color_list[i_index]})
                 i_index += 1
+
         for i, source_name in enumerate(self._model._global_sources):
             data = self._model.get_global_counts(i, time_bins, self._saa_mask, echan)
             source_list.append({"label": source_name, "data": data, "color": color_list[i_index]})
@@ -151,11 +151,13 @@ class DataExporter(object):
         if np.sum(saa_data) != 0:
             source_list.append({"label": "SAA_decays", "data": saa_data, "color": color_list[i_index]})
             i_index += 1
+
         point_source_data = self._model.get_point_source_counts(self._total_time_bins, self._saa_mask, echan)
         if np.sum(point_source_data) != 0:
             source_list.append(
                 {"label": "Point_sources", "data": point_source_data, "color": color_list[i_index]})
             i_index += 1
+
         return source_list
 
     def _ppc_data(self, result_dir, echan):
@@ -273,6 +275,22 @@ class PHAExporter(DataExporter):
 
         spectrum.hdu.dump(path)
 
+det_name_lookup = {
+    'n0': 'NAI_00',
+    'n1': 'NAI_01',
+    'n2': 'NAI_02',
+    'n3': 'NAI_03',
+    'n4': 'NAI_04',
+    'n5': 'NAI_05',
+    'n6': 'NAI_06',
+    'n7': 'NAI_07',
+    'n8': 'NAI_08',
+    'n9': 'NAI_09',
+    'na': 'NAI_10',
+    'nb': 'NAI_11',
+    'b0': 'BGO_00',
+    'b1': 'BGO_01',
+}
 
 class PHACombiner(object):
 
@@ -321,22 +339,34 @@ class PHACombiner(object):
                 self._model_rates[:, echan] = model_counts[:, index] / self._total_time_bin_widths
                 self._stat_err[:, echan] = stat_err[:, index]
 
-    def save_pha(self, path):
-        spectrum = PHAII(instrument_name='GBM_NAI_0{}'.format(self._det),
-                         telescope_name='GLAST',
-                         tstart=self._total_time_bins[:, 1],
-                         telapse=self._total_time_bin_widths,
+    def save_pha(self, path, start_time=None, end_time=None, trigger_time=None):
+
+        if start_time is not None and end_time is not None:
+            idx_min_time = self._total_time_bins[:, 0] >= start_time
+            idx_max_time = self._total_time_bins[:, 1] <= end_time
+            idx_valid_bin = idx_min_time * idx_max_time
+        else:
+            idx_valid_bin = np.ones_like(self._total_time_bins[:, 0], dtype=bool)
+
+        if trigger_time is None:
+            trigger_time = 0.
+
+        spectrum = PHAII(instrument_name='GBM_{}'.format(det_name_lookup[str(self._det)]),
+                         telescope_name='Fermi',
+                         tstart=self._total_time_bins[idx_valid_bin][:, 1] - trigger_time,
+                         telapse=self._total_time_bin_widths[idx_valid_bin],
                          channel=self._echan_names,
-                         rate=self._model_rates,
-                         quality=np.zeros_like(self._model_rates, dtype=int),
+                         rate=self._model_rates[idx_valid_bin],
+                         quality=np.zeros_like(self._model_rates[idx_valid_bin], dtype=int),
                          grouping=np.ones_like(self._echan_names),
-                         exposure=self._total_time_bin_widths,
-                         backscale=None,
+                         exposure=self._total_time_bin_widths[idx_valid_bin],
+                         backscale=np.ones_like(self._model_rates[idx_valid_bin][:, 0]),
                          respfile=None,
                          ancrfile=None,
                          back_file=None,
                          sys_err=None,
-                         stat_err=self._stat_err,
+                         stat_err=self._stat_err[idx_valid_bin],
                          is_poisson=False)
 
         spectrum.writeto(path)
+
