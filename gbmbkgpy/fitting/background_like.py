@@ -1,54 +1,53 @@
 import re
 import numpy as np
 import numexpr as ne
+import numba
 
 from gbmbkgpy.data.continuous_data import Data
 from gbmbkgpy.modeling.model import Model
 
 
 class BackgroundLike(object):
-
-    def __init__(self, data, model, saa_object, echan_list):
+    def __init__(self, data, model, saa_object, use_numba=False):
         """
         Init backgroundlike that compares the data with the model
         :param data:
         :param model:
-        :param echan_list:
+        :param echans:
         """
 
         self._data = data  # type: Data
         self._model = model  # type: Model
-        self._echan_names = echan_list
-        self._echan_list = np.arange(len(echan_list))  # list of index of all echans which should be fitted
-
-        self._name = "Count rate detector %s" % self._data.det
+        self._use_numba = use_numba
         # The MET start time of the day
 
         self._free_parameters = self._model.free_parameters
         self._parameters = self._model.parameters
 
         # The data object should return all the time bins that are valid... i.e. non-zero
-        self._total_time_bins = self._data.time_bins[2:-2]
+        self._total_time_bins = self._data.time_bins
         self._total_time_bin_widths = np.diff(self._total_time_bins, axis=1)[:, 0]
 
         # Get the SAA and GRB mask:
-        self._saa_mask = saa_object.saa_mask[2:-2]
-        self._grb_mask = np.ones(len(self._total_time_bins), dtype=bool)  # np.full(len(self._total_time_bins), True)
+        self._saa_mask = saa_object.saa_mask
+        self._grb_mask = np.ones(
+            len(self._total_time_bins), dtype=bool
+        )  # np.full(len(self._total_time_bins), True)
         # An entry in the total mask is False when one of the two masks is False
-        self._total_mask = ~ np.logical_xor(self._saa_mask, self._grb_mask)
+        self._total_mask = ~np.logical_xor(self._saa_mask, self._grb_mask)
 
         # Get the valid time bins by including the total_mask
         self._time_bins = self._total_time_bins[self._total_mask]
 
-        # Extract the counts from the data object. should be same size as time bins. For all echans together
-        self._counts_all_echan = self._data.counts[2:-2][self._total_mask]
-        self._total_counts_all_echan = self._data.counts[2:-2]
+        # Extract the counts from the data object. should be same size as time bins.
+        self._total_counts = self._data.counts
+        self._masked_counts = self._data.counts[self._total_mask]
 
-        self._total_scale_factor = 1.
+        self._total_scale_factor = 1.0
         self._grb_mask_calculated = False
 
         self._get_sources_fit_spectrum()
-        self._build_cov_call()
+        self._build_log_like()
 
     def _set_free_parameters(self, new_parameters):
         """
@@ -69,14 +68,14 @@ class BackgroundLike(object):
 
         self._model.set_free_parameters(new_parameters)
 
-    def model_counts(self, echan):
+    def model_counts(self):
         """
         Returns the predicted counts from the model for all time bins,
         the saa_mask sets the SAA sections to zero.
         :return:
         """
 
-        return self._model.get_counts(self._total_time_bins, echan, saa_mask=self._saa_mask)
+        return self._model.get_counts(self._total_time_bins, saa_mask=self._saa_mask)
 
     @property
     def get_normalization_parameter_list(self):
@@ -127,7 +126,7 @@ class BackgroundLike(object):
                     # print ("Parameter {0} has been fixed".format(param_name))
 
             if not parameter_exits:
-                print ("Parameter does not exist in parameter list")
+                print("Parameter does not exist in parameter list")
 
         self.update_free_parameters()
 
@@ -152,7 +151,7 @@ class BackgroundLike(object):
                     # print ("Parameter {0} has been unfixed".format(param_name))
 
             if parameter_exits == False:
-                print ("Parameter does not exist in parameter list")
+                print("Parameter does not exist in parameter list")
 
         self.update_free_parameters()
 
@@ -192,7 +191,6 @@ class BackgroundLike(object):
         self._sources_fit_spectrum = self._model.fit_spectrum_sources.values()
 
     def _build_cov_call(self):
-
         def cov_call(*parameters):
             return self.__call__(parameters)
 
@@ -200,58 +198,90 @@ class BackgroundLike(object):
 
     def __call__(self, parameters):
         """
-        
-        :return: the poisson log likelihood
-        """
+                :return: the poisson log likelihood
+                """
         self._set_free_parameters(parameters)
 
-        log_likelihood_list = []
         ######### Calculate rates for new spectral parameter
         for source in self._sources_fit_spectrum:
             source.recalculate_counts()
         ########
-        for echan in self._echan_list:
-            log_likelihood_list.append(self._get_log_likelihood_echan(echan))
-        log_likelihood_list = np.array(log_likelihood_list)
-        return np.sum(log_likelihood_list)
 
-    def _get_log_likelihood_echan(self, echan):
+        return self._get_log_likelihood()
 
-        M = self._evaluate_model(echan)
-        # Poisson loglikelihood statistic (Cash) is:
-        # L = Sum ( M_i - D_i * log(M_i))
+    def _build_log_like(self):
 
-        logM = self._evaluate_logM(M)
-        # Evaluate v_i = D_i * log(M_i): if D_i = 0 then the product is zero
-        # whatever value has log(M_i). Thus, initialize the whole vector v = {v_i}
-        # to zero, then overwrite the elements corresponding to D_i > 0
+        if self._use_numba:
 
-        counts = self._counts_all_echan[:, echan]
-        d_times_logM = ne.evaluate("counts*logM")
+            print("Use numba likelihood")
 
-        log_likelihood = ne.evaluate("sum(M - d_times_logM)")
-        return log_likelihood
+            if self._data.data_type == "trigdat":
 
-    def _evaluate_model(self, echan):
+                def log_like_numba():
+
+                    M = self._evaluate_model()
+
+                    counts = self._masked_counts
+
+                    return _log_likelihood_numba_trigdat(M, counts)
+
+            else:
+
+                def log_like_numba():
+
+                    M = self._evaluate_model()
+
+                    counts = self._masked_counts
+
+                    return _log_likelihood_numba(M, counts)
+
+            self._get_log_likelihood = log_like_numba
+
+        else:
+
+            print("Use vectorized likelihood")
+
+            def log_like_vector():
+
+                M = self._evaluate_model()
+                # Poisson loglikelihood statistic (Cash) is:
+                # L = Sum ( M_i - D_i * log(M_i))
+
+                logM = self._evaluate_logM(M)
+                # Evaluate v_i = D_i * log(M_i): if D_i = 0 then the product is zero
+                # whatever value has log(M_i). Thus, initialize the whole vector v = {v_i}
+                # to zero, then overwrite the elements corresponding to D_i > 0
+
+                counts = self._masked_counts
+                d_times_logM = ne.evaluate("counts*logM")
+
+                log_likelihood = ne.evaluate("sum(M - d_times_logM)")
+                return log_likelihood
+
+            self._get_log_likelihood = log_like_vector
+
+    def _evaluate_model(self):
         """
         Loops over time bins and extracts the model counts and returns this array
         :return:
         """
 
-        return self._model.get_counts(self._time_bins, echan, bin_mask=self._total_mask)
+        return self._model.get_counts(
+            time_bins=self._time_bins, bin_mask=self._total_mask
+        )
 
     def _evaluate_logM(self, M):
         # Evaluate the logarithm with protection for negative or small
         # numbers, using a smooth linear extrapolation (better than just a sharp
         # cutoff)
-        tiny = np.float64(np.finfo(M[0]).tiny)
+        tiny = np.float64(np.finfo(M[0][0][0]).tiny)
 
-        non_tiny_mask = (M > 2.0 * tiny)
+        non_tiny_mask = M > 2.0 * tiny
 
         tink_mask = np.logical_not(non_tiny_mask)
 
-        if (len(tink_mask.nonzero()[0]) > 0):
-            logM = np.zeros(len(M))
+        if len(tink_mask.nonzero()[0]) > 0:
+            logM = np.zeros_like(M)
             logM[tink_mask] = np.abs(M[tink_mask]) / tiny + np.log(tiny) - 1
             logM[non_tiny_mask] = np.log(M[non_tiny_mask])
 
@@ -273,8 +303,8 @@ class BackgroundLike(object):
         """
 
         tiny = np.float64(np.finfo(v[0]).tiny)
-        zero_mask = (np.abs(v) <= tiny)
-        if (len(zero_mask.nonzero()[0]) > 0):
+        zero_mask = np.abs(v) <= tiny
+        if len(zero_mask.nonzero()[0]) > 0:
             v[zero_mask] = np.sign(v[zero_mask]) * tiny
 
         return v, tiny
@@ -294,19 +324,21 @@ class BackgroundLike(object):
 
             list_of_intervals.append([imin, imax])
 
-            bin_exclude = np.logical_and(self._total_time_bins[:, 0] > imin, self._total_time_bins[:, 1] < imax)
+            bin_exclude = np.logical_and(
+                self._total_time_bins[:, 0] > imin, self._total_time_bins[:, 1] < imax
+            )
 
             self._grb_mask[np.where(bin_exclude)] = False
 
         # An entry in the total mask is False when one of the two masks is False
-        self._total_mask = ~ np.logical_xor(self._saa_mask, self._grb_mask)
+        self._total_mask = ~np.logical_xor(self._saa_mask, self._grb_mask)
 
         # Get the valid time bins by including the total_mask
         self._time_bins = self._total_time_bins[self._total_mask]
 
-        # Extract the counts from the data object. should be same size as time bins. For all echans together
-        self._counts_all_echan = self._data.counts[2:-2][self._total_mask]
-        self._total_counts_all_echan = self._data.counts[2:-2]
+        # Extract the counts from the data object. should be same size as time bins.
+        self._masked_counts = self._data.counts[self._total_mask]
+        self._total_counts = self._data.counts
 
     def _parse_interval(self, time_interval):
         """
@@ -316,7 +348,9 @@ class BackgroundLike(object):
         :param time_interval:
         :return:
         """
-        tokens = re.match('(\-?\+?[0-9]+\.?[0-9]*)\s*-\s*(\-?\+?[0-9]+\.?[0-9]*)', time_interval).groups()
+        tokens = re.match(
+            "(\-?\+?[0-9]+\.?[0-9]*)\s*-\s*(\-?\+?[0-9]+\.?[0-9]*)", time_interval
+        ).groups()
 
         return map(float, tokens)
 
@@ -328,24 +362,41 @@ class BackgroundLike(object):
         self._grb_mask = np.ones(len(self._total_time_bins), dtype=bool)
 
         # An entry in the total mask is False when one of the two masks is False
-        self._total_mask = ~ np.logical_xor(self._saa_mask, self._grb_mask)
+        self._total_mask = ~np.logical_xor(self._saa_mask, self._grb_mask)
 
         # Get the valid time bins by including the total_mask
         self._time_bins = self._total_time_bins[self._total_mask]
 
-        # Extract the counts from the data object. should be same size as time bins. For all echans together
-        self._counts_all_echan = self._data.counts[2:-2][self._total_mask]
-        self._total_counts_all_echan = self._data.counts[2:-2]
-
-
-    @property
-    def det(self):
-        return self._data.det
-
-    @property
-    def echan_list(self):
-        return self._echan_names
+        # Extract the counts from the data object. should be same size as time bins.
+        self._masked_counts = self._data.counts[self._total_mask]
+        self._total_counts = self._data.counts
 
     @property
     def data(self):
         return self._data
+
+
+@numba.njit(numba.float64(numba.float64[:, :, :], numba.int64[:, :, :]), parallel=True)
+def _log_likelihood_numba(M, counts):
+    # Poisson loglikelihood statistic (Cash) is:
+    # L = Sum ( M_i - D_i * log(M_i))
+    val = 0.0
+    for i in numba.prange(M.shape[0]):
+        for j in numba.prange(M.shape[1]):
+            for k in numba.prange(M.shape[2]):
+                val += M[i, j, k] - counts[i, j, k] * np.log(M[i, j, k])
+    return val
+
+
+@numba.njit(
+    numba.float64(numba.float64[:, :, :], numba.float64[:, :, :]), parallel=True
+)
+def _log_likelihood_numba_trigdat(M, counts):
+    # Poisson loglikelihood statistic (Cash) is:
+    # L = Sum ( M_i - D_i * log(M_i))
+    val = 0.0
+    for i in numba.prange(M.shape[0]):
+        for j in numba.prange(M.shape[1]):
+            for k in numba.prange(M.shape[2]):
+                val += M[i, j, k] - counts[i, j, k] * np.log(M[i, j, k])
+    return val
