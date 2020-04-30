@@ -145,7 +145,7 @@ def Setup(
                 include_all_ps=use_all_ps,
                 point_source_list=point_source_list,
                 free_spectrum=np.logical_not(fix_ps),
-                use_numba=use_numba
+                use_numba=use_numba,
             )
         )
 
@@ -156,7 +156,9 @@ def Setup(
 
         else:
             total_sources.append(
-                setup_earth_free(data, albedo_cgb_object, saa_object, use_numba=use_numba)
+                setup_earth_free(
+                    data, albedo_cgb_object, saa_object, use_numba=use_numba
+                )
             )
 
     if use_cgb:
@@ -298,8 +300,19 @@ def setup_CosmicRays(data, ep, saa_object, echan, index, bgo_cr_approximation):
         )
         return Source_Magnetic_Continuum
 
-def setup_ps(data, ep, saa_object, det_responses, det_geometries, echans,
-             include_all_ps, point_source_list, free_spectrum=[], use_numba=False):
+
+def setup_ps(
+    data,
+    ep,
+    saa_object,
+    det_responses,
+    det_geometries,
+    echans,
+    include_all_ps,
+    point_source_list,
+    free_spectrum=[],
+    use_numba=False,
+):
     """
     Set up the global sources which are the same for all echans.
     At the moment the Earth Albedo and the CGB.
@@ -336,15 +349,17 @@ def setup_ps(data, ep, saa_object, det_responses, det_geometries, echans,
 
         if len(free_spectrum) > 0 and free_spectrum[i]:
 
-            PS_Continuum_dic['{}'.format(ps.name)] = Point_Source_Continuum_Fit_Spectrum(
-                'ps_{}_spectrum_fitted'.format(ps.name),
-                E_norm=25.,
-                use_numba=use_numba
+            PS_Continuum_dic[
+                "{}".format(ps.name)
+            ] = Point_Source_Continuum_Fit_Spectrum(
+                "ps_{}_spectrum_fitted".format(ps.name),
+                E_norm=25.0,
+                use_numba=use_numba,
             )
 
-            PS_Continuum_dic['{}'.format(ps.name)].build_spec_integral()
+            PS_Continuum_dic["{}".format(ps.name)].build_spec_integral()
 
-            PS_Continuum_dic['{}'.format(ps.name)].set_effective_responses(
+            PS_Continuum_dic["{}".format(ps.name)].set_effective_responses(
                 effective_responses=ps.ps_effective_response
             )
 
@@ -423,9 +438,7 @@ def setup_earth_free(data, albedo_cgb_object, saa_object, use_numba=False):
         interpolation_times=albedo_cgb_object.geometry_times
     )
 
-    earth_albedo.set_responses(
-        responses=albedo_cgb_object.responses
-    )
+    earth_albedo.set_responses(responses=albedo_cgb_object.responses)
     Source_Earth_Albedo_Continuum = FitSpectrumSource(
         name="Earth occultation", continuum_shape=earth_albedo
     )
