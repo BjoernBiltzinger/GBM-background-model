@@ -11,7 +11,7 @@ from gbmbkgpy.utils.statistics.stats_tools import Significance
 from gbmbkgpy.io.plotting.data_residual_plot import ResidualPlot
 from gbmbkgpy.utils.binner import Rebinner
 
-NO_REBIN = 1e-99
+NO_REBIN = 1e-9
 
 try:
     # see if we have mpi and/or are upalsing parallel
