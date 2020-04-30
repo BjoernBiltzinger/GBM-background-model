@@ -106,7 +106,7 @@ class Albedo_CGB_free(object):
 
         # If MPI available it is used to speed up the calculation
         if using_mpi:
-            num_times = len(self._geom.earth_zen)
+            num_times = len(det_geometry.earth_zen)
             times_per_rank = float(num_times) / float(size)
             times_lower_bound_index = int(np.floor(rank * times_per_rank))
             times_upper_bound_index = int(np.floor((rank + 1) * times_per_rank))
@@ -191,7 +191,6 @@ class Albedo_CGB_free(object):
 
                     array_cgb_response_sum.append(cgb_response_time)
                     array_earth_response_sum.append(earth_response_time)
-                    p.increase()
 
             # Collect all results in rank=0 and broadcast it to all ranks
             # in the end
