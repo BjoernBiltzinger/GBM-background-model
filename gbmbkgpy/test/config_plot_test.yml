@@ -41,7 +41,7 @@ component:
   show_data:            true
   show_model:           true
   show_residuals:       false
-  show_ppc:             true
+  show_ppc:             false
 
   show_all_sources:     true
   show_earth:           true

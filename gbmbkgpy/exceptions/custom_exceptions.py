@@ -5,6 +5,7 @@ import functools
 
 # Monkeypatch the print of warning so we can customize them
 
+
 def my_format_warning(message, category, *args, **kwargs):
     """
     Override the default showwarning to customize the appearance of warnings
@@ -65,7 +66,7 @@ class deprecated(object):
 
     def __call__(self, cls_or_func):
         if inspect.isfunction(cls_or_func):
-            if hasattr(cls_or_func, 'func_code'):
+            if hasattr(cls_or_func, "func_code"):
                 _code = cls_or_func.__code__
             else:
                 _code = cls_or_func.__code__
@@ -85,9 +86,13 @@ class deprecated(object):
 
         @functools.wraps(cls_or_func)
         def new_func(*args, **kwargs):
-            custom_warnings.simplefilter('always', DeprecationWarning)  # turn off filter
-            custom_warnings.warn_explicit(msg, category=DeprecationWarning, filename=filename, lineno=lineno)
-            custom_warnings.simplefilter('default', DeprecationWarning)  # reset filter
+            custom_warnings.simplefilter(
+                "always", DeprecationWarning
+            )  # turn off filter
+            custom_warnings.warn_explicit(
+                msg, category=DeprecationWarning, filename=filename, lineno=lineno
+            )
+            custom_warnings.simplefilter("default", DeprecationWarning)  # reset filter
             return cls_or_func(*args, **kwargs)
 
         return new_func
