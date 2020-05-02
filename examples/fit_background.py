@@ -216,8 +216,8 @@ if rank == 0:
         result_data_file=os.path.join(output_dir, result_file_name),
     )
 
-    # If we fit the background of a GRB then we will highlight the active
-    # time, the we excluded from the fit in the plot
+    # If we fit the background to trigdat data, then we will highlight the active
+    # time, that we excluded from the fit, in the plot
     if config["general"]["data_type"] == "trigdat":
         plot_generator.add_occ_region(
             occ_name="Active Time",
