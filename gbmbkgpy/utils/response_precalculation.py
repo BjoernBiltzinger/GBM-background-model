@@ -247,6 +247,8 @@ class Det_Response_Precalculation(object):
             # Calculate the reponse for all points on the unit sphere
             self._calculate_responses()
 
+        self._get_needed_responses()
+
     @property
     def points(self):
         return self._points
@@ -254,6 +256,10 @@ class Det_Response_Precalculation(object):
     @property
     def Ngrid(self):
         return self._Ngrid
+
+    @property
+    def all_response_array(self):
+        return self._all_response_array
 
     @property
     def response_array(self):
@@ -305,7 +311,7 @@ class Det_Response_Precalculation(object):
             ebin_in_edge = f["ebin_in_edge"][()]
             ebin_out_edge = f["ebin_out_edge"][()]
             points = f["points"][()]
-            response_array = f["response_array"][()]
+            all_response_array = f["response_array"][()]
 
         assert detector == self.detector
         assert det == self.det
@@ -316,7 +322,7 @@ class Det_Response_Precalculation(object):
         assert np.array_equal(ebin_out_edge, self.Ebin_out_edge)
 
         self._points = points
-        self._response_array = response_array
+        self._all_response_array = all_response_array
 
     def _save_response_cache(self, cache_file):
         if_dir_containing_file_not_existing_then_make(cache_file)
@@ -336,8 +342,16 @@ class Det_Response_Precalculation(object):
             f.create_dataset("points", data=self.points, compression="lzf")
 
             f.create_dataset(
-                "response_array", data=self.response_array, compression="lzf"
+                "response_array", data=self.all_response_array, compression="lzf"
             )
+
+    def _get_needed_responses(self):
+        """
+        Get the needed reponses for this run
+        """
+        self._response_array = self.all_response_array[:,:,self._echan_mask]
+        # We do not need this anymore
+        del self._all_response_array
 
     def _response(self, x, y, z, DRM):
         """
@@ -404,7 +418,7 @@ class Det_Response_Precalculation(object):
                             # get the response of every point
                             matrix = self._response(
                                 point[0], point[1], point[2], DRM
-                            ).matrix[self._echan_mask]
+                            ).matrix
                             responses.append(matrix.T)
 
                             p.increase()
@@ -415,7 +429,7 @@ class Det_Response_Precalculation(object):
                         # get the response of every point
                         matrix = self._response(
                             point[0], point[1], point[2], DRM
-                        ).matrix[self._echan_mask]
+                        ).matrix
                         responses.append(matrix.T)
 
                 # Collect all results in rank=0 and broadcast the final array to all ranks in the end
@@ -474,7 +488,7 @@ class Det_Response_Precalculation(object):
                                 # get the response of every point
                                 matrix = self._response(
                                     point[0], point[1], point[2], DRM
-                                ).matrix[self._echan_mask]
+                                ).matrix
                                 responses_split.append(matrix.T)
                                 p.increase()
 
@@ -486,7 +500,7 @@ class Det_Response_Precalculation(object):
                             # get the response of every point
                             matrix = self._response(
                                 point[0], point[1], point[2], DRM
-                            ).matrix[self._echan_mask]
+                            ).matrix
                             responses_split.append(matrix.T)
 
                     # Collect all results in rank=0 and broadcast the final array to all ranks in the end
@@ -515,13 +529,13 @@ class Det_Response_Precalculation(object):
             ) as p:
                 for point in self._points:
                     # get the response of every point
-                    matrix = self._response(point[0], point[1], point[2], DRM).matrix[
-                        self._echan_mask
-                    ]
+                    matrix = self._response(point[0],
+                                            point[1],
+                                            point[2], DRM).matrix
                     responses.append(matrix.T)
                     p.increase()
 
-        self._response_array = np.array(responses)
+        self._all_response_array = np.array(responses)
 
     def _fibonacci_sphere(self, samples=1):
         """
