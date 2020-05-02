@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import copy
 
@@ -71,6 +72,14 @@ class DataExporter(object):
             with h5py.File(file_path, "w") as f:
 
                 f.attrs["dates"] = self._data.dates
+
+                if hasattr(self._data, "trigger"):
+                    f.attrs["trigger"] = self._data.trigger
+                else:
+                    f.attrs["trigger"] = None
+
+                f.attrs["data_type"] = self._data.data_type
+
                 f.attrs["detectors"] = self._data.detectors
                 f.attrs["echans"] = self._data.echans
                 f.attrs["param_names"] = self._model.parameter_names
@@ -324,93 +333,146 @@ det_name_lookup = {
     "b1": "BGO_01",
 }
 
+valid_det_names = [
+    "n0",
+    "n1",
+    "n2",
+    "n3",
+    "n4",
+    "n5",
+    "n6",
+    "n7",
+    "n8",
+    "n9",
+    "na",
+    "nb",
+    "b0",
+    "b1",
+]
+
 
 class PHACombiner(object):
     def __init__(self, result_file_list):
-        self._det = None
+        self._detetectors = []
         self._dates = None
+        self._trigger = None
         self._total_time_bins = None
         self._total_time_bin_widths = None
         self._model_counts = None
         self._model_rates = None
         self._stat_err = None
-        self._echan_names = []
+        self._det_echans = []
+        self._echans = []
 
         self._load_result_file(result_file_list)
 
     def _load_result_file(self, result_file_list):
         for i, file in enumerate(result_file_list):
             with h5py.File(file, "r") as f:
-                det = np.array(f["general"]["detector"])
-                dates = np.array(f["general"]["dates"])
-                echans = np.array(f["general"]["echans"])
-                time_bins_start = np.array(f["general"]["time_bins_start"])
-                time_bins_stop = np.array(f["general"]["time_bins_stop"])
+                dates = f.attrs["dates"]
+                trigger = f.attrs["trigger"]
+                detectors = f.attrs["detectors"]
+                echans = f.attrs["echans"]
+                time_bins_start = f["time_bins_start"][()]
+                time_bins_stop = f["time_bins_stop"][()]
 
-                model_counts = np.array(f["general"]["model_counts"])
-                stat_err = np.array(f["general"]["stat_err"])
+                model_counts = f["model_counts"][()]
+                stat_err = f["stat_err"][()]
 
             if i == 0:
-                self._det = det
                 self._dates = dates
+                self._trigger = trigger
                 self._total_time_bins = np.vstack((time_bins_start, time_bins_stop)).T
                 self._total_time_bin_widths = np.diff(self._total_time_bins, axis=1)[
                     :, 0
                 ]
-                self._model_counts = np.zeros((len(time_bins_stop), 8))
-                self._model_rates = np.zeros((len(time_bins_stop), 8))
+                self._model_counts = np.zeros((len(time_bins_stop), 12, 8))
+                self._model_rates = np.zeros((len(time_bins_stop), 12, 8))
                 self._stat_err = np.zeros_like(self._model_counts)
+
             else:
-                assert self._det == det
                 assert self._dates == dates
+                assert self._trigger == trigger
                 assert np.array_equal(
                     self._total_time_bins,
                     np.vstack((time_bins_start, time_bins_stop)).T,
                 )
 
-            for index, echan in enumerate(echans):
-                assert (
-                    echan not in self._echan_names
-                ), "{} already loaded, you have to resolve the conflict by hand".format(
-                    echan
-                )
+            for det_tmp_idx, det in enumerate(detectors):
 
-                self._echan_names.append(echan)
-                self._model_counts[:, echan] = model_counts[:, index]
-                self._model_rates[:, echan] = (
-                    model_counts[:, index] / self._total_time_bin_widths
-                )
-                self._stat_err[:, echan] = stat_err[:, index]
+                if det not in self._detetectors:
+                    self._detetectors.append(det)
 
-    def save_pha(self, path, start_time=None, end_time=None, trigger_time=None):
+                det_idx = valid_det_names.index(det)
 
-        if start_time is not None and end_time is not None:
-            idx_min_time = self._total_time_bins[:, 0] >= start_time
-            idx_max_time = self._total_time_bins[:, 1] <= end_time
-            idx_valid_bin = idx_min_time * idx_max_time
-        else:
-            idx_valid_bin = np.ones_like(self._total_time_bins[:, 0], dtype=bool)
+                for echan_idx, echan in enumerate(echans):
 
-        if trigger_time is None:
-            trigger_time = 0.0
+                    det_echan = "{}_{}".format(det, echan)
+                    if echan not in self._echans:
+                        self._echans.append(echan)
 
-        spectrum = PHAII(
-            instrument_name="GBM_{}".format(det_name_lookup[str(self._det)]),
-            telescope_name="Fermi",
-            tstart=self._total_time_bins[idx_valid_bin][:, 1] - trigger_time,
-            telapse=self._total_time_bin_widths[idx_valid_bin],
-            channel=self._echan_names,
-            rate=self._model_rates[idx_valid_bin],
-            quality=np.zeros_like(self._model_rates[idx_valid_bin], dtype=int),
-            grouping=np.ones_like(self._echan_names),
-            exposure=self._total_time_bin_widths[idx_valid_bin],
-            backscale=np.ones_like(self._model_rates[idx_valid_bin][:, 0]),
-            respfile=None,
-            ancrfile=None,
-            back_file=None,
-            sys_err=None,
-            stat_err=self._stat_err[idx_valid_bin],
-            is_poisson=False,
-        )
+                    assert (
+                        det_echan not in self._det_echan_loaded
+                    ), "{}-{} already loaded, you have to resolve the conflict by hand".format(
+                        det, echan
+                    )
 
-        spectrum.writeto(path)
+                    self._det_echan_loaded.append(det_echan)
+
+                    self._model_counts[:, det_idx, echan] = model_counts[
+                        :, det_tmp_idx, echan_idx
+                    ]
+                    self._model_rates[:, det_idx, echan] = (
+                        model_counts[:, det_tmp_idx, echan_idx]
+                        / self._total_time_bin_widths
+                    )
+                    self._stat_err[:, det_idx, echan] = stat_err[
+                        :, det_tmp_idx, echan_idx
+                    ]
+
+    def save_pha(self, out_put_dir, start_time=None, end_time=None, trigger_time=None):
+
+        for det in self._detectors:
+            det_idx = valid_det_names.index(det)
+
+            if self._trigger is None:
+                file_name = "{}_{}.pha".format("_".join(self._dates), det)
+            else:
+                file_name = "{}_{}".format(self._trigger, det)
+
+            output_file = os.path.join(out_put_dir, file_name)
+
+            if start_time is not None and end_time is not None:
+                idx_min_time = self._total_time_bins[:, 0] >= start_time
+                idx_max_time = self._total_time_bins[:, 1] <= end_time
+                idx_valid_bin = idx_min_time * idx_max_time
+            else:
+                idx_valid_bin = np.ones_like(self._total_time_bins[:, 0], dtype=bool)
+
+            if trigger_time is None:
+                trigger_time = 0.0
+
+            spectrum = PHAII(
+                instrument_name="GBM_{}".format(det_name_lookup[str(self._det)]),
+                telescope_name="Fermi",
+                tstart=self._total_time_bins[idx_valid_bin][:, 1] - trigger_time,
+                telapse=self._total_time_bin_widths[idx_valid_bin],
+                channel=self._echan_names,
+                rate=self._model_rates[idx_valid_bin, det_idx, :],
+                quality=np.zeros_like(
+                    self._model_rates[idx_valid_bin, det_idx, :], dtype=int
+                ),
+                grouping=np.ones_like(self._echans),
+                exposure=self._total_time_bin_widths[idx_valid_bin],
+                backscale=np.ones_like(
+                    self._model_rates[idx_valid_bin, det_idx, :][:, 0]
+                ),
+                respfile=None,
+                ancrfile=None,
+                back_file=None,
+                sys_err=None,
+                stat_err=self._stat_err[idx_valid_bin, det_idx, :],
+                is_poisson=False,
+            )
+
+            spectrum.writeto(output_file)
