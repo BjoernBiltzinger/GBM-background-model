@@ -353,7 +353,7 @@ valid_det_names = [
 
 class PHACombiner(object):
     def __init__(self, result_file_list):
-        self._detetectors = []
+        self._detectors = []
         self._dates = None
         self._trigger = None
         self._total_time_bins = None
@@ -361,7 +361,7 @@ class PHACombiner(object):
         self._model_counts = None
         self._model_rates = None
         self._stat_err = None
-        self._det_echans = []
+        self._det_echan_loaded = []
         self._echans = []
 
         self._load_result_file(result_file_list)
@@ -400,8 +400,8 @@ class PHACombiner(object):
 
             for det_tmp_idx, det in enumerate(detectors):
 
-                if det not in self._detetectors:
-                    self._detetectors.append(det)
+                if det not in self._detectors:
+                    self._detectors.append(det)
 
                 det_idx = valid_det_names.index(det)
 
@@ -436,9 +436,9 @@ class PHACombiner(object):
             det_idx = valid_det_names.index(det)
 
             if self._trigger is None:
-                file_name = "{}_{}.pha".format("_".join(self._dates), det)
+                file_name = "{}_bkg_{}.pha".format("_".join(self._dates), det)
             else:
-                file_name = "{}_{}".format(self._trigger, det)
+                file_name = "{}_bkg_{}.pha".format(self._trigger, det)
 
             output_file = os.path.join(out_put_dir, file_name)
 
@@ -453,11 +453,11 @@ class PHACombiner(object):
                 trigger_time = 0.0
 
             spectrum = PHAII(
-                instrument_name="GBM_{}".format(det_name_lookup[str(self._det)]),
+                instrument_name="GBM_{}".format(det_name_lookup[det]),
                 telescope_name="Fermi",
                 tstart=self._total_time_bins[idx_valid_bin][:, 1] - trigger_time,
                 telapse=self._total_time_bin_widths[idx_valid_bin],
-                channel=self._echan_names,
+                channel=self._echans,
                 rate=self._model_rates[idx_valid_bin, det_idx, :],
                 quality=np.zeros_like(
                     self._model_rates[idx_valid_bin, det_idx, :], dtype=int
