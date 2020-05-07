@@ -75,8 +75,6 @@ class DataExporter(object):
 
                 if hasattr(self._data, "trigger"):
                     f.attrs["trigger"] = self._data.trigger
-                else:
-                    f.attrs["trigger"] = None
 
                 f.attrs["data_type"] = self._data.data_type
 
@@ -352,6 +350,11 @@ valid_det_names = [
 
 
 class PHACombiner(object):
+    """
+    Class to load multiple result files for the same date or the same trigger
+    and combine them in a PHAII background file.
+    """
+
     def __init__(self, result_file_list):
         self._detectors = []
         self._dates = None
@@ -376,6 +379,7 @@ class PHACombiner(object):
                 time_bins_start = f["time_bins_start"][()]
                 time_bins_stop = f["time_bins_stop"][()]
 
+                observed_counts = f["observed_counts"][()]
                 model_counts = f["model_counts"][()]
                 stat_err = f["stat_err"][()]
 
@@ -386,6 +390,7 @@ class PHACombiner(object):
                 self._total_time_bin_widths = np.diff(self._total_time_bins, axis=1)[
                     :, 0
                 ]
+                self._observed_counts = np.zeros((len(time_bins_stop), 12, 8))
                 self._model_counts = np.zeros((len(time_bins_stop), 12, 8))
                 self._model_rates = np.zeros((len(time_bins_stop), 12, 8))
                 self._stat_err = np.zeros_like(self._model_counts)
@@ -417,20 +422,34 @@ class PHACombiner(object):
                         det, echan
                     )
 
-                    self._det_echan_loaded.append(det_echan)
+                    # Combine the observed counts
+                    self._observed_counts[:, det_idx, echan] = observed_counts[
+                        :, det_tmp_idx, echan_idx
+                    ]
 
+                    # Combine the model counts
                     self._model_counts[:, det_idx, echan] = model_counts[
                         :, det_tmp_idx, echan_idx
                     ]
+
+                    # Combine the model rates
                     self._model_rates[:, det_idx, echan] = (
                         model_counts[:, det_tmp_idx, echan_idx]
                         / self._total_time_bin_widths
                     )
+
+                    # Combine the statistical error of the fit
                     self._stat_err[:, det_idx, echan] = stat_err[
                         :, det_tmp_idx, echan_idx
                     ]
 
+                    # Append the det_echan touple to avoid overloading
+                    self._det_echan_loaded.append(det_echan)
+
     def save_pha(self, out_put_dir, start_time=None, end_time=None, trigger_time=None):
+        """
+        Creates saves a background file for each detector
+        """
 
         for det in self._detectors:
             det_idx = valid_det_names.index(det)
@@ -452,6 +471,14 @@ class PHACombiner(object):
             if trigger_time is None:
                 trigger_time = 0.0
 
+            # Calculate the dead time of the detector:
+            # Each event in the echans 0-6 gives a dead time of 2.6 μs
+            # Each event in the over flow channel 7 gives a dead time of 10 μs
+            dead_time = (
+                np.sum(self._observed_counts[:, det_idx, 0:7], axis=1) * 2.6 * 1e-6
+                + self._observed_counts[:, det_idx, 7] * 1e-5
+            )
+
             spectrum = PHAII(
                 instrument_name="GBM_{}".format(det_name_lookup[det]),
                 telescope_name="Fermi",
@@ -463,7 +490,7 @@ class PHACombiner(object):
                     self._model_rates[idx_valid_bin, det_idx, :], dtype=int
                 ),
                 grouping=np.ones_like(self._echans),
-                exposure=self._total_time_bin_widths[idx_valid_bin],
+                exposure=self._total_time_bin_widths[idx_valid_bin] - dead_time[idx_valid_bin],
                 backscale=np.ones_like(
                     self._model_rates[idx_valid_bin, det_idx, :][:, 0]
                 ),
