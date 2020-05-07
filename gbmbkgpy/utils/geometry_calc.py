@@ -100,7 +100,7 @@ class Det_Geometry(object):
 
         # Save everything
         self._data = data
-        self.mean_time = data.mean_time
+        self._mean_time = data.mean_time
         self._det = det
         self._n_bins_to_calculate_per_day = n_bins_to_calculate_per_day
         self._day_start_times = data.day_start_times
@@ -110,31 +110,29 @@ class Det_Geometry(object):
         # Number of bins to skip, to equally distribute the n_bins_to_calculate times over the day
         n_skip = int(
             np.ceil(
-                len(self.mean_time) / (self._n_bins_to_calculate_per_day * len(dates))
+                len(self._mean_time) / (self._n_bins_to_calculate_per_day * len(dates))
             )
         )
 
         # Create the lists of the times where to calculate the geometry
-        list_times_to_calculate = self.mean_time[::n_skip]
+        list_times_to_calculate = self._mean_time[::n_skip]
 
         # Add start and stop time of days to times for which the geometry should be calculated (to ensure a valid
         # interpolation for all used times
         # self._list_times_to_calculate = self._add_start_stop(list_times_to_calculate, self._day_start_times,
         #                                                      self._day_stop_times)
 
-        self._list_times_to_calculate = list_times_to_calculate
-
         if self._data.data_type == "trigdat":
             self._pos_hist = np.array([self._data.trigdata_path])
 
             # Dirty fix because the position data in trigdat only interpolates up to the beginning of the last time bin
-            self._list_times_to_calculate[-2] = self._data.time_bins[-2, 1]
-            self._list_times_to_calculate[-1] = self._data.time_bins[-1, 0]
+            list_times_to_calculate[-2] = self._data.time_bins[-2, 1]
+            list_times_to_calculate[-1] = self._data.time_bins[-1, 0]
 
             # GBM Geometry handles trigdat times in reference to the trigger time
             # we have to account for this before and after the position interpolation
-            self._list_times_to_calculate = (
-                self._list_times_to_calculate - self._data.trigtime
+            list_times_to_calculate = (
+                list_times_to_calculate - self._data.trigtime
             )
             self._day_start_times = self._day_start_times - self._data.trigtime
             self._day_stop_times = self._day_stop_times - self._data.trigtime
@@ -165,14 +163,18 @@ class Det_Geometry(object):
 
             # Add start and stop time of days to times for which the geometry should be calculated (to ensure a valid
             # interpolation for all used times
-            self._list_times_to_calculate = self._add_start_stop(
+            list_times_to_calculate = self._add_start_stop(
                 list_times_to_calculate, self._day_start_times, self._day_stop_times
             )
 
             # Add the boundaries of the position interpolator to ensure valid interpolation of all time_bins
-            self._list_times_to_calculate = self._add_interpolation_boundaries(
-                self._list_times_to_calculate
+            list_times_to_calculate = self._add_interpolation_boundaries(
+                list_times_to_calculate
             )
+
+
+        # Remove possible dublicates, these would break the numba interpolation
+        self._list_times_to_calculate = np.unique(list_times_to_calculate)
 
         # Create a mask with all entries False to later un-mask the valid times
         self._interpolation_mask = np.zeros(
@@ -385,12 +387,12 @@ class Det_Geometry(object):
             (self._list_times_to_calculate <= self._day_stop_times),
         )
 
+
         # Mask the bins that are outside of the interpolation times
         interp_range_mask = np.logical_and(
             (self._list_times_to_calculate >= min(position_interpolator.time)),
             (self._list_times_to_calculate <= max(position_interpolator.time)),
         )
-
         masktot = np.logical_and(day_idx, interp_range_mask)
 
         self._interpolation_mask[masktot] = True
@@ -550,18 +552,17 @@ class Det_Geometry(object):
             (self._list_times_to_calculate >= self._day_start_times),
             (self._list_times_to_calculate <= self._day_stop_times),
         )
-
         # Mask the bins that are outside of the interpolation times
         interp_range_mask = np.logical_and(
             (self._list_times_to_calculate >= min(position_interpolator.time)),
             (self._list_times_to_calculate <= max(position_interpolator.time)),
         )
-
         masktot = np.logical_and(day_idx, interp_range_mask)
 
         self._interpolation_mask[masktot] = True
 
         list_times_to_calculate = self._list_times_to_calculate[masktot]
+
 
         # Init all lists
         sun_angle = []
