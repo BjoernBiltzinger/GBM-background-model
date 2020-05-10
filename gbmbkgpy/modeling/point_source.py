@@ -545,24 +545,24 @@ class PointSrc_free(object):
         return self._geom[self._detectors[0]].time
 
     @property
-    def ps_responses(self):
+    def ps_effective_response(self):
         """
         Returns an array with the poit source response for the times for which the geometry
         was calculated.
         """
-        return self._ps_responses
+        return self._ps_response_sums
 
     def _calc_det_responses(self):
 
-        ps_responses = {}
+        ps_response_sums = {}
 
         for det_idx, det in enumerate(self._detectors):
 
-            ps_responses[det] = self._response_sum_one_det(
+            ps_response_sums[det] = self._response_sum_one_det(
                 det_response=self._rsp[det], det_geometry=self._geom[det]
             )
 
-        self._ps_responses = ps_responses
+        self._ps_response_sums = ps_response_sums
 
     def _response_sum_one_det(self, det_response, det_geometry):
         """
