@@ -168,18 +168,21 @@ stop_fit = datetime.now()
 
 start_export = datetime.now()
 
-if config["export"]["save_unbinned"] and config["general"]["min_bin_width"] > 1e-99:
+if config["export"]["save_unbinned"] and config["general"]["min_bin_width"] > 1e-9:
 
     # Create copy of config dictionary
     config_export = config
 
-    config_export["general"]["min_bin_width"] = 1e-99
+    config_export["general"]["min_bin_width"] = 1e-9
 
     model_generator = model_generator_class()
 
     model_generator.from_config_dict(config_export)
 
     model_generator.likelihood.set_free_parameters(minimizer.best_fit_values)
+
+    # Wait for all ranks
+    comm.barrier()
 
 data_exporter = DataExporter(
     data=model_generator.data,
