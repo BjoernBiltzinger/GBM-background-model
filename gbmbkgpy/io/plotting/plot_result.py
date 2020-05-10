@@ -465,6 +465,9 @@ class ResultPlotGenerator(object):
                 if not self.show_all_sources:
                     continue
 
+            # Replace underscores by - for latex:
+            label = label.replace('_', '-')
+
             if rebin:
                 rebinned_source_counts = this_rebinner.rebin(
                     self._result_dict["sources"][key][:, det_idx, echan_idx]

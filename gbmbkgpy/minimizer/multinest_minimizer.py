@@ -325,6 +325,9 @@ class MultiNestFit(object):
         self._best_fit_values = best_fit_values
         self._minimum = minimum
 
+        print('The MAP of the model parameters:')
+        print(dict(zip(self._param_names, best_fit_values)))
+
         return best_fit_values, minimum
 
     def comp_covariance_matrix(self):

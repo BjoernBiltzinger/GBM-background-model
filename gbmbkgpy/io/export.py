@@ -122,7 +122,6 @@ class DataExporter(object):
         """
 
         source_list = []
-        color_list = ["b", "g", "c", "m", "y", "k", "navy", "darkgreen", "cyan"]
         i_index = 0
 
         for i, source_name in enumerate(self._model.continuum_sources):
@@ -131,7 +130,7 @@ class DataExporter(object):
             )
             if np.sum(data) != 0:
                 source_list.append(
-                    {"label": source_name, "data": data, "color": color_list[i_index]}
+                    {"label": source_name, "data": data}
                 )
                 i_index += 1
 
@@ -140,7 +139,7 @@ class DataExporter(object):
                 i, self._data.time_bins, self._saa_mask
             )
             source_list.append(
-                {"label": source_name, "data": data, "color": color_list[i_index]}
+                {"label": source_name, "data": data}
             )
             i_index += 1
 
@@ -149,14 +148,14 @@ class DataExporter(object):
                 i, self._data.time_bins, self._saa_mask
             )
             source_list.append(
-                {"label": source_name, "data": data, "color": color_list[i_index]}
+                {"label": source_name, "data": data}
             )
             i_index += 1
 
         saa_data = self._model.get_saa_counts(self._data.time_bins, self._saa_mask)
         if np.sum(saa_data) != 0:
             source_list.append(
-                {"label": "SAA_decays", "data": saa_data, "color": color_list[i_index]}
+                {"label": "SAA_decays", "data": saa_data}
             )
             i_index += 1
 
@@ -197,14 +196,16 @@ class DataExporter(object):
         # For these N_samples random samples calculate the corresponding rates for all time bins
         # with the parameters of this sample
         if using_mpi:
+
             points_per_rank = float(N_samples) / float(size)
             points_lower_index = int(np.floor(points_per_rank * rank))
             points_upper_index = int(np.floor(points_per_rank * (rank + 1)))
+
             if rank == 0:
                 with progress_bar(
                     len(
                         mn_posteriour_samples[random_mask][
-                            points_lower_index:points_upper_index
+                        points_lower_index:points_upper_index
                         ]
                     ),
                     title="Calculating PPC",

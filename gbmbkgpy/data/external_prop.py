@@ -120,9 +120,9 @@ class ExternalProps(object):
                             name=row[1],
                             ra=row[2],
                             dec=row[3],
-                            response_object=det_responses,
-                            geometry_object=det_geometries,
-                            echan_list=echans,
+                            det_responses=det_responses,
+                            det_geometries=det_geometries,
+                            echans=echans,
                         )
 
                     else:
