@@ -401,22 +401,27 @@ class MultiNestFit(object):
 
         if create_plot:
 
-            chain = np.loadtxt(
-                os.path.join(self._output_dir, "post_equal_weights.dat"), ndmin=2
-            )
-
-            c2 = ChainConsumer()
-
             safe_param_names = [
                 name.replace("_", " ") for name in list(self.parameters.keys())
             ]
 
-            c2.add_chain(chain[:, :-1], parameters=safe_param_names).configure(
-                plot_hists=False,
-                contour_labels="sigma",
-                colors="#cd5c5c",
-                flip=False,
-                max_ticks=3,
-            )
+            if len(safe_param_names) > 1:
 
-            c2.plotter.plot(filename=os.path.join(self._output_dir, "corner.pdf"))
+                chain = np.loadtxt(
+                    os.path.join(self._output_dir, "post_equal_weights.dat"), ndmin=2
+                )
+
+                c2 = ChainConsumer()
+
+                c2.add_chain(chain[:, :-1], parameters=safe_param_names).configure(
+                    plot_hists=False,
+                    contour_labels="sigma",
+                    colors="#cd5c5c",
+                    flip=False,
+                    max_ticks=3,
+                )
+
+                c2.plotter.plot(filename=os.path.join(self._output_dir, "corner.pdf"))
+
+            else:
+                print('Your model only has one paramter, we cannot make a cornerplot for this.')
