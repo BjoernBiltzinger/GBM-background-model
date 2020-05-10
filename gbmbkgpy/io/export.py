@@ -228,12 +228,33 @@ class DataExporter(object):
                 ):
                     synth_counts = self.get_synthetic_data(sample)
                     counts.append(synth_counts)
-            counts = np.array(counts)
-            counts_g = comm.gather(counts, root=0)
 
-            if rank == 0:
-                counts_g = np.concatenate(counts_g, axis=0)
-            counts = comm.bcast(counts_g, root=0)
+            # Now combine and brodcast the results in small packages,
+            # because mpi can't handle arrays that big
+
+            counts_array = None
+
+            for cnts in counts:
+
+                counts_g = comm.gather(cnts, root=0)
+
+                if rank == 0:
+
+                    counts_g = np.array(counts_g)
+
+                    if counts_array is None:
+
+                        counts_array = counts_g
+
+                    else:
+
+                        counts_array = np.append(
+                            counts_array,
+                            counts_g,
+                            axis=0
+                        )
+
+
         else:
             with progress_bar(
                 len(mn_posteriour_samples[random_mask]), title="Calculation PPC",
