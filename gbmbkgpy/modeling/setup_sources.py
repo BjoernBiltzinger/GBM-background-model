@@ -60,6 +60,7 @@ def Setup(
     fix_earth=False,
     fix_cgb=False,
     nr_saa_decays=1,
+    saa_decay_per_detector=False,
     decay_at_day_start=True,
     bgo_cr_approximation=False,
     use_numba=False,
@@ -112,7 +113,7 @@ def Setup(
         if use_saa:
             total_sources.extend(
                 setup_SAA(
-                    data, saa_object, echan, index, nr_saa_decays, decay_at_day_start
+                    data, saa_object, echan, index, nr_saa_decays, decay_at_day_start, saa_decay_per_detector
                 )
             )
 
@@ -174,7 +175,13 @@ def Setup(
     return total_sources
 
 
-def setup_SAA(data, saa_object, echan, index, nr_decays=1, decay_at_day_start=True):
+def setup_SAA(data,
+              saa_object,
+              echan,
+              index,
+              nr_decays=1,
+              decay_at_day_start=True,
+              decay_per_detector=False):
     """
     Setup for SAA sources
     :param decay_at_day_start:
@@ -200,21 +207,56 @@ def setup_SAA(data, saa_object, echan, index, nr_decays=1, decay_at_day_start=Tr
     start_times = np.append(np.array(day_start), saa_object.saa_exit_times)
 
     for time in start_times:
-        saa_dec = SAA_Decay(str(saa_n), str(echan))
 
-        saa_dec.set_saa_exit_time(np.array([time]))
+        if decay_per_detector:
 
-        saa_dec.set_time_bins(data.time_bins)
+            for det_idx, det in enumerate(data.detectors):
 
-        saa_dec.set_nr_detectors(len(data._detectors))
+                saa_dec = SAA_Decay(
+                    saa_number=str(saa_n),
+                    echan=str(echan),
+                    detector=det
+                )
 
-        # precalculation for later evaluation
-        saa_dec.precalulate_time_bins_integral()
+                saa_dec.set_saa_exit_time(np.array([time]))
 
-        SAA_Decay_list.append(
-            SAASource("saa_{:d} echan_{}".format(saa_n, echan), saa_dec, index)
-        )
-        saa_n += 1
+                saa_dec.set_time_bins(data.time_bins)
+
+                saa_dec.set_nr_detectors(len(data._detectors))
+
+                saa_dec.set_det_idx(det_idx)
+
+                # precalculation for later evaluation
+                saa_dec.precalulate_time_bins_integral()
+
+                SAA_Decay_list.append(
+                    SAASource("saa_{:d} det_{} echan_{}".format(saa_n, det, echan), saa_dec, index)
+                )
+
+            saa_n += 1
+
+        else:
+
+            saa_dec = SAA_Decay(
+                saa_number=str(saa_n),
+                echan=str(echan),
+                detector="all"
+            )
+
+            saa_dec.set_saa_exit_time(np.array([time]))
+
+            saa_dec.set_time_bins(data.time_bins)
+
+            saa_dec.set_nr_detectors(len(data._detectors))
+
+            # precalculation for later evaluation
+            saa_dec.precalulate_time_bins_integral()
+
+            SAA_Decay_list.append(
+                SAASource("saa_{:d} echan_{}".format(saa_n, echan), saa_dec, index)
+            )
+            saa_n += 1
+
     return SAA_Decay_list
 
 

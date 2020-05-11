@@ -50,9 +50,9 @@ class Solar_Flare(Function):
 
 
 class SAA_Decay(Function):
-    def __init__(self, saa_number, echan):
+    def __init__(self, saa_number, echan, detector="all"):
         A = Parameter(
-            "norm_saa-{}_echan-{}".format(saa_number, echan),
+            "norm_saa-{}_det-{}_echan-{}".format(saa_number, detector, echan),
             initial_value=1.0,
             min_value=0,
             max_value=None,
@@ -61,13 +61,16 @@ class SAA_Decay(Function):
             prior="log_uniform",
         )
         saa_decay_constant = Parameter(
-            "decay_saa-{}_echan-{}".format(saa_number, echan),
+            "decay_saa-{}_det-{}_echan-{}".format(saa_number, detector, echan),
             initial_value=0.01,
             min_value=0.0,
             max_value=1.0,
             delta=0.1,
             prior="log_uniform",
         )
+
+        if detector == "all":
+            self._det_idx = None
 
         super(SAA_Decay, self).__init__(A, saa_decay_constant)
 
@@ -79,6 +82,9 @@ class SAA_Decay(Function):
 
     def set_nr_detectors(self, nr_detectors):
         self._nr_detectors = nr_detectors
+
+    def set_det_idx(self, det_idx):
+        self._det_idx = det_idx
 
     def precalulate_time_bins_integral(self):
         """
@@ -113,7 +119,20 @@ class SAA_Decay(Function):
             "-A / saa_decay_constant*(exp((t0-tstop)*abs(saa_decay_constant)) - exp((t0 - tstart)*abs(saa_decay_constant)))"
         )
 
-        return np.tile(self._out, (self._nr_detectors, 1)).T
+        if self._det_idx is None:
+
+            return np.tile(self._out, (self._nr_detectors, 1)).T
+
+        else:
+
+            out_matrix = np.zeros((
+                len(self._time_bins[:, 0]),
+                self._nr_detectors
+            ))
+
+            out_matrix[:, self._det_idx] = self._out
+
+            return out_matrix
 
 
 class GRB(Function):
