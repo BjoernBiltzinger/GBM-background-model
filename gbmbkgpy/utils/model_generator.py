@@ -216,6 +216,7 @@ class BackgroundModelGenerator(object):
             use_sun=config["setup"]["use_sun"],
             nr_saa_decays=config["saa"]["nr_decays"],
             decay_at_day_start=config["saa"]["decay_at_day_start"],
+            saa_decay_per_detector=config["saa"]["decay_per_detector"],
             bgo_cr_approximation=config["setup"]["bgo_cr_approximation"],
             use_numba=config["fit"].get("use_numba", False),
         )
@@ -249,14 +250,30 @@ class BackgroundModelGenerator(object):
                     offset = 0
 
                 for saa_nr in range(self._saa_calc.num_saa + offset):
-                    parameter_bounds["norm_saa-{}_echan-{}".format(saa_nr, e)] = {
-                        "bounds": config["bounds"]["saa_bound"][0],
-                        "gaussian_parameter": config["gaussian_bounds"]["saa_bound"][0],
-                    }
-                    parameter_bounds["decay_saa-{}_echan-{}".format(saa_nr, e)] = {
-                        "bounds": config["bounds"]["saa_bound"][1],
-                        "gaussian_parameter": config["gaussian_bounds"]["saa_bound"][1],
-                    }
+
+                    if config["saa"]["decay_per_detector"]:
+
+                        for det in self._data.detectors:
+
+                            parameter_bounds["norm_saa-{}_det-{}_echan-{}".format(saa_nr, det, e)] = {
+                                "bounds": config["bounds"]["saa_bound"][0],
+                                "gaussian_parameter": config["gaussian_bounds"]["saa_bound"][0],
+                            }
+                            parameter_bounds["decay_saa-{}_det-{}_echan-{}".format(saa_nr, det, e)] = {
+                                "bounds": config["bounds"]["saa_bound"][1],
+                                "gaussian_parameter": config["gaussian_bounds"]["saa_bound"][1],
+                            }
+
+                    else:
+
+                        parameter_bounds["norm_saa-{}_det-all_echan-{}".format(saa_nr, e)] = {
+                            "bounds": config["bounds"]["saa_bound"][0],
+                            "gaussian_parameter": config["gaussian_bounds"]["saa_bound"][0],
+                        }
+                        parameter_bounds["decay_saa-{}_det-all_echan-{}".format(saa_nr, e)] = {
+                            "bounds": config["bounds"]["saa_bound"][1],
+                            "gaussian_parameter": config["gaussian_bounds"]["saa_bound"][1],
+                        }
 
             if config["setup"]["use_constant"]:
                 parameter_bounds["constant_echan-{}".format(e)] = {
