@@ -56,6 +56,7 @@ class Response_Precalculation(object):
         Ebin_edge_incoming=None,
         data_type="ctime",
         trigger=None,
+        simulation=False
     ):
         self._echans = echans
 
@@ -63,7 +64,7 @@ class Response_Precalculation(object):
 
         for det in detectors:
             responses[det] = Det_Response_Precalculation(
-                det, dates, echans, Ngrid, Ebin_edge_incoming, data_type, trigger
+                det, dates, echans, Ngrid, Ebin_edge_incoming, data_type, trigger, simulation
             )
 
         self._responses = responses
@@ -93,6 +94,7 @@ class Det_Response_Precalculation(object):
         Ebin_edge_incoming=None,
         data_type="ctime",
         trigger=None,
+        simulation=False,
     ):
         """
         initialize the grid around the detector and set the values for the Ebins of incoming and detected photons
@@ -231,9 +233,17 @@ class Det_Response_Precalculation(object):
         else:
             datafile_name = "glg_{0}_{1}_{2}_v00.pha".format(data_type, det, dates[0])
 
-            datafile_path = os.path.join(
-                get_path_of_external_data_dir(), data_type, dates[0], datafile_name
-            )
+            if simulation:
+
+                datafile_path = os.path.join(
+                    get_path_of_external_data_dir(), "simulation", data_type, dates[0], datafile_name
+                )
+
+            else:
+
+                datafile_path = os.path.join(
+                    get_path_of_external_data_dir(), data_type, dates[0], datafile_name
+                )
 
             with fits.open(datafile_path) as f:
                 edge_start = f["EBOUNDS"].data["E_MIN"]
