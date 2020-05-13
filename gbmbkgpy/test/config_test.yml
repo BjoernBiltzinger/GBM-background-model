@@ -9,8 +9,8 @@ general:
   detectors:   ['n0']
   data_type:  'ctime'
   echans:     [3]
-  min_bin_width: 40
-  test: true
+  min_bin_width: 30
+  simulation: true
 
 ################# Input for response precalculation [how many grid poits?] ##########################
 response:

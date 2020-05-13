@@ -91,7 +91,7 @@ class BackgroundModelGenerator(object):
             detectors=config["general"]["detectors"],
             data_type=config["general"]["data_type"],
             echans=config["general"]["echans"],
-            test=config["general"].get("test", False),
+            simulation=config["general"].get("simulation", False),
         )
         print_progress("Done")
 
@@ -148,6 +148,7 @@ class BackgroundModelGenerator(object):
             echans=config["general"]["echans"],
             Ngrid=config["response"]["Ngrid"],
             data_type=config["general"]["data_type"],
+            simulation=config["general"].get("simulation", False)
         )
 
         print_progress("Done")

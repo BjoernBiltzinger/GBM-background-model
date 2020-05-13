@@ -51,7 +51,7 @@ valid_det_names = [
 
 
 class Data(object):
-    def __init__(self, dates, detectors, data_type, echans, test=False):
+    def __init__(self, dates, detectors, data_type, echans, simulation=False):
         """
         Initalize the ContinousData Class, which contains the information about the time bins 
         and counts of the data.
@@ -94,7 +94,7 @@ class Data(object):
         self._detectors = sorted(detectors)
         self._dates = sorted(dates)
         self._echans = sorted(echans)
-        self._test = test
+        self._simulation = simulation
 
         if self._data_type == "ctime":
             self._echan_mask = np.zeros(8, dtype=bool)
@@ -350,15 +350,21 @@ class Data(object):
         :param day:
         :return:
         """
-        version = "v00" if not self._test else "test"
+        version = "v00"
 
         # Download data-file and poshist file if not existing:
         datafile_name = "glg_{0}_{1}_{2}_{3}.pha".format(
             self._data_type, det, day, version
         )
-        datafile_path = os.path.join(
-            get_path_of_external_data_dir(), self._data_type, day, datafile_name
-        )
+
+        if self._simulation:
+            datafile_path = os.path.join(
+                get_path_of_external_data_dir(), "simulation", self._data_type, day, datafile_name
+            )
+        else:
+            datafile_path = os.path.join(
+                get_path_of_external_data_dir(), self._data_type, day, datafile_name
+            )
 
         poshistfile_name = "glg_{0}_all_{1}_v00.fit".format("poshist", day)
         poshistfile_path = os.path.join(
