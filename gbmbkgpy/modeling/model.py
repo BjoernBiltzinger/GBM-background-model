@@ -591,9 +591,6 @@ class Model(object):
                 time_bins=time_bins, bin_mask=bin_mask
             )
 
-        # for transient in self._transient_sources.values():
-        #     total_counts += transient.get_counts(time_bins, echan, bin_mask)
-
         # The SAA sections will be set to zero if a saa_mask is provided
         if saa_mask is not None:
             assert len(time_bins) == len(
