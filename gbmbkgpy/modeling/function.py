@@ -455,7 +455,7 @@ class GlobalFunctionSpectrumFit(Function):
         self._spec = spectrum
         if self._spec == "bpl":
             C = Parameter(
-                coefficient_name + "_C",
+                coefficient_name + "_norm",
                 initial_value=1.0,
                 min_value=0,
                 max_value=None,
@@ -502,7 +502,7 @@ class GlobalFunctionSpectrumFit(Function):
         elif self._spec == "pl":
 
             C = Parameter(
-                coefficient_name + "_C",
+                coefficient_name + "_norm",
                 initial_value=1.0,
                 min_value=0,
                 max_value=None,
@@ -512,7 +512,7 @@ class GlobalFunctionSpectrumFit(Function):
             )
             index = Parameter(
                 coefficient_name + "_index",
-                initial_value=-1.0,
+                initial_value=1.0,
                 min_value=0,
                 max_value=3,
                 delta=0.1,

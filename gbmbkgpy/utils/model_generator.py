@@ -289,7 +289,7 @@ class BackgroundModelGenerator(object):
                 }
 
         if config["setup"]["use_sun"]:
-            parameter_bounds["sun_C"] = {
+            parameter_bounds["sun_norm"] = {
                 "bounds": config["bounds"]["sun_bound"][0],
                 "gaussian_parameter": config["gaussian_bounds"]["sun_bound"][0],
             }
@@ -309,7 +309,7 @@ class BackgroundModelGenerator(object):
                     ],
                 }
             else:
-                parameter_bounds["ps_{}_spectrum_fitted_C".format(ps)] = {
+                parameter_bounds["ps_{}_spectrum_fitted_norm".format(ps)] = {
                     "bounds": config["bounds"]["ps_free_bound"][0],
                     "gaussian_parameter": config["gaussian_bounds"]["ps_free_bound"][0],
                 }
@@ -328,7 +328,7 @@ class BackgroundModelGenerator(object):
                     ][0],
                 }
             else:
-                parameter_bounds["earth_albedo_spectrum_fitted_C"] = {
+                parameter_bounds["earth_albedo_spectrum_fitted_norm"] = {
                     "bounds": config["bounds"]["earth_free_bound"][0],
                     "gaussian_parameter": config["gaussian_bounds"]["earth_free_bound"][
                         0
@@ -363,7 +363,7 @@ class BackgroundModelGenerator(object):
                     ],
                 }
             else:
-                parameter_bounds["CGB_spectrum_fitted_C"] = {
+                parameter_bounds["CGB_spectrum_fitted_norm"] = {
                     "bounds": config["bounds"]["cgb_free_bound"][0],
                     "gaussian_parameter": config["gaussian_bounds"]["cgb_free_bound"][
                         0
