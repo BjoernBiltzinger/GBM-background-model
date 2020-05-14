@@ -23,8 +23,11 @@ import pytest
 def test_model_builder():
     path_of_tests = os.path.dirname(os.path.abspath(__file__))
 
-    data_path = os.path.join(get_path_of_external_data_dir(), "ctime", "150126")
-    file_name = "glg_ctime_n0_150126_test.pha"
+    data_path = os.path.join(get_path_of_external_data_dir(), "simulation", "ctime", "150126")
+    file_name = "glg_ctime_n0_150126_v00.pha"
+
+    if not os.path.exists(data_path):
+        os.makedirs(data_path)
 
     shutil.copy(
         os.path.join(path_of_tests, "datasets", file_name),
