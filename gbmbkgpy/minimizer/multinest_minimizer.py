@@ -227,22 +227,28 @@ class MultiNestFit(object):
             # Compute the difference in order of magnitudes between minimum and maximum
 
             if prior_type is not None:
+
                 if prior_type == "uniform":
                     self._param_priors[parameter_name] = Uniform_prior(
                         lower_bound=min_value, upper_bound=max_value
                     )
+
                 elif prior_type == "log_uniform":
                     self._param_priors[parameter_name] = Log_uniform_prior(
                         lower_bound=min_value, upper_bound=max_value
                     )
+
                 elif prior_type == "gaussian":
                     self._param_priors[parameter_name] = Gaussian(mu=mu, sigma=sigma)
+
                 elif prior_type == "truncated_gaussian":
                     self._param_priors[parameter_name] = Truncated_gaussian(
                         mu=mu, sigma=sigma, lower_bound=min_value, upper_bound=max_value
                     )
+
                 elif prior_type == "log_normal":
                     self._param_priors[parameter_name] = Log_normal(mu=mu, sigma=sigma)
+
                 else:
                     raise TypeError(
                         "Unknown prior! Please choose uniform or log_uniform prior"
