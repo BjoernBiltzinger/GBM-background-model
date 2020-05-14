@@ -138,7 +138,7 @@ class Data(object):
                     self._counts[:, det_idx, echan_idx]
                 )[0]
 
-        self._rebinned_counts = rebinned_counts.astype(np.uint16)
+        self._rebinned_counts = rebinned_counts.astype(np.int64)
 
         # Initialize the valid bin mask to all True
         self._valid_rebinned_time_mask = np.ones(
@@ -433,6 +433,9 @@ class Data(object):
         day_met = GBMTime(day_at).met
         # Get time bins
         time_bins = np.vstack((bin_start, bin_stop)).T
+
+        # Convert to numpy int64
+        counts = counts.astype(np.int64)
 
         # Only keep the count informations we need for the echan's we want to fit
         counts = counts.T[self._echan_mask].T
