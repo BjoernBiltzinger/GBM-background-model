@@ -181,11 +181,11 @@ class DataExporter(object):
         counts = []
 
         # Make a mask with 500 random True to choose N_samples random samples,
-        # if multinest returns less then 500 posterior samples use next smaller *00
+        # if multinest returns less then 500 posterior samples the use the maximal possible number
         N_samples = (
             500
             if len(mn_posteriour_samples) > 500
-            else int(len(mn_posteriour_samples) / 100) * 100
+            else len(mn_posteriour_samples)
         )
 
         random_mask = np.zeros(len(mn_posteriour_samples), dtype=int)
@@ -231,10 +231,9 @@ class DataExporter(object):
 
             # Now combine and brodcast the results in small packages,
             # because mpi can't handle arrays that big
+            ppc_counts = None
 
-            counts_array = None
-
-            for cnts in counts:
+            for i, cnts in enumerate(counts):
 
                 counts_g = comm.gather(cnts, root=0)
 
@@ -242,14 +241,14 @@ class DataExporter(object):
 
                     counts_g = np.array(counts_g)
 
-                    if counts_array is None:
+                    if ppc_counts is None:
 
-                        counts_array = counts_g
+                        ppc_counts = counts_g
 
                     else:
 
-                        counts_array = np.append(
-                            counts_array,
+                        ppc_counts = np.append(
+                            ppc_counts,
                             counts_g,
                             axis=0
                         )
@@ -266,8 +265,8 @@ class DataExporter(object):
 
                     p.increase()
 
-            counts = np.array(counts)
-        return counts
+            ppc_counts = np.array(counts)
+        return ppc_counts
 
     def get_synthetic_data(self, synth_parameters, synth_model=None):
         """
