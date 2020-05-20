@@ -132,53 +132,57 @@ class Geometry(object):
         for day_number, day in enumerate(dates):
             if using_mpi:
                 (
-                    sun_positions,
                     time,
-                    earth_az,
-                    earth_zen,
-                    earth_position,
-                    earth_cartesian,
-                    quaternion,
                     sc_pos,
+                    quaternion,
                     sc_altitude,
+                    earth_positions,
+                    earth_az_zen,
+                    earth_cartesian,
+                    sun_positions,
+                    sun_az_zen,
+                    sun_cartesian,
                     times_lower_bound_index,
                     times_upper_bound_index,
                 ) = self._one_day_setup_geometery_mpi(day_number)
             else:
                 (
-                    sun_positions,
                     time,
-                    earth_az,
-                    earth_zen,
-                    earth_position,
-                    earth_cartesian,
-                    quaternion,
                     sc_pos,
+                    quaternion,
                     sc_altitude,
+                    earth_positions,
+                    earth_az_zen,
+                    earth_cartesian,
+                    sun_positions,
+                    sun_az_zen,
+                    sun_cartesian,
                 ) = self._one_day_setup_geometery_no_mpi(day_number)
             if day_number == 0:
-                self._sun_positions = [sun_positions]
                 self._time = [time]
-                self._earth_az = [earth_az]
-                self._earth_zen = [earth_zen]
-                self._earth_position = [earth_position]
-                self._earth_cartesian = [earth_cartesian]
-                self._quaternion = [quaternion]
                 self._sc_pos = [sc_pos]
+                self._quaternion = [quaternion]
                 self._sc_altitude = [sc_altitude]
+                self._earth_positions = [earth_positions]
+                self._earth_az_zen = [earth_az_zen]
+                self._earth_cartesian = [earth_cartesian]
+                self._sun_positions = [sun_positions]
+                self._sun_az_zen = [sun_az_zen]
+                self._sun_cartesian = [sun_cartesian]
                 if using_mpi:
                     self._times_lower_bound_index = np.array([times_lower_bound_index])
                     self._times_upper_bound_index = np.array([times_upper_bound_index])
             else:
-                self._sun_positions.append(sun_positions)
                 self._time.append(time)
-                self._earth_az.append(earth_az)
-                self._earth_zen.append(earth_zen)
-                self._earth_position.append(earth_position)
-                self._earth_cartesian.append(earth_cartesian)
-                self._quaternion.append(quaternion)
                 self._sc_pos.append(sc_pos)
+                self._quaternion.append(quaternion)
                 self._sc_altitude.append(sc_altitude)
+                self._earth_positions.append(earth_positions)
+                self._earth_az_zen.append(earth_az_zen)
+                self._earth_cartesian.append(earth_cartesian)
+                self._sun_positions.append(sun_positions)
+                self._sun_az_zen.append(sun_az_zen)
+                self._sun_cartesian.append(sun_cartesian)
                 if using_mpi:
                     self._times_lower_bound_index = np.append(
                         self._times_lower_bound_index, times_lower_bound_index
@@ -187,14 +191,15 @@ class Geometry(object):
                         self._times_upper_bound_index, times_upper_bound_index
                     )
         self._time = np.concatenate(self._time, axis=0)
-        self._sun_positions = np.concatenate(self._sun_positions, axis=0)
-        self._earth_az = np.concatenate(self._earth_az, axis=0)
-        self._earth_zen = np.concatenate(self._earth_zen, axis=0)
-        self._earth_position = np.concatenate(self._earth_position, axis=0)
-        self._earth_cartesian = np.concatenate(self._earth_cartesian, axis=0)
-        self._quaternion = np.concatenate(self._quaternion, axis=0)
         self._sc_pos = np.concatenate(self._sc_pos, axis=0)
+        self._quaternion = np.concatenate(self._quaternion, axis=0)
         self._sc_altitude = np.concatenate(self._sc_altitude, axis=0)
+        self._earth_positions = np.concatenate(self._earth_positions, axis=0)
+        self._earth_az_zen = np.concatenate(self._earth_az_zen, axis=0)
+        self._earth_cartesian = np.concatenate(self._earth_cartesian, axis=0)
+        self._sun_positions = np.concatenate(self._sun_positions, axis=0)
+        self._sun_az_zen = np.concatenate(self._sun_az_zen, axis=0)
+        self._sun_cartesian = np.concatenate(self._sun_cartesian, axis=0)
 
         # Here we add the trigger time to build the model in MET
         if self._data.data_type == "trigdat":
@@ -255,12 +260,12 @@ class Geometry(object):
         Returns the Earth position as SkyCoord object for all times for which the geometry was 
         calculated
         """
-        return self._earth_position
+        return self._earth_positions
 
     @property
-    def earth_cartesian(self):
+    def earth_position_cart(self):
         """
-        Returns the Earth position as SkyCoord object for all times for which the geometry was
+        Returns the Earth position in cartesian coordinates for all times for which the geometry was
         calculated
         """
         return self._earth_cartesian
@@ -352,9 +357,9 @@ class Geometry(object):
 
         # Init all lists
         sun_positions = []
-        earth_az = []  # azimuth angle of earth in sat. frame
-        earth_zen = []  # zenith angle of earth in sat. frame
-        earth_position = []  # earth pos in icrs frame (skycoord)
+        sun_az_zen = []
+        earth_az_zen = []  # azimuth and zenith angle of earth in sat. frame
+        earth_positions = []  # earth pos in icrs frame (skycoord)
 
         # Only rank==0 gives some output how much of the geometry is already calculated (progress_bar)
         hidden = False if rank == 0 else True
@@ -384,59 +389,66 @@ class Geometry(object):
                 )
 
                 sun_positions.append(det.sun_position)
+                sun_az_zen.append([det.sun_position.lon.deg, det.sun_position.lat.deg])
 
-                az, zen = det.earth_az_zen_sat
-                earth_az.append(az)
-                earth_zen.append(zen)
-                earth_position.append(det.earth_position)
+                earth_positions.append(det.earth_position)
+                earth_az_zen.append(det.earth_az_zen_sat)
 
                 p.increase()
 
-        # make the list numpy arrays
+        # Make the list numpy arrays
         sun_positions = np.array(sun_positions)
-        earth_az = np.array(earth_az)
-        earth_zen = np.array(earth_zen)
-        earth_position = np.array(earth_position)
+        sun_az_zen = np.array(sun_az_zen)
+        earth_az_zen = np.array(earth_az_zen)
+        earth_positions = np.array(earth_positions)
 
         # gather all results in rank=0
         sun_positions_gather = comm.gather(sun_positions, root=0)
-        earth_az_gather = comm.gather(earth_az, root=0)
-        earth_zen_gather = comm.gather(earth_zen, root=0)
-        earth_position_gather = comm.gather(earth_position, root=0)
+        sun_az_zen_gather = comm.gather(sun_az_zen, root=0)
+        earth_az_zen_gather = comm.gather(earth_az_zen, root=0)
+        earth_positions_gather = comm.gather(earth_positions, root=0)
 
         # make one list out of this
         if rank == 0:
             sun_positions_gather = np.concatenate(sun_positions_gather)
-            earth_az_gather = np.concatenate(earth_az_gather)
-            earth_zen_gather = np.concatenate(earth_zen_gather)
-            earth_position_gather = np.concatenate(earth_position_gather)
+            sun_az_zen_gather = np.concatenate(sun_az_zen_gather)
+            earth_az_zen_gather = np.concatenate(earth_az_zen_gather)
+            earth_positions_gather = np.concatenate(earth_positions_gather)
 
         # broadcast the final arrays again to all ranks
         sun_positions = comm.bcast(sun_positions_gather, root=0)
-        earth_az = comm.bcast(earth_az_gather, root=0)
-        earth_zen = comm.bcast(earth_zen_gather, root=0)
-        earth_position = comm.bcast(earth_position_gather, root=0)
+        sun_az_zen = comm.bcast(sun_az_zen_gather, root=0)
+        earth_az_zen = comm.bcast(earth_az_zen_gather, root=0)
+        earth_positions = comm.bcast(earth_positions_gather, root=0)
 
         # Calculate the earth position in cartesian coordinates
-        earth_pos = np.dstack((earth_zen, earth_az))[0]
-        earth_rad = np.deg2rad(earth_pos)
+        earth_rad = np.deg2rad(earth_az_zen)
 
-        earth_cartesian = np.zeros((len(earth_pos), 3))
+        earth_cartesian = np.zeros((len(earth_positions), 3))
         earth_cartesian[:, 0] = np.cos(earth_rad[:, 0]) * np.cos(earth_rad[:, 1])
         earth_cartesian[:, 1] = np.cos(earth_rad[:, 0]) * np.sin(earth_rad[:, 1])
         earth_cartesian[:, 2] = np.sin(earth_rad[:, 0])
 
+        # Calculate the sun position in cartesian coordinates
+        sun_rad = np.deg2rad(sun_az_zen)
+
+        sun_cartesian = np.zeros((len(sun_az_zen), 3))
+        sun_cartesian[:, 0] = np.cos(sun_rad[:, 0]) * np.cos(sun_rad[:, 1])
+        sun_cartesian[:, 1] = np.cos(sun_rad[:, 0]) * np.sin(sun_rad[:, 1])
+        sun_cartesian[:, 2] = np.sin(sun_rad[:, 0])
+
         # Return everything
         return (
-            sun_positions,
             list_times_to_calculate,
-            earth_az,
-            earth_zen,
-            earth_position,
-            earth_cartesian,
-            quaternions,
             sc_positions,
+            quaternions,
             sc_altitude,
+            earth_positions,
+            earth_az_zen,
+            earth_cartesian,
+            sun_positions,
+            sun_az_zen,
+            sun_cartesian,
             times_lower_bound_index,
             times_upper_bound_index,
         )
@@ -489,9 +501,9 @@ class Geometry(object):
 
         # Init all lists
         sun_positions = []
-        earth_az = []  # azimuth angle of earth in sat. frame
-        earth_zen = []  # zenith angle of earth in sat. frame
-        earth_position = []  # earth pos in icrs frame (skycoord)
+        sun_az_zen = []
+        earth_az_zen = []  # azimuth and zenith angle of earth in sat. frame
+        earth_positions = []  # earth pos in icrs frame (skycoord)
 
         # Give some output how much of the geometry is already calculated (progress_bar)
         with progress_bar(
@@ -509,40 +521,47 @@ class Geometry(object):
                 )
 
                 sun_positions.append(det.sun_position)
+                sun_az_zen.append([det.sun_position.lon.deg, det.sun_position.lat.deg])
 
-                az, zen = det.earth_az_zen_sat
-                earth_az.append(az)
-                earth_zen.append(zen)
-                earth_position.append(det.earth_position)
+                earth_positions.append(det.earth_position)
+                earth_az_zen.append(det.earth_az_zen_sat)
 
                 p.increase()
 
         # Make the list numpy arrays
         sun_positions = np.array(sun_positions)
-        earth_az = np.array(earth_az)
-        earth_zen = np.array(earth_zen)
-        earth_position = np.array(earth_position)
+        sun_az_zen = np.array(sun_az_zen)
+        earth_az_zen = np.array(earth_az_zen)
+        earth_positions = np.array(earth_positions)
 
         # Calculate the earth position in cartesian coordinates
-        earth_pos = np.dstack((earth_zen, earth_az))[0]
-        earth_rad = np.deg2rad(earth_pos)
+        earth_rad = np.deg2rad(earth_az_zen)
 
-        earth_cartesian = np.zeros((len(earth_pos), 3))
+        earth_cartesian = np.zeros((len(earth_az_zen), 3))
         earth_cartesian[:, 0] = np.cos(earth_rad[:, 0]) * np.cos(earth_rad[:, 1])
         earth_cartesian[:, 1] = np.cos(earth_rad[:, 0]) * np.sin(earth_rad[:, 1])
         earth_cartesian[:, 2] = np.sin(earth_rad[:, 0])
 
+        # Calculate the sun position in cartesian coordinates
+        sun_rad = np.deg2rad(sun_az_zen)
+
+        sun_cartesian = np.zeros((len(sun_az_zen), 3))
+        sun_cartesian[:, 0] = np.cos(sun_rad[:, 0]) * np.cos(sun_rad[:, 1])
+        sun_cartesian[:, 1] = np.cos(sun_rad[:, 0]) * np.sin(sun_rad[:, 1])
+        sun_cartesian[:, 2] = np.sin(sun_rad[:, 0])
+
         # Return everything
         return (
-            sun_positions,
             list_times_to_calculate,
-            earth_az,
-            earth_zen,
-            earth_position,
-            earth_cartesian,
-            quaternions,
             sc_positions,
+            quaternions,
             sc_altitude,
+            earth_positions,
+            earth_az_zen,
+            earth_cartesian,
+            sun_positions,
+            sun_az_zen,
+            sun_cartesian,
         )
 
     def _add_start_stop(self, timelist, start_add, stop_add):
