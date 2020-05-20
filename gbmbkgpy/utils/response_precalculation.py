@@ -252,7 +252,7 @@ class Det_Response_Precalculation(object):
             self._Ebin_out_edge = np.append(edge_start, edge_stop[-1])
 
             # Create the points on the unit sphere
-            self._points = np.array(self._fibonacci_sphere(samples=Ngrid))
+            self._points = self._fibonacci_sphere(samples=Ngrid)
 
             # Calculate the reponse for all points on the unit sphere
             self._calculate_responses()
@@ -569,4 +569,4 @@ class Det_Response_Precalculation(object):
 
             points.append([x, y, z])
 
-        return points
+        return np.array(points)

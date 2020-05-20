@@ -31,7 +31,7 @@ except:
 
 class PointSrc_fixed(object):
     def __init__(
-        self, name, ra, dec, det_responses, det_geometries, echans, spectral_index=2.114
+        self, name, ra, dec, det_responses, geometry, echans, spectral_index=2.114
     ):
         """
         Initialize a PS and precalculates the rates for all the times for which the geomerty was
@@ -49,14 +49,10 @@ class PointSrc_fixed(object):
         self._ra = ra
         self._dec = dec
 
-        assert (
-            det_responses.responses.keys() == det_geometries.geometries.keys()
-        ), "The detectors in the response object do not match the detectors in the geometry object"
-
         self._detectors = list(det_responses.responses.keys())
 
         self._rsp = det_responses.responses
-        self._geom = det_geometries.geometries
+        self._geom = geometry
 
         self._data_type = self._rsp[self._detectors[0]].data_type
 
@@ -76,10 +72,6 @@ class PointSrc_fixed(object):
     @property
     def responses(self):
         return self._rsp
-
-    @property
-    def geometry_time(self):
-        return self._geom[self._detectors[0]].time
 
     def get_ps_rates(self, met):
         """
@@ -110,7 +102,7 @@ class PointSrc_fixed(object):
 
         folded_flux_ps = np.zeros(
             (
-                len(self._geom[self._detectors[0]].time),
+                len(self._geom.geometry_times),
                 len(self._detectors),
                 len(self._echans),
             )
@@ -124,7 +116,7 @@ class PointSrc_fixed(object):
             )
 
             ps_response_det = self._response_sum_one_det(
-                det_response=self._rsp[det], det_geometry=self._geom[det]
+                det_response=self._rsp[det]
             )
 
             folded_flux_ps[:, det_idx, :] = np.dot(true_flux_ps, ps_response_det)
@@ -134,18 +126,18 @@ class PointSrc_fixed(object):
     def _interpolate_ps_rates(self):
 
         self._interp_rate_ps = interpolate.interp1d(
-            self.geometry_time, self._folded_flux_ps, axis=0
+            self._geom.geometry_times, self._folded_flux_ps, axis=0
         )
 
-    def _response_sum_one_det(self, det_response, det_geometry):
+    def _response_sum_one_det(self, det_response):
 
         response_matrix = []
 
-        for j in range(len(det_geometry.quaternion)):
+        for j in range(len(self._geom.quaternion)):
             response_step = (
                 DRMGen(
-                    det_geometry.quaternion[j],
-                    det_geometry.sc_pos[j],
+                    self._geom.quaternion[j],
+                    self._geom.sc_pos[j],
                     det_response.det,
                     det_response.Ebin_in_edge,
                     mat_type=0,
@@ -209,7 +201,7 @@ class PointSrc_fixed(object):
 
 
 class PointSrc_free(object):
-    def __init__(self, name, ra, dec, det_responses, det_geometries, echans):
+    def __init__(self, name, ra, dec, det_responses, geometry, echans):
         """
         Initialize a PS and precalculates the response for all the times for which the geomerty was
         calculated. Needed for a spectral fit of the point source.
@@ -226,14 +218,10 @@ class PointSrc_free(object):
         self._ra = ra
         self._dec = dec
 
-        assert (
-            det_responses.responses.keys() == det_geometries.geometries.keys()
-        ), "The detectors in the response object do not match the detectors in the geometry object"
-
         self._detectors = list(det_responses.responses.keys())
 
         self._rsp = det_responses.responses
-        self._geom = det_geometries.geometries
+        self._geom = geometry
 
         self._data_type = self._rsp[self._detectors[0]].data_type
 
@@ -255,10 +243,6 @@ class PointSrc_free(object):
         return self._rsp
 
     @property
-    def geometry_times(self):
-        return self._geom[self._detectors[0]].time
-
-    @property
     def ps_effective_response(self):
         """
         Returns an array with the poit source response for the times for which the geometry
@@ -273,20 +257,20 @@ class PointSrc_free(object):
         for det_idx, det in enumerate(self._detectors):
 
             ps_response_sums[det] = self._response_sum_one_det(
-                det_response=self._rsp[det], det_geometry=self._geom[det]
+                det_response=self._rsp[det]
             )
 
         self._ps_response_sums = ps_response_sums
 
-    def _response_sum_one_det(self, det_response, det_geometry):
+    def _response_sum_one_det(self, det_response):
 
         response_matrix = []
 
-        for j in range(len(det_geometry.quaternion)):
+        for j in range(len(self._geom.quaternion)):
             response_step = (
                 DRMGen(
-                    det_geometry.quaternion[j],
-                    det_geometry.sc_pos[j],
+                    self._geom.quaternion[j],
+                    self._geom.sc_pos[j],
                     det_response.det,
                     det_response.Ebin_in_edge,
                     mat_type=0,

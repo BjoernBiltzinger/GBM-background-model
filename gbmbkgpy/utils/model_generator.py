@@ -162,7 +162,6 @@ class BackgroundModelGenerator(object):
 
         self._geom = Geometry(
             data=self._data,
-            detectors=config["general"]["detectors"],
             dates=config["general"]["dates"],
             n_bins_to_calculate_per_day=config["geometry"]["n_bins_to_calculate"],
         )
@@ -200,7 +199,7 @@ class BackgroundModelGenerator(object):
             data=self._data,
             saa_object=self._saa_calc,
             ep=self._ep,
-            det_geometries=self._geom,
+            geometry=self._geom,
             sun_object=self._sun_obj,
             echans=config["general"]["echans"],
             det_responses=self._resp,
@@ -423,6 +422,10 @@ class BackgroundModelGenerator(object):
     @property
     def geometry(self):
         return self._geom
+
+    @property
+    def albedo_cgb(self):
+        return self._albedo_cgb_obj
 
     @property
     def source_list(self):
