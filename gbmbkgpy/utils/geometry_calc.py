@@ -28,51 +28,6 @@ except:
 
     using_mpi = False
 
-# valid_det_names = [
-#     "n0",
-#     "n1",
-#     "n2",
-#     "n3",
-#     "n4",
-#     "n5",
-#     "n6",
-#     "n7",
-#     "n8",
-#     "n9",
-#     "na",
-#     "nb",
-# ]
-
-
-# class Geometry(object):
-#     def __init__(self, data, detectors, dates, n_bins_to_calculate_per_day):
-#         geometries = {}
-
-#         geometry_times = None
-
-#         for det in detectors:
-#             geometries[det] = Det_Geometry(
-#                 data, det, dates, n_bins_to_calculate_per_day
-#             )
-
-#             # Assert that the times where the geometry is calculated is the same for all detectors
-#             # this will allow us the speed up the following calculations
-#             if geometry_times is None:
-#                 geometry_times = geometries[det].time
-#             else:
-#                 assert np.array_equal(geometry_times, geometries[det].time)
-
-#         self._geometries = geometries
-#         self._geometry_times = geometry_times
-
-#     @property
-#     def geometries(self):
-#         return self._geometries
-
-#     @property
-#     def geometry_times(self):
-#         return self._geometry_times
-
 
 class Geometry(object):
     def __init__(self, data, dates, n_bins_to_calculate_per_day):
