@@ -131,9 +131,7 @@ class Det_Geometry(object):
 
             # GBM Geometry handles trigdat times in reference to the trigger time
             # we have to account for this before and after the position interpolation
-            list_times_to_calculate = (
-                list_times_to_calculate - self._data.trigtime
-            )
+            list_times_to_calculate = list_times_to_calculate - self._data.trigtime
             self._day_start_times = self._day_start_times - self._data.trigtime
             self._day_stop_times = self._day_stop_times - self._data.trigtime
 
@@ -171,7 +169,6 @@ class Det_Geometry(object):
             list_times_to_calculate = self._add_interpolation_boundaries(
                 list_times_to_calculate
             )
-
 
         # Remove possible dublicates, these would break the numba interpolation
         self._list_times_to_calculate = np.unique(list_times_to_calculate)
@@ -371,7 +368,6 @@ class Det_Geometry(object):
                 poshist_file=self._pos_hist[day_number]
             )
 
-
         # Get the times for which the geometry should be calculated for this day (Build a mask that masks all time bins
         # outside the start and stop day of this time bin
 
@@ -379,7 +375,6 @@ class Det_Geometry(object):
             (self._list_times_to_calculate >= self._day_start_times),
             (self._list_times_to_calculate <= self._day_stop_times),
         )
-
 
         # Mask the bins that are outside of the interpolation times
         interp_range_mask = np.logical_and(
@@ -412,46 +407,21 @@ class Det_Geometry(object):
         earth_position = []  # earth pos in icrs frame (skycoord)
 
         # Only rank==0 gives some output how much of the geometry is already calculated (progress_bar)
-        if rank == 0:
-            with progress_bar(
-                len(
-                    list_times_to_calculate[
-                        times_lower_bound_index:times_upper_bound_index
-                    ]
-                ),
-                title="Calculating geomerty for day {}. This shows the progress of rank 0. "
-                "All other should be about the same.".format(
-                    self._day_list[day_number]
-                ),
-            ) as p:
+        hidden = False if rank == 0 else True
 
-                # Calculate the geometry for all times associated with this rank
-                for i, mean_time in enumerate(list_times_to_calculate[
-                    times_lower_bound_index:times_upper_bound_index
-                ]):
+        with progress_bar(
+            len(
+                list_times_to_calculate[times_lower_bound_index:times_upper_bound_index]
+            ),
+            title="Calculating geomerty for day {}. This shows the progress of rank 0. "
+            "All other should be about the same.".format(self._day_list[day_number]),
+            hidden=hidden,
+        ) as p:
 
-                    step_idx = i + times_lower_bound_index
-
-                    det = gbm_detector_list[self._det](
-                        quaternion=quaternions[step_idx],
-                        sc_pos=sc_positions[step_idx],
-                        time=astro_time.Time(position_interpolator.utc(mean_time)),
-                    )
-
-                    sun_positions.append(det.sun_position)
-
-                    az, zen = det.earth_az_zen_sat
-                    earth_az.append(az)
-                    earth_zen.append(zen)
-                    earth_position.append(det.earth_position)
-
-                    p.increase()
-        else:
-            # Calculate the geometry for all times associated with this rank (for rank!=0).
-            # No output here.
-            for i, mean_time in enumerate(list_times_to_calculate[
-                times_lower_bound_index:times_upper_bound_index
-            ]):
+            # Calculate the geometry for all times associated with this rank
+            for i, mean_time in enumerate(
+                list_times_to_calculate[times_lower_bound_index:times_upper_bound_index]
+            ):
 
                 step_idx = i + times_lower_bound_index
 
@@ -467,6 +437,8 @@ class Det_Geometry(object):
                 earth_az.append(az)
                 earth_zen.append(zen)
                 earth_position.append(det.earth_position)
+
+                p.increase()
 
         # make the list numpy arrays
         sun_positions = np.array(sun_positions)
@@ -615,7 +587,7 @@ class Det_Geometry(object):
             earth_cartesian,
             quaternions,
             sc_positions,
-            sc_altitude
+            sc_altitude,
         )
 
     def _add_start_stop(self, timelist, start_add, stop_add):
