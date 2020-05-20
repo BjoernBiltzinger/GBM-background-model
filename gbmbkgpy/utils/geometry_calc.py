@@ -28,54 +28,54 @@ except:
 
     using_mpi = False
 
-valid_det_names = [
-    "n0",
-    "n1",
-    "n2",
-    "n3",
-    "n4",
-    "n5",
-    "n6",
-    "n7",
-    "n8",
-    "n9",
-    "na",
-    "nb",
-]
+# valid_det_names = [
+#     "n0",
+#     "n1",
+#     "n2",
+#     "n3",
+#     "n4",
+#     "n5",
+#     "n6",
+#     "n7",
+#     "n8",
+#     "n9",
+#     "na",
+#     "nb",
+# ]
+
+
+# class Geometry(object):
+#     def __init__(self, data, detectors, dates, n_bins_to_calculate_per_day):
+#         geometries = {}
+
+#         geometry_times = None
+
+#         for det in detectors:
+#             geometries[det] = Det_Geometry(
+#                 data, det, dates, n_bins_to_calculate_per_day
+#             )
+
+#             # Assert that the times where the geometry is calculated is the same for all detectors
+#             # this will allow us the speed up the following calculations
+#             if geometry_times is None:
+#                 geometry_times = geometries[det].time
+#             else:
+#                 assert np.array_equal(geometry_times, geometries[det].time)
+
+#         self._geometries = geometries
+#         self._geometry_times = geometry_times
+
+#     @property
+#     def geometries(self):
+#         return self._geometries
+
+#     @property
+#     def geometry_times(self):
+#         return self._geometry_times
 
 
 class Geometry(object):
-    def __init__(self, data, detectors, dates, n_bins_to_calculate_per_day):
-        geometries = {}
-
-        geometry_times = None
-
-        for det in detectors:
-            geometries[det] = Det_Geometry(
-                data, det, dates, n_bins_to_calculate_per_day
-            )
-
-            # Assert that the times where the geometry is calculated is the same for all detectors
-            # this will allow us the speed up the following calculations
-            if geometry_times is None:
-                geometry_times = geometries[det].time
-            else:
-                assert np.array_equal(geometry_times, geometries[det].time)
-
-        self._geometries = geometries
-        self._geometry_times = geometry_times
-
-    @property
-    def geometries(self):
-        return self._geometries
-
-    @property
-    def geometry_times(self):
-        return self._geometry_times
-
-
-class Det_Geometry(object):
-    def __init__(self, data, det, dates, n_bins_to_calculate_per_day):
+    def __init__(self, data, dates, n_bins_to_calculate_per_day):
         """
         Initalize the geometry precalculation. This calculates several quantities (e.g. Earth
         position in the satellite frame for n_bins_to_calculate times during the day
@@ -87,11 +87,7 @@ class Det_Geometry(object):
         ), "Invalid type for mean_time. Must be an array but is {}.".format(
             type(data.mean_time)
         )
-        assert (
-            det in valid_det_names
-        ), "Invalid det name. Must be one of these {} but is {}.".format(
-            valid_det_names, det
-        )
+
         assert (
             type(n_bins_to_calculate_per_day) == int
         ), "Type of n_bins_to_calculate has to be int but is {}".format(
@@ -101,7 +97,6 @@ class Det_Geometry(object):
         # Save everything
         self._data = data
         self._mean_time = data.mean_time
-        self._det = det
         self._n_bins_to_calculate_per_day = n_bins_to_calculate_per_day
         self._day_start_times = data.day_start_times
         self._day_stop_times = data.day_stop_times
@@ -257,7 +252,7 @@ class Det_Geometry(object):
     # Returns the calculated values of the quantities for all the n_bins_to_calculate times
     # Of the day used in setup_geometry
     @property
-    def time(self):
+    def geometry_times(self):
         """
         Returns the times of the time bins for which the geometry was calculated
         """
@@ -425,7 +420,9 @@ class Det_Geometry(object):
 
                 step_idx = i + times_lower_bound_index
 
-                det = gbm_detector_list[self._det](
+                # The detector used is only a dummy as we are not using
+                # any detector specific geometry calculations
+                det = gbm_detector_list["n0"](
                     quaternion=quaternions[step_idx],
                     sc_pos=sc_positions[step_idx],
                     time=astro_time.Time(position_interpolator.utc(mean_time)),
@@ -547,7 +544,10 @@ class Det_Geometry(object):
         ) as p:
             # Calculate the geometry for all times
             for step_idx, mean_time in enumerate(list_times_to_calculate):
-                det = gbm_detector_list[self._det](
+
+                # The detector used is only a dummy as we are not using
+                # any detector specific geometry calculations
+                det = gbm_detector_list["n0"](
                     quaternion=quaternions[step_idx],
                     sc_pos=sc_positions[step_idx],
                     time=astro_time.Time(position_interpolator.utc(mean_time)),

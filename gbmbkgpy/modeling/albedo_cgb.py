@@ -30,16 +30,13 @@ class Albedo_CGB_free(object):
     was calculated. Use this if you want the spectra to be free in the fit (not only normalization) 
     """
 
-    def __init__(self, det_responses, det_geometries):
-        assert (
-            det_responses.responses.keys() == det_geometries.geometries.keys()
-        ), "The detectors in the response object do not match the detectors in the geometry object"
+    def __init__(self, det_responses, geometry):
 
         self._detectors = list(det_responses.responses.keys())
         self._echans = det_responses.echans
 
         self._rsp = det_responses.responses
-        self._geom = det_geometries.geometries
+        self._geom = geometry
 
         self._calc_earth_cgb_responses()
 
@@ -60,12 +57,12 @@ class Albedo_CGB_free(object):
         return self._earth_response_sums
 
     @property
-    def geometry_times(self):
-        return self._geom[self._detectors[0]].time
-
-    @property
     def responses(self):
         return self._rsp
+
+    @property
+    def interp_times(self):
+        return self._geom.geometry_times
 
     def _calc_earth_cgb_responses(self):
         # Calculate the true flux for the Earth for the assumed spectral parameters (Normalization=1).
@@ -79,13 +76,13 @@ class Albedo_CGB_free(object):
                 cgb_response_sums[det],
                 earth_response_sums[det],
             ) = self._response_sum_one_det(
-                det_response=self._rsp[det], det_geometry=self._geom[det]
+                det_response=self._rsp[det]
             )
 
         self._cgb_response_sums = cgb_response_sums
         self._earth_response_sums = earth_response_sums
 
-    def _response_sum_one_det(self, det_response, det_geometry):
+    def _response_sum_one_det(self, det_response):
         """
         Calculate the effective response sum for all interpolation times for which the geometry was 
         calculated. This supports MPI to reduce the calculation time.
@@ -106,7 +103,7 @@ class Albedo_CGB_free(object):
 
         # If MPI available it is used to speed up the calculation
         if using_mpi:
-            num_times = len(det_geometry.earth_zen)
+            num_times = len(self._geom.earth_zen)
             times_per_rank = float(num_times) / float(size)
             times_lower_bound_index = int(np.floor(rank * times_per_rank))
             times_upper_bound_index = int(np.floor((rank + 1) * times_per_rank))
@@ -121,11 +118,11 @@ class Albedo_CGB_free(object):
                         earth_pos_inter_times.append(
                             np.array(
                                 [
-                                    np.cos(det_geometry.earth_zen[i] * (np.pi / 180))
-                                    * np.cos(det_geometry.earth_az[i] * (np.pi / 180)),
-                                    np.cos(det_geometry.earth_zen[i] * (np.pi / 180))
-                                    * np.sin(det_geometry.earth_az[i] * (np.pi / 180)),
-                                    np.sin(det_geometry.earth_zen[i] * (np.pi / 180)),
+                                    np.cos(self._geom.earth_zen[i] * (np.pi / 180))
+                                    * np.cos(self._geom.earth_az[i] * (np.pi / 180)),
+                                    np.cos(self._geom.earth_zen[i] * (np.pi / 180))
+                                    * np.sin(self._geom.earth_az[i] * (np.pi / 180)),
+                                    np.sin(self._geom.earth_zen[i] * (np.pi / 180)),
                                 ]
                             )
                         )
@@ -135,11 +132,11 @@ class Albedo_CGB_free(object):
                     earth_pos_inter_times.append(
                         np.array(
                             [
-                                np.cos(det_geometry.earth_zen[i] * (np.pi / 180))
-                                * np.cos(det_geometry.earth_az[i] * (np.pi / 180)),
-                                np.cos(det_geometry.earth_zen[i] * (np.pi / 180))
-                                * np.sin(det_geometry.earth_az[i] * (np.pi / 180)),
-                                np.sin(det_geometry.earth_zen[i] * (np.pi / 180)),
+                                np.cos(self._geom.earth_zen[i] * (np.pi / 180))
+                                * np.cos(self._geom.earth_az[i] * (np.pi / 180)),
+                                np.cos(self._geom.earth_zen[i] * (np.pi / 180))
+                                * np.sin(self._geom.earth_az[i] * (np.pi / 180)),
+                                np.sin(self._geom.earth_zen[i] * (np.pi / 180)),
                             ]
                         )
                     )
@@ -207,19 +204,19 @@ class Albedo_CGB_free(object):
 
             # The same as above just for single core calculation without MPI
             with progress_bar(
-                len(det_geometry.earth_zen),
+                len(self._geom.earth_zen),
                 title="Calculating earth position in sat frame for several times",
             ) as p:
 
-                for i in range(0, len(det_geometry.earth_zen)):
+                for i in range(0, len(self._geom.earth_zen)):
                     earth_pos_inter_times.append(
                         np.array(
                             [
-                                np.cos(det_geometry.earth_zen[i] * (np.pi / 180))
-                                * np.cos(det_geometry.earth_az[i] * (np.pi / 180)),
-                                np.cos(det_geometry.earth_zen[i] * (np.pi / 180))
-                                * np.sin(det_geometry.earth_az[i] * (np.pi / 180)),
-                                np.sin(det_geometry.earth_zen[i] * (np.pi / 180)),
+                                np.cos(self._geom.earth_zen[i] * (np.pi / 180))
+                                * np.cos(self._geom.earth_az[i] * (np.pi / 180)),
+                                np.cos(self._geom.earth_zen[i] * (np.pi / 180))
+                                * np.sin(self._geom.earth_az[i] * (np.pi / 180)),
+                                np.sin(self._geom.earth_zen[i] * (np.pi / 180)),
                             ]
                         )
                     )
@@ -263,17 +260,13 @@ class Albedo_CGB_fixed(object):
     is a free fit parameter.
     """
 
-    def __init__(self, det_responses, det_geometries):
-
-        assert (
-            det_responses.responses.keys() == det_geometries.geometries.keys()
-        ), "The detectors in the response object do not match the detectors in the geometry object"
+    def __init__(self, det_responses, geometry):
 
         self._detectors = list(det_responses.responses.keys())
         self._echans = det_responses.echans
 
         self._rsp = det_responses.responses
-        self._geom = det_geometries.geometries
+        self._geom = geometry
 
         # Set spectral parameters to literature values (Earth and CGB from Ajello)
 
@@ -323,30 +316,15 @@ class Albedo_CGB_fixed(object):
         cgb_rates = np.swapaxes(cgb_rates, 1, 2)
         cgb_rates = np.swapaxes(cgb_rates, 2, 3)
 
-        # cgb_rates = np.zeros((
-        #     len(met),
-        #     len(self._detectors),
-        #     len(self._echans),
-        #     2
-        # ))
-
-        # for det_idx, det in enumerate(self._detectors):
-        #     interpolated_cgb_rate = self._interp_rate_cgb[det](met)
-
-        #     # The interpolated rate has the dimensions nr_echans, nr_time_bins, 2
-        #     # So we swap zeroth and first axes to get nr_time_bins, nr_echans, 2
-
-        #     cgb_rates[:, det_idx, :, :] = np.swapaxes(interpolated_cgb_rate, 0, 1)
-
         return cgb_rates
 
-    def _calc_earth_cgb_rates(self):
+    def _calc_earth_cgb_rates(self, flag=False):
         # Calculate the true flux for the Earth for the assumed spectral parameters (Normalization=1).
         # This true flux is binned in energy bins as defined in the response object
 
         folded_flux_cgb = np.zeros(
             (
-                len(self._geom[self._detectors[0]].time),
+                len(self._geom.geometry_times),
                 len(self._detectors),
                 len(self._echans),
             )
@@ -354,7 +332,7 @@ class Albedo_CGB_fixed(object):
 
         folded_flux_earth = np.zeros(
             (
-                len(self._geom[self._detectors[0]].time),
+                len(self._geom.geometry_times),
                 len(self._detectors),
                 len(self._echans),
             )
@@ -369,8 +347,8 @@ class Albedo_CGB_fixed(object):
                 self._rsp[det].Ebin_in_edge[:-1], self._rsp[det].Ebin_in_edge[1:]
             )
 
-            cgb_response_sum, earth_response_sum = self._response_sum_one_det(
-                det_response=self._rsp[det], det_geometry=self._geom[det]
+            earth_response_sum, cgb_response_sum = self._response_sum_one_det(
+                det_response=self._rsp[det]
             )
 
             folded_flux_cgb[:, det_idx, :] = np.dot(true_flux_cgb, cgb_response_sum)
@@ -385,38 +363,19 @@ class Albedo_CGB_fixed(object):
     def responses(self):
         return self._rsp
 
-    @property
-    def geometry_time(self):
-        return self._geom[self._detectors[0]].time
-
     def _interpolate_earth_cgb_rates(self):
         # interp_rate_earth = {}
         # interp_rate_cgb = {}
 
         self._interp_rate_cgb = interpolate.interp1d(
-            self.geometry_time, self._folded_flux_cgb, axis=0
+            self._geom.geometry_times, self._folded_flux_cgb, axis=0
         )
 
         self._interp_rate_earth = interpolate.interp1d(
-            self.geometry_time, self._folded_flux_earth, axis=0
+            self._geom.geometry_times, self._folded_flux_earth, axis=0
         )
 
-        # for det_idx, det in enumerate(self._detectors):
-
-        #     interp_rate_cgb[det] = interpolate.interp1d(
-        #         self._geom[det].time,
-        #         self._folded_flux_cgb[:, det_idx, :].T
-        #     )
-
-        #     interp_rate_earth[det] = interpolate.interp1d(
-        #         self._geom[det].time,
-        #         self._folded_flux_earth[:, Det_idx, :].T
-        #     )
-
-        # self._interp_rate_cgb = interp_rate_cgb
-        # self._interp_rate_earth = interp_rate_earth
-
-    def _response_sum_one_det(self, det_response, det_geometry):
+    def _response_sum_one_det(self, det_response):
         """
         Calculate the effective response sum for all interpolation times for which the geometry was 
         calculated. This supports MPI to reduce the calculation time.
@@ -437,7 +396,7 @@ class Albedo_CGB_fixed(object):
 
         # If MPI available it is used to speed up the calculation
         if using_mpi:
-            num_times = len(det_geometry.earth_zen)
+            num_times = len(self._geom.earth_zen)
             times_per_rank = float(num_times) / float(size)
             times_lower_bound_index = int(np.floor(rank * times_per_rank))
             times_upper_bound_index = int(np.floor((rank + 1) * times_per_rank))
@@ -452,11 +411,11 @@ class Albedo_CGB_fixed(object):
                         earth_pos_inter_times.append(
                             np.array(
                                 [
-                                    np.cos(det_geometry.earth_zen[i] * (np.pi / 180))
-                                    * np.cos(det_geometry.earth_az[i] * (np.pi / 180)),
-                                    np.cos(det_geometry.earth_zen[i] * (np.pi / 180))
-                                    * np.sin(det_geometry.earth_az[i] * (np.pi / 180)),
-                                    np.sin(det_geometry.earth_zen[i] * (np.pi / 180)),
+                                    np.cos(self._geom.earth_zen[i] * (np.pi / 180))
+                                    * np.cos(self._geom.earth_az[i] * (np.pi / 180)),
+                                    np.cos(self._geom.earth_zen[i] * (np.pi / 180))
+                                    * np.sin(self._geom.earth_az[i] * (np.pi / 180)),
+                                    np.sin(self._geom.earth_zen[i] * (np.pi / 180)),
                                 ]
                             )
                         )
@@ -466,11 +425,11 @@ class Albedo_CGB_fixed(object):
                     earth_pos_inter_times.append(
                         np.array(
                             [
-                                np.cos(det_geometry.earth_zen[i] * (np.pi / 180))
-                                * np.cos(det_geometry.earth_az[i] * (np.pi / 180)),
-                                np.cos(det_geometry.earth_zen[i] * (np.pi / 180))
-                                * np.sin(det_geometry.earth_az[i] * (np.pi / 180)),
-                                np.sin(det_geometry.earth_zen[i] * (np.pi / 180)),
+                                np.cos(self._geom.earth_zen[i] * (np.pi / 180))
+                                * np.cos(self._geom.earth_az[i] * (np.pi / 180)),
+                                np.cos(self._geom.earth_zen[i] * (np.pi / 180))
+                                * np.sin(self._geom.earth_az[i] * (np.pi / 180)),
+                                np.sin(self._geom.earth_zen[i] * (np.pi / 180)),
                             ]
                         )
                     )
@@ -538,18 +497,18 @@ class Albedo_CGB_fixed(object):
 
             # The same as above just for single core calculation without MPI
             with progress_bar(
-                len(det_geometry.earth_zen),
+                len(self._geom.earth_zen),
                 title="Calculating earth position in sat frame for several times.",
             ) as p:
-                for i in range(0, len(det_geometry.earth_zen)):
+                for i in range(0, len(self._geom.earth_zen)):
                     earth_pos_inter_times.append(
                         np.array(
                             [
-                                np.cos(det_geometry.earth_zen[i] * (np.pi / 180))
-                                * np.cos(det_geometry.earth_az[i] * (np.pi / 180)),
-                                np.cos(det_geometry.earth_zen[i] * (np.pi / 180))
-                                * np.sin(det_geometry.earth_az[i] * (np.pi / 180)),
-                                np.sin(det_geometry.earth_zen[i] * (np.pi / 180)),
+                                np.cos(self._geom.earth_zen[i] * (np.pi / 180))
+                                * np.cos(self._geom.earth_az[i] * (np.pi / 180)),
+                                np.cos(self._geom.earth_zen[i] * (np.pi / 180))
+                                * np.sin(self._geom.earth_az[i] * (np.pi / 180)),
+                                np.sin(self._geom.earth_zen[i] * (np.pi / 180)),
                             ]
                         )
                     )
@@ -584,7 +543,7 @@ class Albedo_CGB_fixed(object):
         array_cgb_response_sum = np.array(array_cgb_response_sum) * sr_points
         array_earth_response_sum = np.array(array_earth_response_sum) * sr_points
 
-        return array_cgb_response_sum, array_earth_response_sum
+        return array_earth_response_sum, array_cgb_response_sum
 
     def _spectrum_bpl(self, energy, C, index1, index2, break_energy):
         """

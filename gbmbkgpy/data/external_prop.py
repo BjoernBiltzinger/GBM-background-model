@@ -84,7 +84,7 @@ class ExternalProps(object):
     def build_point_sources(
         self,
         det_responses,
-        det_geometries,
+        geometry,
         echans,
         include_all_ps=False,
         point_source_list=[],
@@ -121,7 +121,7 @@ class ExternalProps(object):
                             ra=row[2],
                             dec=row[3],
                             det_responses=det_responses,
-                            det_geometries=det_geometries,
+                            geometry=geometry,
                             echans=echans,
                         )
 

@@ -43,7 +43,7 @@ def Setup(
     data,
     saa_object,
     ep,
-    det_geometries,
+    geometry,
     echans=[],
     sun_object=None,
     det_responses=None,
@@ -70,7 +70,7 @@ def Setup(
     :param data: Data object
     :param saa_object: saa precaculation object
     :param ep: external prob object
-    :param det_geometries: geometry precalculation object
+    :param geometry: geometry precalculation object
     :param echan_list: list of all echans which should be used
     :param sun_object:
     :param det_responses: response precalculation object
@@ -130,7 +130,7 @@ def Setup(
     if use_sun:
         total_sources.append(
             setup_sun(
-                data, sun_object, saa_object, det_responses, det_geometries, echans
+                data, sun_object, saa_object
             )
         )
 
@@ -141,7 +141,7 @@ def Setup(
                 ep=ep,
                 saa_object=saa_object,
                 det_responses=det_responses,
-                det_geometries=det_geometries,
+                geometry=geometry,
                 echans=echans,
                 include_all_ps=use_all_ps,
                 point_source_list=point_source_list,
@@ -260,7 +260,7 @@ def setup_SAA(data,
     return SAA_Decay_list
 
 
-def setup_sun(cd, sun_object, saa_object, response_object, geom_object, echan_list):
+def setup_sun(cd, sun_object, saa_object):
     """
     Setup for sun as bkg source
     """
@@ -328,7 +328,7 @@ def setup_CosmicRays(data, ep, saa_object, echan, index, bgo_cr_approximation):
         # Magnetic Continuum Source
         mag_con = Magnetic_Continuum(str(echan))
 
-        mag_con.set_function_array(ep.mc_l_rates((data.time_bins)),)
+        mag_con.set_function_array(ep.mc_l_rates((data.time_bins)))
 
         mag_con.set_saa_zero(saa_object.saa_mask)
 
@@ -348,7 +348,7 @@ def setup_ps(
     ep,
     saa_object,
     det_responses,
-    det_geometries,
+    geometry,
     echans,
     include_all_ps,
     point_source_list,
@@ -362,7 +362,7 @@ def setup_ps(
     :param point_source_list:
     :param free_spectrum:
     :param echan_list:
-    :param det_geometries:
+    :param geometry:
     :param saa_object:
     :param det_responses:
     :param data:
@@ -378,7 +378,7 @@ def setup_ps(
     # Point-Source Sources
     ep.build_point_sources(
         det_responses=det_responses,
-        det_geometries=det_geometries,
+        geometry=geometry,
         echans=echans,
         include_all_ps=include_all_ps,
         point_source_list=point_source_list,
@@ -477,7 +477,7 @@ def setup_earth_free(data, albedo_cgb_object, saa_object, use_numba=False):
     earth_albedo.set_saa_mask(saa_mask=saa_object.saa_mask)
 
     earth_albedo.set_interpolation_times(
-        interpolation_times=albedo_cgb_object.geometry_times
+        interpolation_times=albedo_cgb_object.interp_times
     )
 
     earth_albedo.set_responses(responses=albedo_cgb_object.responses)
@@ -531,7 +531,7 @@ def setup_cgb_free(data, albedo_cgb_object, saa_object, use_numba=False):
 
     cgb.set_saa_mask(saa_mask=saa_object.saa_mask)
 
-    cgb.set_interpolation_times(interpolation_times=albedo_cgb_object.geometry_times)
+    cgb.set_interpolation_times(interpolation_times=albedo_cgb_object.interp_times)
 
     cgb.set_responses(responses=albedo_cgb_object.responses)
 
