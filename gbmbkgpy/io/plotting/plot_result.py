@@ -151,7 +151,13 @@ class ResultPlotGenerator(object):
             for source_name in f["sources"].keys():
                 result_dict["sources"][source_name] = f["sources"][source_name][()]
 
-            result_dict["ppc_counts"] = f["ppc_counts"][()]
+            if hasattr(f, "ppc_counts"):
+
+                result_dict["ppc_counts"] = f["ppc_counts"][()]
+
+            else:
+
+                result_dict["ppc_counts"] = None
 
             result_dict["time_stamp"] = datetime.now().strftime("%y%m%d_%H%M")
 
@@ -522,7 +528,7 @@ class ResultPlotGenerator(object):
 
         p_bar.increase()
 
-        if self.show_ppc:
+        if self.show_ppc and self._result_dict["ppc_counts"] is not None:
             rebinned_ppc_rates = []
 
             ppc_counts_det_echan = self._result_dict["ppc_counts"][
