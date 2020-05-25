@@ -228,12 +228,19 @@ class PointSrc_free(object):
         self._echans = echans
 
         if self._data_type == "ctime":
+
             self._echan_mask = np.zeros(8, dtype=bool)
+
             for e in echans:
+
                 self._echan_mask[e] = True
+
         elif self._data_type == "cspec":
+
             self._echan_mask = np.zeros(128, dtype=bool)
+
             for e in echans:
+
                 self._echan_mask[e] = True
 
         self._calc_det_responses()
