@@ -201,57 +201,52 @@ class DataExporter(object):
             points_lower_index = int(np.floor(points_per_rank * rank))
             points_upper_index = int(np.floor(points_per_rank * (rank + 1)))
 
-            if rank == 0:
-                with progress_bar(
-                    len(
-                        mn_posteriour_samples[random_mask][
-                        points_lower_index:points_upper_index
-                        ]
-                    ),
-                    title="Calculating PPC",
-                ) as p:
+            hidden = False if rank == 0 else True
 
-                    for i, sample in enumerate(
-                        mn_posteriour_samples[random_mask][
-                            points_lower_index:points_upper_index
-                        ]
-                    ):
-                        synth_counts = self.get_synthetic_data(sample)
-                        counts.append(synth_counts)
-                        p.increase()
+            with progress_bar(
+                len(
+                    mn_posteriour_samples[random_mask][
+                    points_lower_index:points_upper_index
+                    ]
+                ),
+                title="Calculating PPC",
+                hidden=hidden
+            ) as p:
 
-            else:
                 for i, sample in enumerate(
                     mn_posteriour_samples[random_mask][
                         points_lower_index:points_upper_index
                     ]
                 ):
-                    synth_counts = self.get_synthetic_data(sample)
+                    synth_counts = self.get_synthetic_data(sample).astype(np.uint16)
                     counts.append(synth_counts)
+                    p.increase()
 
             # Now combine and brodcast the results in small packages,
             # because mpi can't handle arrays that big
             ppc_counts = None
 
-            for i, cnts in enumerate(counts):
+            with progress_bar(len(counts), title="Gather PCC", hidden=hidden) as p:
+                for i, cnts in enumerate(counts):
 
-                counts_g = comm.gather(cnts, root=0)
+                    counts_g = comm.gather(cnts, root=0)
 
-                if rank == 0:
+                    if rank == 0:
 
-                    counts_g = np.array(counts_g)
+                        counts_g = np.array(counts_g)
 
-                    if ppc_counts is None:
+                        if ppc_counts is None:
 
-                        ppc_counts = counts_g
+                            ppc_counts = counts_g
 
-                    else:
+                        else:
 
-                        ppc_counts = np.append(
-                            ppc_counts,
-                            counts_g,
-                            axis=0
-                        )
+                            ppc_counts = np.append(
+                                ppc_counts,
+                                counts_g,
+                                axis=0
+                            )
+                    p.increase()
 
 
         else:
