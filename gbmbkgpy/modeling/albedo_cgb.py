@@ -94,8 +94,6 @@ class Albedo_CGB_free(object):
         fermi_radius = np.sqrt(np.sum(self._geom.sc_pos ** 2, axis=1))
         horizon_angle = 90 - np.rad2deg(np.arccos(earth_radius / fermi_radius))
 
-        horizon_angle = 67
-
         min_vis = np.deg2rad(horizon_angle)
 
         resp_grid_points = det_response.points
@@ -132,16 +130,19 @@ class Albedo_CGB_free(object):
         # and the others in cgb_effective_response
         # then mulitiply by the sr_points factor which is the area
         # of the unit sphere covered by every point
+
+        # TODO: Check why the earth occultation mask has to be inverted for the earth
+        # and not the other way around!
         effective_response_earth = np.tensordot(
-            earth_occultion_idx,
+            ~earth_occultion_idx,
             det_response.response_array,
-            [(1,),(0,)]
+            [(1,), (0,)]
         ) * sr_points
 
         effective_response_cgb = np.tensordot(
-            ~earth_occultion_idx,
+            earth_occultion_idx,
             det_response.response_array,
-            [(1,),(0,)]
+            [(1,), (0,)]
         ) * sr_points
 
         return effective_response_earth, effective_response_cgb

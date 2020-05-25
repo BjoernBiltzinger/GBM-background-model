@@ -243,7 +243,7 @@ class Geometry(object):
         geometry was calculated
         """
 
-        return self._earth_az
+        return self._earth_az_zen[:, 0]
 
     @property
     def earth_zen(self):
@@ -252,7 +252,7 @@ class Geometry(object):
         geometry was calculated
         """
 
-        return self._earth_zen
+        return self._earth_az_zen[:, 1]
 
     @property
     def earth_position(self):
@@ -425,17 +425,17 @@ class Geometry(object):
         earth_rad = np.deg2rad(earth_az_zen)
 
         earth_cartesian = np.zeros((len(earth_positions), 3))
-        earth_cartesian[:, 0] = np.cos(earth_rad[:, 0]) * np.cos(earth_rad[:, 1])
-        earth_cartesian[:, 1] = np.cos(earth_rad[:, 0]) * np.sin(earth_rad[:, 1])
-        earth_cartesian[:, 2] = np.sin(earth_rad[:, 0])
+        earth_cartesian[:, 0] = np.cos(earth_rad[:, 1]) * np.cos(earth_rad[:, 0])
+        earth_cartesian[:, 1] = np.cos(earth_rad[:, 1]) * np.sin(earth_rad[:, 0])
+        earth_cartesian[:, 2] = np.sin(earth_rad[:, 1])
 
         # Calculate the sun position in cartesian coordinates
         sun_rad = np.deg2rad(sun_az_zen)
 
         sun_cartesian = np.zeros((len(sun_az_zen), 3))
-        sun_cartesian[:, 0] = np.cos(sun_rad[:, 0]) * np.cos(sun_rad[:, 1])
-        sun_cartesian[:, 1] = np.cos(sun_rad[:, 0]) * np.sin(sun_rad[:, 1])
-        sun_cartesian[:, 2] = np.sin(sun_rad[:, 0])
+        sun_cartesian[:, 0] = np.cos(sun_rad[:, 1]) * np.cos(sun_rad[:, 0])
+        sun_cartesian[:, 1] = np.cos(sun_rad[:, 1]) * np.sin(sun_rad[:, 0])
+        sun_cartesian[:, 2] = np.sin(sun_rad[:, 1])
 
         # Return everything
         return (
