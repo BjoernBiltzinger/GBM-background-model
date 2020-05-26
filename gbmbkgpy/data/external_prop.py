@@ -48,7 +48,7 @@ class ExternalProps(object):
         :param dates: [YYMMDD, YYMMDD,]
         """
 
-        assert len(dates[0]) == 6, "Day must be in format YYMMDD"
+        assert len(dates[0]) == 6, f"Day must be in format YYMMDD, but you provided: {dates}"
         self._detectors = detectors
 
         self._side_0 = ["n0", "n1", "n2", "n3", "n4", "n5"]
