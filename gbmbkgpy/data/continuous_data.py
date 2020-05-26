@@ -126,19 +126,9 @@ class Data(object):
 
         self._rebinned_saa_mask = self._data_rebinner.rebinned_saa_mask
 
-        rebinned_counts = np.zeros(
-            (len(self._rebinned_time_bins), len(self._detectors), len(self._echans))
-        )
-
-        for det_idx, det in enumerate(self._detectors):
-
-            for echan_idx, echan in enumerate(self._echans):
-
-                rebinned_counts[:, det_idx, echan_idx] = self._data_rebinner.rebin(
-                    self._counts[:, det_idx, echan_idx]
-                )[0]
-
-        self._rebinned_counts = rebinned_counts.astype(np.int64)
+        self._rebinned_counts = self._data_rebinner.rebin(
+            self._counts
+        )[0].astype(np.int64)
 
         # Initialize the valid bin mask to all True
         self._valid_rebinned_time_mask = np.ones(
