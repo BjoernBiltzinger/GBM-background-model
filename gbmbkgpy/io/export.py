@@ -418,107 +418,210 @@ valid_det_names = [
 ]
 
 
-class PHACombiner(object):
+class PHAWriter(object):
     """
     Class to load multiple result files for the same date or the same trigger
     and combine them in a PHAII background file.
     """
 
-    def __init__(self, result_file_list):
-        self._detectors = []
-        self._dates = None
-        self._trigger = None
-        self._total_time_bins = None
-        self._total_time_bin_widths = None
-        self._model_counts = None
-        self._model_rates = None
-        self._stat_err = None
-        self._det_echan_loaded = []
-        self._echans = []
+    def __init__(
+        self,
+        dates,
+        trigger,
+        trigger_time,
+        data_type,
+        echans,
+        detectors,
+        time_bins,
+        observed_counts,
+        model_counts,
+        stat_err,
+    ):
+        self._dates = dates
+        self._trigger = trigger
+        self._trigger_time = trigger_time
+        self._data_type = data_type
+        self._echans = echans
+        self._detectors = detectors
+        self._time_bins = time_bins
+        self._observed_counts = observed_counts
+        self._model_counts = model_counts
+        self._stat_err = stat_err
 
-        self._load_result_file(result_file_list)
+    @classmethod
+    def from_result_files(cls, result_file_list):
+        detectors = []
+        echans = []
+        det_echan_loaded = []
 
-    def _load_result_file(self, result_file_list):
         for i, file in enumerate(result_file_list):
             with h5py.File(file, "r") as f:
-                dates = f.attrs["dates"]
-                trigger = f.attrs["trigger"]
-                detectors = f.attrs["detectors"]
-                echans = f.attrs["echans"]
-                time_bins_start = f["time_bins_start"][()]
-                time_bins_stop = f["time_bins_stop"][()]
+                dates_f = f.attrs["dates"]
+                data_type_f = f.attrs["data_type"]
+                trigger_f = f.attrs.get("trigger", None)
+                trigger_time_f = f.attrs.get("trigger_time", 0.0)
+                detectors_f = f.attrs["detectors"]
+                echans_f = f.attrs["echans"]
+                time_bins_start_f = f["time_bins_start"][()]
+                time_bins_stop_f = f["time_bins_stop"][()]
 
-                observed_counts = f["observed_counts"][()]
-                model_counts = f["model_counts"][()]
-                stat_err = f["stat_err"][()]
+                observed_counts_f = f["observed_counts"][()]
+                model_counts_f = f["model_counts"][()]
+                stat_err_f = f["stat_err"][()]
 
             if i == 0:
-                self._dates = dates
-                self._trigger = trigger
-                self._total_time_bins = np.vstack((time_bins_start, time_bins_stop)).T
-                self._total_time_bin_widths = np.diff(self._total_time_bins, axis=1)[
-                    :, 0
-                ]
-                self._observed_counts = np.zeros((len(time_bins_stop), 12, 8))
-                self._model_counts = np.zeros((len(time_bins_stop), 12, 8))
-                self._model_rates = np.zeros((len(time_bins_stop), 12, 8))
-                self._stat_err = np.zeros_like(self._model_counts)
+                dates = dates_f
+                data_type = data_type_f
+                trigger = trigger_f
+                trigger_time = trigger_time_f
+                time_bins = np.vstack((time_bins_start_f, time_bins_stop_f)).T
+                observed_counts = np.zeros((len(time_bins_stop_f), 12, 8))
+                model_counts = np.zeros((len(time_bins_stop_f), 12, 8))
+                stat_err = np.zeros_like(model_counts)
 
             else:
-                assert self._dates == dates
-                assert self._trigger == trigger
+                assert dates == dates_f
+                assert data_type == data_type_f
+                assert trigger == trigger_f
+                assert trigger_time == trigger_time_f
                 assert np.array_equal(
-                    self._total_time_bins,
-                    np.vstack((time_bins_start, time_bins_stop)).T,
+                    time_bins, np.vstack((time_bins_start_f, time_bins_stop_f)).T,
                 )
 
-            for det_tmp_idx, det in enumerate(detectors):
+            for det_tmp_idx, det in enumerate(detectors_f):
 
-                if det not in self._detectors:
-                    self._detectors.append(det)
+                if det not in detectors:
+                    detectors.append(det)
 
                 det_idx = valid_det_names.index(det)
 
-                for echan_idx, echan in enumerate(echans):
+                for echan_idx, echan in enumerate(echans_f):
 
                     det_echan = "{}_{}".format(det, echan)
-                    if echan not in self._echans:
-                        self._echans.append(echan)
+
+                    if echan not in echans:
+                        echans.append(echan)
 
                     assert (
-                        det_echan not in self._det_echan_loaded
+                        det_echan not in det_echan_loaded
                     ), "{}-{} already loaded, you have to resolve the conflict by hand".format(
                         det, echan
                     )
 
                     # Combine the observed counts
-                    self._observed_counts[:, det_idx, echan] = observed_counts[
+                    observed_counts[:, det_idx, echan] = observed_counts_f[
                         :, det_tmp_idx, echan_idx
                     ]
 
                     # Combine the model counts
-                    self._model_counts[:, det_idx, echan] = model_counts[
+                    model_counts[:, det_idx, echan] = model_counts_f[
                         :, det_tmp_idx, echan_idx
                     ]
-
-                    # Combine the model rates
-                    self._model_rates[:, det_idx, echan] = (
-                        model_counts[:, det_tmp_idx, echan_idx]
-                        / self._total_time_bin_widths
-                    )
 
                     # Combine the statistical error of the fit
-                    self._stat_err[:, det_idx, echan] = stat_err[
-                        :, det_tmp_idx, echan_idx
-                    ]
+                    stat_err[:, det_idx, echan] = stat_err_f[:, det_tmp_idx, echan_idx]
 
                     # Append the det_echan touple to avoid overloading
-                    self._det_echan_loaded.append(det_echan)
+                    det_echan_loaded.append(det_echan)
 
-    def save_pha(self, out_put_dir, start_time=None, end_time=None, trigger_time=None):
+        return cls(
+            dates,
+            trigger,
+            trigger_time,
+            data_type,
+            echans,
+            detectors,
+            time_bins,
+            observed_counts,
+            model_counts,
+            stat_err,
+        )
+
+    @classmethod
+    def from_combined_hdf5(cls, file_path):
+
+        with h5py.File(file_path, "r") as f:
+
+            dates = f.attrs["dates"]
+
+            trigger = f.attrs["trigger"]
+
+            trigger_time = f.attrs["trigger_time"]
+
+            data_type = f.attrs["data_type"]
+
+            echans = f.attrs["echans"]
+
+            detectors = f.attrs["detectors"]
+
+            time_bins = f["time_bins"][()]
+
+            observed_counts = f["observed_counts"][()]
+
+            model_counts = f["model_counts"][()]
+
+            stat_err = f["stat_err"][()]
+
+        return cls(
+            dates,
+            trigger,
+            trigger_time,
+            data_type,
+            echans,
+            detectors,
+            time_bins,
+            observed_counts,
+            model_counts,
+            stat_err,
+        )
+
+    def save_combined_hdf5(self, output_path):
+
+        with h5py.File(output_path, "w") as f:
+
+            f.attrs["dates"] = self._dates
+
+            f.attrs["trigger"] = self._trigger
+
+            f.attrs["trigger_time"] = self._trigger_time
+
+            f.attrs["data_type"] = self._data_type
+
+            f.attrs["echans"] = self._echans
+
+            f.attrs["detectors"] = self._detectors
+
+            f.create_dataset(
+                "time_bins", data=self._time_bins, compression="lzf",
+            )
+
+            f.create_dataset(
+                "observed_counts", data=self._observed_counts, compression="lzf",
+            )
+
+            f.create_dataset(
+                "model_counts", data=self._model_counts, compression="lzf",
+            )
+
+            f.create_dataset("stat_err", data=self._stat_err, compression="lzf")
+
+    def save_pha(
+        self, out_put_dir, active_time_start, active_time_end, trigger_time=None
+    ):
         """
         Creates saves a background file for each detector
         """
+
+        if trigger_time is not None:
+            trigtime = trigger_time
+        else:
+            trigtime = self._trigger_time
+
+        time_bins = self._time_bins - trigtime
+
+        idx_min_time = time_bins[:, 0] >= active_time_start
+        idx_max_time = time_bins[:, 1] <= active_time_end
+        idx_valid_bin = idx_min_time * idx_max_time
 
         for det in self._detectors:
             det_idx = valid_det_names.index(det)
@@ -530,44 +633,48 @@ class PHACombiner(object):
 
             output_file = os.path.join(out_put_dir, file_name)
 
-            if start_time is not None and end_time is not None:
-                idx_min_time = self._total_time_bins[:, 0] >= start_time
-                idx_max_time = self._total_time_bins[:, 1] <= end_time
-                idx_valid_bin = idx_min_time * idx_max_time
-            else:
-                idx_valid_bin = np.ones_like(self._total_time_bins[:, 0], dtype=bool)
+            tstart = time_bins[idx_valid_bin][:, 0]
 
-            if trigger_time is None:
-                trigger_time = 0.0
+            telapse = (
+                time_bins[idx_valid_bin][-1, 1] - time_bins[idx_valid_bin][0, 0],
+            )
+
+            observed_counts = np.sum(
+                self._observed_counts[idx_valid_bin, det_idx, :], axis=0
+            )
+
+            model_counts = np.sum(self._model_counts[idx_valid_bin, det_idx, :], axis=0)
+
+            model_rate = model_counts / telapse
+
+            stat_err = np.sqrt(
+                np.sum(np.square(self._stat_err[idx_valid_bin, det_idx, :]), axis=0)
+            )
 
             # Calculate the dead time of the detector:
             # Each event in the echans 0-6 gives a dead time of 2.6 μs
             # Each event in the over flow channel 7 gives a dead time of 10 μs
             dead_time = (
-                np.sum(self._observed_counts[:, det_idx, 0:7], axis=1) * 2.6 * 1e-6
-                + self._observed_counts[:, det_idx, 7] * 1e-5
+                np.sum(observed_counts[0:7]) * 2.6 * 1e-6
+                + observed_counts[7] * 1e-5
             )
 
             spectrum = PHAII(
                 instrument_name="GBM_{}".format(det_name_lookup[det]),
                 telescope_name="Fermi",
-                tstart=self._total_time_bins[idx_valid_bin][:, 1] - trigger_time,
-                telapse=self._total_time_bin_widths[idx_valid_bin],
+                tstart=tstart,
+                telapse=telapse,
                 channel=self._echans,
-                rate=self._model_rates[idx_valid_bin, det_idx, :],
-                quality=np.zeros_like(
-                    self._model_rates[idx_valid_bin, det_idx, :], dtype=int
-                ),
+                rate=model_rate,
+                quality=np.zeros_like(model_rate, dtype=int),
                 grouping=np.ones_like(self._echans),
-                exposure=self._total_time_bin_widths[idx_valid_bin] - dead_time[idx_valid_bin],
-                backscale=np.ones_like(
-                    self._model_rates[idx_valid_bin, det_idx, :][:, 0]
-                ),
+                exposure=telapse - dead_time,
+                backscale=np.ones_like(model_rate),
                 respfile=None,
                 ancrfile=None,
                 back_file=None,
                 sys_err=None,
-                stat_err=self._stat_err[idx_valid_bin, det_idx, :],
+                stat_err=stat_err,
                 is_poisson=False,
             )
 
