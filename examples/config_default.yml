@@ -86,15 +86,5 @@ export:
 ### show data?, show grb trigger times? if yes at which time ('20:57:03.000' format) and what name? #
 ### show ppc?, xlim and ylim (as list e.g. [0,100]), legend outside of the plot? ####################
 plot:
-  bin_width:      30
-  change_time:    true
-  show_residuals: false
-  show_data:      true
-  plot_sources:   true
-  show_grb_trigger: true
-  times_mark:     []
-  names_mark:     []
-  ppc:            true
-  xlim:           null
-  ylim:           null
-  legend_outside: false
+  corner_plot:    true
+  result_plot:    true

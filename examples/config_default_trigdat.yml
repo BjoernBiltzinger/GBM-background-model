@@ -35,10 +35,10 @@ setup:
   use_cr:       true
   use_earth:    true
   use_cgb:      true
-  ps_list:      ['CRAB']
-  fix_ps:       [true]
-  fix_earth:    false
-  fix_cgb:      false
+  ps_list:      [CRAB, SCOX-1, CYGX-1]
+  fix_ps:       [true, true, true]
+  fix_earth:    true
+  fix_cgb:      true
   use_sun:      false
   bgo_cr_approximation: true
 
@@ -79,23 +79,14 @@ fit:
 ##################### Input for Result Export  ######################################################
 export:
   save_cov_matrix: false
-  save_ppc: true
+  save_ppc: false
   save_unbinned: true
+  save_result_path: true
 
 ############################### Input for plotting ##################################################
 ### bin_width to bin the data, change_time from MET to seconds since midnight, show residuals? ######
 ### show data?, show grb trigger times? if yes at which time ('20:57:03.000' format) and what name? #
 ### show ppc?, xlim and ylim (as list e.g. [0,100]), legend outside of the plot? ####################
 plot:
-  bin_width:      30
-  change_time:    true
-  show_residuals: false
-  show_data:      true
-  plot_sources:   true
-  show_grb_trigger: true
-  times_mark:     []
-  names_mark:     []
-  ppc:            true
-  xlim:           null
-  ylim:           null
-  legend_outside: false
+  corner_plot:    false
+  result_plot:    false
