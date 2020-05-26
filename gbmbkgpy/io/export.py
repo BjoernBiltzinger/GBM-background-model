@@ -5,6 +5,7 @@ import copy
 from gbmbkgpy.utils.pha import SPECTRUM, PHAII
 import h5py
 from gbmbkgpy.utils.progress_bar import progress_bar
+from gbmbkgpy.utils.binner import Rebinner
 
 NO_REBIN = 1e-9
 
@@ -30,30 +31,61 @@ except:
 
 
 class DataExporter(object):
-    def __init__(self, data, model, saa_object, echans, best_fit_values):
+    def __init__(self, model_generator, best_fit_values):
 
-        self._data = data
-        self._model = model
-        self._saa_object = saa_object
-
-        self._echans = echans
         self._best_fit_values = best_fit_values
-
-        self._time_bins = self._data.time_bins
-        self._saa_mask = self._saa_object.saa_mask
-
         self._total_scale_factor = 1.0
-        self._rebinner = None
-        self._fit_rebinned = False
-        self._fit_rebinner = None
-        self._grb_mask_calculated = False
+
+        # Create a copy of the response precalculation
+        response_precalculation = model_generator._resp
+
+        # Create a copy of the geomtry precalculation
+        geometry_precalculation = model_generator._geom
+
+        config = model_generator.config
+
+        if (
+            config["export"]["save_unbinned"]
+            and config["general"]["min_bin_width"] > 1e-9
+        ):
+
+            # Create copy of config dictionary
+            config_export = config
+
+            config_export["general"]["min_bin_width"] = 1e-9
+
+            # Create a new model generator instance of the same type
+            model_generator_unbinned = type(model_generator)()
+
+            model_generator_unbinned.from_config_dict(
+                config=config_export,
+                response=response_precalculation,
+                geometry=geometry_precalculation,
+            )
+
+            model_generator_unbinned.likelihood.set_free_parameters(best_fit_values)
+
+            self._data = model_generator_unbinned.data
+            self._model = model_generator_unbinned.model
+            self._time_bins = model_generator_unbinned.data.time_bins
+            self._saa_mask = model_generator_unbinned.saa_calc.saa_mask
+
+        else:
+
+            self._data = model_generator.data
+            self._model = model_generator.model
+            self._time_bins = model_generator.data.time_bins
+            self._saa_mask = model_generator.saa_calc.saa_mask
+
+        self._ppc_model = None
+        self._ppc_time_bins = None
 
     def save_data(self, file_path, result_dir, save_ppc=True):
         """
         Function to save the data needed to create the plots.
         """
         # Calculate the PPC
-        ppc_counts = self._ppc_data(result_dir)
+        ppc_counts, ppc_counts_binned = self._ppc_data(result_dir)
 
         if rank == 0:
             print("Save fit result to: {}".format(file_path))
@@ -75,6 +107,7 @@ class DataExporter(object):
 
                 if hasattr(self._data, "trigger"):
                     f.attrs["trigger"] = self._data.trigger
+                    f.attrs["trigger_time"] = self._data.trigtime
 
                 f.attrs["data_type"] = self._data.data_type
 
@@ -110,7 +143,12 @@ class DataExporter(object):
                     )
 
                 if save_ppc:
-                    f.create_dataset("ppc_counts", data=ppc_counts, compression="lzf")
+                    f.create_dataset(
+                        "ppc_time_bins", data=self._ppc_time_bins, compression="lzf"
+                    )
+                    f.create_dataset(
+                        "ppc_counts", data=ppc_counts_binned, compression="lzf"
+                    )
 
             print("File sucessfully saved!")
 
@@ -129,34 +167,26 @@ class DataExporter(object):
                 i, self._data.time_bins, self._saa_mask
             )
             if np.sum(data) != 0:
-                source_list.append(
-                    {"label": source_name, "data": data}
-                )
+                source_list.append({"label": source_name, "data": data})
                 i_index += 1
 
         for i, source_name in enumerate(self._model._global_sources):
             data = self._model.get_global_counts(
                 i, self._data.time_bins, self._saa_mask
             )
-            source_list.append(
-                {"label": source_name, "data": data}
-            )
+            source_list.append({"label": source_name, "data": data})
             i_index += 1
 
         for i, source_name in enumerate(self._model.fit_spectrum_sources):
             data = self._model.get_fit_spectrum_counts(
                 i, self._data.time_bins, self._saa_mask
             )
-            source_list.append(
-                {"label": source_name, "data": data}
-            )
+            source_list.append({"label": source_name, "data": data})
             i_index += 1
 
         saa_data = self._model.get_saa_counts(self._data.time_bins, self._saa_mask)
         if np.sum(saa_data) != 0:
-            source_list.append(
-                {"label": "SAA_decays", "data": saa_data}
-            )
+            source_list.append({"label": "SAA_decays", "data": saa_data})
             i_index += 1
 
         # point_source_data = self._model.get_point_source_counts(self._data.time_bins, self._saa_mask)
@@ -173,19 +203,23 @@ class DataExporter(object):
         :param result_dir: path to result directory
         :param echan: Which echan
         """
+
+        data_rebinner = Rebinner(self._time_bins, min_bin_width=60, mask=self._saa_mask)
+
+        self._ppc_time_bins = data_rebinner.time_rebinned
+
         import pymultinest
 
         analyzer = pymultinest.analyse.Analyzer(1, result_dir)
         mn_posteriour_samples = analyzer.get_equal_weighted_posterior()[:, :-1]
 
         counts = []
+        counts_binned = []
 
         # Make a mask with 500 random True to choose N_samples random samples,
         # if multinest returns less then 500 posterior samples the use the maximal possible number
         N_samples = (
-            500
-            if len(mn_posteriour_samples) > 500
-            else len(mn_posteriour_samples)
+            500 if len(mn_posteriour_samples) > 500 else len(mn_posteriour_samples)
         )
 
         random_mask = np.zeros(len(mn_posteriour_samples), dtype=int)
@@ -206,11 +240,11 @@ class DataExporter(object):
             with progress_bar(
                 len(
                     mn_posteriour_samples[random_mask][
-                    points_lower_index:points_upper_index
+                        points_lower_index:points_upper_index
                     ]
                 ),
                 title="Calculating PPC",
-                hidden=hidden
+                hidden=hidden,
             ) as p:
 
                 for i, sample in enumerate(
@@ -218,36 +252,48 @@ class DataExporter(object):
                         points_lower_index:points_upper_index
                     ]
                 ):
-                    synth_counts = self.get_synthetic_data(sample).astype(np.uint16)
+                    synth_counts = self.get_synthetic_data(sample).astype(np.uint32)
                     counts.append(synth_counts)
+
+                    rebinned_counts = data_rebinner.rebin(synth_counts)[0]
+
+                    counts_binned.append(rebinned_counts)
+
                     p.increase()
 
             # Now combine and brodcast the results in small packages,
             # because mpi can't handle arrays that big
             ppc_counts = None
+            ppc_counts_binned = None
 
             with progress_bar(len(counts), title="Gather PCC", hidden=hidden) as p:
                 for i, cnts in enumerate(counts):
 
                     counts_g = comm.gather(cnts, root=0)
 
+                    counts_binned_g = comm.gather(counts_binned[i], root=0)
+
                     if rank == 0:
 
                         counts_g = np.array(counts_g)
+
+                        counts_binned_g = np.array(counts_binned_g)
 
                         if ppc_counts is None:
 
                             ppc_counts = counts_g
 
+                            ppc_counts_binned = counts_binned_g
+
                         else:
 
-                            ppc_counts = np.append(
-                                ppc_counts,
-                                counts_g,
-                                axis=0
-                            )
-                    p.increase()
+                            ppc_counts = np.append(ppc_counts, counts_g, axis=0)
 
+                            ppc_counts_binned = np.append(
+                                ppc_counts_binned, counts_binned_g, axis=0
+                            )
+
+                    p.increase()
 
         else:
             with progress_bar(
@@ -258,27 +304,34 @@ class DataExporter(object):
                     synth_counts = self.get_synthetic_data(sample)
                     counts.append(synth_counts)
 
+                    rebinned_counts = data_rebinner.rebin(synth_counts)[0]
+
+                    counts_binned.append(rebinned_counts)
+
                     p.increase()
 
             ppc_counts = np.array(counts)
-        return ppc_counts
+            ppc_counts_binned = np.array(counts_binned)
 
-    def get_synthetic_data(self, synth_parameters, synth_model=None):
+        return ppc_counts, ppc_counts_binned
+
+    def get_synthetic_data(self, synth_parameters):
         """
         Creates a ContinousData object with synthetic data based on the total counts from the synth_model
         If no synth_model is passed it makes a deepcopy of the existing model
         :param synth_parameters:
         :return:
         """
-        synth_data = copy.deepcopy(self._data)
+        if self._ppc_model is None:
 
-        if synth_model == None:
-            synth_model = copy.deepcopy(self._model)
+            self._ppc_model = copy.deepcopy(self._model)
 
-        for i, parameter in enumerate(synth_model.free_parameters.values()):
+        for i, parameter in enumerate(self._ppc_model.free_parameters.values()):
             parameter.value = synth_parameters[i]
 
-        synth_counts = np.random.poisson(synth_model.get_counts(synth_data.time_bins))
+        synth_counts = np.random.poisson(
+            self._ppc_model.get_counts(self._data.time_bins)
+        )
 
         return synth_counts
 
