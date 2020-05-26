@@ -57,7 +57,7 @@ class BackgroundModelGenerator(object):
 
         self.from_config_dict(config)
 
-    def from_config_dict(self, config):
+    def from_config_dict(self, config, response=None, geometry=None):
 
         self._config = config
 
@@ -70,9 +70,21 @@ class BackgroundModelGenerator(object):
 
         self._instantiate_ext_properties(config)
 
-        self._precalc_repsonse(config)
+        if response is None:
 
-        self._precalc_geometry(config)
+            self._precalc_repsonse(config)
+
+        else:
+
+            self._resp = response
+
+        if geometry is None:
+
+            self._precalc_geometry(config)
+
+        else:
+
+            self._geom = geometry
 
         self._mask_valid_time_bins()
 
