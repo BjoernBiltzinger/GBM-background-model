@@ -199,7 +199,7 @@ class Det_Response_Precalculation(object):
                 get_path_of_external_data_dir(),
                 "response",
                 "trigdat",
-                f"effective_response_{det}.hd5",
+                f"effective_response_{Ngrid}_{det}.hd5",
             )
 
             if file_existing_and_readable(response_cache_file):
