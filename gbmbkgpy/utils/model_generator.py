@@ -4,6 +4,7 @@ import numpy as np
 
 from gbmbkgpy.data.continuous_data import Data
 from gbmbkgpy.data.external_prop import ExternalProps
+from gbmbkgpy.data.trigger_data import TrigData
 from gbmbkgpy.modeling.model import Model
 from gbmbkgpy.fitting.background_like import BackgroundLike
 from gbmbkgpy.utils.saa_calc import SAA_calc
@@ -62,9 +63,6 @@ class BackgroundModelGenerator(object):
         self._config = config
 
 
-        self._download_data(config)  # TODO: Check if this is still necessary or if build in method from continuous data is sufficient
-
-
         self._instantiate_data_class(config)
 
 
@@ -93,21 +91,6 @@ class BackgroundModelGenerator(object):
 
 
         self._instantiate_likelihood(config)
-
-
-    def _download_data(self, config):
-        # download files with rank=0; all other ranks have to wait!
-        print_progress('Download data...')
-        if rank == 0:
-            for d in config['general']['dates']:
-                download_files(
-                    data_type=config['general']['data_type'],
-                    det=config['general']['detector'],
-                    day=d
-                )
-        if using_mpi:
-            comm.barrier()
-        print_progress('Done')
 
 
     def _instantiate_data_class(self, config):
@@ -402,3 +385,33 @@ class BackgroundModelGenerator(object):
     @property
     def config(self):
         return self._config
+
+
+class TrigdatBackgroundModelGenerator(BackgroundModelGenerator):
+
+    def _instantiate_data_class(self, config):
+        print_progress('Prepare data...')
+        self._data = TrigData(
+            trigger= config['general']['trigger'],
+            detector=config['general']['detector'],
+            data_type=config['general']['data_type'],
+            echan_list=config['general']['echan_list'],
+            test=config['general'].get('test', False)
+        )
+        print_progress('Done')
+
+    def _precalc_repsonse(self, config):
+        # Create a Response precalculation object, that precalculates the responses on a spherical grid arount the detector.
+        # These calculations use the full DRM's and thus include sat. scattering and partial loss of energy by the photons.
+        print_progress('Precalculate responses for {} points on sphere around detector...'.format(config['response']['Ngrid']))
+
+        self._resp = Response_Precalculation(
+            det=config['general']['detector'],
+            day=config['general']['dates'],
+            echan_list=config['general']['echan_list'],
+            Ngrid=config['response']['Ngrid'],
+            data_type=config['general']['data_type'],
+            trigger=config['general']['trigger']
+        )
+
+        print_progress('Done')
