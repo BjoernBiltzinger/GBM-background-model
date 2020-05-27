@@ -7,18 +7,19 @@ from gbmbkgpy.modeling.source import (
 
 from gbmbkgpy.modeling.functions import (
     SAA_Decay,
-    Magnetic_Continuum,
-    Cosmic_Gamma_Ray_Background,
-    Point_Source_Continuum,
-    Earth_Albedo_Continuum,
-    Offset,
-    Earth_Albedo_Continuum_Fit_Spectrum,
-    Cosmic_Gamma_Ray_Background_Fit_Spectrum,
-    Point_Source_Continuum_Fit_Spectrum,
+    ContinuumFunction,
+    GlobalFunction,
+    GlobalFunctionSpectrumFit
+)
+
+from gbmbkgpy.modeling.point_source import (
+    PointSrc_fixed,
+    PointSrc_free
 )
 
 import numpy as np
-from scipy import interpolate
+import pandas as pd
+from gbmbkgpy.io.package_data import get_path_of_data_file
 
 # see if we have mpi and/or are upalsing parallel
 try:
@@ -54,9 +55,7 @@ def Setup(
     use_earth=True,
     use_cgb=True,
     use_sun=True,
-    use_all_ps=False,
     point_source_list=[],
-    fix_ps=[],
     fix_earth=False,
     fix_cgb=False,
     nr_saa_decays=1,
@@ -81,9 +80,7 @@ def Setup(
     :param use_earth: use earth?
     :param use_cgb: fix cgb spectrum?
     :param use_sun:
-    :param use_all_ps: use all ps?
     :param point_source_list: PS to use
-    :param fix_ps:
     :param fix_earth: fix earth spectrum?
     :param fix_cgb: use cgb?
     :param nr_saa_decays:
@@ -101,8 +98,7 @@ def Setup(
         and type(use_cgb) == bool
         and type(fix_earth) == bool
         and type(fix_cgb) == bool
-        and type(use_all_ps) == bool
-    ), "Please only use True or False here."
+        ), "Please only use True or False here."
 
     total_sources = []
 
@@ -130,11 +126,11 @@ def Setup(
     if use_sun:
         total_sources.append(
             setup_sun(
-                data, sun_object, saa_object
+                data, sun_object, saa_object, use_numba=use_numba
             )
         )
 
-    if use_all_ps or len(point_source_list) > 0:
+    if len(point_source_list) > 0:
         total_sources.extend(
             setup_ps(
                 data=data,
@@ -143,9 +139,7 @@ def Setup(
                 det_responses=det_responses,
                 geometry=geometry,
                 echans=echans,
-                include_all_ps=use_all_ps,
                 point_source_list=point_source_list,
-                free_spectrum=np.logical_not(fix_ps),
                 use_numba=use_numba,
             )
         )
@@ -260,11 +254,11 @@ def setup_SAA(data,
     return SAA_Decay_list
 
 
-def setup_sun(cd, sun_object, saa_object):
+def setup_sun(cd, sun_object, saa_object, use_numba=False):
     """
     Setup for sun as bkg source
     """
-    Sun = Point_Source_Continuum_Fit_Spectrum("sun")
+    Sun = GlobalFunctionSpectrumFit("sun", spectrum='pl', E_norm=1, use_numba=use_numba)
 
     Sun.set_response_array(sun_object.sun_response_array)
 
@@ -282,7 +276,10 @@ def setup_sun(cd, sun_object, saa_object):
 
 
 def setup_Constant(data, saa_object, echan, index):
-    Constant = Offset(str(echan))
+    """
+    Constant source
+    """
+    Constant = ContinuumFunction(f"constant_echan-{echan}")
 
     Constant.set_function_array(np.ones((len(data.time_bins), len(data._detectors), 2)))
 
@@ -307,9 +304,8 @@ def setup_CosmicRays(data, ep, saa_object, echan, index, bgo_cr_approximation):
     :param data: Data object
     :return: Constant and magnetic continuum source
     """
-
+    mag_con = ContinuumFunction(f"norm_magnetic_echan-{echan}")
     if bgo_cr_approximation:
-        mag_con = Magnetic_Continuum(str(echan))
 
         mag_con.set_function_array(ep.bgo_cr_approximation((data.time_bins)))
 
@@ -322,11 +318,8 @@ def setup_CosmicRays(data, ep, saa_object, echan, index, bgo_cr_approximation):
         Source_Magnetic_Continuum = ContinuumSource(
             "BGO_CR_Approx_echan_{:d}".format(echan), mag_con, index
         )
-        return Source_Magnetic_Continuum
 
     else:
-        # Magnetic Continuum Source
-        mag_con = Magnetic_Continuum(str(echan))
 
         mag_con.set_function_array(ep.mc_l_rates((data.time_bins)))
 
@@ -340,7 +333,8 @@ def setup_CosmicRays(data, ep, saa_object, echan, index, bgo_cr_approximation):
         Source_Magnetic_Continuum = ContinuumSource(
             "McIlwain_L-parameter_echan_{:d}".format(echan), mag_con, index
         )
-        return Source_Magnetic_Continuum
+
+    return Source_Magnetic_Continuum
 
 
 def setup_ps(
@@ -350,17 +344,13 @@ def setup_ps(
     det_responses,
     geometry,
     echans,
-    include_all_ps,
     point_source_list,
-    free_spectrum=[],
     use_numba=False,
 ):
     """
     Set up the global sources which are the same for all echans.
     At the moment the Earth Albedo and the CGB.
-    :param include_point_sources:
     :param point_source_list:
-    :param free_spectrum:
     :param echan_list:
     :param geometry:
     :param saa_object:
@@ -368,34 +358,28 @@ def setup_ps(
     :param data:
     :return:
     """
-    if len(free_spectrum) > 0:
-        assert len(free_spectrum) == len(
-            point_source_list
-        ), "free_spectrum and point_source_list must have same length"
-
     PS_Sources_list = []
 
     # Point-Source Sources
-    ep.build_point_sources(
+    point_sources = build_point_sources(
         det_responses=det_responses,
         geometry=geometry,
         echans=echans,
-        include_all_ps=include_all_ps,
         point_source_list=point_source_list,
-        free_spectrum=free_spectrum,
     )
 
     PS_Continuum_dic = {}
 
-    for i, ps in enumerate(ep.point_sources.values()):
+    for i, ps in enumerate(point_sources.values()):
 
-        if len(free_spectrum) > 0 and free_spectrum[i]:
+        if not point_source_list[ps.name]['fixed']:
 
             PS_Continuum_dic[
                 "{}".format(ps.name)
-            ] = Point_Source_Continuum_Fit_Spectrum(
+            ] = GlobalFunctionSpectrumFit(
                 "ps_{}_spectrum_fitted".format(ps.name),
-                E_norm=25.0,
+                spectrum='bb+pl',
+                E_norm=1,
                 use_numba=use_numba,
             )
 
@@ -418,7 +402,7 @@ def setup_ps(
             )
 
             PS_Continuum_dic["{}".format(ps.name)].set_interpolation_times(
-                interpolation_times=ps.geometry_times
+                interpolation_times=ps._geom.geometry_times
             )
 
             PS_Continuum_dic["{}".format(ps.name)].set_responses(responses=ps.responses)
@@ -431,22 +415,24 @@ def setup_ps(
             )
 
         else:
-            PS_Continuum_dic["{}".format(ps.name)] = Point_Source_Continuum(
-                name="norm_point_source-{}".format(ps.name)
+
+            spec_name = ps.spec_type
+            PS_Continuum_dic[f"{ps.name}_{spec_name}"] = GlobalFunction(
+                f"norm_point_source-{ps.name}_{spec_name}"
             )
 
-            PS_Continuum_dic["{}".format(ps.name)].set_function_array(
+            PS_Continuum_dic[f"{ps.name}_{spec_name}"].set_function_array(
                 ps.get_ps_rates(data.time_bins)
             )
 
-            PS_Continuum_dic["{}".format(ps.name)].set_saa_zero(saa_object.saa_mask)
+            PS_Continuum_dic[f"{ps.name}_{spec_name}"].set_saa_zero(saa_object.saa_mask)
 
-            PS_Continuum_dic["{}".format(ps.name)].integrate_array(data.time_bins)
+            PS_Continuum_dic[f"{ps.name}_{spec_name}"].integrate_array(data.time_bins)
 
             PS_Sources_list.append(
                 GlobalSource(
-                    name="{}".format(ps.name),
-                    continuum_shape=PS_Continuum_dic["{}".format(ps.name)],
+                    name=f"{ps.name}_{spec_name}",
+                    continuum_shape=PS_Continuum_dic[f"{ps.name}_{spec_name}"],
                 )
             )
 
@@ -462,7 +448,9 @@ def setup_earth_free(data, albedo_cgb_object, saa_object, use_numba=False):
     :return:
     """
 
-    earth_albedo = Earth_Albedo_Continuum_Fit_Spectrum(use_numba=use_numba)
+    earth_albedo = GlobalFunctionSpectrumFit("earth_albedo_spectrum_fitted",
+                                             spectrum="bpl",
+                                             use_numba=use_numba)
 
     earth_albedo.build_spec_integral()
 
@@ -497,7 +485,7 @@ def setup_earth_fix(data, albedo_cgb_object, saa_object):
     :return:
     """
 
-    earth_albedo = Earth_Albedo_Continuum()
+    earth_albedo = GlobalFunction("norm_earth_albedo")
 
     earth_albedo.set_function_array(albedo_cgb_object.get_earth_rates(data.time_bins))
     earth_albedo.set_saa_zero(saa_object.saa_mask)
@@ -517,7 +505,7 @@ def setup_cgb_free(data, albedo_cgb_object, saa_object, use_numba=False):
     :param saa_object:
     :return:
     """
-    cgb = Cosmic_Gamma_Ray_Background_Fit_Spectrum(use_numba=use_numba)
+    cgb = GlobalFunctionSpectrumFit("CGB_spectrum_fitted", spectrum='bpl', use_numba=use_numba)
 
     cgb.build_spec_integral()
 
@@ -548,7 +536,7 @@ def setup_cgb_fix(data, albedo_cgb_object, saa_object):
     :param saa_object:
     :return:
     """
-    cgb = Cosmic_Gamma_Ray_Background()
+    cgb = GlobalFunction("norm_cgb")
 
     cgb.set_function_array(albedo_cgb_object.get_cgb_rates(data.time_bins))
 
@@ -559,3 +547,50 @@ def setup_cgb_fix(data, albedo_cgb_object, saa_object):
     Source_CGB_Albedo_Continuum = GlobalSource("CGB", cgb)
 
     return Source_CGB_Albedo_Continuum
+
+
+def build_point_sources(
+        det_responses,
+        geometry,
+        echans,
+        point_source_list=[],
+):
+    """
+    This function reads the point_sources.dat file and builds the point sources
+    :param echans:
+    :param include_all_ps:
+    :param source_list:
+    :return:
+    """
+    file_path = get_path_of_data_file("background_point_sources/", "point_sources.dat")
+    ps_df = pd.read_table(file_path, names=["name", "ra", "dec"])
+    
+    # instantiate dic of point source objects
+    point_sources_dic = {}
+
+    ### Single core calc ###
+    for row in ps_df.itertuples():
+        for i, ps in enumerate(point_source_list):
+            if row[1] == ps:
+                if not point_source_list[ps]["fixed"]:
+                    point_sources_dic[row[1]] = PointSrc_free(
+                        name=row[1],
+                        ra=row[2],
+                        dec=row[3],
+                        det_responses=det_responses,
+                        geometry=geometry,
+                        echans=echans,
+                    )
+
+                else:
+                    for entry in point_source_list[ps]['spectrum']:
+                        point_sources_dic[f"{row[1]}_{entry}"] = PointSrc_fixed(
+                            name=row[1],
+                            ra=row[2],
+                            dec=row[3],
+                            det_responses=det_responses,
+                            geometry=geometry,
+                            echans=echans,
+                            spec=point_source_list[ps]['spectrum'][entry],
+                        )
+    return point_sources_dic
