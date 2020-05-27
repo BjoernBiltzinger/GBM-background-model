@@ -1,4 +1,8 @@
 from gbmbkgpy.modeling.parameter import Parameter
+from gbmbkgpy.utils.spectrum import (
+    _spec_integral_pl,
+    _spec_integral_bb_pl,
+    _spec_integral_bpl)
 import numpy as np
 import numexpr as ne
 
@@ -37,197 +41,6 @@ except:
 if has_numba:
     # Import Interpolation class
     from gbmbkgpy.utils.interpolation import Interp1D
-
-    # Numba Implementation
-    @njit(float64(float64, float64, float64, float64, float64), cache=True)
-    def _spectrum_bpl_numba(energy, c, break_energy, index1, index2):
-        """
-        Calculates the differential spectra
-        :param energy: energy where to evaluate bpl
-        :param c: C param of bpl
-        :param break_energy: Energy where the bpl breaks
-        :param index: index of bpl
-        :return: differential pl evaluation [1/kev*s]
-        """
-
-        return c / (
-            (energy / break_energy) ** index1 + (energy / break_energy) ** index2
-        )
-
-    @njit(float64(float64, float64, float64, float64), cache=True)
-    def _spectrum_pl_numba(energy, c, e_norm, index):
-        """
-        Calculates the differential spectra
-        :param energy: energy where to evaluate pl
-        :param c: C param of pl
-        :param e_norm: Energy where to norm the pl
-        :param index: index of pl
-        :return: differential pl evaluation [1/kev*s]
-        """
-
-        return c / (energy / e_norm) ** index
-
-    @njit(float64(float64, float64, float64), cache=True)
-    def _spectrum_bb_numba(energy, c, temp):
-        """
-        Calculates the differential spectra
-        :param energy: energy where to evaluate pl
-        :param c: C param of pl
-        :param e_norm: Energy where to norm the pl
-        :param index: index of pl
-        :return: differential pl evaluation [1/kev*s]
-        """
-
-        return c*energy**2/(np.expm1(energy/temp))
-
-    @njit(float64[:](float64[:], float64[:], float64, float64, float64), cache=True)
-    def _spec_integral_pl_numba(e1, e2, c, e_norm, index):
-        """
-        Calculates the flux of photons between two energies
-        :param e1: lower e bound
-        :param e2: upper e bound
-        :return: number photons per second in the incoming ebins
-        """
-        res = np.zeros(len(e1))
-        for i in prange(len(e1)):
-
-            res[i] = (
-                (e2[i] - e1[i])
-                / 6.0
-                * (
-                    _spectrum_pl_numba(e1[i], c, e_norm, index)
-                    + 4 * _spectrum_pl_numba((e1[i] + e2[i]) / 2.0, c, e_norm, index)
-                    + _spectrum_pl_numba(e2[i], c, e_norm, index)
-                )
-            )
-        return res
-
-    @njit(float64[:](float64[:], float64[:], float64, float64, float64, float64, float64), cache=True)
-    def _spec_integral_bb_pl_numba(e1, e2, c_pl, e_norm, index, c_bb, temp):
-        """
-        Calculates the flux of photons between two energies
-        :param e1: lower e bound
-        :param e2: upper e bound
-        :return: number photons per second in the incoming ebins
-        """
-        res = np.zeros(len(e1))
-        for i in prange(len(e1)):
-
-            res[i] = (
-                (e2[i] - e1[i])
-                / 6.0
-                * (
-                    (_spectrum_pl_numba(e1[i], c_pl, e_norm, index)+_spectrum_bb_numba(e1[i], c_bb, temp))
-                    + 4 *(_spectrum_pl_numba((e1[i] + e2[i]) / 2.0, c_pl, e_norm, index)+
-                          _spectrum_bb_numba((e1[i] + e2[i]) / 2.0, c_bb, temp))
-                    + (_spectrum_pl_numba(e2[i], c_pl, e_norm, index) + _spectrum_bb_numba(e2[i], c_bb, temp))
-                )
-            )
-        return res
-
-    @njit(
-        float64[:](float64[:], float64[:], float64, float64, float64, float64),
-        cache=True,
-    )
-    def _spec_integral_bpl_numba(e1, e2, c, break_energy, index1, index2):
-        """
-        Calculates the flux of photons between two energies
-        :param e1: lower e bound
-        :param e2: upper e bound
-        :return: number photons per second in the incoming ebins
-        """
-        res = np.zeros(len(e1))
-        for i in prange(len(e1)):
-            res[i] = (
-                (e2[i] - e1[i])
-                / 6.0
-                * (
-                    _spectrum_bpl_numba(e1[i], c, break_energy, index1, index2)
-                    + 4
-                    * _spectrum_bpl_numba(
-                        (e1[i] + e2[i]) / 2.0, c, break_energy, index1, index2
-                    )
-                    + _spectrum_bpl_numba(e2[i], c, break_energy, index1, index2)
-                )
-            )
-        return res
-
-    @njit(float64(float64, float64, float64, float64, float64), cache=True)
-    def _spectrum_bpl_numba(energy, c, break_energy, index1, index2):
-        """
-        Calculates the differential spectra
-        :param energy: energy where to evaluate bpl
-        :param c: C param of bpl
-        :param break_energy: Energy where the bpl breaks
-        :param index: index of bpl
-        :return: differential pl evaluation [1/kev*s]
-        """
-
-        return c / (
-            (energy / break_energy) ** index1 + (energy / break_energy) ** index2
-        )
-
-    @njit(float64(float64, float64, float64, float64), cache=True)
-    def _spectrum_pl_numba(energy, c, e_norm, index):
-        """
-        Calculates the differential spectra
-        :param energy: energy where to evaluate pl
-        :param c: C param of pl
-        :param e_norm: Energy where to norm the pl
-        :param index: index of pl
-        :return: differential pl evaluation [1/kev*s]
-        """
-
-        return c / (energy / e_norm) ** index
-
-    @njit(float64[:](float64[:], float64[:], float64, float64, float64), cache=True)
-    def _spec_integral_pl_numba(e1, e2, c, e_norm, index):
-        """
-        Calculates the flux of photons between two energies
-        :param e1: lower e bound
-        :param e2: upper e bound
-        :return: number photons per second in the incoming ebins
-        """
-        res = np.zeros(len(e1))
-        for i in prange(len(e1)):
-
-            res[i] = (
-                (e2[i] - e1[i])
-                / 6.0
-                * (
-                    _spectrum_pl_numba(e1[i], c, e_norm, index)
-                    + 4 * _spectrum_pl_numba((e1[i] + e2[i]) / 2.0, c, e_norm, index)
-                    + _spectrum_pl_numba(e2[i], c, e_norm, index)
-                )
-            )
-        return res
-
-    @njit(
-        float64[:](float64[:], float64[:], float64, float64, float64, float64),
-        cache=True,
-    )
-    def _spec_integral_bpl_numba(e1, e2, c, break_energy, index1, index2):
-        """
-        Calculates the flux of photons between two energies
-        :param e1: lower e bound
-        :param e2: upper e bound
-        :return: number photons per second in the incoming ebins
-        """
-        res = np.zeros(len(e1))
-        for i in prange(len(e1)):
-            res[i] = (
-                (e2[i] - e1[i])
-                / 6.0
-                * (
-                    _spectrum_bpl_numba(e1[i], c, break_energy, index1, index2)
-                    + 4
-                    * _spectrum_bpl_numba(
-                        (e1[i] + e2[i]) / 2.0, c, break_energy, index1, index2
-                    )
-                    + _spectrum_bpl_numba(e2[i], c, break_energy, index1, index2)
-                )
-            )
-        return res
 
     # Numba response folding
     @njit(cache=True)
@@ -856,7 +669,7 @@ class GlobalFunctionSpectrumFit(Function):
 
                 def _integral(e1, e2):
 
-                    return _spec_integral_bpl_numba(
+                    return _spec_integral_bpl(
                         e1, e2, self._C, self._break_energy, self._index1, self._index2
                     )
 
@@ -866,7 +679,7 @@ class GlobalFunctionSpectrumFit(Function):
 
                 def _integral(e1, e2):
 
-                    return _spec_integral_pl_numba(
+                    return _spec_integral_pl(
                         e1, e2, self._C, self._E_norm, self._index
                     )
 
@@ -876,7 +689,7 @@ class GlobalFunctionSpectrumFit(Function):
 
                 def _integral(e1, e2):
 
-                    return _spec_integral_bb_pl_numba(
+                    return _spec_integral_bb_pl(
                         e1, e2, self._C_pl, self._E_norm, self._index, self._C_bb, self._temp
                     )
                 self._spec_integral = _integral
@@ -908,7 +721,7 @@ class GlobalFunctionSpectrumFit(Function):
                         e1, e2, self._C_pl, self._E_norm, self._index, self._C_bb, self._temp
                     )
                 self._spec_integral = _integral
-
+                
     def _fold_spectrum(self, *parameters):
         """
         Function to fold the spectrum defined by the current parameter values with the precalculated effective response
@@ -976,70 +789,3 @@ class GlobalFunctionSpectrumFit(Function):
     def __call__(self):
 
         return self._evaluate(*self.parameter_value)
-
-
-# Vectorized Spectrum Functions
-def _spectrum_bpl(energy, c, break_energy, index1, index2):
-
-    return c / ((energy / break_energy) ** index1 + (energy / break_energy) ** index2)
-
-
-def _spectrum_pl(energy, c, e_norm, index):
-
-    return c / (energy / e_norm) ** index
-
-def _spectrum_bb(energy, c, temp):
-
-    return c*energy**2/(np.expm1(energy/temp))
-
-def _spec_integral_pl(e1, e2, c, e_norm, index):
-    """
-        Calculates the flux of photons between two energies
-        :param e1: lower e bound
-        :param e2: upper e bound
-        :return:
-        """
-    return (
-        (e2 - e1)
-        / 6.0
-        * (
-            _spectrum_pl(e1, c, e_norm, index)
-            + 4 * _spectrum_pl((e1 + e2) / 2.0, c, e_norm, index)
-            + _spectrum_pl(e2, c, e_norm, index)
-        )
-    )
-
-def _spec_integral_bb_pl(e1, e2, c_pl, e_norm, index, c_bb, temp):
-    """
-        Calculates the flux of photons between two energies
-        :param e1: lower e bound
-        :param e2: upper e bound
-        :return:
-        """
-    return (
-        (e2 - e1)
-        / 6.0
-        * (
-            (_spectrum_pl(e1, c_pl, e_norm, index)+_spectrum_bb(e1, c_bb, temp))
-            + 4 * (_spectrum_pl((e1 + e2) / 2.0, c_pl, e_norm, index)+_spectrum_bb((e1 + e2) / 2.0, c_bb, temp))
-            + (_spectrum_pl(e2, c_pl, e_norm, index)+_spectrum_bb(e2, c_bb, temp))
-        )
-    )
-
-
-def _spec_integral_bpl(e1, e2, c, break_energy, index1, index2):
-    """
-    Calculates the flux of photons between two energies
-    :param e1: lower e bound
-    :param e2: upper e bound
-    :return:
-    """
-    return (
-        (e2 - e1)
-        / 6.0
-        * (
-            _spectrum_bpl(e1, c, break_energy, index1, index2)
-            + 4 * _spectrum_bpl((e1 + e2) / 2.0, c, break_energy, index1, index2)
-            + _spectrum_bpl(e2, c, break_energy, index1, index2)
-        )
-    )

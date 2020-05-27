@@ -5,7 +5,7 @@ from gbm_drm_gen.drmgen import DRMGen
 from scipy.interpolate import interpolate
 
 from gbmbkgpy.utils.progress_bar import progress_bar
-
+from gbmbkgpy.utils.spectrum import _spec_integral_pl, _spec_integral_bb
 import numpy as np
 
 try:
@@ -225,21 +225,6 @@ class PointSrc_fixed(PointSrc_free):
             self._geom.geometry_times, self._folded_flux_ps, axis=0
         )
 
-    def _spectrum_ps(self, energy):
-        """
-        Define the function of a spectral form. Needed for PS spectrum
-        :params energy: Energy where to evaluate the diffenrential spectrum
-        :return: Differential flux
-        """
-        if self._spec_type == 'bb':
-
-            return 1*energy**2/(np.expm1(energy/self._bb_temp))
-
-        if self._spec_type == 'pl':
-            e_norm = 1.0
-
-            return 1 / (energy / e_norm) ** self._pl_index
-
     def _integral_ps(self, e1, e2):
         """
         Method to integrate the diff. flux over the Ebins of the incoming photons
@@ -248,15 +233,12 @@ class PointSrc_fixed(PointSrc_free):
         :params index: Index of spectrum
         :return: flux in the Ebin_in
         """
-        return (
-            (e2 - e1)
-            / 6.0
-            * (
-                self._spectrum_ps(e1)
-                + 4 * self._spectrum_ps((e1 + e2) / 2.0)
-                + self._spectrum_ps(e2)
-            )
-        )
+        if self._spec_type == 'bb':
+            return _spec_integral_bb(e1, e2, 1, self._bb_temp)
+
+        if self._spec_type == 'pl':
+            e_norm = 1.0
+            return _spec_integral_pl(e1, e2, 1, e_norm, self._pl_index)
 
     @property
     def spec_type(self):
