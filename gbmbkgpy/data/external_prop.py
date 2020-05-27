@@ -2,7 +2,6 @@ import astropy.io.fits as fits
 import astropy.time as astro_time
 import astropy.units as u
 import numpy as np
-import pandas as pd
 import scipy.interpolate as interpolate
 from gbmgeometry import GBMTime
 import os
@@ -12,7 +11,7 @@ from gbmbkgpy.io.package_data import (
     get_path_of_data_file,
     get_path_of_external_data_file,
 )
-from gbmbkgpy.modeling.point_source import PointSrc_fixed, PointSrc_free
+
 import csv
 
 from gbmbkgpy.io.downloading import download_files
@@ -80,62 +79,6 @@ class ExternalProps(object):
             self._mc_l_interp = interpolate.interp1d(self._lat_time, self._mc_l)
         else:
             self._build_bgo_cr_approximation(dates, detectors)
-
-    def build_point_sources(
-        self,
-        det_responses,
-        geometry,
-        echans,
-        include_all_ps=False,
-        point_source_list=[],
-        free_spectrum=[],
-    ):
-        """
-        This function reads the point_sources.dat file and builds the point sources
-        :param echans:
-        :param include_all_ps:
-        :param source_list:
-        :param free_spectrum:
-        :return:
-        """
-
-        file_path = get_path_of_data_file(
-            "background_point_sources/", "point_sources.dat"
-        )
-
-        self._ps_df = pd.read_table(file_path, names=["name", "ra", "dec"])
-
-        if include_all_ps:
-            point_source_list = list(self._ps_df["name"])
-
-        # instantiate dic of point source objects
-        self._point_sources_dic = {}
-
-        ### Single core calc ###
-        for row in self._ps_df.itertuples():
-            for i, element in enumerate(point_source_list):
-                if row[1] == element:
-                    if len(free_spectrum) > 0 and free_spectrum[i]:
-                        self._point_sources_dic[row[1]] = PointSrc_free(
-                            name=row[1],
-                            ra=row[2],
-                            dec=row[3],
-                            det_responses=det_responses,
-                            geometry=geometry,
-                            echans=echans,
-                        )
-
-                    else:
-                        self._point_sources_dic[row[1]] = PointSrc_fixed(
-                            name=row[1],
-                            ra=row[2],
-                            dec=row[3],
-                            det_responses=det_responses,
-                            geometry=geometry,
-                            echans=echans,
-                            spectral_index=2.114,
-                        )
-
 
     def bgo_cr_approximation(self, met):
 
