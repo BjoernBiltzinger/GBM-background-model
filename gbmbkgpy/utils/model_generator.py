@@ -222,7 +222,6 @@ class BackgroundModelGenerator(object):
             use_earth=config["setup"]["use_earth"],
             use_cgb=config["setup"]["use_cgb"],
             point_source_list=config["setup"]["ps_list"],
-            fix_ps=config["setup"]["fix_ps"],
             fix_earth=config["setup"]["fix_earth"],
             fix_cgb=config["setup"]["fix_cgb"],
             use_sun=config["setup"]["use_sun"],
@@ -268,135 +267,128 @@ class BackgroundModelGenerator(object):
                         for det in self._data.detectors:
 
                             parameter_bounds["norm_saa-{}_det-{}_echan-{}".format(saa_nr, det, e)] = {
-                                "bounds": config["bounds"]["saa_bound"][0],
-                                "gaussian_parameter": config["gaussian_bounds"]["saa_bound"][0],
+                                "bounds": config["bounds"]["saa_bound"]["norm"],
+                                "gaussian_parameter": config["gaussian_bounds"]["saa_bound"]["norm"],
                             }
                             parameter_bounds["decay_saa-{}_det-{}_echan-{}".format(saa_nr, det, e)] = {
-                                "bounds": config["bounds"]["saa_bound"][1],
-                                "gaussian_parameter": config["gaussian_bounds"]["saa_bound"][1],
+                                "bounds": config["bounds"]["saa_bound"]["decay"],
+                                "gaussian_parameter": config["gaussian_bounds"]["saa_bound"]["decay"],
                             }
 
                     else:
 
                         parameter_bounds["norm_saa-{}_det-all_echan-{}".format(saa_nr, e)] = {
-                            "bounds": config["bounds"]["saa_bound"][0],
-                            "gaussian_parameter": config["gaussian_bounds"]["saa_bound"][0],
+                            "bounds": config["bounds"]["saa_bound"]["norm"],
+                            "gaussian_parameter": config["gaussian_bounds"]["saa_bound"]["norm"],
                         }
                         parameter_bounds["decay_saa-{}_det-all_echan-{}".format(saa_nr, e)] = {
-                            "bounds": config["bounds"]["saa_bound"][1],
-                            "gaussian_parameter": config["gaussian_bounds"]["saa_bound"][1],
+                            "bounds": config["bounds"]["saa_bound"]["decay"],
+                            "gaussian_parameter": config["gaussian_bounds"]["saa_bound"]["decay"],
                         }
 
             if config["setup"]["use_constant"]:
                 parameter_bounds["constant_echan-{}".format(e)] = {
-                    "bounds": config["bounds"]["cr_bound"][0],
-                    "gaussian_parameter": config["gaussian_bounds"]["cr_bound"][0],
+                    "bounds": config["bounds"]["cr_bound"]["const"],
+                    "gaussian_parameter": config["gaussian_bounds"]["cr_bound"]["const"],
                 }
 
             if config["setup"]["use_cr"]:
                 parameter_bounds["norm_magnetic_echan-{}".format(e)] = {
-                    "bounds": config["bounds"]["cr_bound"][1],
-                    "gaussian_parameter": config["gaussian_bounds"]["cr_bound"][1],
+                    "bounds": config["bounds"]["cr_bound"]["norm"],
+                    "gaussian_parameter": config["gaussian_bounds"]["cr_bound"]["norm"],
                 }
 
         if config["setup"]["use_sun"]:
             parameter_bounds["sun_norm"] = {
-                "bounds": config["bounds"]["sun_bound"][0],
-                "gaussian_parameter": config["gaussian_bounds"]["sun_bound"][0],
+                "bounds": config["bounds"]["sun_bound"]["norm"],
+                "gaussian_parameter": config["gaussian_bounds"]["sun_bound"]["norm"],
             }
             parameter_bounds["sun_index"] = {
-                "bounds": config["bounds"]["sun_bound"][1],
-                "gaussian_parameter": config["gaussian_bounds"]["sun_bound"][1],
+                "bounds": config["bounds"]["sun_bound"]["index"],
+                "gaussian_parameter": config["gaussian_bounds"]["sun_bound"]["index"],
             }
         # Global sources for all echans
 
         # If PS spectrum is fixed only the normalization, otherwise C, index
         for i, ps in enumerate(config["setup"]["ps_list"]):
-            if config["setup"]["fix_ps"][i]:
-                parameter_bounds["norm_point_source-{}".format(ps)] = {
-                    "bounds": config["bounds"]["ps_fixed_bound"][0],
-                    "gaussian_parameter": config["gaussian_bounds"]["ps_fixed_bound"][
-                        0
-                    ],
-                }
-            else:
-                parameter_bounds["ps_{}_spectrum_fitted_norm".format(ps)] = {
-                    "bounds": config["bounds"]["ps_free_bound"][0],
-                    "gaussian_parameter": config["gaussian_bounds"]["ps_free_bound"][0],
-                }
-                parameter_bounds["ps_{}_spectrum_fitted_index".format(ps)] = {
-                    "bounds": config["bounds"]["ps_free_bound"][1],
-                    "gaussian_parameter": config["gaussian_bounds"]["ps_free_bound"][1],
-                }
+            if config["setup"]["ps_list"][ps]["fixed"]:
+                for entry in config["setup"]["ps_list"][ps]["spectrum"]:
+                    parameter_bounds[f"norm_point_source-{ps}_{entry}"] = {
+                        "bounds": config["bounds"]["ps_fixed_bound"][entry]["norm"],
+                        "gaussian_parameter": config["gaussian_bounds"]["ps_fixed_bound"][entry]["norm"],
+                    }
 
+            else:
+                for entry in config["setup"]["ps_list"][ps]["spectrum"]:
+                    if entry == 'pl':
+                        parameter_bounds["ps_{}_spectrum_fitted_norm_pl".format(ps)] = {
+                            "bounds": config["bounds"]["ps_free_bound"][entry]["norm"],
+                            "gaussian_parameter": config["gaussian_bounds"]["ps_free_bound"][entry]["norm"],
+                        }
+                        parameter_bounds["ps_{}_spectrum_fitted_index".format(ps)] = {
+                            "bounds": config["bounds"]["ps_free_bound"][entry]["index"],
+                            "gaussian_parameter": config["gaussian_bounds"]["ps_free_bound"][entry]["index"],
+                        }
+                    elif entry == 'bb':
+
+                        parameter_bounds["ps_{}_spectrum_fitted_norm_bb".format(ps)] = {
+                            "bounds": config["bounds"]["ps_free_bound"][entry]["norm"],
+                            "gaussian_parameter": config["gaussian_bounds"]["ps_free_bound"][entry]["norm"],
+                        }
+                        parameter_bounds["ps_{}_spectrum_fitted_temp".format(ps)] = {
+                            "bounds": config["bounds"]["ps_free_bound"][entry]["temp"],
+                            "gaussian_parameter": config["gaussian_bounds"]["ps_free_bound"][entry]["temp"],
+                        }
         if config["setup"]["use_earth"]:
             # If earth spectrum is fixed only the normalization, otherwise C, index1, index2 and E_break
             if config["setup"]["fix_earth"]:
                 parameter_bounds["norm_earth_albedo"] = {
-                    "bounds": config["bounds"]["earth_fixed_bound"][0],
+                    "bounds": config["bounds"]["earth_fixed_bound"]["norm"],
                     "gaussian_parameter": config["gaussian_bounds"][
                         "earth_fixed_bound"
-                    ][0],
+                    ]["norm"],
                 }
             else:
                 parameter_bounds["earth_albedo_spectrum_fitted_norm"] = {
-                    "bounds": config["bounds"]["earth_free_bound"][0],
-                    "gaussian_parameter": config["gaussian_bounds"]["earth_free_bound"][
-                        0
-                    ],
+                    "bounds": config["bounds"]["earth_free_bound"]["norm"],
+                    "gaussian_parameter": config["gaussian_bounds"]["earth_free_bound"]["norm"],
                 }
                 parameter_bounds["earth_albedo_spectrum_fitted_index1"] = {
-                    "bounds": config["bounds"]["earth_free_bound"][1],
-                    "gaussian_parameter": config["gaussian_bounds"]["earth_free_bound"][
-                        1
-                    ],
+                    "bounds": config["bounds"]["earth_free_bound"]["alpha"],
+                    "gaussian_parameter": config["gaussian_bounds"]["earth_free_bound"]["alpha"],
                 }
                 parameter_bounds["earth_albedo_spectrum_fitted_index2"] = {
-                    "bounds": config["bounds"]["earth_free_bound"][2],
-                    "gaussian_parameter": config["gaussian_bounds"]["earth_free_bound"][
-                        2
-                    ],
+                    "bounds": config["bounds"]["earth_free_bound"]["beta"],
+                    "gaussian_parameter": config["gaussian_bounds"]["earth_free_bound"]["beta"],
                 }
                 parameter_bounds["earth_albedo_spectrum_fitted_break_energy"] = {
-                    "bounds": config["bounds"]["earth_free_bound"][3],
-                    "gaussian_parameter": config["gaussian_bounds"]["earth_free_bound"][
-                        3
-                    ],
+                    "bounds": config["bounds"]["earth_free_bound"]["Eb"],
+                    "gaussian_parameter": config["gaussian_bounds"]["earth_free_bound"]["Eb"],
                 }
 
         if config["setup"]["use_cgb"]:
             # If cgb spectrum is fixed only the normalization, otherwise C, index1, index2 and E_break
             if config["setup"]["fix_cgb"]:
                 parameter_bounds["norm_cgb"] = {
-                    "bounds": config["bounds"]["cgb_fixed_bound"][0],
-                    "gaussian_parameter": config["gaussian_bounds"]["cgb_fixed_bound"][
-                        0
-                    ],
+                    "bounds": config["bounds"]["cgb_fixed_bound"]["norm"],
+                    "gaussian_parameter": config["gaussian_bounds"]["cgb_fixed_bound"]["norm"],
                 }
             else:
                 parameter_bounds["CGB_spectrum_fitted_norm"] = {
-                    "bounds": config["bounds"]["cgb_free_bound"][0],
-                    "gaussian_parameter": config["gaussian_bounds"]["cgb_free_bound"][
-                        0
-                    ],
+                    "bounds": config["bounds"]["cgb_free_bound"]["norm"],
+                    "gaussian_parameter": config["gaussian_bounds"]["cgb_free_bound"]["norm"],
                 }
                 parameter_bounds["CGB_spectrum_fitted_index1"] = {
-                    "bounds": config["bounds"]["cgb_free_bound"][1],
-                    "gaussian_parameter": config["gaussian_bounds"]["cgb_free_bound"][
-                        1
-                    ],
+                    "bounds": config["bounds"]["cgb_free_bound"]["alpha"],
+                    "gaussian_parameter": config["gaussian_bounds"]["cgb_free_bound"]["alpha"],
                 }
                 parameter_bounds["CGB_spectrum_fitted_index2"] = {
-                    "bounds": config["bounds"]["cgb_free_bound"][2],
-                    "gaussian_parameter": config["gaussian_bounds"]["cgb_free_bound"][
-                        2
-                    ],
+                    "bounds": config["bounds"]["cgb_free_bound"]["beta"],
+                    "gaussian_parameter": config["gaussian_bounds"]["cgb_free_bound"]["beta"],
                 }
                 parameter_bounds["CGB_spectrum_fitted_break_energy"] = {
-                    "bounds": config["bounds"]["cgb_free_bound"][3],
-                    "gaussian_parameter": config["gaussian_bounds"]["cgb_free_bound"][
-                        3
-                    ],
+                    "bounds": config["bounds"]["cgb_free_bound"]["Eb"],
+                    "gaussian_parameter": config["gaussian_bounds"]["cgb_free_bound"]["Eb"],
                 }
 
         self._parameter_bounds = parameter_bounds
