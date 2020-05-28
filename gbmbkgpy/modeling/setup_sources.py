@@ -373,12 +373,21 @@ def setup_ps(
     for i, ps in enumerate(point_sources.values()):
 
         if not point_source_list[ps.name]['fixed']:
+            if 'bb' in point_source_list[ps.name]["spectrum"]:
+                if 'pl' in point_source_list[ps.name]["spectrum"]:
+                    spec = 'bb+pl'
+                else:
+                    spec = 'bb'
+            elif 'pl' in point_source_list[ps.name]["spectrum"]:
+                spec = 'pl'
+            else:
+                raise NotImplementedError("Only pl or bb or both spectra for point sources!")
 
             PS_Continuum_dic[
                 "{}".format(ps.name)
             ] = GlobalFunctionSpectrumFit(
                 "ps_{}_spectrum_fitted".format(ps.name),
-                spectrum='bb+pl',
+                spectrum=spec,
                 E_norm=1,
                 use_numba=use_numba,
             )

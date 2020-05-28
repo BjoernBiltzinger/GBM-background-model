@@ -561,7 +561,33 @@ class GlobalFunctionSpectrumFit(Function):
             super(GlobalFunctionSpectrumFit, self).__init__(
                 C_pl, index, C_bb, temp, use_numba=use_numba
             )
+        elif self._spec == 'bb':
 
+            C = Parameter(
+                coefficient_name + "_norm_bb",
+                initial_value=1.0,
+                min_value=0,
+                max_value=None,
+                delta=0.1,
+                normalization=True,
+                prior="log_uniform",
+            )
+
+            temp = Parameter(
+                coefficient_name + "_temp",
+                initial_value=1.0,
+                min_value=0,
+                max_value=5,
+                delta=0.1,
+                mu=1,
+                sigma=1,
+                normalization=False,
+                prior="truncated_gaussian",
+            )
+
+            super(GlobalFunctionSpectrumFit, self).__init__(
+                C, temp, use_numba=use_numba
+                )
         else:
 
             raise ValueError(
@@ -721,7 +747,17 @@ class GlobalFunctionSpectrumFit(Function):
                         e1, e2, self._C_pl, self._E_norm, self._index, self._C_bb, self._temp
                     )
                 self._spec_integral = _integral
-                
+
+            elif self._spec == 'bb':
+
+                def _integral(e1, e2):
+
+                    return _spec_integral_bb(
+                        e1, e2, self._C, self._temp
+                        )
+                self._spec_integral = _integral
+
+
     def _fold_spectrum(self, *parameters):
         """
         Function to fold the spectrum defined by the current parameter values with the precalculated effective response
@@ -748,6 +784,10 @@ class GlobalFunctionSpectrumFit(Function):
             self._index = parameters[1]
             self._C_bb = parameters[2]
             self._temp = parameters[3]
+
+        elif self._spec == 'bb':
+            self._C = parameters[0]
+            self._temp = parameters[1]
 
         folded_flux = np.zeros(
             (len(self._interpolation_times), len(self._detectors), len(self._echans),)
