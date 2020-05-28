@@ -2,7 +2,8 @@ from gbmbkgpy.modeling.parameter import Parameter
 from gbmbkgpy.utils.spectrum import (
     _spec_integral_pl,
     _spec_integral_bb_pl,
-    _spec_integral_bpl)
+    _spec_integral_bpl,
+    _spec_integral_bb)
 import numpy as np
 import numexpr as ne
 
@@ -689,73 +690,39 @@ class GlobalFunctionSpectrumFit(Function):
 
     def build_spec_integral(self):
 
-        if self._use_numba:
+        if self._spec == "bpl":
 
-            if self._spec == "bpl":
+            def _integral(e1, e2):
 
-                def _integral(e1, e2):
+                return _spec_integral_bpl(
+                    e1, e2, self._C, self._break_energy, self._index1, self._index2
+                )
 
-                    return _spec_integral_bpl(
-                        e1, e2, self._C, self._break_energy, self._index1, self._index2
-                    )
+        elif self._spec == "pl":
 
-                self._spec_integral = _integral
+            def _integral(e1, e2):
 
-            elif self._spec == "pl":
+                return _spec_integral_pl(
+                    e1, e2, self._C, self._E_norm, self._index
+                )
 
-                def _integral(e1, e2):
+        elif self._spec == 'bb+pl':
 
-                    return _spec_integral_pl(
-                        e1, e2, self._C, self._E_norm, self._index
-                    )
+            def _integral(e1, e2):
 
-                self._spec_integral = _integral
+                return _spec_integral_bb_pl(
+                    e1, e2, self._C_pl, self._E_norm, self._index, self._C_bb, self._temp
+                )
 
-            elif self._spec == 'bb+pl':
+        elif self._spec == 'bb':
 
-                def _integral(e1, e2):
+            def _integral(e1, e2):
 
-                    return _spec_integral_bb_pl(
-                        e1, e2, self._C_pl, self._E_norm, self._index, self._C_bb, self._temp
-                    )
-                self._spec_integral = _integral
-        else:
+                return _spec_integral_bb(
+                    e1, e2, self._C, self._temp
+                )
 
-            if self._spec == "bpl":
-
-                def _integral(e1, e2):
-
-                    return _spec_integral_bpl(
-                        e1, e2, self._C, self._break_energy, self._index1, self._index2
-                    )
-
-                self._spec_integral = _integral
-
-            elif self._spec == "pl":
-
-                def _integral(e1, e2):
-
-                    return _spec_integral_pl(e1, e2, self._C, self._E_norm, self._index)
-
-                self._spec_integral = _integral
-
-            elif self._spec == 'bb+pl':
-
-                def _integral(e1, e2):
-
-                    return _spec_integral_bb_pl(
-                        e1, e2, self._C_pl, self._E_norm, self._index, self._C_bb, self._temp
-                    )
-                self._spec_integral = _integral
-
-            elif self._spec == 'bb':
-
-                def _integral(e1, e2):
-
-                    return _spec_integral_bb(
-                        e1, e2, self._C, self._temp
-                        )
-                self._spec_integral = _integral
+        self._spec_integral = _integral
 
 
     def _fold_spectrum(self, *parameters):
