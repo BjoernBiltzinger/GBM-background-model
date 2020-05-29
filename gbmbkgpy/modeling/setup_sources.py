@@ -370,15 +370,18 @@ def setup_ps(
 
     PS_Continuum_dic = {}
 
-    for i, ps in enumerate(point_sources.values()):
+    for i, (key, ps) in enumerate(point_sources.items()):
 
-        if not point_source_list[ps.name]['fixed']:
-            if 'bb' in point_source_list[ps.name]["spectrum"]:
-                if 'pl' in point_source_list[ps.name]["spectrum"]:
+        if not isinstance(ps, PointSrc_fixed):
+            print(key)
+            identifier = '_'.join(key.split('_')[:-1])
+
+            if 'bb' in point_source_list[identifier]["spectrum"]:
+                if 'pl' in point_source_list[identifier]["spectrum"]:
                     spec = 'bb+pl'
                 else:
                     spec = 'bb'
-            elif 'pl' in point_source_list[ps.name]["spectrum"]:
+            elif 'pl' in point_source_list[identifier]["spectrum"]:
                 spec = 'pl'
             else:
                 raise NotImplementedError("Only pl or bb or both spectra for point sources!")
@@ -602,4 +605,32 @@ def build_point_sources(
                             echans=echans,
                             spec=point_source_list[ps]['spectrum'][entry],
                         )
+
+    # Add the point sources that are given as file with list of point sources
+    for i, ps in enumerate(point_source_list):
+        if ps[:4] == 'list':
+            ps_df_add = pd.read_table(point_source_list[ps]["path"], names=["name", "ra", "dec"])
+            for row in ps_df_add.itertuples():
+                if not point_source_list[ps]["fixed"]:
+                    point_sources_dic[f"{ps}_{row[1]}"] = PointSrc_free(
+                        name=row[1],
+                        ra=row[2],
+                        dec=row[3],
+                        det_responses=det_responses,
+                        geometry=geometry,
+                        echans=echans,
+                    )
+
+                else:
+                    for entry in point_source_list[ps]['spectrum']:
+                        point_sources_dic[f"{ps}_{row[1]}_{entry}"] = PointSrc_fixed(
+                            name=row[1],
+                            ra=row[2],
+                            dec=row[3],
+                            det_responses=det_responses,
+                            geometry=geometry,
+                            echans=echans,
+                            spec=point_source_list[ps]['spectrum'][entry],
+                        )
+    print(point_sources_dic)
     return point_sources_dic
