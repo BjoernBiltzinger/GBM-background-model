@@ -28,20 +28,75 @@ except:
 
     using_mpi = False
 
-valid_det_names = ['n0', 'n1', 'n2', 'n3', 'n4', 'n5', 'n6', 'n7', 'n8', 'n9', 'na', 'nb']
+valid_det_names = [
+    "n0",
+    "n1",
+    "n2",
+    "n3",
+    "n4",
+    "n5",
+    "n6",
+    "n7",
+    "n8",
+    "n9",
+    "na",
+    "nb",
+]
 
 
 class Geometry(object):
-    def __init__(self, data, det, day_list, n_bins_to_calculate_per_day):
+    def __init__(self, data, detectors, dates, n_bins_to_calculate_per_day):
+        geometries = {}
+
+        geometry_times = None
+
+        for det in detectors:
+            geometries[det] = Det_Geometry(
+                data, det, dates, n_bins_to_calculate_per_day
+            )
+
+            # Assert that the times where the geometry is calculated is the same for all detectors
+            # this will allow us the speed up the following calculations
+            if geometry_times is None:
+                geometry_times = geometries[det].time
+            else:
+                assert np.array_equal(geometry_times, geometries[det].time)
+
+        self._geometries = geometries
+        self._geometry_times = geometry_times
+
+    @property
+    def geometries(self):
+        return self._geometries
+
+    @property
+    def geometry_times(self):
+        return self._geometry_times
+
+
+class Det_Geometry(object):
+    def __init__(self, data, det, dates, n_bins_to_calculate_per_day):
         """
         Initalize the geometry precalculation. This calculates several quantities (e.g. Earth
         position in the satellite frame for n_bins_to_calculate times during the day
         """
 
         # Test if all the input is valid
-        assert type(data.mean_time) == np.ndarray, 'Invalid type for mean_time. Must be an array but is {}.'.format(type(data.mean_time))
-        assert det in valid_det_names, 'Invalid det name. Must be one of these {} but is {}.'.format(valid_det_names, det)
-        assert type(n_bins_to_calculate_per_day) == int, 'Type of n_bins_to_calculate has to be int but is {}'.format(type(n_bins_to_calculate_per_day))
+        assert (
+            type(data.mean_time) == np.ndarray
+        ), "Invalid type for mean_time. Must be an array but is {}.".format(
+            type(data.mean_time)
+        )
+        assert (
+            det in valid_det_names
+        ), "Invalid det name. Must be one of these {} but is {}.".format(
+            valid_det_names, det
+        )
+        assert (
+            type(n_bins_to_calculate_per_day) == int
+        ), "Type of n_bins_to_calculate has to be int but is {}".format(
+            type(n_bins_to_calculate_per_day)
+        )
 
         # Save everything
         self._data = data
@@ -50,20 +105,26 @@ class Geometry(object):
         self._n_bins_to_calculate_per_day = n_bins_to_calculate_per_day
         self._day_start_times = data.day_start_times
         self._day_stop_times = data.day_stop_times
-        self._day_list = sorted(day_list)  # map(str, sorted(map(int, day_list)))
+        self._day_list = sorted(dates)  # map(str, sorted(map(int, day_list)))
 
         # Number of bins to skip, to equally distribute the n_bins_to_calculate times over the day
-        n_skip = int(np.ceil(len(self.mean_time) / (self._n_bins_to_calculate_per_day * len(day_list))))
+        n_skip = int(
+            np.ceil(
+                len(self.mean_time) / (self._n_bins_to_calculate_per_day * len(dates))
+            )
+        )
 
         # Create the lists of the times where to calculate the geometry
         list_times_to_calculate = self.mean_time[::n_skip]
 
         # Add start and stop time of days to times for which the geometry should be calculated (to ensure a valid
         # interpolation for all used times
-        self._list_times_to_calculate = self._add_start_stop(list_times_to_calculate, self._day_start_times,
-                                                             self._day_stop_times)
+        # self._list_times_to_calculate = self._add_start_stop(list_times_to_calculate, self._day_start_times,
+        #                                                      self._day_stop_times)
 
-        if self._data.data_type == 'trigdat':
+        self._list_times_to_calculate = list_times_to_calculate
+
+        if self._data.data_type == "trigdat":
             self._pos_hist = np.array([self._data.trigdata_path])
 
             # Dirty fix because the position data in trigdat only interpolates up to the beginning of the last time bin
@@ -72,42 +133,78 @@ class Geometry(object):
 
             # GBM Geometry handles trigdat times in reference to the trigger time
             # we have to account for this before and after the position interpolation
-            self._list_times_to_calculate =  self._list_times_to_calculate - self._data.trigtime
+            self._list_times_to_calculate = (
+                self._list_times_to_calculate - self._data.trigtime
+            )
             self._day_start_times = self._day_start_times - self._data.trigtime
             self._day_stop_times = self._day_stop_times - self._data.trigtime
-
 
         else:
             # Check if poshist file exists, if not download it and save the paths for all days in an array
             self._pos_hist = np.array([])
-            for day in day_list:
-                poshistfile_name = 'glg_{0}_all_{1}_v00.fit'.format('poshist', day)
-                poshistfile_path = os.path.join(get_path_of_external_data_dir(), 'poshist', poshistfile_name)
+            for day in dates:
+                poshistfile_name = "glg_{0}_all_{1}_v00.fit".format("poshist", day)
+                poshistfile_path = os.path.join(
+                    get_path_of_external_data_dir(), "poshist", poshistfile_name
+                )
 
                 # If using MPI only rank=0 downloads the data, all other have to wait
                 if using_mpi:
                     if rank == 0:
                         if not file_existing_and_readable(poshistfile_path):
-                            download_data_file(day, 'poshist')
+                            download_data_file(day, "poshist")
                     comm.Barrier()
                 else:
                     if not file_existing_and_readable(poshistfile_path):
-                        download_data_file(day, 'poshist')
+                        download_data_file(day, "poshist")
 
                 # Save poshistfile_path for later usage
                 self._pos_hist = np.append(self._pos_hist, poshistfile_path)
             for pos in self._pos_hist:
-                assert file_existing_and_readable(pos), '{} does not exist'.format(pos)
+                assert file_existing_and_readable(pos), "{} does not exist".format(pos)
 
+            # Add start and stop time of days to times for which the geometry should be calculated (to ensure a valid
+            # interpolation for all used times
+            self._list_times_to_calculate = self._add_start_stop(
+                list_times_to_calculate, self._day_start_times, self._day_stop_times
+            )
+
+            # Add the boundaries of the position interpolator to ensure valid interpolation of all time_bins
+            self._list_times_to_calculate = self._add_interpolation_boundaries(
+                self._list_times_to_calculate
+            )
+
+        # Create a mask with all entries False to later un-mask the valid times
+        self._interpolation_mask = np.zeros(
+            len(self._list_times_to_calculate), dtype=bool
+        )
 
         # Calculate Geometry. With or without Mpi support.
-        for day_number, day in enumerate(day_list):
+        for day_number, day in enumerate(dates):
             if using_mpi:
-                sun_angle, sun_positions, time, earth_az, earth_zen, earth_position, quaternion, sc_pos, times_lower_bound_index, times_upper_bound_index = \
-                    self._one_day_setup_geometery_mpi(day_number)
+                (
+                    sun_angle,
+                    sun_positions,
+                    time,
+                    earth_az,
+                    earth_zen,
+                    earth_position,
+                    quaternion,
+                    sc_pos,
+                    times_lower_bound_index,
+                    times_upper_bound_index,
+                ) = self._one_day_setup_geometery_mpi(day_number)
             else:
-                sun_angle, sun_positions, time, earth_az, earth_zen, earth_position, quaternion, sc_pos = \
-                    self._one_day_setup_geometery_no_mpi(day_number)
+                (
+                    sun_angle,
+                    sun_positions,
+                    time,
+                    earth_az,
+                    earth_zen,
+                    earth_position,
+                    quaternion,
+                    sc_pos,
+                ) = self._one_day_setup_geometery_no_mpi(day_number)
             if day_number == 0:
                 self._sun_angle = [sun_angle]
                 self._sun_positions = [sun_positions]
@@ -130,8 +227,12 @@ class Geometry(object):
                 self._quaternion.append(quaternion)
                 self._sc_pos.append(sc_pos)
                 if using_mpi:
-                    self._times_lower_bound_index = np.append(self._times_lower_bound_index, times_lower_bound_index)
-                    self._times_upper_bound_index = np.append(self._times_upper_bound_index, times_upper_bound_index)
+                    self._times_lower_bound_index = np.append(
+                        self._times_lower_bound_index, times_lower_bound_index
+                    )
+                    self._times_upper_bound_index = np.append(
+                        self._times_upper_bound_index, times_upper_bound_index
+                    )
         self._time = np.concatenate(self._time, axis=0)
         self._sun_positions = np.concatenate(self._sun_positions, axis=0)
         self._sun_angle = np.concatenate(self._sun_angle, axis=0)
@@ -142,9 +243,11 @@ class Geometry(object):
         self._sc_pos = np.concatenate(self._sc_pos, axis=0)
 
         # Here we add the trigger time to build the model in MET
-        if self._data.data_type == 'trigdat':
+        if self._data.data_type == "trigdat":
             self._time = self._time + self._data.trigtime
-            self._list_times_to_calculate = self._list_times_to_calculate + self._data.trigtime
+            self._list_times_to_calculate = (
+                self._list_times_to_calculate + self._data.trigtime
+            )
 
     # All properties of the class.
     # Returns the calculated values of the quantities for all the n_bins_to_calculate times
@@ -155,7 +258,7 @@ class Geometry(object):
         Returns the times of the time bins for which the geometry was calculated
         """
 
-        return self._list_times_to_calculate
+        return self._list_times_to_calculate[self._interpolation_mask]
 
     @property
     def time_days(self):
@@ -173,7 +276,7 @@ class Geometry(object):
         """
 
         return self._sun_positions
-    
+
     @property
     def sun_angle(self):
         """
@@ -247,14 +350,20 @@ class Geometry(object):
         and are running this on several cores.
         """
 
-        assert using_mpi, 'You need MPI to use this function, please use _setup_geometery_no_mpi if you do not have MPI'
+        assert (
+            using_mpi
+        ), "You need MPI to use this function, please use _setup_geometery_no_mpi if you do not have MPI"
 
-        if self._data.data_type == 'trigdat':
+        if self._data.data_type == "trigdat":
             # Create the PositionInterpolator object with the infos from the trigdat file
-            position_interpolator = PositionInterpolator.from_trigdat(trigdat_file=self._pos_hist[day_number])
+            position_interpolator = PositionInterpolator.from_trigdat(
+                trigdat_file=self._pos_hist[day_number]
+            )
         else:
             # Create the PositionInterpolator object with the infos from the poshist file
-            position_interpolator = PositionInterpolator.from_poshist(poshist_file=self._pos_hist[day_number])
+            position_interpolator = PositionInterpolator.from_poshist(
+                poshist_file=self._pos_hist[day_number]
+            )
 
         # Init all lists
         sun_angle = []
@@ -271,10 +380,20 @@ class Geometry(object):
         # Get the times for which the geometry should be calculated for this day (Build a mask that masks all time bins
         # outside the start and stop day of this time bin
 
-        masksmaller = self._list_times_to_calculate >= self._day_start_times[day_number]
-        masklarger = self._list_times_to_calculate <= self._day_stop_times[day_number]
+        day_idx = np.logical_and(
+            (self._list_times_to_calculate >= self._day_start_times),
+            (self._list_times_to_calculate <= self._day_stop_times),
+        )
 
-        masktot = masksmaller * masklarger
+        # Mask the bins that are outside of the interpolation times
+        interp_range_mask = np.logical_and(
+            (self._list_times_to_calculate >= min(position_interpolator.time)),
+            (self._list_times_to_calculate <= max(position_interpolator.time)),
+        )
+
+        masktot = np.logical_and(day_idx, interp_range_mask)
+
+        self._interpolation_mask[masktot] = True
 
         list_times_to_calculate = self._list_times_to_calculate[masktot]
 
@@ -284,17 +403,29 @@ class Geometry(object):
 
         # Only rank==0 gives some output how much of the geometry is already calculated (progress_bar)
         if rank == 0:
-            with progress_bar(len(list_times_to_calculate[times_lower_bound_index:times_upper_bound_index]),
-                              title='Calculating geomerty for day {}. This shows the progress of rank 0. '
-                                    'All other should be about the same.'.format(self._day_list[day_number])) as p:
+            with progress_bar(
+                len(
+                    list_times_to_calculate[
+                        times_lower_bound_index:times_upper_bound_index
+                    ]
+                ),
+                title="Calculating geomerty for day {}. This shows the progress of rank 0. "
+                "All other should be about the same.".format(
+                    self._day_list[day_number]
+                ),
+            ) as p:
 
-                # Calculate the geometry for all times associated with this rank 
-                for mean_time in list_times_to_calculate[times_lower_bound_index:times_upper_bound_index]:
+                # Calculate the geometry for all times associated with this rank
+                for mean_time in list_times_to_calculate[
+                    times_lower_bound_index:times_upper_bound_index
+                ]:
                     quaternion_step = position_interpolator.quaternion(mean_time)
                     sc_pos_step = position_interpolator.sc_pos(mean_time)
-                    det = gbm_detector_list[self._det](quaternion=quaternion_step,
-                                                       sc_pos=sc_pos_step,
-                                                       time=astro_time.Time(position_interpolator.utc(mean_time)))
+                    det = gbm_detector_list[self._det](
+                        quaternion=quaternion_step,
+                        sc_pos=sc_pos_step,
+                        time=astro_time.Time(position_interpolator.utc(mean_time)),
+                    )
 
                     sun_angle.append(det.sun_angle.value)
                     sun_positions.append(det.sun_position)
@@ -311,12 +442,16 @@ class Geometry(object):
         else:
             # Calculate the geometry for all times associated with this rank (for rank!=0).
             # No output here.
-            for mean_time in list_times_to_calculate[times_lower_bound_index:times_upper_bound_index]:
+            for mean_time in list_times_to_calculate[
+                times_lower_bound_index:times_upper_bound_index
+            ]:
                 quaternion_step = position_interpolator.quaternion(mean_time)
                 sc_pos_step = position_interpolator.sc_pos(mean_time)
-                det = gbm_detector_list[self._det](quaternion=quaternion_step,
-                                                   sc_pos=sc_pos_step,
-                                                   time=astro_time.Time(position_interpolator.utc(mean_time)))
+                det = gbm_detector_list[self._det](
+                    quaternion=quaternion_step,
+                    sc_pos=sc_pos_step,
+                    time=astro_time.Time(position_interpolator.utc(mean_time)),
+                )
 
                 sun_angle.append(det.sun_angle.value)
                 sun_positions.append(det.sun_position)
@@ -376,29 +511,56 @@ class Geometry(object):
 
         # Return everything
 
-        return sun_angle, sun_positions, time, earth_az, earth_zen, earth_position, quaternion, sc_pos, times_lower_bound_index, \
-               times_upper_bound_index
+        return (
+            sun_angle,
+            sun_positions,
+            time,
+            earth_az,
+            earth_zen,
+            earth_position,
+            quaternion,
+            sc_pos,
+            times_lower_bound_index,
+            times_upper_bound_index,
+        )
 
     def _one_day_setup_geometery_no_mpi(self, day_number):
         """
         Run the geometry precalculation with mpi support. Only use this funtion if you do not use MPI
         """
-        assert not using_mpi, 'This function is only available if you are not using mpi!'
+        assert (
+            not using_mpi
+        ), "This function is only available if you are not using mpi!"
 
-        if self._data.data_type == 'trigdat':
+        if self._data.data_type == "trigdat":
             # Create the PositionInterpolator object with the infos from the trigdat file
-            position_interpolator = PositionInterpolator.from_trigdat(trigdat_file=self._pos_hist[day_number])
+            position_interpolator = PositionInterpolator.from_trigdat(
+                trigdat_file=self._pos_hist[day_number]
+            )
         else:
             # Create the PositionInterpolator object with the infos from the poshist file
-            position_interpolator = PositionInterpolator.from_poshist(poshist_file=self._pos_hist[day_number])
+            position_interpolator = PositionInterpolator.from_poshist(
+                poshist_file=self._pos_hist[day_number]
+            )
 
         # Get the times for which the geometry should be calculated for this day (Build a mask that masks all time bins
         # outside the start and stop day of this time bin
 
-        masksmaller = self._list_times_to_calculate >= self._day_start_times[day_number]
-        masklarger = self._list_times_to_calculate <= self._day_stop_times[day_number]
+        day_idx = np.logical_and(
+            (self._list_times_to_calculate >= self._day_start_times),
+            (self._list_times_to_calculate <= self._day_stop_times),
+        )
 
-        masktot = masksmaller * masklarger
+        # Mask the bins that are outside of the interpolation times
+        interp_range_mask = np.logical_and(
+            (self._list_times_to_calculate >= min(position_interpolator.time)),
+            (self._list_times_to_calculate <= max(position_interpolator.time)),
+        )
+
+        masktot = np.logical_and(day_idx, interp_range_mask)
+
+        self._interpolation_mask[masktot] = True
+
         list_times_to_calculate = self._list_times_to_calculate[masktot]
 
         # Init all lists
@@ -414,14 +576,18 @@ class Geometry(object):
         sc_pos = []
 
         # Give some output how much of the geometry is already calculated (progress_bar)
-        with progress_bar(len(list_times_to_calculate), title='Calculating sun and earth position') as p:
+        with progress_bar(
+            len(list_times_to_calculate), title="Calculating sun and earth position"
+        ) as p:
             # Calculate the geometry for all times
             for mean_time in list_times_to_calculate:
                 quaternion_step = position_interpolator.quaternion(mean_time)
                 sc_pos_step = position_interpolator.sc_pos(mean_time)
-                det = gbm_detector_list[self._det](quaternion=quaternion_step,
-                                                   sc_pos=sc_pos_step,
-                                                   time=astro_time.Time(position_interpolator.utc(mean_time)))
+                det = gbm_detector_list[self._det](
+                    quaternion=quaternion_step,
+                    sc_pos=sc_pos_step,
+                    time=astro_time.Time(position_interpolator.utc(mean_time)),
+                )
 
                 sun_angle.append(det.sun_angle.value)
                 sun_positions.append(det.sun_position)
@@ -449,7 +615,16 @@ class Geometry(object):
 
         # Return everything
 
-        return sun_angle, sun_positions, time, earth_az, earth_zen, earth_position, quaternion, sc_pos
+        return (
+            sun_angle,
+            sun_positions,
+            time,
+            earth_az,
+            earth_zen,
+            earth_position,
+            quaternion,
+            sc_pos,
+        )
 
     def _add_start_stop(self, timelist, start_add, stop_add):
         """
@@ -465,5 +640,27 @@ class Geometry(object):
         for stop in stop_add:
             if stop not in timelist:
                 timelist = np.append(timelist, stop)
+        timelist.sort()
+        return timelist
+
+    def _add_interpolation_boundaries(self, timelist):
+
+        for day in self._day_list:
+            poshistfile_name = "glg_{0}_all_{1}_v00.fit".format("poshist", day)
+            poshistfile_path = os.path.join(
+                get_path_of_external_data_dir(), "poshist", poshistfile_name
+            )
+
+            # Create the PositionInterpolator object with the infos from the poshist file
+            position_interpolator = PositionInterpolator.from_poshist(
+                poshist_file=poshistfile_path
+            )
+
+            if min(position_interpolator.time) not in timelist:
+                timelist = np.append(timelist, min(position_interpolator.time))
+
+            if max(position_interpolator.time) not in timelist:
+                timelist = np.append(timelist, min(position_interpolator.time))
+
         timelist.sort()
         return timelist

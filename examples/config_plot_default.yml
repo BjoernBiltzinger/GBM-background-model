@@ -25,6 +25,7 @@ plot:
   time_since_midnight:  true
   time_format:          'h'
   time_t0:              null
+  set_axis_limits:      false
   xlim:                 null
   ylim:                 null
   residual_ylim:        null
@@ -40,7 +41,7 @@ plot:
 component:
   show_data:            true
   show_model:           true
-  show_residuals:       false
+  show_residuals:       true
   show_ppc:             true
 
   show_all_sources:     true
@@ -57,7 +58,7 @@ component:
 
 
 style:
-    mpl_style:    'aa.mplstyle'
+    mpl_style:    null # 'aa.mplstyle'
 
     model:
       color:      'red'
@@ -67,8 +68,8 @@ style:
 
     data:
       color: 'k'
-      alpha: .4
-      linewidth: 0.08
+      alpha: .6
+      linewidth: 0.18
       marker_size: 1
       elinewidth: 0.2
       show_label: true
@@ -135,24 +136,24 @@ style:
       alpha: 0.6
 
     legend_kwargs:
-        loc: 'center left'
-        bbox_to_anchor: [-0.17, -0.5]
+        # loc: 'center left'
+        # bbox_to_anchor: [-0.17, -0.5]
         ncol: 3
 
 
 highlight:
-    grb_trigger:
-      - name: 'GRB 150126 - KONUS-WIND Trigger'
-        trigger_time: '2015-01-26T20:51:43.524'
-        time_format: 'UTC'
-        time_offset: 0.
-        color: 'b'
-        linestyle: '-'
-        linewidth: 0.8
+    # grb_trigger:
+    #   - name: 'GRB 150126 - KONUS-WIND Trigger'
+    #     trigger_time: '2015-01-26T20:51:43.524'
+    #     time_format: 'UTC'
+    #     time_offset: 0.
+    #     color: 'b'
+    #     linestyle: '-'
+    #     linewidth: 0.8
 
-    occ_region:
-      - name: 'Earth occultation'
-        time_start: '2015-01-26T00:00:00.000'
-        time_stop: '2015-01-26T20:50:00.000'
-        time_format: 'UTC'
-        color: 'grey'
+    # occ_region:
+    #   - name: 'Earth occultation'
+    #     time_start: '2015-01-26T00:00:00.000'
+    #     time_stop: '2015-01-26T20:50:00.000'
+    #     time_format: 'UTC'
+    #     color: 'grey'

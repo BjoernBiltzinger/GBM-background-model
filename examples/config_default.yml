@@ -6,9 +6,9 @@
 ################## General Input [Days, Detector, Data Type, Energy Channels] #######################
 general:
   dates:      ['160310']
-  detector:   'n1'
+  detectors:   'n1'
   data_type:  'ctime'
-  echan_list: [3]
+  echans: [3]
   min_bin_width: 30
 
 ################# Input for response precalculation [how many grid poits?] ##########################
@@ -72,6 +72,7 @@ fit:
   multinest:
     num_live_points: 400
     constant_efficiency_mode: true
+  use_numba: false
 
 ##################### Input for Result Export  ######################################################
 export:
