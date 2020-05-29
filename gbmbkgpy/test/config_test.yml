@@ -6,9 +6,9 @@
 ################## General Input [Days, Detector, Data Type, Energy Channels] #######################
 general:
   dates:      ['150126']
-  detector:   'n0'
+  detectors:   ['n0']
   data_type:  'ctime'
-  echan_list: [3]
+  echans:     [3]
   min_bin_width: 40
   test: true
 
@@ -73,12 +73,13 @@ fit:
   multinest:
     num_live_points: 400
     constant_efficiency_mode: true
+  use_numba: false
 
 ##################### Input for Result Export  ######################################################
 export:
   save_cov_matrix: false
   save_ppc: true
-  save_unbinned: true
+  save_unbinned: false
 
 ############################### Input for plotting ##################################################
 ### bin_width to bin the data, change_time from MET to seconds since midnight, show residuals? ######

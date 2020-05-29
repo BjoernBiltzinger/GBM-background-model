@@ -29,7 +29,6 @@ except:
 
 
 class ResidualPlot(object):
-
     def __init__(self, **kwargs):
         """
         A class that makes data/residual plots
@@ -42,26 +41,29 @@ class ResidualPlot(object):
         self._show_residuals = True
         self._ppc = False
 
-        if 'show_residuals' in kwargs:
-            self._show_residuals = bool(kwargs.pop('show_residuals'))
+        if "show_residuals" in kwargs:
+            self._show_residuals = bool(kwargs.pop("show_residuals"))
 
-        if 'ratio_residuals' in kwargs:
-            self._ratio_residuals = bool(kwargs.pop('ratio_residuals'))
+        if "ratio_residuals" in kwargs:
+            self._ratio_residuals = bool(kwargs.pop("ratio_residuals"))
 
         # this lets you overplot other fits
 
-        if 'model_subplot' in kwargs:
+        if "model_subplot" in kwargs:
 
-            model_subplot = kwargs.pop('model_subplot')
+            model_subplot = kwargs.pop("model_subplot")
 
             # turn on or off residuals
 
             if self._show_residuals:
 
-                assert type(model_subplot) == list, 'you must supply a list of axes to plot to residual'
+                assert (
+                    type(model_subplot) == list
+                ), "you must supply a list of axes to plot to residual"
 
-                assert len(
-                    model_subplot) == 2, 'you have requested to overplot a model with residuals, but only provided one axis to plot'
+                assert (
+                    len(model_subplot) == 2
+                ), "you have requested to overplot a model with residuals, but only provided one axis to plot"
 
                 self._data_axis, self._residual_axis = model_subplot
 
@@ -73,7 +75,7 @@ class ResidualPlot(object):
 
                     self._fig = self._data_axis.get_figure()
 
-                except(AttributeError):
+                except (AttributeError):
 
                     # the user supplied a list of axes
 
@@ -84,17 +86,14 @@ class ResidualPlot(object):
 
             self._fig = self._data_axis.get_figure()
 
-
-
         else:
 
             # turn on or off residuals
 
             if self._show_residuals:
-                self._fig, (self._data_axis, self._residual_axis) = plt.subplots(2, 1,
-                                                                                 sharex=True,
-                                                                                 gridspec_kw={'height_ratios': [2, 1]},
-                                                                                 **kwargs)
+                self._fig, (self._data_axis, self._residual_axis) = plt.subplots(
+                    2, 1, sharex=True, gridspec_kw={"height_ratios": [2, 1]}, **kwargs
+                )
 
             else:
 
@@ -122,7 +121,7 @@ class ResidualPlot(object):
         :return: the bottom or residual axis
         """
 
-        assert self._show_residuals, 'this plot has no residual axis'
+        assert self._show_residuals, "this plot has no residual axis"
 
         return self._residual_axis
 
@@ -145,12 +144,14 @@ class ResidualPlot(object):
         :param color: the color of the model
         :return: None
         """
-        step_plot(np.asarray(zip(xmin, xmax)),
-                  y / xwidth,
-                  self._data_axis,
-                  alpha=.8,
-                  label=label,
-                  color=color)
+        step_plot(
+            np.asarray(zip(xmin, xmax)),
+            y / xwidth,
+            self._data_axis,
+            alpha=0.8,
+            label=label,
+            color=color,
+        )
 
     def add_vertical_line(self, grb_triggers, time_ref):
         """
@@ -161,8 +162,14 @@ class ResidualPlot(object):
         """
 
         for key, value in grb_triggers.items():
-            self._data_axis.axvline(x=value['met'] - time_ref, color=value.get('color', 'b'), linestyle=value.get('linestyle', '-'),
-                                    linewidth=value.get('linewidth', 1), alpha=value.get('alpha', 0.3), label=key)
+            self._data_axis.axvline(
+                x=value["met"] - time_ref,
+                color=value.get("color", "b"),
+                linestyle=value.get("linestyle", "-"),
+                linewidth=value.get("linewidth", 1),
+                alpha=value.get("alpha", 0.3),
+                label=key,
+            )
 
     def add_occ_region(self, occ_region, time_ref):
         """
@@ -173,11 +180,15 @@ class ResidualPlot(object):
         """
 
         for key, value in occ_region.items():
-            self._data_axis.axvspan(xmin=value['met'][0] - time_ref,
-                                    xmax=value['met'][1] - time_ref,
-                                    color=value.get('color', 'grey'), alpha=value.get('alpha', 0.1), label=key)
+            self._data_axis.axvspan(
+                xmin=value["met"][0] - time_ref,
+                xmax=value["met"][1] - time_ref,
+                color=value.get("color", "grey"),
+                alpha=value.get("alpha", 0.1),
+                label=key,
+            )
 
-    def add_model(self, x, y, label, color, alpha=.6, linewidth=2):
+    def add_model(self, x, y, label, color, alpha=0.6, linewidth=2):
         """
         Add a model and interpolate it across the time span for the plotting.
         :param alpha:
@@ -187,9 +198,11 @@ class ResidualPlot(object):
         :param color: the color of the model
         :return: None
         """
-        self._data_axis.plot(x, y, label=label, color=color, alpha=alpha, zorder=20, linewidth=linewidth)
+        self._data_axis.plot(
+            x, y, label=label, color=color, alpha=alpha, zorder=20, linewidth=linewidth
+        )
 
-    def add_posteriour(self, x, y, color='grey', alpha=0.002):
+    def add_posteriour(self, x, y, color="grey", alpha=0.002):
         """
 
         :param x:
@@ -211,11 +224,35 @@ class ResidualPlot(object):
          :return: None
          """
         for i, source in enumerate(source_list):
-            alpha = source.get('alpha', .6)
-            linewidth = source.get('linewidth', 2)
-            self._data_axis.plot(x, source['data'], color=source['color'], label=source['label'], alpha=alpha, zorder=18, linewidth=linewidth)
+            alpha = source.get("alpha", 0.6)
+            linewidth = source.get("linewidth", 2)
+            self._data_axis.plot(
+                x,
+                source["data"],
+                color=source["color"],
+                label=source["label"],
+                alpha=alpha,
+                zorder=18,
+                linewidth=linewidth,
+            )
 
-    def add_data(self, x, y, residuals, label, xerr=None, yerr=None, residual_yerr=None, color='r', alpha=.9,  show_data=True, marker_size=3, linewidth=1, elinewidth=1, rasterized=False):
+    def add_data(
+        self,
+        x,
+        y,
+        residuals,
+        label,
+        xerr=None,
+        yerr=None,
+        residual_yerr=None,
+        color="r",
+        alpha=0.9,
+        show_data=True,
+        marker_size=3,
+        linewidth=1,
+        elinewidth=1,
+        rasterized=False,
+    ):
         """
         Add the data for the this model
         :param x: energy of the data
@@ -231,16 +268,18 @@ class ResidualPlot(object):
         # if we want to show the data
 
         if show_data:
-            self._data_axis.scatter(x,
-                                    y,
-                                    s=marker_size,
-                                    linewidths=linewidth,
-                                    facecolors='none',
-                                    edgecolors=color,
-                                    alpha=alpha,
-                                    label=label,
-                                    zorder=15,
-                                    rasterized=rasterized)
+            self._data_axis.scatter(
+                x,
+                y,
+                s=marker_size,
+                linewidths=linewidth,
+                facecolors="none",
+                edgecolors=color,
+                alpha=alpha,
+                label=label,
+                zorder=15,
+                rasterized=rasterized,
+            )
 
         # if we want to show the residuals
 
@@ -251,22 +290,38 @@ class ResidualPlot(object):
             if not self.ratio_residuals:
                 residual_yerr = np.ones_like(residuals)
 
-            self._residual_axis.axhline(0, linestyle='--', color='k')
+            self._residual_axis.axhline(0, linestyle="--", color="k")
 
-            self._residual_axis.errorbar(x,
-                                         residuals,
-                                         yerr=residual_yerr,
-                                         capsize=0,
-                                         fmt='.',
-                                         elinewidth=elinewidth,
-                                         markersize=marker_size,
-                                         color=color,
-                                         alpha=alpha,
-                                         rasterized=rasterized)
+            self._residual_axis.errorbar(
+                x,
+                residuals,
+                yerr=residual_yerr,
+                capsize=0,
+                fmt=".",
+                elinewidth=elinewidth,
+                markersize=marker_size,
+                color=color,
+                alpha=alpha,
+                rasterized=rasterized,
+            )
 
-    def add_ppc(self, rebinned_ppc_rates=None, rebinned_time_bin_mean=None, result_dir=None, model=None,
-                plotter=None, time_bins=None, saa_mask=None, echan=None, q_levels=[0.68], colors=['lightgreen'],
-                alpha=.5, bin_width=1E-99, n_params=1, time_ref=0):
+    def add_ppc(
+        self,
+        rebinned_ppc_rates=None,
+        rebinned_time_bin_mean=None,
+        result_dir=None,
+        model=None,
+        plotter=None,
+        time_bins=None,
+        saa_mask=None,
+        echan=None,
+        q_levels=[0.68],
+        colors=["lightgreen"],
+        alpha=0.5,
+        bin_width=1e-99,
+        n_params=1,
+        time_ref=0,
+    ):
         """
         Add ppc plot
         :param result_dir: path to result directory
@@ -277,19 +332,24 @@ class ResidualPlot(object):
         :param q_levels: At which levels the ppc should be plotted
         :param colors: colors for the different q_level
         """
-        assert len(q_levels) == len(colors), 'q_levels and colors must have same length!'
+        assert len(q_levels) == len(
+            colors
+        ), "q_levels and colors must have same length!"
 
         q_levels.sort(reverse=True)
 
         if rebinned_ppc_rates is None or rebinned_time_bin_mean is None:
             # Get Analyze object from results file of Multinest Fit
             import pymultinest
+
             analyzer = pymultinest.analyse.Analyzer(n_params, result_dir)
 
             # Make a mask with 300 random True to choose 300 random samples
             N_samples = 200
             rates = []
-            a = np.zeros(len(analyzer.get_equal_weighted_posterior()[:, :-1]), dtype=int)
+            a = np.zeros(
+                len(analyzer.get_equal_weighted_posterior()[:, :-1]), dtype=int
+            )
             a[:N_samples] = 1
             np.random.shuffle(a)
             a = a.astype(bool)
@@ -301,23 +361,48 @@ class ResidualPlot(object):
                 points_lower_index = int(np.floor(points_per_rank * rank))
                 points_upper_index = int(np.floor(points_per_rank * (rank + 1)))
                 if rank == 0:
-                    with progress_bar(len(analyzer.get_equal_weighted_posterior()[:, :-1][a][points_lower_index:points_upper_index]), title='Calculating PPC. This shows the progress of rank 0. All other should be about the same.') as p:
+                    with progress_bar(
+                        len(
+                            analyzer.get_equal_weighted_posterior()[:, :-1][a][
+                                points_lower_index:points_upper_index
+                            ]
+                        ),
+                        title="Calculating PPC. This shows the progress of rank 0. All other should be about the same.",
+                    ) as p:
 
-                        for i, sample in enumerate(analyzer.get_equal_weighted_posterior()[:, :-1][a][points_lower_index:points_upper_index]):
+                        for i, sample in enumerate(
+                            analyzer.get_equal_weighted_posterior()[:, :-1][a][
+                                points_lower_index:points_upper_index
+                            ]
+                        ):
                             synth_data = plotter.get_synthetic_data(sample, model)
-                            this_rebinner = Rebinner(synth_data.time_bins - time_ref, bin_width)
+                            this_rebinner = Rebinner(
+                                synth_data.time_bins - time_ref, bin_width
+                            )
                             rebinned_time_bins = this_rebinner.time_rebinned
-                            rebinned_counts = this_rebinner.rebin(synth_data.counts[:, echan])
-                            rebinned_bin_length = np.diff(rebinned_time_bins, axis=1).T[0]
+                            rebinned_counts = this_rebinner.rebin(
+                                synth_data.counts[:, echan]
+                            )
+                            rebinned_bin_length = np.diff(rebinned_time_bins, axis=1).T[
+                                0
+                            ]
                             rates.append(rebinned_counts / rebinned_bin_length)
                             p.increase()
 
                 else:
-                    for i, sample in enumerate(analyzer.get_equal_weighted_posterior()[:, :-1][a][points_lower_index:points_upper_index]):
+                    for i, sample in enumerate(
+                        analyzer.get_equal_weighted_posterior()[:, :-1][a][
+                            points_lower_index:points_upper_index
+                        ]
+                    ):
                         synth_data = plotter.get_synthetic_data(sample, model)
-                        this_rebinner = Rebinner(synth_data.time_bins - time_ref, bin_width)
+                        this_rebinner = Rebinner(
+                            synth_data.time_bins - time_ref, bin_width
+                        )
                         rebinned_time_bins = this_rebinner.time_rebinned
-                        rebinned_counts = this_rebinner.rebin(synth_data.counts[:, echan])
+                        rebinned_counts = this_rebinner.rebin(
+                            synth_data.counts[:, echan]
+                        )
                         rebinned_bin_length = np.diff(rebinned_time_bins, axis=1).T[0]
                         rates.append(rebinned_counts / rebinned_bin_length)
 
@@ -331,9 +416,17 @@ class ResidualPlot(object):
                     for i, level in enumerate(q_levels):
                         low = np.percentile(rates, 50 - 50 * level, axis=0)[0]
                         high = np.percentile(rates, 50 + 50 * level, axis=0)[0]
-                        self._data_axis.fill_between(np.mean(rebinned_time_bins, axis=1), low, high, color=colors[i], alpha=alpha)
+                        self._data_axis.fill_between(
+                            np.mean(rebinned_time_bins, axis=1),
+                            low,
+                            high,
+                            color=colors[i],
+                            alpha=alpha,
+                        )
             else:
-                for i, sample in enumerate(analyzer.get_equal_weighted_posterior()[:, :-1][a]):
+                for i, sample in enumerate(
+                    analyzer.get_equal_weighted_posterior()[:, :-1][a]
+                ):
                     synth_data = plotter.get_synthetic_data(sample, model)
                     this_rebinner = Rebinner(synth_data.time_bins - time_ref, bin_width)
                     rebinned_time_bins = this_rebinner.time_rebinned
@@ -346,23 +439,46 @@ class ResidualPlot(object):
                 for i, level in enumerate(q_levels):
                     low = np.percentile(rates, 50 - 50 * level, axis=0)[0]
                     high = np.percentile(rates, 50 + 50 * level, axis=0)[0]
-                    self._data_axis.fill_between(np.mean(rebinned_time_bins, axis=1), low, high, color=colors[i], alpha=alpha)
+                    self._data_axis.fill_between(
+                        np.mean(rebinned_time_bins, axis=1),
+                        low,
+                        high,
+                        color=colors[i],
+                        alpha=alpha,
+                    )
 
         else:
             if rank == 0:
                 for i, level in enumerate(q_levels):
                     low = np.percentile(rebinned_ppc_rates, 50 - 50 * level, axis=0)[0]
                     high = np.percentile(rebinned_ppc_rates, 50 + 50 * level, axis=0)[0]
-                    self._data_axis.fill_between(rebinned_time_bin_mean, low, high, color=colors[i], alpha=alpha)
+                    self._data_axis.fill_between(
+                        rebinned_time_bin_mean, low, high, color=colors[i], alpha=alpha
+                    )
 
         # Set Plot range
         # total_mean_rate = np.mean(np.array(rates))
         # self._data_axis.set_ylim((0,3*total_mean_rate))
         # self._data_axis.set_xlim((70000, 80000))
 
-    def finalize(self, xlabel='x', ylabel='y', xscale='log', yscale='log', xticks=None, xtick_labels=None, show_legend=True,
-                 invert_y=False, xlim=None, ylim=None, legend_outside=False, legend_kwargs=None, axis_title=None, show_title=False,
-                 residual_ylim=None):
+    def finalize(
+        self,
+        xlabel="x",
+        ylabel="y",
+        xscale="log",
+        yscale="log",
+        xticks=None,
+        xtick_labels=None,
+        show_legend=True,
+        invert_y=False,
+        xlim=None,
+        ylim=None,
+        legend_outside=False,
+        legend_kwargs=None,
+        axis_title=None,
+        show_title=False,
+        residual_ylim=None,
+    ):
         """
         :param xlabel:
         :param ylabel:
@@ -381,17 +497,17 @@ class ResidualPlot(object):
         elif show_legend and legend_outside:
             box = self._data_axis.get_position()
             self._data_axis.set_position([box.x0, box.y0, box.width * 0.8, box.height])
-            self._data_axis.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+            self._data_axis.legend(loc="center left", bbox_to_anchor=(1, 0.5))
 
         elif show_legend:
-            self._data_axis.legend(fontsize='x-small', loc=0)
+            self._data_axis.legend(fontsize="x-small", loc=0)
 
         self._data_axis.set_ylabel(ylabel)
 
         self._data_axis.set_xscale(xscale)
-        if yscale == 'log':
+        if yscale == "log":
 
-            self._data_axis.set_yscale(yscale, nonposy='clip')
+            self._data_axis.set_yscale(yscale, nonposy="clip")
 
         else:
 
@@ -401,13 +517,15 @@ class ResidualPlot(object):
 
             self._residual_axis.set_xscale(xscale)
 
-            locator = MaxNLocator(prune='upper', nbins=5)
+            locator = MaxNLocator(prune="upper", nbins=5)
             self._residual_axis.yaxis.set_major_locator(locator)
 
             self._residual_axis.set_xlabel(xlabel)
 
             if self.ratio_residuals:
-                custom_warnings.warn("Residuals plotted as ratios: beware that they are not statistical quantites, and can not be used to asses fit quality")
+                custom_warnings.warn(
+                    "Residuals plotted as ratios: beware that they are not statistical quantites, and can not be used to asses fit quality"
+                )
                 self._residual_axis.set_ylabel("Residuals\n(fraction of model)")
             else:
                 self._residual_axis.set_ylabel("Residuals\n($\sigma$)")
