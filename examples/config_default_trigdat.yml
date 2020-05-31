@@ -5,23 +5,23 @@
 
 ################## General Input [Days, Detector, Data Type, Energy Channels] #######################
 general:
-  dates:      ['150126']
-  detectors:   ['n0']
-  data_type:  'ctime'
-  echans:     [3]
-  min_bin_width: 30
-  simulation: true
+  dates:      ['200412']
+  trigger:    'bn200412381'
+  detectors:   ['n1']
+  data_type:  'trigdat'
+  echans: [3]
+  min_bin_width: 1.0e-99
 
 ################# Input for response precalculation [how many grid poits?] ##########################
 response:
-  Ngrid: 4000
+  Ngrid: 40000
 
 ####### Input for SAA mask precaluclation [time to exclude after SAA, delete short time intervals? ##
 saa:
-  time_after_saa: 50
+  time_after_saa: 0
   short_time_intervals: false
   nr_decays: 1
-  decay_at_day_start: false
+  decay_at_day_start: true
   decay_per_detector: false
 
 ###### Input for geometry calculation [n time bins per day to calculate the geometry ################
@@ -37,8 +37,8 @@ setup:
   use_cgb:      true
   ps_list:      ['CRAB']
   fix_ps:       [true]
-  fix_earth:    true
-  fix_cgb:      true
+  fix_earth:    false
+  fix_cgb:      false
   use_sun:      false
   bgo_cr_approximation: true
 
@@ -73,14 +73,14 @@ fit:
   method: 'multinest'
   multinest:
     num_live_points: 400
-    constant_efficiency_mode: true
-  use_numba: false
+    constant_efficiency_mode: false
+  use_numba: true
 
 ##################### Input for Result Export  ######################################################
 export:
   save_cov_matrix: false
   save_ppc: true
-  save_unbinned: false
+  save_unbinned: true
 
 ############################### Input for plotting ##################################################
 ### bin_width to bin the data, change_time from MET to seconds since midnight, show residuals? ######

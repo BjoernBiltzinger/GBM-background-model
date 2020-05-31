@@ -43,7 +43,7 @@ def Setup(
     data,
     saa_object,
     ep,
-    det_geometries,
+    geometry,
     echans=[],
     sun_object=None,
     det_responses=None,
@@ -60,6 +60,7 @@ def Setup(
     fix_earth=False,
     fix_cgb=False,
     nr_saa_decays=1,
+    saa_decay_per_detector=False,
     decay_at_day_start=True,
     bgo_cr_approximation=False,
     use_numba=False,
@@ -69,7 +70,7 @@ def Setup(
     :param data: Data object
     :param saa_object: saa precaculation object
     :param ep: external prob object
-    :param det_geometries: geometry precalculation object
+    :param geometry: geometry precalculation object
     :param echan_list: list of all echans which should be used
     :param sun_object:
     :param det_responses: response precalculation object
@@ -112,7 +113,7 @@ def Setup(
         if use_saa:
             total_sources.extend(
                 setup_SAA(
-                    data, saa_object, echan, index, nr_saa_decays, decay_at_day_start
+                    data, saa_object, echan, index, nr_saa_decays, decay_at_day_start, saa_decay_per_detector
                 )
             )
 
@@ -129,7 +130,7 @@ def Setup(
     if use_sun:
         total_sources.append(
             setup_sun(
-                data, sun_object, saa_object, det_responses, det_geometries, echans
+                data, sun_object, saa_object
             )
         )
 
@@ -140,12 +141,12 @@ def Setup(
                 ep=ep,
                 saa_object=saa_object,
                 det_responses=det_responses,
-                det_geometries=det_geometries,
+                geometry=geometry,
                 echans=echans,
-                use_numba=use_numba,
                 include_all_ps=use_all_ps,
                 point_source_list=point_source_list,
                 free_spectrum=np.logical_not(fix_ps),
+                use_numba=use_numba,
             )
         )
 
@@ -156,7 +157,9 @@ def Setup(
 
         else:
             total_sources.append(
-                setup_earth_free(data, albedo_cgb_object, saa_object, use_numba)
+                setup_earth_free(
+                    data, albedo_cgb_object, saa_object, use_numba=use_numba
+                )
             )
 
     if use_cgb:
@@ -166,13 +169,19 @@ def Setup(
 
         else:
             total_sources.append(
-                setup_cgb_free(data, albedo_cgb_object, saa_object, use_numba)
+                setup_cgb_free(data, albedo_cgb_object, saa_object, use_numba=use_numba)
             )
 
     return total_sources
 
 
-def setup_SAA(data, saa_object, echan, index, nr_decays=1, decay_at_day_start=True):
+def setup_SAA(data,
+              saa_object,
+              echan,
+              index,
+              nr_decays=1,
+              decay_at_day_start=True,
+              decay_per_detector=False):
     """
     Setup for SAA sources
     :param decay_at_day_start:
@@ -198,25 +207,60 @@ def setup_SAA(data, saa_object, echan, index, nr_decays=1, decay_at_day_start=Tr
     start_times = np.append(np.array(day_start), saa_object.saa_exit_times)
 
     for time in start_times:
-        saa_dec = SAA_Decay(str(saa_n), str(echan))
 
-        saa_dec.set_saa_exit_time(np.array([time]))
+        if decay_per_detector:
 
-        saa_dec.set_time_bins(data.time_bins)
+            for det_idx, det in enumerate(data.detectors):
 
-        saa_dec.set_nr_detectors(len(data._detectors))
+                saa_dec = SAA_Decay(
+                    saa_number=str(saa_n),
+                    echan=str(echan),
+                    detector=det
+                )
 
-        # precalculation for later evaluation
-        saa_dec.precalulate_time_bins_integral()
+                saa_dec.set_saa_exit_time(np.array([time]))
 
-        SAA_Decay_list.append(
-            SAASource("saa_{:d} echan_{}".format(saa_n, echan), saa_dec, index)
-        )
-        saa_n += 1
+                saa_dec.set_time_bins(data.time_bins)
+
+                saa_dec.set_nr_detectors(len(data._detectors))
+
+                saa_dec.set_det_idx(det_idx)
+
+                # precalculation for later evaluation
+                saa_dec.precalulate_time_bins_integral()
+
+                SAA_Decay_list.append(
+                    SAASource("saa_{:d} det_{} echan_{}".format(saa_n, det, echan), saa_dec, index)
+                )
+
+            saa_n += 1
+
+        else:
+
+            saa_dec = SAA_Decay(
+                saa_number=str(saa_n),
+                echan=str(echan),
+                detector="all"
+            )
+
+            saa_dec.set_saa_exit_time(np.array([time]))
+
+            saa_dec.set_time_bins(data.time_bins)
+
+            saa_dec.set_nr_detectors(len(data._detectors))
+
+            # precalculation for later evaluation
+            saa_dec.precalulate_time_bins_integral()
+
+            SAA_Decay_list.append(
+                SAASource("saa_{:d} echan_{}".format(saa_n, echan), saa_dec, index)
+            )
+            saa_n += 1
+
     return SAA_Decay_list
 
 
-def setup_sun(cd, sun_object, saa_object, response_object, geom_object, echan_list):
+def setup_sun(cd, sun_object, saa_object):
     """
     Setup for sun as bkg source
     """
@@ -284,7 +328,7 @@ def setup_CosmicRays(data, ep, saa_object, echan, index, bgo_cr_approximation):
         # Magnetic Continuum Source
         mag_con = Magnetic_Continuum(str(echan))
 
-        mag_con.set_function_array(ep.mc_l_rates((data.time_bins)),)
+        mag_con.set_function_array(ep.mc_l_rates((data.time_bins)))
 
         mag_con.set_saa_zero(saa_object.saa_mask)
 
@@ -304,12 +348,12 @@ def setup_ps(
     ep,
     saa_object,
     det_responses,
-    det_geometries,
+    geometry,
     echans,
-    use_numba,
     include_all_ps,
     point_source_list,
     free_spectrum=[],
+    use_numba=False,
 ):
     """
     Set up the global sources which are the same for all echans.
@@ -318,7 +362,7 @@ def setup_ps(
     :param point_source_list:
     :param free_spectrum:
     :param echan_list:
-    :param det_geometries:
+    :param geometry:
     :param saa_object:
     :param det_responses:
     :param data:
@@ -334,7 +378,7 @@ def setup_ps(
     # Point-Source Sources
     ep.build_point_sources(
         det_responses=det_responses,
-        det_geometries=det_geometries,
+        geometry=geometry,
         echans=echans,
         include_all_ps=include_all_ps,
         point_source_list=point_source_list,
@@ -346,15 +390,16 @@ def setup_ps(
     for i, ps in enumerate(ep.point_sources.values()):
 
         if len(free_spectrum) > 0 and free_spectrum[i]:
+
             PS_Continuum_dic[
                 "{}".format(ps.name)
             ] = Point_Source_Continuum_Fit_Spectrum(
-                "ps_{}_spectrum_fitted".format(ps.name), E_norm=25.0
+                "ps_{}_spectrum_fitted".format(ps.name),
+                E_norm=25.0,
+                use_numba=use_numba,
             )
 
-            PS_Continuum_dic["{}".format(ps.name)].build_spec_integral(
-                use_numba=use_numba
-            )
+            PS_Continuum_dic["{}".format(ps.name)].build_spec_integral()
 
             PS_Continuum_dic["{}".format(ps.name)].set_effective_responses(
                 effective_responses=ps.ps_effective_response
@@ -408,7 +453,7 @@ def setup_ps(
     return PS_Sources_list
 
 
-def setup_earth_free(data, albedo_cgb_object, saa_object, use_numba):
+def setup_earth_free(data, albedo_cgb_object, saa_object, use_numba=False):
     """
     Setup Earth Albedo source with free spectrum
     :param data:
@@ -417,9 +462,9 @@ def setup_earth_free(data, albedo_cgb_object, saa_object, use_numba):
     :return:
     """
 
-    earth_albedo = Earth_Albedo_Continuum_Fit_Spectrum()
+    earth_albedo = Earth_Albedo_Continuum_Fit_Spectrum(use_numba=use_numba)
 
-    earth_albedo.build_spec_integral(use_numba=use_numba)
+    earth_albedo.build_spec_integral()
 
     earth_albedo.set_dets_echans(detectors=data.detectors, echans=data.echans)
 
@@ -432,11 +477,10 @@ def setup_earth_free(data, albedo_cgb_object, saa_object, use_numba):
     earth_albedo.set_saa_mask(saa_mask=saa_object.saa_mask)
 
     earth_albedo.set_interpolation_times(
-        interpolation_times=albedo_cgb_object.geometry_times
+        interpolation_times=albedo_cgb_object.interp_times
     )
 
     earth_albedo.set_responses(responses=albedo_cgb_object.responses)
-
     Source_Earth_Albedo_Continuum = FitSpectrumSource(
         name="Earth occultation", continuum_shape=earth_albedo
     )
@@ -465,7 +509,7 @@ def setup_earth_fix(data, albedo_cgb_object, saa_object):
     return Source_Earth_Albedo_Continuum
 
 
-def setup_cgb_free(data, albedo_cgb_object, saa_object, use_numba):
+def setup_cgb_free(data, albedo_cgb_object, saa_object, use_numba=False):
     """
     Setup CGB source with free spectrum
     :param data:
@@ -473,9 +517,9 @@ def setup_cgb_free(data, albedo_cgb_object, saa_object, use_numba):
     :param saa_object:
     :return:
     """
-    cgb = Cosmic_Gamma_Ray_Background_Fit_Spectrum()
+    cgb = Cosmic_Gamma_Ray_Background_Fit_Spectrum(use_numba=use_numba)
 
-    cgb.build_spec_integral(use_numba=use_numba)
+    cgb.build_spec_integral()
 
     cgb.set_dets_echans(detectors=data.detectors, echans=data.echans)
 
@@ -487,7 +531,7 @@ def setup_cgb_free(data, albedo_cgb_object, saa_object, use_numba):
 
     cgb.set_saa_mask(saa_mask=saa_object.saa_mask)
 
-    cgb.set_interpolation_times(interpolation_times=albedo_cgb_object.geometry_times)
+    cgb.set_interpolation_times(interpolation_times=albedo_cgb_object.interp_times)
 
     cgb.set_responses(responses=albedo_cgb_object.responses)
 

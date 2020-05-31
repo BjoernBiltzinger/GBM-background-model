@@ -48,7 +48,7 @@ class ExternalProps(object):
         :param dates: [YYMMDD, YYMMDD,]
         """
 
-        assert len(dates[0]) == 6, "Day must be in format YYMMDD"
+        assert len(dates[0]) == 6, f"Day must be in format YYMMDD, but you provided: {dates}"
         self._detectors = detectors
 
         self._side_0 = ["n0", "n1", "n2", "n3", "n4", "n5"]
@@ -84,7 +84,7 @@ class ExternalProps(object):
     def build_point_sources(
         self,
         det_responses,
-        det_geometries,
+        geometry,
         echans,
         include_all_ps=False,
         point_source_list=[],
@@ -120,9 +120,9 @@ class ExternalProps(object):
                             name=row[1],
                             ra=row[2],
                             dec=row[3],
-                            response_object=det_responses,
-                            geometry_object=det_geometries,
-                            echan_list=echans,
+                            det_responses=det_responses,
+                            geometry=geometry,
+                            echans=echans,
                         )
 
                     else:
@@ -131,28 +131,58 @@ class ExternalProps(object):
                             ra=row[2],
                             dec=row[3],
                             det_responses=det_responses,
-                            det_geometries=det_geometries,
+                            geometry=geometry,
                             echans=echans,
                             spectral_index=2.114,
                         )
 
+
     def bgo_cr_approximation(self, met):
 
-        bgo_cr_rates = np.zeros((len(met), len(self._detectors), 2))
+        if isinstance(met[0], np.ndarray) or isinstance(met[0], list):
+           
+            bgo_cr_rates = np.zeros((len(met), len(self._detectors), len(met[0])))
 
-        for det_idx, det in enumerate(self._detectors):
-            if det in self._side_0:
-                bgo_cr_rates[:, det_idx, :] = self._bgo_0_rate_interp(met)
-            elif det in self._side_1:
-                bgo_cr_rates[:, det_idx, :] = self._bgo_1_rate_interp(met)
-            else:
-                raise AssertionError("Use a valid NaI det name to use this function.")
+            for det_idx, det in enumerate(self._detectors):
+                if det in self._side_0:
+                    bgo_cr_rates[:, det_idx, :] = self._bgo_0_rate_interp(met)
+                elif det in self._side_1:
+                    bgo_cr_rates[:, det_idx, :] = self._bgo_1_rate_interp(met)
+                else:
+                    raise AssertionError("Use a valid NaI det name to use this function.")
 
+        else:
+
+            bgo_cr_rates = np.zeros((len(met), len(self._detectors)))
+
+            for det_idx, det in enumerate(self._detectors):
+                if det in self._side_0:
+                    bgo_cr_rates[:, det_idx] = self._bgo_0_rate_interp(met)
+                elif det in self._side_1:
+                    bgo_cr_rates[:, det_idx] = self._bgo_1_rate_interp(met)
+                else:
+                    raise AssertionError("Use a valid NaI det name to use this function.")
+               
         return bgo_cr_rates
 
     def mc_l_rates(self, met):
+        if isinstance(met[0], np.ndarray) or isinstance(met[0], list):
 
-        return np.tile(self.mc_l(met), (len(self._detectors), 1))
+            cr_rates = np.zeros((len(met), len(self._detectors), len(met[0])))
+
+            for det_idx, det in enumerate(self._detectors):
+
+                cr_rates[:, det_idx, :] = self._mc_l_interp(met)
+        else:
+
+            cr_rates = np.zeros((len(met), len(self._detectors)))
+
+            for det_idx, det in enumerate(self._detectors):
+
+                cr_rates[:, det_idx] = self._mc_l_interp(met)
+
+        return cr_rates
+        #return np.tile(self.mc_l(met), (len(self._detectors), 1))
 
     def mc_l(self, met):
         """

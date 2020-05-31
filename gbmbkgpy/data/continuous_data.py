@@ -51,7 +51,7 @@ valid_det_names = [
 
 
 class Data(object):
-    def __init__(self, dates, detectors, data_type, echans, test=False):
+    def __init__(self, dates, detectors, data_type, echans, simulation=False):
         """
         Initalize the ContinousData Class, which contains the information about the time bins 
         and counts of the data.
@@ -94,7 +94,7 @@ class Data(object):
         self._detectors = sorted(detectors)
         self._dates = sorted(dates)
         self._echans = sorted(echans)
-        self._test = test
+        self._simulation = simulation
 
         if self._data_type == "ctime":
             self._echan_mask = np.zeros(8, dtype=bool)
@@ -126,19 +126,9 @@ class Data(object):
 
         self._rebinned_saa_mask = self._data_rebinner.rebinned_saa_mask
 
-        rebinned_counts = np.zeros(
-            (len(self._rebinned_time_bins), len(self._detectors), len(self._echans))
-        )
-
-        for det_idx, det in enumerate(self._detectors):
-
-            for echan_idx, echan in enumerate(self._echans):
-
-                rebinned_counts[:, det_idx, echan_idx] = self._data_rebinner.rebin(
-                    self._counts[:, det_idx, echan_idx]
-                )[0]
-
-        self._rebinned_counts = rebinned_counts.astype(np.uint16)
+        self._rebinned_counts = self._data_rebinner.rebin(
+            self._counts
+        )[0].astype(np.int64)
 
         # Initialize the valid bin mask to all True
         self._valid_rebinned_time_mask = np.ones(
@@ -148,7 +138,6 @@ class Data(object):
         if save_memory:
             self._time_bins = None
             self._counts = None
-
 
     @property
     def counts(self):
@@ -261,7 +250,9 @@ class Data(object):
         :return:
         """
         if self._rebinned:
-            return np.diff(self._rebinned_time_bins[self._valid_rebinned_time_mask], axis=1)[:, 0]
+            return np.diff(
+                self._rebinned_time_bins[self._valid_rebinned_time_mask], axis=1
+            )[:, 0]
         else:
             return np.diff(self._time_bins[self._valid_time_mask], axis=1)[:, 0]
 
@@ -272,7 +263,9 @@ class Data(object):
         :return:
         """
         if self._rebinned:
-            return np.mean(self._rebinned_time_bins[self._valid_rebinned_time_mask], axis=1)
+            return np.mean(
+                self._rebinned_time_bins[self._valid_rebinned_time_mask], axis=1
+            )
         else:
             return np.mean(self._time_bins[self._valid_time_mask], axis=1)
 
@@ -347,15 +340,21 @@ class Data(object):
         :param day:
         :return:
         """
-        version = "v00" if not self._test else "test"
+        version = "v00"
 
         # Download data-file and poshist file if not existing:
         datafile_name = "glg_{0}_{1}_{2}_{3}.pha".format(
             self._data_type, det, day, version
         )
-        datafile_path = os.path.join(
-            get_path_of_external_data_dir(), self._data_type, day, datafile_name
-        )
+
+        if self._simulation:
+            datafile_path = os.path.join(
+                get_path_of_external_data_dir(), "simulation", self._data_type, day, datafile_name
+            )
+        else:
+            datafile_path = os.path.join(
+                get_path_of_external_data_dir(), self._data_type, day, datafile_name
+            )
 
         poshistfile_name = "glg_{0}_all_{1}_v00.fit".format("poshist", day)
         poshistfile_path = os.path.join(
@@ -424,6 +423,9 @@ class Data(object):
         day_met = GBMTime(day_at).met
         # Get time bins
         time_bins = np.vstack((bin_start, bin_stop)).T
+
+        # Convert to numpy int64
+        counts = counts.astype(np.int64)
 
         # Only keep the count informations we need for the echan's we want to fit
         counts = counts.T[self._echan_mask].T

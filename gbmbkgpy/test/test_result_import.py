@@ -17,8 +17,11 @@ def test_fit_import():
     print("Started Model Builder")
     path_of_tests = os.path.dirname(os.path.abspath(__file__))
 
-    file_path = os.path.join(get_path_of_external_data_dir(), "ctime", "150126")
-    file_name = "glg_ctime_n0_150126_test.pha"
+    file_path = os.path.join(get_path_of_external_data_dir(), "simulation", "ctime", "150126")
+    file_name = "glg_ctime_n0_150126_v00.pha"
+
+    if not os.path.exists(file_path):
+        os.makedirs(file_path)
 
     shutil.copy(
         os.path.join(path_of_tests, "datasets", file_name),

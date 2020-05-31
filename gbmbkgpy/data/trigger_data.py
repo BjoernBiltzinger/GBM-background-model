@@ -153,7 +153,9 @@ class TrigData(object):
         :return:
         """
         if self._rebinned:
-            return np.diff(self._rebinned_time_bins[self._valid_rebinned_time_mask], axis=1)[:, 0]
+            return np.diff(
+                self._rebinned_time_bins[self._valid_rebinned_time_mask], axis=1
+            )[:, 0]
         else:
             return np.diff(self._time_bins[self._valid_time_mask], axis=1)[:, 0]
 
@@ -164,7 +166,9 @@ class TrigData(object):
         :return:
         """
         if self._rebinned:
-            return np.mean(self._rebinned_time_bins[self._valid_rebinned_time_mask], axis=1)
+            return np.mean(
+                self._rebinned_time_bins[self._valid_rebinned_time_mask], axis=1
+            )
         else:
             return np.mean(self._time_bins[self._valid_time_mask], axis=1)
 
@@ -426,7 +430,6 @@ class TrigData(object):
         self._time_bins = time_bins
 
         self._valid_time_mask = np.ones(len(self._time_bins), dtype=bool)
-
 
     def mask_invalid_bins(self, geometry_times):
         """
