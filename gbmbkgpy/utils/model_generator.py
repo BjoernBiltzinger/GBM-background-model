@@ -36,7 +36,7 @@ except:
     rank = 0
 
 
-NO_REBIN = 1e-99
+NO_REBIN = 1e-9
 
 
 def print_progress(text):
@@ -57,7 +57,7 @@ class BackgroundModelGenerator(object):
 
         self.from_config_dict(config)
 
-    def from_config_dict(self, config):
+    def from_config_dict(self, config, response=None, geometry=None):
 
         self._config = config
 
@@ -70,9 +70,21 @@ class BackgroundModelGenerator(object):
 
         self._instantiate_ext_properties(config)
 
-        self._precalc_repsonse(config)
+        if response is None:
 
-        self._precalc_geometry(config)
+            self._precalc_repsonse(config)
+
+        else:
+
+            self._resp = response
+
+        if geometry is None:
+
+            self._precalc_geometry(config)
+
+        else:
+
+            self._geom = geometry
 
         self._mask_valid_time_bins()
 
@@ -91,7 +103,7 @@ class BackgroundModelGenerator(object):
             detectors=config["general"]["detectors"],
             data_type=config["general"]["data_type"],
             echans=config["general"]["echans"],
-            test=config["general"].get("test", False),
+            simulation=config["general"].get("simulation", False),
         )
         print_progress("Done")
 
@@ -148,6 +160,7 @@ class BackgroundModelGenerator(object):
             echans=config["general"]["echans"],
             Ngrid=config["response"]["Ngrid"],
             data_type=config["general"]["data_type"],
+            simulation=config["general"].get("simulation", False)
         )
 
         print_progress("Done")
@@ -161,7 +174,6 @@ class BackgroundModelGenerator(object):
 
         self._geom = Geometry(
             data=self._data,
-            detectors=config["general"]["detectors"],
             dates=config["general"]["dates"],
             n_bins_to_calculate_per_day=config["geometry"]["n_bins_to_calculate"],
         )
@@ -199,7 +211,7 @@ class BackgroundModelGenerator(object):
             data=self._data,
             saa_object=self._saa_calc,
             ep=self._ep,
-            det_geometries=self._geom,
+            geometry=self._geom,
             sun_object=self._sun_obj,
             echans=config["general"]["echans"],
             det_responses=self._resp,
@@ -216,6 +228,7 @@ class BackgroundModelGenerator(object):
             use_sun=config["setup"]["use_sun"],
             nr_saa_decays=config["saa"]["nr_decays"],
             decay_at_day_start=config["saa"]["decay_at_day_start"],
+            saa_decay_per_detector=config["saa"]["decay_per_detector"],
             bgo_cr_approximation=config["setup"]["bgo_cr_approximation"],
             use_numba=config["fit"].get("use_numba", False),
         )
@@ -249,14 +262,30 @@ class BackgroundModelGenerator(object):
                     offset = 0
 
                 for saa_nr in range(self._saa_calc.num_saa + offset):
-                    parameter_bounds["norm_saa-{}_echan-{}".format(saa_nr, e)] = {
-                        "bounds": config["bounds"]["saa_bound"][0],
-                        "gaussian_parameter": config["gaussian_bounds"]["saa_bound"][0],
-                    }
-                    parameter_bounds["decay_saa-{}_echan-{}".format(saa_nr, e)] = {
-                        "bounds": config["bounds"]["saa_bound"][1],
-                        "gaussian_parameter": config["gaussian_bounds"]["saa_bound"][1],
-                    }
+
+                    if config["saa"]["decay_per_detector"]:
+
+                        for det in self._data.detectors:
+
+                            parameter_bounds["norm_saa-{}_det-{}_echan-{}".format(saa_nr, det, e)] = {
+                                "bounds": config["bounds"]["saa_bound"][0],
+                                "gaussian_parameter": config["gaussian_bounds"]["saa_bound"][0],
+                            }
+                            parameter_bounds["decay_saa-{}_det-{}_echan-{}".format(saa_nr, det, e)] = {
+                                "bounds": config["bounds"]["saa_bound"][1],
+                                "gaussian_parameter": config["gaussian_bounds"]["saa_bound"][1],
+                            }
+
+                    else:
+
+                        parameter_bounds["norm_saa-{}_det-all_echan-{}".format(saa_nr, e)] = {
+                            "bounds": config["bounds"]["saa_bound"][0],
+                            "gaussian_parameter": config["gaussian_bounds"]["saa_bound"][0],
+                        }
+                        parameter_bounds["decay_saa-{}_det-all_echan-{}".format(saa_nr, e)] = {
+                            "bounds": config["bounds"]["saa_bound"][1],
+                            "gaussian_parameter": config["gaussian_bounds"]["saa_bound"][1],
+                        }
 
             if config["setup"]["use_constant"]:
                 parameter_bounds["constant_echan-{}".format(e)] = {
@@ -271,7 +300,7 @@ class BackgroundModelGenerator(object):
                 }
 
         if config["setup"]["use_sun"]:
-            parameter_bounds["sun_C"] = {
+            parameter_bounds["sun_norm"] = {
                 "bounds": config["bounds"]["sun_bound"][0],
                 "gaussian_parameter": config["gaussian_bounds"]["sun_bound"][0],
             }
@@ -291,7 +320,7 @@ class BackgroundModelGenerator(object):
                     ],
                 }
             else:
-                parameter_bounds["ps_{}_spectrum_fitted_C".format(ps)] = {
+                parameter_bounds["ps_{}_spectrum_fitted_norm".format(ps)] = {
                     "bounds": config["bounds"]["ps_free_bound"][0],
                     "gaussian_parameter": config["gaussian_bounds"]["ps_free_bound"][0],
                 }
@@ -310,7 +339,7 @@ class BackgroundModelGenerator(object):
                     ][0],
                 }
             else:
-                parameter_bounds["earth_albedo_spectrum_fitted_C"] = {
+                parameter_bounds["earth_albedo_spectrum_fitted_norm"] = {
                     "bounds": config["bounds"]["earth_free_bound"][0],
                     "gaussian_parameter": config["gaussian_bounds"]["earth_free_bound"][
                         0
@@ -345,7 +374,7 @@ class BackgroundModelGenerator(object):
                     ],
                 }
             else:
-                parameter_bounds["CGB_spectrum_fitted_C"] = {
+                parameter_bounds["CGB_spectrum_fitted_norm"] = {
                     "bounds": config["bounds"]["cgb_free_bound"][0],
                     "gaussian_parameter": config["gaussian_bounds"]["cgb_free_bound"][
                         0
@@ -405,6 +434,10 @@ class BackgroundModelGenerator(object):
     @property
     def geometry(self):
         return self._geom
+
+    @property
+    def albedo_cgb(self):
+        return self._albedo_cgb_obj
 
     @property
     def source_list(self):

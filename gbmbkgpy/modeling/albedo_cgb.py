@@ -30,16 +30,13 @@ class Albedo_CGB_free(object):
     was calculated. Use this if you want the spectra to be free in the fit (not only normalization) 
     """
 
-    def __init__(self, det_responses, det_geometries):
-        assert (
-            det_responses.responses.keys() == det_geometries.geometries.keys()
-        ), "The detectors in the response object do not match the detectors in the geometry object"
+    def __init__(self, det_responses, geometry):
 
         self._detectors = list(det_responses.responses.keys())
         self._echans = det_responses.echans
 
         self._rsp = det_responses.responses
-        self._geom = det_geometries.geometries
+        self._geom = geometry
 
         self._calc_earth_cgb_responses()
 
@@ -60,12 +57,12 @@ class Albedo_CGB_free(object):
         return self._earth_response_sums
 
     @property
-    def geometry_times(self):
-        return self._geom[self._detectors[0]].time
-
-    @property
     def responses(self):
         return self._rsp
+
+    @property
+    def interp_times(self):
+        return self._geom.geometry_times
 
     def _calc_earth_cgb_responses(self):
         # Calculate the true flux for the Earth for the assumed spectral parameters (Normalization=1).
@@ -78,203 +75,88 @@ class Albedo_CGB_free(object):
             (
                 cgb_response_sums[det],
                 earth_response_sums[det],
-            ) = self._response_sum_one_det(
-                det_response=self._rsp[det], det_geometry=self._geom[det]
+            ) = self._get_effective_response_albedo_cgb(
+                det_response=self._rsp[det]
             )
 
         self._cgb_response_sums = cgb_response_sums
         self._earth_response_sums = earth_response_sums
 
-    def _response_sum_one_det(self, det_response, det_geometry):
+    def _get_effective_response_albedo_cgb(self, det_response):
         """
-        Calculate the effective response sum for all interpolation times for which the geometry was 
+        Calculate the effective response sum for all interpolation times for which the geometry was
         calculated. This supports MPI to reduce the calculation time.
-        To calculate the responses created on a grid in the response_object are used. All points 
-        that are not occulted by the earth are added to the cgb and all others to the earth.
+        To calculate the responses created on a grid in the response_object are used. All points
+        that are not occulted by the earth are added
         """
+        # define the opening angle of the earth in degree
+        earth_radius = 6371.0
+        fermi_radius = np.sqrt(np.sum(self._geom.sc_pos ** 2, axis=1))
+        horizon_angle = 90 - np.rad2deg(np.arccos(earth_radius / fermi_radius))
 
-        # Get the precalulated points and responses on the unit sphere
-        points = det_response.points
-        responses = det_response.response_array
+        min_vis = np.deg2rad(horizon_angle)
 
-        # Factor to multiply the responses with. Needed as the later spectra are given in units of
-        # 1/sr. The sr_points gives the area of the sphere occulted by one point
-        sr_points = 4 * np.pi / len(points)
+        resp_grid_points = det_response.points
 
-        # Get the earth direction at the interpolation times; zen angle from -90 to 90
-        earth_pos_inter_times = []
+        sr_points = 4 * np.pi / len(resp_grid_points)
 
-        # If MPI available it is used to speed up the calculation
-        if using_mpi:
-            num_times = len(self._geom.earth_zen)
-            times_per_rank = float(num_times) / float(size)
-            times_lower_bound_index = int(np.floor(rank * times_per_rank))
-            times_upper_bound_index = int(np.floor((rank + 1) * times_per_rank))
+        # Calculate the normalization of the spacecraft position vectors
+        earth_position_cart_norm = np.sqrt(
+            np.sum(self._geom.earth_position_cart * self._geom.earth_position_cart, axis=1)
+        ).reshape((len(self._geom.earth_position_cart), 1))
 
-            if rank == 0:
-                with progress_bar(
-                    times_upper_bound_index - times_lower_bound_index,
-                    title="Calculating earth position in sat frame for several times. "
-                    "This shows the progress of rank 0. All other should be about the same.",
-                ) as p:
-                    for i in range(times_lower_bound_index, times_upper_bound_index):
-                        earth_pos_inter_times.append(
-                            np.array(
-                                [
-                                    np.cos(det_geometry.earth_zen[i] * (np.pi / 180))
-                                    * np.cos(det_geometry.earth_az[i] * (np.pi / 180)),
-                                    np.cos(det_geometry.earth_zen[i] * (np.pi / 180))
-                                    * np.sin(det_geometry.earth_az[i] * (np.pi / 180)),
-                                    np.sin(det_geometry.earth_zen[i] * (np.pi / 180)),
-                                ]
-                            )
-                        )
-                        p.increase()
-            else:
-                for i in range(times_lower_bound_index, times_upper_bound_index):
-                    earth_pos_inter_times.append(
-                        np.array(
-                            [
-                                np.cos(det_geometry.earth_zen[i] * (np.pi / 180))
-                                * np.cos(det_geometry.earth_az[i] * (np.pi / 180)),
-                                np.cos(det_geometry.earth_zen[i] * (np.pi / 180))
-                                * np.sin(det_geometry.earth_az[i] * (np.pi / 180)),
-                                np.sin(det_geometry.earth_zen[i] * (np.pi / 180)),
-                            ]
-                        )
-                    )
-            earth_pos_inter_times = np.array(earth_pos_inter_times)
+        # Calculate the normalization of the grid points of the response precalculation
+        resp_grid_points_norm = np.sqrt(
+            np.sum(resp_grid_points * resp_grid_points, axis=1)
+        ).reshape((len(resp_grid_points), 1))
 
-            # Define the opening angle of the earth in degree
-            opening_angle_earth = 67
+        tmp = np.clip(
+            np.dot(
+                self._geom.earth_position_cart / earth_position_cart_norm,
+                resp_grid_points.T / resp_grid_points_norm.T
+            ),
+            -1, 1
+        )
 
-            # Initalize the lists for the summed effective responses
-            array_cgb_response_sum = []
-            array_earth_response_sum = []
+        # Calculate separation angle between
+        # spacecraft and earth horizon
+        ang_sep = np.arccos(tmp)
 
-            # Add the responses that are occulted by earth to earth effective response
-            # and the others to CGB effective response. Do this for all times for which the
-            # geometry was calculated
-            if rank == 0:
-                with progress_bar(
-                    len(earth_pos_inter_times),
-                    title="Calculating the effective response for several times. "
-                    "This shows the progress of rank 0. All other should be about the same.",
-                ) as p:
-                    for pos in earth_pos_inter_times:
-                        angle_earth = np.arccos(np.dot(pos, points.T)) * (180 / np.pi)
+        # Create a mask with True when the Earth is in the FOV
+        # and False when its CGB
+        earth_occultion_idx = np.less(ang_sep.T, min_vis).T
 
-                        cgb_response_time = np.sum(
-                            responses[np.where(angle_earth > opening_angle_earth)],
-                            axis=0,
-                        )
+        # Sum up the responses that are occulted by earth in earth_effective_response
+        # and the others in cgb_effective_response
+        # then mulitiply by the sr_points factor which is the area
+        # of the unit sphere covered by every point
 
-                        earth_response_time = np.sum(
-                            responses[np.where(angle_earth < opening_angle_earth)],
-                            axis=0,
-                        )
+        # TODO: Check why the earth occultation mask has to be inverted for the earth
+        # and not the other way around!
+        effective_response_earth = np.tensordot(
+            ~earth_occultion_idx,
+            det_response.response_array,
+            [(1,), (0,)]
+        ) * sr_points
 
-                        array_cgb_response_sum.append(cgb_response_time)
-                        array_earth_response_sum.append(earth_response_time)
-                        p.increase()
-            else:
-                for pos in earth_pos_inter_times:
-                    angle_earth = np.arccos(np.dot(pos, points.T)) * (180 / np.pi)
+        effective_response_cgb = np.tensordot(
+            earth_occultion_idx,
+            det_response.response_array,
+            [(1,), (0,)]
+        ) * sr_points
 
-                    cgb_response_time = np.sum(
-                        responses[np.where(angle_earth > opening_angle_earth)], axis=0
-                    )
-
-                    earth_response_time = np.sum(
-                        responses[np.where(angle_earth < opening_angle_earth)], axis=0
-                    )
-
-                    array_cgb_response_sum.append(cgb_response_time)
-                    array_earth_response_sum.append(earth_response_time)
-                    p.increase()
-
-            # Collect all results in rank=0 and broadcast it to all ranks
-            # in the end
-            array_cgb_response_sum = np.array(array_cgb_response_sum)
-            array_earth_response_sum = np.array(array_earth_response_sum)
-            array_cgb_response_sum_g = comm.gather(array_cgb_response_sum, root=0)
-            array_earth_response_sum_g = comm.gather(array_earth_response_sum, root=0)
-            if rank == 0:
-                array_cgb_response_sum_g = np.concatenate(array_cgb_response_sum_g)
-                array_earth_response_sum_g = np.concatenate(array_earth_response_sum_g)
-            array_cgb_response_sum = comm.bcast(array_cgb_response_sum_g, root=0)
-            array_earth_response_sum = comm.bcast(array_earth_response_sum_g, root=0)
-        else:
-
-            # The same as above just for single core calculation without MPI
-            with progress_bar(
-                len(det_geometry.earth_zen),
-                title="Calculating earth position in sat frame for several times",
-            ) as p:
-
-                for i in range(0, len(det_geometry.earth_zen)):
-                    earth_pos_inter_times.append(
-                        np.array(
-                            [
-                                np.cos(det_geometry.earth_zen[i] * (np.pi / 180))
-                                * np.cos(det_geometry.earth_az[i] * (np.pi / 180)),
-                                np.cos(det_geometry.earth_zen[i] * (np.pi / 180))
-                                * np.sin(det_geometry.earth_az[i] * (np.pi / 180)),
-                                np.sin(det_geometry.earth_zen[i] * (np.pi / 180)),
-                            ]
-                        )
-                    )
-                    p.increase()
-            self._earth_pos_inter_times = np.array(earth_pos_inter_times)
-
-            # define the opening angle of the earth in degree
-            opening_angle_earth = 67
-            array_cgb_response_sum = []
-            array_earth_response_sum = []
-
-            with progress_bar(
-                len(earth_pos_inter_times),
-                title="Calculating the effective response for several times.",
-            ) as p:
-                for pos in self._earth_pos_inter_times:
-                    angle_earth = np.arccos(np.dot(pos, points.T)) * (180 / np.pi)
-
-                    cgb_response_time = np.sum(
-                        responses[np.where(angle_earth > opening_angle_earth)], axis=0
-                    )
-
-                    earth_response_time = np.sum(
-                        responses[np.where(angle_earth < opening_angle_earth)], axis=0
-                    )
-
-                    array_cgb_response_sum.append(cgb_response_time)
-                    array_earth_response_sum.append(earth_response_time)
-                    p.increase()
-
-        # Mulitiply by the sr_points factor which is the area of the unit sphere covered by every point
-        array_cgb_response_sum = np.array(array_cgb_response_sum) * sr_points
-        array_earth_response_sum = np.array(array_earth_response_sum) * sr_points
-        return array_cgb_response_sum, array_earth_response_sum
+        return effective_response_earth, effective_response_cgb
 
 
-class Albedo_CGB_fixed(object):
+class Albedo_CGB_fixed(Albedo_CGB_free):
     """
     Class that precalulated the rates arrays for the Earth Albedo and CGB for all times for which the geometry
     was calculated for a normalization 1. Use this if you want that only the normalization of the spectra
     is a free fit parameter.
     """
 
-    def __init__(self, det_responses, det_geometries):
-
-        assert (
-            det_responses.responses.keys() == det_geometries.geometries.keys()
-        ), "The detectors in the response object do not match the detectors in the geometry object"
-
-        self._detectors = list(det_responses.responses.keys())
-        self._echans = det_responses.echans
-
-        self._rsp = det_responses.responses
-        self._geom = det_geometries.geometries
+    def __init__(self, det_responses, geometry):
+        super(Albedo_CGB_fixed, self).__init__(det_responses, geometry)
 
         # Set spectral parameters to literature values (Earth and CGB from Ajello)
 
@@ -289,6 +171,7 @@ class Albedo_CGB_fixed(object):
         self._break_energy_earth = 33.7
 
         self._calc_earth_cgb_rates()
+
         self._interpolate_earth_cgb_rates()
 
     def get_earth_rates(self, met):
@@ -324,21 +207,6 @@ class Albedo_CGB_fixed(object):
         cgb_rates = np.swapaxes(cgb_rates, 1, 2)
         cgb_rates = np.swapaxes(cgb_rates, 2, 3)
 
-        # cgb_rates = np.zeros((
-        #     len(met),
-        #     len(self._detectors),
-        #     len(self._echans),
-        #     2
-        # ))
-
-        # for det_idx, det in enumerate(self._detectors):
-        #     interpolated_cgb_rate = self._interp_rate_cgb[det](met)
-
-        #     # The interpolated rate has the dimensions nr_echans, nr_time_bins, 2
-        #     # So we swap zeroth and first axes to get nr_time_bins, nr_echans, 2
-
-        #     cgb_rates[:, det_idx, :, :] = np.swapaxes(interpolated_cgb_rate, 0, 1)
-
         return cgb_rates
 
     def _calc_earth_cgb_rates(self):
@@ -347,7 +215,7 @@ class Albedo_CGB_fixed(object):
 
         folded_flux_cgb = np.zeros(
             (
-                len(self._geom[self._detectors[0]].time),
+                len(self._geom.geometry_times),
                 len(self._detectors),
                 len(self._echans),
             )
@@ -355,7 +223,7 @@ class Albedo_CGB_fixed(object):
 
         folded_flux_earth = np.zeros(
             (
-                len(self._geom[self._detectors[0]].time),
+                len(self._geom.geometry_times),
                 len(self._detectors),
                 len(self._echans),
             )
@@ -370,13 +238,12 @@ class Albedo_CGB_fixed(object):
                 self._rsp[det].Ebin_in_edge[:-1], self._rsp[det].Ebin_in_edge[1:]
             )
 
-            cgb_response_sum, earth_response_sum = self._response_sum_one_det(
-                det_response=self._rsp[det], det_geometry=self._geom[det]
+            folded_flux_cgb[:, det_idx, :] = np.dot(
+                true_flux_cgb, self._cgb_response_sums[det]
             )
 
-            folded_flux_cgb[:, det_idx, :] = np.dot(true_flux_cgb, cgb_response_sum)
             folded_flux_earth[:, det_idx, :] = np.dot(
-                true_flux_earth, earth_response_sum
+                true_flux_earth, self._earth_response_sums[det]
             )
 
         self._folded_flux_cgb = folded_flux_cgb
@@ -386,206 +253,17 @@ class Albedo_CGB_fixed(object):
     def responses(self):
         return self._rsp
 
-    @property
-    def geometry_time(self):
-        return self._geom[self._detectors[0]].time
-
     def _interpolate_earth_cgb_rates(self):
         # interp_rate_earth = {}
         # interp_rate_cgb = {}
 
         self._interp_rate_cgb = interpolate.interp1d(
-            self.geometry_time, self._folded_flux_cgb, axis=0
+            self._geom.geometry_times, self._folded_flux_cgb, axis=0
         )
 
         self._interp_rate_earth = interpolate.interp1d(
-            self.geometry_time, self._folded_flux_earth, axis=0
+            self._geom.geometry_times, self._folded_flux_earth, axis=0
         )
-
-        # for det_idx, det in enumerate(self._detectors):
-
-        #     interp_rate_cgb[det] = interpolate.interp1d(
-        #         self._geom[det].time,
-        #         self._folded_flux_cgb[:, det_idx, :].T
-        #     )
-
-        #     interp_rate_earth[det] = interpolate.interp1d(
-        #         self._geom[det].time,
-        #         self._folded_flux_earth[:, Det_idx, :].T
-        #     )
-
-        # self._interp_rate_cgb = interp_rate_cgb
-        # self._interp_rate_earth = interp_rate_earth
-
-    def _response_sum_one_det(self, det_response, det_geometry):
-        """
-        Calculate the effective response sum for all interpolation times for which the geometry was 
-        calculated. This supports MPI to reduce the calculation time.
-        To calculate the responses created on a grid in the response_object are used. All points 
-        that are not occulted by the earth are added
-        """
-
-        # Get the precalulated points and responses on the unit sphere
-        points = det_response.points
-        responses = det_response.response_array
-
-        # Factor to multiply the responses with. Needed as the later spectra are given in units of
-        # 1/sr. The sr_points gives the area of the sphere occulted by one point
-        sr_points = 4 * np.pi / len(points)
-
-        # Get the earth direction at the interpolation times; zen angle from -90 to 90
-        earth_pos_inter_times = []
-
-        # If MPI available it is used to speed up the calculation
-        if using_mpi:
-            num_times = len(det_geometry.earth_zen)
-            times_per_rank = float(num_times) / float(size)
-            times_lower_bound_index = int(np.floor(rank * times_per_rank))
-            times_upper_bound_index = int(np.floor((rank + 1) * times_per_rank))
-
-            if rank == 0:
-                with progress_bar(
-                    times_upper_bound_index - times_lower_bound_index,
-                    title="Calculating earth position in sat frame for several times. "
-                    "This shows the progress of rank 0. All other should be about the same.",
-                ) as p:
-                    for i in range(times_lower_bound_index, times_upper_bound_index):
-                        earth_pos_inter_times.append(
-                            np.array(
-                                [
-                                    np.cos(det_geometry.earth_zen[i] * (np.pi / 180))
-                                    * np.cos(det_geometry.earth_az[i] * (np.pi / 180)),
-                                    np.cos(det_geometry.earth_zen[i] * (np.pi / 180))
-                                    * np.sin(det_geometry.earth_az[i] * (np.pi / 180)),
-                                    np.sin(det_geometry.earth_zen[i] * (np.pi / 180)),
-                                ]
-                            )
-                        )
-                        p.increase()
-            else:
-                for i in range(times_lower_bound_index, times_upper_bound_index):
-                    earth_pos_inter_times.append(
-                        np.array(
-                            [
-                                np.cos(det_geometry.earth_zen[i] * (np.pi / 180))
-                                * np.cos(det_geometry.earth_az[i] * (np.pi / 180)),
-                                np.cos(det_geometry.earth_zen[i] * (np.pi / 180))
-                                * np.sin(det_geometry.earth_az[i] * (np.pi / 180)),
-                                np.sin(det_geometry.earth_zen[i] * (np.pi / 180)),
-                            ]
-                        )
-                    )
-            earth_pos_inter_times = np.array(earth_pos_inter_times)
-
-            # Define the opening angle of the earth in degree
-            opening_angle_earth = 67
-
-            # Initalize the lists for the summed effective responses
-            array_cgb_response_sum = []
-            array_earth_response_sum = []
-
-            # Add the responses that are occulted by earth to earth effective response
-            # and the others to CGB effective response. Do this for all times for which the
-            # geometry was calculated
-            if rank == 0:
-                with progress_bar(
-                    len(earth_pos_inter_times),
-                    title="Calculating the effective response for several times. "
-                    "This shows the progress of rank 0. All other should be about the same.",
-                ) as p:
-                    for pos in earth_pos_inter_times:
-                        angle_earth = np.arccos(np.dot(pos, points.T)) * (180 / np.pi)
-
-                        cgb_response_time = np.sum(
-                            responses[np.where(angle_earth > opening_angle_earth)],
-                            axis=0,
-                        )
-
-                        earth_response_time = np.sum(
-                            responses[np.where(angle_earth < opening_angle_earth)],
-                            axis=0,
-                        )
-
-                        array_cgb_response_sum.append(cgb_response_time)
-                        array_earth_response_sum.append(earth_response_time)
-                        p.increase()
-            else:
-                for pos in earth_pos_inter_times:
-                    angle_earth = np.arccos(np.dot(pos, points.T)) * (180 / np.pi)
-
-                    cgb_response_time = np.sum(
-                        responses[np.where(angle_earth > opening_angle_earth)], axis=0
-                    )
-
-                    earth_response_time = np.sum(
-                        responses[np.where(angle_earth < opening_angle_earth)], axis=0
-                    )
-
-                    array_cgb_response_sum.append(cgb_response_time)
-                    array_earth_response_sum.append(earth_response_time)
-
-            # Collect all results in rank=0 and broadcast it to all ranks
-            # in the end
-            array_cgb_response_sum = np.array(array_cgb_response_sum)
-            array_earth_response_sum = np.array(array_earth_response_sum)
-            array_cgb_response_sum_g = comm.gather(array_cgb_response_sum, root=0)
-            array_earth_response_sum_g = comm.gather(array_earth_response_sum, root=0)
-            if rank == 0:
-                array_cgb_response_sum_g = np.concatenate(array_cgb_response_sum_g)
-                array_earth_response_sum_g = np.concatenate(array_earth_response_sum_g)
-            array_cgb_response_sum = comm.bcast(array_cgb_response_sum_g, root=0)
-            array_earth_response_sum = comm.bcast(array_earth_response_sum_g, root=0)
-        else:
-
-            # The same as above just for single core calculation without MPI
-            with progress_bar(
-                len(det_geometry.earth_zen),
-                title="Calculating earth position in sat frame for several times.",
-            ) as p:
-                for i in range(0, len(det_geometry.earth_zen)):
-                    earth_pos_inter_times.append(
-                        np.array(
-                            [
-                                np.cos(det_geometry.earth_zen[i] * (np.pi / 180))
-                                * np.cos(det_geometry.earth_az[i] * (np.pi / 180)),
-                                np.cos(det_geometry.earth_zen[i] * (np.pi / 180))
-                                * np.sin(det_geometry.earth_az[i] * (np.pi / 180)),
-                                np.sin(det_geometry.earth_zen[i] * (np.pi / 180)),
-                            ]
-                        )
-                    )
-                    p.increase()
-            self._earth_pos_inter_times = np.array(earth_pos_inter_times)
-
-            # define the opening angle of the earth in degree
-            opening_angle_earth = 67
-            array_cgb_response_sum = []
-            array_earth_response_sum = []
-
-            with progress_bar(
-                len(earth_pos_inter_times),
-                title="Calculating the effective response for several times.",
-            ) as p:
-                for pos in earth_pos_inter_times:
-                    angle_earth = np.arccos(np.dot(pos, points.T)) * (180 / np.pi)
-
-                    cgb_response_time = np.sum(
-                        responses[np.where(angle_earth > opening_angle_earth)], axis=0
-                    )
-
-                    earth_response_time = np.sum(
-                        responses[np.where(angle_earth < opening_angle_earth)], axis=0
-                    )
-
-                    array_cgb_response_sum.append(cgb_response_time)
-                    array_earth_response_sum.append(earth_response_time)
-                    p.increase()
-
-        # Mulitiply by the sr_points factor which is the area of the unit sphere covered by every point
-        array_cgb_response_sum = np.array(array_cgb_response_sum) * sr_points
-        array_earth_response_sum = np.array(array_earth_response_sum) * sr_points
-
-        return array_cgb_response_sum, array_earth_response_sum
 
     def _spectrum_bpl(self, energy, C, index1, index2, break_energy):
         """

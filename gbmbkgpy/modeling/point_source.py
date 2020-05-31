@@ -31,7 +31,7 @@ except:
 
 class PointSrc_fixed(object):
     def __init__(
-        self, name, ra, dec, det_responses, det_geometries, echans, spectral_index=2.114
+        self, name, ra, dec, det_responses, geometry, echans, spectral_index=2.114
     ):
         """
         Initialize a PS and precalculates the rates for all the times for which the geomerty was
@@ -46,17 +46,13 @@ class PointSrc_fixed(object):
         """
         self._name = name
 
-        # Build a SkyCoord object of the PS
-        self._ps_skycoord = coord.SkyCoord(ra * u.deg, dec * u.deg, frame="icrs")
-
-        assert (
-            det_responses.responses.keys() == det_geometries.geometries.keys()
-        ), "The detectors in the response object do not match the detectors in the geometry object"
+        self._ra = ra
+        self._dec = dec
 
         self._detectors = list(det_responses.responses.keys())
 
         self._rsp = det_responses.responses
-        self._geom = det_geometries.geometries
+        self._geom = geometry
 
         self._data_type = self._rsp[self._detectors[0]].data_type
 
@@ -74,19 +70,8 @@ class PointSrc_fixed(object):
         self._interpolate_ps_rates()
 
     @property
-    def skycoord(self):
-        """
-        Returns the SkyCoord object of the PS
-        """
-        return self._ps_skycoord
-
-    @property
     def responses(self):
         return self._rsp
-
-    @property
-    def geometry_time(self):
-        return self._geom[self._detectors[0]].time
 
     def get_ps_rates(self, met):
         """
@@ -117,7 +102,7 @@ class PointSrc_fixed(object):
 
         folded_flux_ps = np.zeros(
             (
-                len(self._geom[self._detectors[0]].time),
+                len(self._geom.geometry_times),
                 len(self._detectors),
                 len(self._echans),
             )
@@ -130,8 +115,8 @@ class PointSrc_fixed(object):
                 index=spectral_index,
             )
 
-            ps_response_det, separation = self._response_sum_one_det(
-                det_response=self._rsp[det], det_geometry=self._geom[det]
+            ps_response_det = self._response_sum_one_det(
+                det_response=self._rsp[det]
             )
 
             folded_flux_ps[:, det_idx, :] = np.dot(true_flux_ps, ps_response_det)
@@ -141,297 +126,32 @@ class PointSrc_fixed(object):
     def _interpolate_ps_rates(self):
 
         self._interp_rate_ps = interpolate.interp1d(
-            self.geometry_time, self._folded_flux_ps, axis=0
+            self._geom.geometry_times, self._folded_flux_ps, axis=0
         )
 
-    def _response_sum_one_det(self, det_response, det_geometry):
-        """
-        Funtion that imports and precalculate everything that is needed to get the point source array 
-        for all echans
-        :return:
-        """
+    def _response_sum_one_det(self, det_response):
 
-        # Import the quaternion, sc_pos and earth_position (as SkyCoord object) from the geometry_object
-        quaternion = det_geometry.quaternion
-        sc_pos = det_geometry.sc_pos
-        earth_positions = det_geometry.earth_position
+        response_matrix = []
 
-        # Import the points of the grid around the detector from the response_object
-        Ebin_in_edge = det_response.Ebin_in_edge
-        Ebin_out_edge = det_response.Ebin_out_edge
-        det = det_response.det
-
-        # Use Mpi when it is available
-        if using_mpi:
-            num_times = len(det_geometry.earth_zen)
-            times_per_rank = float(num_times) / float(size)
-            times_lower_bound_index = int(np.floor(rank * times_per_rank))
-            times_upper_bound_index = int(np.floor((rank + 1) * times_per_rank))
-
-            # Calcutate the GBMFrame for all the times for which the geomerty was calcutated
-            GBMFrame_list = []
-            if rank == 0:
-
-                with progress_bar(
-                    times_upper_bound_index - times_lower_bound_index,
-                    title="Calculating GBM frame for several times. "
-                    "This shows the progress of rank 0. All other should be about the same.",
-                ) as p:
-                    for i in range(times_lower_bound_index, times_upper_bound_index):
-                        q1, q2, q3, q4 = quaternion[i]
-                        scx, scy, scz = sc_pos[i]
-                        GBMFrame_list.append(
-                            GBMFrame(
-                                quaternion_1=q1,
-                                quaternion_2=q2,
-                                quaternion_3=q3,
-                                quaternion_4=q4,
-                                sc_pos_X=scx,
-                                sc_pos_Y=scy,
-                                sc_pos_Z=scz,
-                            )
-                        )
-
-                        p.increase()
-            else:
-                for i in range(times_lower_bound_index, times_upper_bound_index):
-                    q1, q2, q3, q4 = quaternion[i]
-                    scx, scy, scz = sc_pos[i]
-                    GBMFrame_list.append(
-                        GBMFrame(
-                            quaternion_1=q1,
-                            quaternion_2=q2,
-                            quaternion_3=q3,
-                            quaternion_4=q4,
-                            sc_pos_X=scx,
-                            sc_pos_Y=scy,
-                            sc_pos_Z=scz,
-                        )
-                    )
-            GBMFrame_list = np.array(GBMFrame_list)
-
-            # Get the postion of the PS in the satellite frame (saved as vector and as SkyCoord object)
-            ps_pos_sat_list = []
-            ps_pos_sat_objects = []
-            if rank == 0:
-                with progress_bar(
-                    len(GBMFrame_list),
-                    title="Calculating PS position in sat frame for {}. "
-                    "This shows the progress of rank 0. All other should be about the same.".format(
-                        self._name
-                    ),
-                ) as p:
-                    for i in range(0, len(GBMFrame_list)):
-                        ps_pos_sat = self._ps_skycoord.transform_to(GBMFrame_list[i])
-                        ps_pos_sat_objects.append(ps_pos_sat)
-                        az = ps_pos_sat.lon.deg
-                        zen = ps_pos_sat.lat.deg
-                        ps_pos_sat_list.append(
-                            [
-                                np.cos(zen * (np.pi / 180))
-                                * np.cos(az * (np.pi / 180)),
-                                np.cos(zen * (np.pi / 180))
-                                * np.sin(az * (np.pi / 180)),
-                                np.sin(zen * (np.pi / 180)),
-                            ]
-                        )
-                        p.increase()
-
-            else:
-                for i in range(0, len(GBMFrame_list)):
-                    ps_pos_sat = self._ps_skycoord.transform_to(GBMFrame_list[i])
-                    ps_pos_sat_objects.append(ps_pos_sat)
-                    az = ps_pos_sat.lon.deg
-                    zen = ps_pos_sat.lat.deg
-                    ps_pos_sat_list.append(
-                        [
-                            np.cos(zen * (np.pi / 180)) * np.cos(az * (np.pi / 180)),
-                            np.cos(zen * (np.pi / 180)) * np.sin(az * (np.pi / 180)),
-                            np.sin(zen * (np.pi / 180)),
-                        ]
-                    )
-            ps_pos_sat_list = np.array(ps_pos_sat_list)
-            ps_pos_sat_objects = np.array(ps_pos_sat_objects)
-
-            # Calcutate the response for the different ps locations
-
-            # DRM object with dummy quaternion and sc_pos values (all in sat frame,
-            # therefore not important)
-            DRM = DRMGen(
-                np.array([0.0745, -0.105, 0.0939, 0.987]),
-                np.array([-5.88 * 10 ** 6, -2.08 * 10 ** 6, 2.97 * 10 ** 6]),
-                det,
-                Ebin_in_edge,
-                mat_type=0,
-                ebin_edge_out=Ebin_out_edge,
-            )
-            # Calcutate the response matrix for the different ps locations
-            ps_response = []
-            if rank == 0:
-                with progress_bar(
-                    len(ps_pos_sat_list),
-                    title="Calculating the response for all PS positions in sat frame for {}. "
-                    "This shows the progress of rank 0. All other should be about the same.".format(
-                        self._name
-                    ),
-                ) as p:
-                    for point in ps_pos_sat_list:
-                        matrix = det_response._response(
-                            point[0], point[1], point[2], DRM
-                        ).matrix[self._echan_mask]
-                        ps_response.append(matrix.T)
-                    p.increase()
-            else:
-                for point in ps_pos_sat_list:
-                    matrix = det_response._response(
-                        point[0], point[1], point[2], DRM
-                    ).matrix[self._echan_mask]
-                    ps_response.append(matrix.T)
-
-            # Calculate the separation of the earth and the ps for every time step
-            separation = []
-
-            for earth_position in earth_positions:
-
-                separation.append(
-                    coord.SkyCoord.separation(self._ps_skycoord, earth_position).value
+        for j in range(len(self._geom.quaternion)):
+            response_step = (
+                DRMGen(
+                    self._geom.quaternion[j],
+                    self._geom.sc_pos[j],
+                    det_response.det,
+                    det_response.Ebin_in_edge,
+                    mat_type=0,
+                    ebin_edge_out=det_response.Ebin_out_edge,
                 )
-
-            separation = np.array(separation)
-
-            # define the earth opening angle
-            earth_opening_angle = 67
-
-            # Set response 0 when separation is <67 grad (than ps is behind earth)
-            for i in range(len(ps_response)):
-
-                # Check if not occulted by earth
-                if separation[i] < earth_opening_angle:
-
-                    # If occulted by earth set response to zero
-                    ps_response[i] = ps_response[i] * 0
-
-            # Gather all results in rank=0 and broadcast the final result to all ranks
-            ps_response = np.array(ps_response)
-            ps_response_g = comm.gather(ps_response, root=0)
-
-            ps_pos_sat_objects = np.array(ps_pos_sat_objects)
-            ps_pos_sat_objects_g = comm.gather(ps_pos_sat_objects, root=0)
-
-            separation = np.array(separation)
-            separation_g = comm.gather(separation, root=0)
-
-            if rank == 0:
-                ps_response_g = np.concatenate(ps_response_g)
-                separation_g = np.concatenate(separation_g)
-                ps_pos_sat_objects_g = np.concatenate(ps_pos_sat_objects_g)
-
-            ps_response = comm.bcast(ps_response_g, root=0)
-            separation = comm.bcast(separation_g, root=0)
-            self._ps_pos_sat_objects = comm.bcast(ps_pos_sat_objects_g, root=0)
-
-        # Singlecore calculation
-        else:
-
-            # Calcutate the GBMFrame for all these times
-            GBMFrame_list = []
-            with progress_bar(
-                len(det_geometry.earth_zen),
-                title="Calculating GBM frame for several times. "
-                "This shows the progress of rank 0. All other should be about the same.",
-            ) as p:
-                for i in range(0, len(quaternion)):
-                    q1, q2, q3, q4 = quaternion[i]
-                    scx, scy, scz = sc_pos[i]
-                    GBMFrame_list.append(
-                        GBMFrame(
-                            quaternion_1=q1,
-                            quaternion_2=q2,
-                            quaternion_3=q3,
-                            quaternion_4=q4,
-                            sc_pos_X=scx,
-                            sc_pos_Y=scy,
-                            sc_pos_Z=scz,
-                        )
-                    )
-                p.increase()
-            GBMFrame_list = np.array(GBMFrame_list)
-
-            # Get the postion of the PS in the sat frame for every timestep
-            ps_pos_sat_list = []
-            with progress_bar(
-                len(GBMFrame_list),
-                title="Calculating PS position in sat frame for {}. "
-                "This shows the progress of rank 0. All other should be about the same.".format(
-                    self._name
-                ),
-            ) as p:
-                for i in range(0, len(GBMFrame_list)):
-                    ps_pos_sat = self._ps_skycoord.transform_to(GBMFrame_list[i])
-                    az = ps_pos_sat.lon.deg
-                    zen = ps_pos_sat.lat.deg
-                    ps_pos_sat_list.append(
-                        [
-                            np.cos(zen * (np.pi / 180)) * np.cos(az * (np.pi / 180)),
-                            np.cos(zen * (np.pi / 180)) * np.sin(az * (np.pi / 180)),
-                            np.sin(zen * (np.pi / 180)),
-                        ]
-                    )
-                    p.increase()
-
-            ps_pos_sat_list = np.array(ps_pos_sat_list)
-
-            # DRM object with dummy quaternion and sc_pos values (all in sat frame,
-            # therefore not important)
-            DRM = DRMGen(
-                np.array([0.0745, -0.105, 0.0939, 0.987]),
-                np.array([-5.88 * 10 ** 6, -2.08 * 10 ** 6, 2.97 * 10 ** 6]),
-                det,
-                Ebin_in_edge,
-                mat_type=0,
-                ebin_edge_out=Ebin_out_edge,
+                .to_3ML_response(self._ra, self._dec)
+                .matrix[self._echan_mask]
             )
 
-            # Calcutate the response matrix for the different ps locations
-            ps_response = []
-            with progress_bar(
-                len(ps_pos_sat_list),
-                title="Calculating the response for all PS positions in sat frame for {}. "
-                "This shows the progress of rank 0. All other should be about the same.".format(
-                    self._name
-                ),
-            ) as p:
-                for point in ps_pos_sat_list:
-                    matrix = det_response._response(
-                        point[0], point[1], point[2], DRM
-                    ).matrix[self._echan_mask]
-                    ps_response.append(matrix.T)
-                p.increase()
+            response_matrix.append(response_step.T)
 
-            # Calculate the separation of the earth and the ps for every time step
-            separation = []
-            for earth_position in earth_positions:
-                separation.append(
-                    coord.SkyCoord.separation(self._ps_skycoord, earth_position).value
-                )
+        response_matrix = np.array(response_matrix)
 
-            separation = np.array(separation)
-
-            # Define the earth opening angle
-            earth_opening_angle = 67
-
-            # Set response 0 when separation is <67 grad (than ps is behind earth)
-            for i in range(len(ps_response)):
-
-                # Check if not occulted by earth
-                if separation[i] < earth_opening_angle:
-
-                    # If occulted by earth set response to zero
-                    ps_response[i] = ps_response[i] * 0
-
-        ps_response = np.array(ps_response)
-
-        return ps_response, separation
+        return response_matrix
 
     def _spectrum_ps(self, energy, C, index):
         """
@@ -441,7 +161,10 @@ class PointSrc_fixed(object):
         :params index:
         :return:
         """
-        return C / energy ** index
+
+        e_norm = 1.0
+
+        return C / (energy / e_norm) ** index
 
     def _differential_flux_ps(self, e, index):
         """
@@ -472,23 +195,13 @@ class PointSrc_fixed(object):
         )
 
     @property
-    def location(self):
-
-        return self._ps_skycoord
-
-    @property
     def name(self):
 
         return self._name
 
-    @property
-    def ps_pos_sat_objects(self):
-
-        return self._ps_pos_sat_objects
-
 
 class PointSrc_free(object):
-    def __init__(self, name, ra, dec, det_responses, det_geometries, echans):
+    def __init__(self, name, ra, dec, det_responses, geometry, echans):
         """
         Initialize a PS and precalculates the response for all the times for which the geomerty was
         calculated. Needed for a spectral fit of the point source.
@@ -502,370 +215,86 @@ class PointSrc_free(object):
         """
         self._name = name
 
-        # Build a SkyCoord object of the PS
-        self._ps_skycoord = coord.SkyCoord(ra * u.deg, dec * u.deg, frame="icrs")
-
-        assert (
-            det_responses.responses.keys() == det_geometries.geometries.keys()
-        ), "The detectors in the response object do not match the detectors in the geometry object"
+        self._ra = ra
+        self._dec = dec
 
         self._detectors = list(det_responses.responses.keys())
 
         self._rsp = det_responses.responses
-        self._geom = det_geometries.geometries
+        self._geom = geometry
 
         self._data_type = self._rsp[self._detectors[0]].data_type
 
         self._echans = echans
 
         if self._data_type == "ctime":
+
             self._echan_mask = np.zeros(8, dtype=bool)
+
             for e in echans:
+
                 self._echan_mask[e] = True
+
         elif self._data_type == "cspec":
+
             self._echan_mask = np.zeros(128, dtype=bool)
+
             for e in echans:
+
                 self._echan_mask[e] = True
 
         self._calc_det_responses()
-
-    @property
-    def skycoord(self):
-        """
-        Returns the SkyCoord object of the PS
-        """
-        return self._ps_skycoord
 
     @property
     def responses(self):
         return self._rsp
 
     @property
-    def geometry_times(self):
-        return self._geom[self._detectors[0]].time
-
-    @property
-    def ps_responses(self):
+    def ps_effective_response(self):
         """
         Returns an array with the poit source response for the times for which the geometry
         was calculated.
         """
-        return self._ps_responses
+        return self._ps_response_sums
 
     def _calc_det_responses(self):
 
-        ps_responses = {}
+        ps_response_sums = {}
 
         for det_idx, det in enumerate(self._detectors):
 
-            ps_responses[det] = self._response_sum_one_det(
-                det_response=self._rsp[det], det_geometry=self._geom[det]
+            ps_response_sums[det] = self._response_sum_one_det(
+                det_response=self._rsp[det]
             )
 
-        self._ps_responses = ps_responses
+        self._ps_response_sums = ps_response_sums
 
-    def _response_sum_one_det(self, det_response, det_geometry):
-        """
-        Funtion that imports and precalculate everything that is needed to get the point source array
-        for all echans
-        :return:
-        """
+    def _response_sum_one_det(self, det_response):
 
-        # Import the quaternion, sc_pos and earth_position (as SkyCoord object) from the geometry_object
-        quaternion = det_geometry.quaternion
-        sc_pos = det_geometry.sc_pos
-        earth_positions = det_geometry.earth_position
+        response_matrix = []
 
-        # Import the points of the grid around the detector from the response_object
-        Ebin_in_edge = det_response.Ebin_in_edge
-        Ebin_out_edge = det_response.Ebin_out_edge
-        det = det_response.det
-
-        # Use Mpi when it is available
-        if using_mpi:
-            num_times = len(det_geometry.earth_zen)
-            times_per_rank = float(num_times) / float(size)
-            times_lower_bound_index = int(np.floor(rank * times_per_rank))
-            times_upper_bound_index = int(np.floor((rank + 1) * times_per_rank))
-            # Calcutate the GBMFrame for all the times for which the geomerty was calcutated
-            GBMFrame_list = []
-            if rank == 0:
-
-                with progress_bar(
-                    times_upper_bound_index - times_lower_bound_index,
-                    title="Calculating GBM frame for several times. "
-                    "This shows the progress of rank 0. All other should be about the same.",
-                ) as p:
-                    for i in range(times_lower_bound_index, times_upper_bound_index):
-                        q1, q2, q3, q4 = quaternion[i]
-                        scx, scy, scz = sc_pos[i]
-                        GBMFrame_list.append(
-                            GBMFrame(
-                                quaternion_1=q1,
-                                quaternion_2=q2,
-                                quaternion_3=q3,
-                                quaternion_4=q4,
-                                sc_pos_X=scx,
-                                sc_pos_Y=scy,
-                                sc_pos_Z=scz,
-                            )
-                        )
-
-                        p.increase()
-            else:
-                for i in range(times_lower_bound_index, times_upper_bound_index):
-                    q1, q2, q3, q4 = quaternion[i]
-                    scx, scy, scz = sc_pos[i]
-                    GBMFrame_list.append(
-                        GBMFrame(
-                            quaternion_1=q1,
-                            quaternion_2=q2,
-                            quaternion_3=q3,
-                            quaternion_4=q4,
-                            sc_pos_X=scx,
-                            sc_pos_Y=scy,
-                            sc_pos_Z=scz,
-                        )
-                    )
-            GBMFrame_list = np.array(GBMFrame_list)
-
-            # Get the postion of the PS in the satellite frame (saved as vector and as SkyCoord object)
-            ps_pos_sat_list = []
-            ps_pos_sat_objects = []
-            if rank == 0:
-                with progress_bar(
-                    len(GBMFrame_list),
-                    title="Calculating PS position in sat frame for {}. "
-                    "This shows the progress of rank 0. All other should be about the same.".format(
-                        self._name
-                    ),
-                ) as p:
-                    for i in range(0, len(GBMFrame_list)):
-                        ps_pos_sat = self._ps_skycoord.transform_to(GBMFrame_list[i])
-                        ps_pos_sat_objects.append(ps_pos_sat)
-                        az = ps_pos_sat.lon.deg
-                        zen = ps_pos_sat.lat.deg
-                        ps_pos_sat_list.append(
-                            [
-                                np.cos(zen * (np.pi / 180))
-                                * np.cos(az * (np.pi / 180)),
-                                np.cos(zen * (np.pi / 180))
-                                * np.sin(az * (np.pi / 180)),
-                                np.sin(zen * (np.pi / 180)),
-                            ]
-                        )
-                        p.increase()
-
-            else:
-                for i in range(0, len(GBMFrame_list)):
-                    ps_pos_sat = self._ps_skycoord.transform_to(GBMFrame_list[i])
-                    ps_pos_sat_objects.append(ps_pos_sat)
-                    az = ps_pos_sat.lon.deg
-                    zen = ps_pos_sat.lat.deg
-                    ps_pos_sat_list.append(
-                        [
-                            np.cos(zen * (np.pi / 180)) * np.cos(az * (np.pi / 180)),
-                            np.cos(zen * (np.pi / 180)) * np.sin(az * (np.pi / 180)),
-                            np.sin(zen * (np.pi / 180)),
-                        ]
-                    )
-            ps_pos_sat_list = np.array(ps_pos_sat_list)
-            ps_pos_sat_objects = np.array(ps_pos_sat_objects)
-
-            # Calcutate the response for the different ps locations
-
-            # DRM object with dummy quaternion and sc_pos values (all in sat frame,
-            # therefore not important)
-            DRM = DRMGen(
-                np.array([0.0745, -0.105, 0.0939, 0.987]),
-                np.array([-5.88 * 10 ** 6, -2.08 * 10 ** 6, 2.97 * 10 ** 6]),
-                det,
-                Ebin_in_edge,
-                mat_type=0,
-                ebin_edge_out=Ebin_out_edge,
-            )
-            # Calcutate the response matrix for the different ps locations
-            ps_response = []
-            if rank == 0:
-                with progress_bar(
-                    len(ps_pos_sat_list),
-                    title="Calculating the response for all PS positions in sat frame for {}. "
-                    "This shows the progress of rank 0. All other should be about the same.".format(
-                        self._name
-                    ),
-                ) as p:
-                    for point in ps_pos_sat_list:
-                        matrix = det_response._response(
-                            point[0], point[1], point[2], DRM
-                        ).matrix[self._echan_mask]
-                        ps_response.append(matrix.T)
-                    p.increase()
-            else:
-                for point in ps_pos_sat_list:
-                    matrix = det_response._response(
-                        point[0], point[1], point[2], DRM
-                    ).matrix[self._echan_mask]
-                    ps_response.append(matrix.T)
-
-            # Calculate the separation of the earth and the ps for every time step
-            separation = []
-            for earth_position in earth_positions:
-                separation.append(
-                    coord.SkyCoord.separation(self._ps_skycoord, earth_position).value
+        for j in range(len(self._geom.quaternion)):
+            response_step = (
+                DRMGen(
+                    self._geom.quaternion[j],
+                    self._geom.sc_pos[j],
+                    det_response.det,
+                    det_response.Ebin_in_edge,
+                    mat_type=0,
+                    ebin_edge_out=det_response.Ebin_out_edge,
                 )
-            separation = np.array(separation)
-
-            # define the earth opening angle
-            earth_opening_angle = 67
-
-            # Set response 0 when separation is <67 grad (than ps is behind earth)
-            if rank == 0:
-                with progress_bar(
-                    len(ps_pos_sat_list),
-                    title="Checking earth occultation for {}.".format(self._name),
-                ) as p:
-                    for i in range(len(ps_response)):
-                        # Check if not occulted by earth
-                        if separation[i] < earth_opening_angle:
-                            # If occulted by earth set response to zero
-                            ps_response[i] = ps_response[i] * 0
-            else:
-                for i in range(len(ps_response)):
-                    # Check if not occulted by earth
-                    if separation[i] < earth_opening_angle:
-                        # If occulted by earth set response to zero
-                        ps_response[i] = ps_response[i] * 0
-
-            # Gather all results in rank=0 and broadcast the final result to all ranks
-            ps_response = np.array(ps_response)
-            ps_response_g = comm.gather(ps_response, root=0)
-
-            ps_pos_sat_objects = np.array(ps_pos_sat_objects)
-            ps_pos_sat_objects_g = comm.gather(ps_pos_sat_objects, root=0)
-
-            separation = np.array(separation)
-            separation_g = comm.gather(separation, root=0)
-
-            if rank == 0:
-                ps_response_g = np.concatenate(ps_response_g)
-                separation_g = np.concatenate(separation_g)
-                ps_pos_sat_objects_g = np.concatenate(ps_pos_sat_objects_g)
-            ps_response = comm.bcast(ps_response_g, root=0)
-            separation = comm.bcast(separation_g, root=0)
-            self._ps_pos_sat_objects = comm.bcast(ps_pos_sat_objects_g, root=0)
-
-        # Singlecore calculation
-        else:
-
-            # Calcutate the GBMFrame for all these times
-            GBMFrame_list = []
-            with progress_bar(
-                len(det_geometry.earth_zen),
-                title="Calculating GBM frame for several times. "
-                "This shows the progress of rank 0. All other should be about the same.",
-            ) as p:
-                for i in range(0, len(quaternion)):
-                    q1, q2, q3, q4 = quaternion[i]
-                    scx, scy, scz = sc_pos[i]
-                    GBMFrame_list.append(
-                        GBMFrame(
-                            quaternion_1=q1,
-                            quaternion_2=q2,
-                            quaternion_3=q3,
-                            quaternion_4=q4,
-                            sc_pos_X=scx,
-                            sc_pos_Y=scy,
-                            sc_pos_Z=scz,
-                        )
-                    )
-                p.increase()
-            GBMFrame_list = np.array(GBMFrame_list)
-
-            # Get the postion of the PS in the sat frame for every timestep
-            ps_pos_sat_list = []
-            with progress_bar(
-                len(GBMFrame_list),
-                title="Calculating PS position in sat frame for {}. "
-                "This shows the progress of rank 0. All other should be about the same.".format(
-                    self._name
-                ),
-            ) as p:
-                for i in range(0, len(GBMFrame_list)):
-                    ps_pos_sat = self._ps_skycoord.transform_to(GBMFrame_list[i])
-                    az = ps_pos_sat.lon.deg
-                    zen = ps_pos_sat.lat.deg
-                    ps_pos_sat_list.append(
-                        [
-                            np.cos(zen * (np.pi / 180)) * np.cos(az * (np.pi / 180)),
-                            np.cos(zen * (np.pi / 180)) * np.sin(az * (np.pi / 180)),
-                            np.sin(zen * (np.pi / 180)),
-                        ]
-                    )
-                    p.increase()
-
-            ps_pos_sat_list = np.array(ps_pos_sat_list)
-            # DRM object with dummy quaternion and sc_pos values (all in sat frame,
-            # therefore not important)
-            DRM = DRMGen(
-                np.array([0.0745, -0.105, 0.0939, 0.987]),
-                np.array([-5.88 * 10 ** 6, -2.08 * 10 ** 6, 2.97 * 10 ** 6]),
-                det,
-                Ebin_in_edge,
-                mat_type=0,
-                ebin_edge_out=Ebin_out_edge,
+                .to_3ML_response(self._ra, self._dec)
+                .matrix[self._echan_mask]
             )
-            # Calcutate the response matrix for the different ps locations
-            ps_response = []
-            with progress_bar(
-                len(ps_pos_sat_list),
-                title="Calculating the response for all PS positions in sat frame for {}. "
-                "This shows the progress of rank 0. All other should be about the same.".format(
-                    self._name
-                ),
-            ) as p:
-                for point in ps_pos_sat_list:
-                    matrix = det_response._response(
-                        point[0], point[1], point[2], DRM
-                    ).matrix[self._echan_mask]
-                    ps_response.append(matrix.T)
-                p.increase()
 
-            # Calculate the separation of the earth and the ps for every time step
-            separation = []
-            for earth_position in earth_positions:
-                separation.append(
-                    coord.SkyCoord.separation(self._ps_skycoord, earth_position).value
-                )
-            separation = np.array(separation)
+            response_matrix.append(response_step.T)
 
-            # Define the earth opening angle
-            earth_opening_angle = 67
+        response_matrix = np.array(response_matrix)
 
-            # Set response 0 when separation is <67 grad (than ps is behind earth)
-            for i in range(len(ps_response)):
-                # Check if not occulted by earth
-                if separation[i] < earth_opening_angle:
-                    # If occulted by earth set response to zero
-                    ps_response[i] = ps_response[i] * 0
-        self._separation = separation
-        self._ps_response = np.array(ps_response)
-
-    @property
-    def location(self):
-
-        return self._ps_skycoord
+        return response_matrix
 
     @property
     def name(self):
 
         return self._name
 
-    @property
-    def separation(self):
-
-        return self._separation
-
-    @property
-    def ps_pos_sat_objects(self):
-
-        return self._ps_pos_sat_objects

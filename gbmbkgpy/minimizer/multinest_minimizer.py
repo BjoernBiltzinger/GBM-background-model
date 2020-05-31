@@ -227,22 +227,28 @@ class MultiNestFit(object):
             # Compute the difference in order of magnitudes between minimum and maximum
 
             if prior_type is not None:
+
                 if prior_type == "uniform":
                     self._param_priors[parameter_name] = Uniform_prior(
                         lower_bound=min_value, upper_bound=max_value
                     )
+
                 elif prior_type == "log_uniform":
                     self._param_priors[parameter_name] = Log_uniform_prior(
                         lower_bound=min_value, upper_bound=max_value
                     )
+
                 elif prior_type == "gaussian":
                     self._param_priors[parameter_name] = Gaussian(mu=mu, sigma=sigma)
+
                 elif prior_type == "truncated_gaussian":
                     self._param_priors[parameter_name] = Truncated_gaussian(
                         mu=mu, sigma=sigma, lower_bound=min_value, upper_bound=max_value
                     )
+
                 elif prior_type == "log_normal":
                     self._param_priors[parameter_name] = Log_normal(mu=mu, sigma=sigma)
+
                 else:
                     raise TypeError(
                         "Unknown prior! Please choose uniform or log_uniform prior"
@@ -286,9 +292,7 @@ class MultiNestFit(object):
             output_dir = self._output_dir
 
         # Save parameter names
-        self._param_names = [
-            parameter.name for parameter in self.parameters.values()
-        ]
+        self._param_names = [parameter.name for parameter in self.parameters.values()]
 
         if using_mpi:
 
@@ -326,6 +330,9 @@ class MultiNestFit(object):
 
         self._best_fit_values = best_fit_values
         self._minimum = minimum
+
+        print('The MAP of the model parameters:')
+        print(dict(zip(self._param_names, best_fit_values)))
 
         return best_fit_values, minimum
 
@@ -400,22 +407,27 @@ class MultiNestFit(object):
 
         if create_plot:
 
-            chain = np.loadtxt(
-                os.path.join(self._output_dir, "post_equal_weights.dat"), ndmin=2
-            )
-
-            c2 = ChainConsumer()
-
             safe_param_names = [
                 name.replace("_", " ") for name in list(self.parameters.keys())
             ]
 
-            c2.add_chain(chain[:, :-1], parameters=safe_param_names).configure(
-                plot_hists=False,
-                contour_labels="sigma",
-                colors="#cd5c5c",
-                flip=False,
-                max_ticks=3,
-            )
+            if len(safe_param_names) > 1:
 
-            c2.plotter.plot(filename=os.path.join(self._output_dir, "corner.pdf"))
+                chain = np.loadtxt(
+                    os.path.join(self._output_dir, "post_equal_weights.dat"), ndmin=2
+                )
+
+                c2 = ChainConsumer()
+
+                c2.add_chain(chain[:, :-1], parameters=safe_param_names).configure(
+                    plot_hists=False,
+                    contour_labels="sigma",
+                    colors="#cd5c5c",
+                    flip=False,
+                    max_ticks=3,
+                )
+
+                c2.plotter.plot(filename=os.path.join(self._output_dir, "corner.pdf"))
+
+            else:
+                print('Your model only has one paramter, we cannot make a cornerplot for this.')

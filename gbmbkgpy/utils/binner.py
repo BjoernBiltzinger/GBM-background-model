@@ -155,11 +155,11 @@ class Rebinner(object):
             rebinned_vector = []
 
             for low_bound, hi_bound in zip(self._starts, self._stops):
-                rebinned_vector.append(np.sum(vector_a[low_bound:hi_bound]))
+                rebinned_vector.append(np.sum(vector_a[low_bound:hi_bound], axis=0))
 
             # If the last time_bin is the last rebinned time bin fix the sum
             if self._starts[-1] == self._stops[-1]:
-                rebinned_vector[-1] = np.sum(vector_a[self._starts[-1] :])
+                rebinned_vector[-1] = np.sum(vector_a[self._starts[-1] :], axis=0)
 
             # if self._starts
 

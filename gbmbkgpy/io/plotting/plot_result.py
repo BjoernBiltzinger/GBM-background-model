@@ -11,7 +11,7 @@ from gbmbkgpy.utils.statistics.stats_tools import Significance
 from gbmbkgpy.io.plotting.data_residual_plot import ResidualPlot
 from gbmbkgpy.utils.binner import Rebinner
 
-NO_REBIN = 1e-99
+NO_REBIN = 1e-9
 
 try:
     # see if we have mpi and/or are upalsing parallel
@@ -124,7 +124,7 @@ class ResultPlotGenerator(object):
 
         result_dict = {}
 
-        print('Load result file for plotting from: {}'.format(result_data_file))
+        print("Load result file for plotting from: {}".format(result_data_file))
 
         with h5py.File(result_data_file, "r") as f:
 
@@ -151,7 +151,13 @@ class ResultPlotGenerator(object):
             for source_name in f["sources"].keys():
                 result_dict["sources"][source_name] = f["sources"][source_name][()]
 
-            result_dict["ppc_counts"] = f["ppc_counts"][()]
+            if hasattr(f, "ppc_counts"):
+
+                result_dict["ppc_counts"] = f["ppc_counts"][()]
+
+            else:
+
+                result_dict["ppc_counts"] = None
 
             result_dict["time_stamp"] = datetime.now().strftime("%y%m%d_%H%M")
 
@@ -216,7 +222,7 @@ class ResultPlotGenerator(object):
         result_dict["time_stamp"] = datetime.now().strftime("%y%m%d_%H%M")
 
         # TODO: Add PPC calc
-        result_dict['ppc_counts'] = []
+        result_dict["ppc_counts"] = []
 
         return cls(config_file=config_file, result_dict=result_dict)
 
@@ -465,6 +471,9 @@ class ResultPlotGenerator(object):
                 if not self.show_all_sources:
                     continue
 
+            # Replace underscores by - for latex:
+            label = label.replace('_', '-')
+
             if rebin:
                 rebinned_source_counts = this_rebinner.rebin(
                     self._result_dict["sources"][key][:, det_idx, echan_idx]
@@ -519,15 +528,16 @@ class ResultPlotGenerator(object):
 
         p_bar.increase()
 
-        if self.show_ppc:
+        if self.show_ppc and self._result_dict["ppc_counts"] is not None:
             rebinned_ppc_rates = []
 
-            ppc_counts_det_echan = self._result_dict["ppc_counts"][:, :, det_idx, echan_idx]
+            ppc_counts_det_echan = self._result_dict["ppc_counts"][
+                :, :, det_idx, echan_idx
+            ]
 
             for j, ppc in enumerate(ppc_counts_det_echan):
                 set_saa_zero(
-                    ppc_counts_det_echan[j],
-                    saa_mask=self._result_dict["saa_mask"],
+                    ppc_counts_det_echan[j], saa_mask=self._result_dict["saa_mask"],
                 )
                 if rebin:
                     rebinned_ppc_rates.append(
@@ -536,8 +546,7 @@ class ResultPlotGenerator(object):
                     )
                 else:
                     rebinned_ppc_rates.append(
-                        ppc_counts_det_echan[j]
-                        / self._rebinned_time_bin_widths
+                        ppc_counts_det_echan[j] / self._rebinned_time_bin_widths
                     )
 
                 p_bar.increase()

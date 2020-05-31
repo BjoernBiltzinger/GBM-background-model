@@ -6,7 +6,7 @@
 ################## General Input [Days, Detector, Data Type, Energy Channels] #######################
 general:
   dates:      ['160310']
-  detectors:   'n1'
+  detectors:   ['n1']
   data_type:  'ctime'
   echans: [3]
   min_bin_width: 30
@@ -19,8 +19,9 @@ response:
 saa:
   time_after_saa: 50
   short_time_intervals: false
-  nr_decays: 1
+  nr_decays: 2
   decay_at_day_start: true
+  decay_per_detector: false
 
 ###### Input for geometry calculation [n time bins per day to calculate the geometry ################
 geometry:

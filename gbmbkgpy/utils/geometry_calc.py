@@ -28,54 +28,9 @@ except:
 
     using_mpi = False
 
-valid_det_names = [
-    "n0",
-    "n1",
-    "n2",
-    "n3",
-    "n4",
-    "n5",
-    "n6",
-    "n7",
-    "n8",
-    "n9",
-    "na",
-    "nb",
-]
-
 
 class Geometry(object):
-    def __init__(self, data, detectors, dates, n_bins_to_calculate_per_day):
-        geometries = {}
-
-        geometry_times = None
-
-        for det in detectors:
-            geometries[det] = Det_Geometry(
-                data, det, dates, n_bins_to_calculate_per_day
-            )
-
-            # Assert that the times where the geometry is calculated is the same for all detectors
-            # this will allow us the speed up the following calculations
-            if geometry_times is None:
-                geometry_times = geometries[det].time
-            else:
-                assert np.array_equal(geometry_times, geometries[det].time)
-
-        self._geometries = geometries
-        self._geometry_times = geometry_times
-
-    @property
-    def geometries(self):
-        return self._geometries
-
-    @property
-    def geometry_times(self):
-        return self._geometry_times
-
-
-class Det_Geometry(object):
-    def __init__(self, data, det, dates, n_bins_to_calculate_per_day):
+    def __init__(self, data, dates, n_bins_to_calculate_per_day):
         """
         Initalize the geometry precalculation. This calculates several quantities (e.g. Earth
         position in the satellite frame for n_bins_to_calculate times during the day
@@ -87,11 +42,7 @@ class Det_Geometry(object):
         ), "Invalid type for mean_time. Must be an array but is {}.".format(
             type(data.mean_time)
         )
-        assert (
-            det in valid_det_names
-        ), "Invalid det name. Must be one of these {} but is {}.".format(
-            valid_det_names, det
-        )
+
         assert (
             type(n_bins_to_calculate_per_day) == int
         ), "Type of n_bins_to_calculate has to be int but is {}".format(
@@ -100,8 +51,7 @@ class Det_Geometry(object):
 
         # Save everything
         self._data = data
-        self.mean_time = data.mean_time
-        self._det = det
+        self._mean_time = data.mean_time
         self._n_bins_to_calculate_per_day = n_bins_to_calculate_per_day
         self._day_start_times = data.day_start_times
         self._day_stop_times = data.day_stop_times
@@ -110,32 +60,28 @@ class Det_Geometry(object):
         # Number of bins to skip, to equally distribute the n_bins_to_calculate times over the day
         n_skip = int(
             np.ceil(
-                len(self.mean_time) / (self._n_bins_to_calculate_per_day * len(dates))
+                len(self._mean_time) / (self._n_bins_to_calculate_per_day * len(dates))
             )
         )
 
         # Create the lists of the times where to calculate the geometry
-        list_times_to_calculate = self.mean_time[::n_skip]
+        list_times_to_calculate = self._mean_time[::n_skip]
 
         # Add start and stop time of days to times for which the geometry should be calculated (to ensure a valid
         # interpolation for all used times
         # self._list_times_to_calculate = self._add_start_stop(list_times_to_calculate, self._day_start_times,
         #                                                      self._day_stop_times)
 
-        self._list_times_to_calculate = list_times_to_calculate
-
         if self._data.data_type == "trigdat":
             self._pos_hist = np.array([self._data.trigdata_path])
 
             # Dirty fix because the position data in trigdat only interpolates up to the beginning of the last time bin
-            self._list_times_to_calculate[-2] = self._data.time_bins[-2, 1]
-            self._list_times_to_calculate[-1] = self._data.time_bins[-1, 0]
+            list_times_to_calculate[-2] = self._data.time_bins[-2, 1]
+            list_times_to_calculate[-1] = self._data.time_bins[-1, 0]
 
             # GBM Geometry handles trigdat times in reference to the trigger time
             # we have to account for this before and after the position interpolation
-            self._list_times_to_calculate = (
-                self._list_times_to_calculate - self._data.trigtime
-            )
+            list_times_to_calculate = list_times_to_calculate - self._data.trigtime
             self._day_start_times = self._day_start_times - self._data.trigtime
             self._day_stop_times = self._day_stop_times - self._data.trigtime
 
@@ -165,14 +111,17 @@ class Det_Geometry(object):
 
             # Add start and stop time of days to times for which the geometry should be calculated (to ensure a valid
             # interpolation for all used times
-            self._list_times_to_calculate = self._add_start_stop(
+            list_times_to_calculate = self._add_start_stop(
                 list_times_to_calculate, self._day_start_times, self._day_stop_times
             )
 
             # Add the boundaries of the position interpolator to ensure valid interpolation of all time_bins
-            self._list_times_to_calculate = self._add_interpolation_boundaries(
-                self._list_times_to_calculate
+            list_times_to_calculate = self._add_interpolation_boundaries(
+                list_times_to_calculate
             )
+
+        # Remove possible dublicates, these would break the numba interpolation
+        self._list_times_to_calculate = np.unique(list_times_to_calculate)
 
         # Create a mask with all entries False to later un-mask the valid times
         self._interpolation_mask = np.zeros(
@@ -183,49 +132,57 @@ class Det_Geometry(object):
         for day_number, day in enumerate(dates):
             if using_mpi:
                 (
-                    sun_angle,
-                    sun_positions,
                     time,
-                    earth_az,
-                    earth_zen,
-                    earth_position,
-                    quaternion,
                     sc_pos,
+                    quaternion,
+                    sc_altitude,
+                    earth_positions,
+                    earth_az_zen,
+                    earth_cartesian,
+                    sun_positions,
+                    sun_az_zen,
+                    sun_cartesian,
                     times_lower_bound_index,
                     times_upper_bound_index,
                 ) = self._one_day_setup_geometery_mpi(day_number)
             else:
                 (
-                    sun_angle,
-                    sun_positions,
                     time,
-                    earth_az,
-                    earth_zen,
-                    earth_position,
-                    quaternion,
                     sc_pos,
+                    quaternion,
+                    sc_altitude,
+                    earth_positions,
+                    earth_az_zen,
+                    earth_cartesian,
+                    sun_positions,
+                    sun_az_zen,
+                    sun_cartesian,
                 ) = self._one_day_setup_geometery_no_mpi(day_number)
             if day_number == 0:
-                self._sun_angle = [sun_angle]
-                self._sun_positions = [sun_positions]
                 self._time = [time]
-                self._earth_az = [earth_az]
-                self._earth_zen = [earth_zen]
-                self._earth_position = [earth_position]
-                self._quaternion = [quaternion]
                 self._sc_pos = [sc_pos]
+                self._quaternion = [quaternion]
+                self._sc_altitude = [sc_altitude]
+                self._earth_positions = [earth_positions]
+                self._earth_az_zen = [earth_az_zen]
+                self._earth_cartesian = [earth_cartesian]
+                self._sun_positions = [sun_positions]
+                self._sun_az_zen = [sun_az_zen]
+                self._sun_cartesian = [sun_cartesian]
                 if using_mpi:
                     self._times_lower_bound_index = np.array([times_lower_bound_index])
                     self._times_upper_bound_index = np.array([times_upper_bound_index])
             else:
-                self._sun_angle.append(sun_angle)
-                self._sun_positions.append(sun_positions)
                 self._time.append(time)
-                self._earth_az.append(earth_az)
-                self._earth_zen.append(earth_zen)
-                self._earth_position.append(earth_position)
-                self._quaternion.append(quaternion)
                 self._sc_pos.append(sc_pos)
+                self._quaternion.append(quaternion)
+                self._sc_altitude.append(sc_altitude)
+                self._earth_positions.append(earth_positions)
+                self._earth_az_zen.append(earth_az_zen)
+                self._earth_cartesian.append(earth_cartesian)
+                self._sun_positions.append(sun_positions)
+                self._sun_az_zen.append(sun_az_zen)
+                self._sun_cartesian.append(sun_cartesian)
                 if using_mpi:
                     self._times_lower_bound_index = np.append(
                         self._times_lower_bound_index, times_lower_bound_index
@@ -234,13 +191,15 @@ class Det_Geometry(object):
                         self._times_upper_bound_index, times_upper_bound_index
                     )
         self._time = np.concatenate(self._time, axis=0)
-        self._sun_positions = np.concatenate(self._sun_positions, axis=0)
-        self._sun_angle = np.concatenate(self._sun_angle, axis=0)
-        self._earth_az = np.concatenate(self._earth_az, axis=0)
-        self._earth_zen = np.concatenate(self._earth_zen, axis=0)
-        self._earth_position = np.concatenate(self._earth_position, axis=0)
-        self._quaternion = np.concatenate(self._quaternion, axis=0)
         self._sc_pos = np.concatenate(self._sc_pos, axis=0)
+        self._quaternion = np.concatenate(self._quaternion, axis=0)
+        self._sc_altitude = np.concatenate(self._sc_altitude, axis=0)
+        self._earth_positions = np.concatenate(self._earth_positions, axis=0)
+        self._earth_az_zen = np.concatenate(self._earth_az_zen, axis=0)
+        self._earth_cartesian = np.concatenate(self._earth_cartesian, axis=0)
+        self._sun_positions = np.concatenate(self._sun_positions, axis=0)
+        self._sun_az_zen = np.concatenate(self._sun_az_zen, axis=0)
+        self._sun_cartesian = np.concatenate(self._sun_cartesian, axis=0)
 
         # Here we add the trigger time to build the model in MET
         if self._data.data_type == "trigdat":
@@ -253,7 +212,7 @@ class Det_Geometry(object):
     # Returns the calculated values of the quantities for all the n_bins_to_calculate times
     # Of the day used in setup_geometry
     @property
-    def time(self):
+    def geometry_times(self):
         """
         Returns the times of the time bins for which the geometry was calculated
         """
@@ -278,22 +237,13 @@ class Det_Geometry(object):
         return self._sun_positions
 
     @property
-    def sun_angle(self):
-        """
-        Returns the angle between the sun and the line of sight for all times for which the 
-        geometry was calculated
-        """
-
-        return self._sun_angle
-
-    @property
     def earth_az(self):
         """
         Returns the azimuth angle of the earth in the satellite frame for all times for which the 
         geometry was calculated
         """
 
-        return self._earth_az
+        return self._earth_az_zen[:, 0]
 
     @property
     def earth_zen(self):
@@ -302,7 +252,7 @@ class Det_Geometry(object):
         geometry was calculated
         """
 
-        return self._earth_zen
+        return self._earth_az_zen[:, 1]
 
     @property
     def earth_position(self):
@@ -310,7 +260,15 @@ class Det_Geometry(object):
         Returns the Earth position as SkyCoord object for all times for which the geometry was 
         calculated
         """
-        return self._earth_position
+        return self._earth_positions
+
+    @property
+    def earth_position_cart(self):
+        """
+        Returns the Earth position in cartesian coordinates for all times for which the geometry was
+        calculated
+        """
+        return self._earth_cartesian
 
     @property
     def quaternion(self):
@@ -365,18 +323,6 @@ class Det_Geometry(object):
                 poshist_file=self._pos_hist[day_number]
             )
 
-        # Init all lists
-        sun_angle = []
-        sun_positions = []
-        time = []
-        earth_az = []  # azimuth angle of earth in sat. frame
-        earth_zen = []  # zenith angle of earth in sat. frame
-        earth_position = []  # earth pos in icrs frame (skycoord)
-
-        # Additionally save the quaternion and the sc_pos of every time step. Needed for PS later.
-        quaternion = []
-        sc_pos = []
-
         # Get the times for which the geometry should be calculated for this day (Build a mask that masks all time bins
         # outside the start and stop day of this time bin
 
@@ -390,7 +336,6 @@ class Det_Geometry(object):
             (self._list_times_to_calculate >= min(position_interpolator.time)),
             (self._list_times_to_calculate <= max(position_interpolator.time)),
         )
-
         masktot = np.logical_and(day_idx, interp_range_mask)
 
         self._interpolation_mask[masktot] = True
@@ -401,125 +346,109 @@ class Det_Geometry(object):
         times_lower_bound_index = int(np.floor(rank * times_per_rank))
         times_upper_bound_index = int(np.floor((rank + 1) * times_per_rank))
 
+        # Get spacecraft position and quaternions for all geomety times
+        sc_positions = position_interpolator.sc_pos(list_times_to_calculate)
+        quaternions = position_interpolator.quaternion(list_times_to_calculate)
+
+        # Calculate spacecraft altitude
+        earth_radius = 6371.0
+        fermi_radius = np.sqrt(np.sum(sc_positions ** 2, axis=0))
+        sc_altitude = fermi_radius - earth_radius
+
+        # Init all lists
+        sun_positions = []
+        sun_az_zen = []
+        earth_az_zen = []  # azimuth and zenith angle of earth in sat. frame
+        earth_positions = []  # earth pos in icrs frame (skycoord)
+
         # Only rank==0 gives some output how much of the geometry is already calculated (progress_bar)
-        if rank == 0:
-            with progress_bar(
-                len(
-                    list_times_to_calculate[
-                        times_lower_bound_index:times_upper_bound_index
-                    ]
-                ),
-                title="Calculating geomerty for day {}. This shows the progress of rank 0. "
-                "All other should be about the same.".format(
-                    self._day_list[day_number]
-                ),
-            ) as p:
+        hidden = False if rank == 0 else True
 
-                # Calculate the geometry for all times associated with this rank
-                for mean_time in list_times_to_calculate[
-                    times_lower_bound_index:times_upper_bound_index
-                ]:
-                    quaternion_step = position_interpolator.quaternion(mean_time)
-                    sc_pos_step = position_interpolator.sc_pos(mean_time)
-                    det = gbm_detector_list[self._det](
-                        quaternion=quaternion_step,
-                        sc_pos=sc_pos_step,
-                        time=astro_time.Time(position_interpolator.utc(mean_time)),
-                    )
+        with progress_bar(
+            len(
+                list_times_to_calculate[times_lower_bound_index:times_upper_bound_index]
+            ),
+            title="Calculating geomerty for day {}. This shows the progress of rank 0. "
+            "All other should be about the same.".format(self._day_list[day_number]),
+            hidden=hidden,
+        ) as p:
 
-                    sun_angle.append(det.sun_angle.value)
-                    sun_positions.append(det.sun_position)
-                    time.append(mean_time)
-                    az, zen = det.earth_az_zen_sat
-                    earth_az.append(az)
-                    earth_zen.append(zen)
-                    earth_position.append(det.earth_position)
+            # Calculate the geometry for all times associated with this rank
+            for i, mean_time in enumerate(
+                list_times_to_calculate[times_lower_bound_index:times_upper_bound_index]
+            ):
 
-                    quaternion.append(quaternion_step)
-                    sc_pos.append(sc_pos_step)
+                step_idx = i + times_lower_bound_index
 
-                    p.increase()
-        else:
-            # Calculate the geometry for all times associated with this rank (for rank!=0).
-            # No output here.
-            for mean_time in list_times_to_calculate[
-                times_lower_bound_index:times_upper_bound_index
-            ]:
-                quaternion_step = position_interpolator.quaternion(mean_time)
-                sc_pos_step = position_interpolator.sc_pos(mean_time)
-                det = gbm_detector_list[self._det](
-                    quaternion=quaternion_step,
-                    sc_pos=sc_pos_step,
+                # The detector used is only a dummy as we are not using
+                # any detector specific geometry calculations
+                det = gbm_detector_list["n0"](
+                    quaternion=quaternions[step_idx],
+                    sc_pos=sc_positions[step_idx],
                     time=astro_time.Time(position_interpolator.utc(mean_time)),
                 )
 
-                sun_angle.append(det.sun_angle.value)
                 sun_positions.append(det.sun_position)
-                time.append(mean_time)
-                az, zen = det.earth_az_zen_sat
-                earth_az.append(az)
-                earth_zen.append(zen)
-                earth_position.append(det.earth_position)
+                sun_az_zen.append([det.sun_position.lon.deg, det.sun_position.lat.deg])
 
-                quaternion.append(quaternion_step)
-                sc_pos.append(sc_pos_step)
+                earth_positions.append(det.earth_position)
+                earth_az_zen.append(det.earth_az_zen_sat)
 
-        # make the list numpy arrays
-        sun_angle = np.array(sun_angle)
+                p.increase()
+
+        # Make the list numpy arrays
         sun_positions = np.array(sun_positions)
-        time = np.array(time)
-        earth_az = np.array(earth_az)
-        earth_zen = np.array(earth_zen)
-        earth_position = np.array(earth_position)
-
-        quaternion = np.array(quaternion)
-        sc_pos = np.array(sc_pos)
+        sun_az_zen = np.array(sun_az_zen)
+        earth_az_zen = np.array(earth_az_zen)
+        earth_positions = np.array(earth_positions)
 
         # gather all results in rank=0
-        sun_angle_gather = comm.gather(sun_angle, root=0)
-        time_gather = comm.gather(time, root=0)
         sun_positions_gather = comm.gather(sun_positions, root=0)
-        earth_az_gather = comm.gather(earth_az, root=0)
-        earth_zen_gather = comm.gather(earth_zen, root=0)
-        earth_position_gather = comm.gather(earth_position, root=0)
-
-        quaternion_gather = comm.gather(quaternion, root=0)
-        sc_pos_gather = comm.gather(sc_pos, root=0)
+        sun_az_zen_gather = comm.gather(sun_az_zen, root=0)
+        earth_az_zen_gather = comm.gather(earth_az_zen, root=0)
+        earth_positions_gather = comm.gather(earth_positions, root=0)
 
         # make one list out of this
         if rank == 0:
-            sun_angle_gather = np.concatenate(sun_angle_gather)
-            time_gather = np.concatenate(time_gather)
             sun_positions_gather = np.concatenate(sun_positions_gather)
-            earth_az_gather = np.concatenate(earth_az_gather)
-            earth_zen_gather = np.concatenate(earth_zen_gather)
-            earth_position_gather = np.concatenate(earth_position_gather)
-
-            quaternion_gather = np.concatenate(quaternion_gather)
-            sc_pos_gather = np.concatenate(sc_pos_gather)
+            sun_az_zen_gather = np.concatenate(sun_az_zen_gather)
+            earth_az_zen_gather = np.concatenate(earth_az_zen_gather)
+            earth_positions_gather = np.concatenate(earth_positions_gather)
 
         # broadcast the final arrays again to all ranks
-        sun_angle = comm.bcast(sun_angle_gather, root=0)
-        time = comm.bcast(time_gather, root=0)
         sun_positions = comm.bcast(sun_positions_gather, root=0)
-        earth_az = comm.bcast(earth_az_gather, root=0)
-        earth_zen = comm.bcast(earth_zen_gather, root=0)
-        earth_position = comm.bcast(earth_position_gather, root=0)
+        sun_az_zen = comm.bcast(sun_az_zen_gather, root=0)
+        earth_az_zen = comm.bcast(earth_az_zen_gather, root=0)
+        earth_positions = comm.bcast(earth_positions_gather, root=0)
 
-        quaternion = comm.bcast(quaternion_gather, root=0)
-        sc_pos = comm.bcast(sc_pos_gather, root=0)
+        # Calculate the earth position in cartesian coordinates
+        earth_rad = np.deg2rad(earth_az_zen)
+
+        earth_cartesian = np.zeros((len(earth_positions), 3))
+        earth_cartesian[:, 0] = np.cos(earth_rad[:, 1]) * np.cos(earth_rad[:, 0])
+        earth_cartesian[:, 1] = np.cos(earth_rad[:, 1]) * np.sin(earth_rad[:, 0])
+        earth_cartesian[:, 2] = np.sin(earth_rad[:, 1])
+
+        # Calculate the sun position in cartesian coordinates
+        sun_rad = np.deg2rad(sun_az_zen)
+
+        sun_cartesian = np.zeros((len(sun_az_zen), 3))
+        sun_cartesian[:, 0] = np.cos(sun_rad[:, 1]) * np.cos(sun_rad[:, 0])
+        sun_cartesian[:, 1] = np.cos(sun_rad[:, 1]) * np.sin(sun_rad[:, 0])
+        sun_cartesian[:, 2] = np.sin(sun_rad[:, 1])
 
         # Return everything
-
         return (
-            sun_angle,
+            list_times_to_calculate,
+            sc_positions,
+            quaternions,
+            sc_altitude,
+            earth_positions,
+            earth_az_zen,
+            earth_cartesian,
             sun_positions,
-            time,
-            earth_az,
-            earth_zen,
-            earth_position,
-            quaternion,
-            sc_pos,
+            sun_az_zen,
+            sun_cartesian,
             times_lower_bound_index,
             times_upper_bound_index,
         )
@@ -550,80 +479,89 @@ class Det_Geometry(object):
             (self._list_times_to_calculate >= self._day_start_times),
             (self._list_times_to_calculate <= self._day_stop_times),
         )
-
         # Mask the bins that are outside of the interpolation times
         interp_range_mask = np.logical_and(
             (self._list_times_to_calculate >= min(position_interpolator.time)),
             (self._list_times_to_calculate <= max(position_interpolator.time)),
         )
-
         masktot = np.logical_and(day_idx, interp_range_mask)
 
         self._interpolation_mask[masktot] = True
 
         list_times_to_calculate = self._list_times_to_calculate[masktot]
 
-        # Init all lists
-        sun_angle = []
-        sun_positions = []
-        time = []
-        earth_az = []  # azimuth angle of earth in sat. frame
-        earth_zen = []  # zenith angle of earth in sat. frame
-        earth_position = []  # earth pos in icrs frame (skycoord)
+        # Get spacecraft position and quaternions for all geomety times
+        sc_positions = position_interpolator.sc_pos(list_times_to_calculate)
+        quaternions = position_interpolator.quaternion(list_times_to_calculate)
 
-        # Additionally save the quaternion and the sc_pos of every time step. Needed for PS later.
-        quaternion = []
-        sc_pos = []
+        # Calculate spacecraft altitude
+        earth_radius = 6371.0
+        fermi_radius = np.sqrt(np.sum(sc_positions ** 2, axis=0))
+        sc_altitude = fermi_radius - earth_radius
+
+        # Init all lists
+        sun_positions = []
+        sun_az_zen = []
+        earth_az_zen = []  # azimuth and zenith angle of earth in sat. frame
+        earth_positions = []  # earth pos in icrs frame (skycoord)
 
         # Give some output how much of the geometry is already calculated (progress_bar)
         with progress_bar(
             len(list_times_to_calculate), title="Calculating sun and earth position"
         ) as p:
             # Calculate the geometry for all times
-            for mean_time in list_times_to_calculate:
-                quaternion_step = position_interpolator.quaternion(mean_time)
-                sc_pos_step = position_interpolator.sc_pos(mean_time)
-                det = gbm_detector_list[self._det](
-                    quaternion=quaternion_step,
-                    sc_pos=sc_pos_step,
+            for step_idx, mean_time in enumerate(list_times_to_calculate):
+
+                # The detector used is only a dummy as we are not using
+                # any detector specific geometry calculations
+                det = gbm_detector_list["n0"](
+                    quaternion=quaternions[step_idx],
+                    sc_pos=sc_positions[step_idx],
                     time=astro_time.Time(position_interpolator.utc(mean_time)),
                 )
 
-                sun_angle.append(det.sun_angle.value)
                 sun_positions.append(det.sun_position)
-                time.append(mean_time)
-                az, zen = det.earth_az_zen_sat
-                earth_az.append(az)
-                earth_zen.append(zen)
-                earth_position.append(det.earth_position)
+                sun_az_zen.append([det.sun_position.lon.deg, det.sun_position.lat.deg])
 
-                quaternion.append(quaternion_step)
-                sc_pos.append(sc_pos_step)
+                earth_positions.append(det.earth_position)
+                earth_az_zen.append(det.earth_az_zen_sat)
 
                 p.increase()
 
         # Make the list numpy arrays
-        sun_angle = np.array(sun_angle)
-        time = np.array(time)
         sun_positions = np.array(sun_positions)
-        earth_az = np.array(earth_az)
-        earth_zen = np.array(earth_zen)
-        earth_position = np.array(earth_position)
+        sun_az_zen = np.array(sun_az_zen)
+        earth_az_zen = np.array(earth_az_zen)
+        earth_positions = np.array(earth_positions)
 
-        quaternion = np.array(quaternion)
-        sc_pos = np.array(sc_pos)
+        # Calculate the earth position in cartesian coordinates
+        earth_rad = np.deg2rad(earth_az_zen)
+
+        earth_cartesian = np.zeros((len(earth_az_zen), 3))
+        earth_cartesian[:, 0] = np.cos(earth_rad[:, 0]) * np.cos(earth_rad[:, 1])
+        earth_cartesian[:, 1] = np.cos(earth_rad[:, 0]) * np.sin(earth_rad[:, 1])
+        earth_cartesian[:, 2] = np.sin(earth_rad[:, 0])
+
+        # Calculate the sun position in cartesian coordinates
+        sun_rad = np.deg2rad(sun_az_zen)
+
+        sun_cartesian = np.zeros((len(sun_az_zen), 3))
+        sun_cartesian[:, 0] = np.cos(sun_rad[:, 0]) * np.cos(sun_rad[:, 1])
+        sun_cartesian[:, 1] = np.cos(sun_rad[:, 0]) * np.sin(sun_rad[:, 1])
+        sun_cartesian[:, 2] = np.sin(sun_rad[:, 0])
 
         # Return everything
-
         return (
-            sun_angle,
+            list_times_to_calculate,
+            sc_positions,
+            quaternions,
+            sc_altitude,
+            earth_positions,
+            earth_az_zen,
+            earth_cartesian,
             sun_positions,
-            time,
-            earth_az,
-            earth_zen,
-            earth_position,
-            quaternion,
-            sc_pos,
+            sun_az_zen,
+            sun_cartesian,
         )
 
     def _add_start_stop(self, timelist, start_add, stop_add):
