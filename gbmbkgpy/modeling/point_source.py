@@ -56,7 +56,7 @@ class PointSrc_free(object):
 
         self._echans = echans
 
-        if self._data_type == "ctime":
+        if self._data_type == "ctime" or self._data_type == "trigdat":
 
             self._echan_mask = np.zeros(8, dtype=bool)
 
