@@ -90,6 +90,7 @@ def Setup(
     """
 
     assert len(echans) > 0, "Please give at least one echan"
+    echans = sorted(echans)
 
     assert (
         type(use_saa) == bool
