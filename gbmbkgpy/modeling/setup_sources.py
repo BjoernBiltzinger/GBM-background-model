@@ -374,7 +374,6 @@ def setup_ps(
     for i, (key, ps) in enumerate(point_sources.items()):
 
         if not isinstance(ps, PointSrc_fixed):
-            print(key)
             identifier = '_'.join(key.split('_')[:-1])
 
             if 'bb' in point_source_list[identifier]["spectrum"]:
@@ -633,5 +632,5 @@ def build_point_sources(
                             echans=echans,
                             spec=point_source_list[ps]['spectrum'][entry],
                         )
-    print(point_sources_dic)
+
     return point_sources_dic
