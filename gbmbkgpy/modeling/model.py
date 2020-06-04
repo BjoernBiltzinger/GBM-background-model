@@ -1,4 +1,6 @@
 import collections
+
+from gbmbkgpy.modeling.parameter import Parameter
 from gbmbkgpy.modeling.source import (
     CONTINUUM_SOURCE,
     POINT_SOURCE,
@@ -31,14 +33,26 @@ except:
 
 
 class Model(object):
-    def __init__(self, *sources, echans, detectors):
+    def __init__(self, *sources, echans, detectors, use_eff_area_correction=False):
         """
         Init model class with all wanted sources
         :param sources: list of sources
         """
+
+        self._use_eff_area_correction = use_eff_area_correction
+
         self._nr_detectors = len(detectors)
 
+        if self._nr_detectors==1 and self._use_eff_area_correction:
+            print("Effective area correction makes no sense when only one detector is used...")
+            self._use_eff_area_correction = False
+            
+        if self._use_eff_area_correction:
+            self._eff_area_corr = np.ones((1,self._nr_detectors,1))
+
         self._nr_echans = len(echans)
+
+        self._detectors = detectors
 
         self._continuum_sources = collections.OrderedDict()
 
@@ -92,6 +106,13 @@ class Model(object):
         for i, parameter in enumerate(self.free_parameters.values()):
             parameter.value = new_parameters[i]
 
+        if self._use_eff_area_correction:
+            self._eff_area_corr = np.ones((1,self._nr_detectors,1))
+            # new eff_area_corr array
+            for i, det in enumerate(self._detectors[1:]):
+
+                 self._eff_area_corr[0,i+1,0] = self.free_parameters[f"eff_area_corr_{self._detectors[i+1]}"].value
+
     def set_parameter_bounds(self, param_dict):
         """
         Set the parameter bounds
@@ -103,6 +124,7 @@ class Model(object):
             self.parameters[param_name].gaussian_parameter = bound_dict[
                 "gaussian_parameter"
             ]
+
 
     @property
     def normalization_parameters(self):
@@ -190,6 +212,27 @@ class Model(object):
 
                 for parameter_name, parameter in source.parameters.items():
                     parameters[parameter_name] = parameter
+
+        # the effective area corr parameters are stored in this model class
+        # check if there is already a self._parameters. If yes these parameters are
+        # already initaized and we will use them again. If no initalize them new.
+
+        if self._use_eff_area_correction:
+            for i in range(self._nr_detectors-1):
+                try:
+                    parameters[f"eff_area_corr_{self._detectors[i+1]}"] = self._parameters[f"eff_area_corr_{self._detectors[i+1]}"]
+                except AttributeError:
+                    parameters[f"eff_area_corr_{self._detectors[i+1]}"] = Parameter(
+                        f"eff_area_corr_{self._detectors[i+1]}",
+                        initial_value=1.0,
+                        min_value=0.8,
+                        max_value=1.2,
+                        delta=0.1,
+                        mu=1.0,
+                        sigma=0.1,
+                        normalization=True,
+                        prior="truncated_gaussian"
+                    )
 
         self._parameters = parameters
 
@@ -345,7 +388,7 @@ class Model(object):
             continuum_counts[~saa_mask] = 0.0
 
         return continuum_counts
-
+        
     def _sources_echan_number_parameter(self):
         """
         :return: sources, echan of sources, number so parameters per source
@@ -391,7 +434,10 @@ class Model(object):
             ), "The time_bins and saa_mask should be of equal length"
             source_counts[np.where(~saa_mask)] = 0.0
 
-        return source_counts
+        if self._use_eff_area_correction:
+            return self._eff_area_corr*source_counts
+        else:
+            return source_counts
 
     def get_fit_spectrum_counts(self, id, time_bins, saa_mask):
         """
@@ -413,7 +459,10 @@ class Model(object):
             ), "The time_bins and saa_mask should be of equal length"
             source_counts[np.where(~saa_mask)] = 0.0
 
-        return source_counts
+        if self._use_eff_area_correction:
+            return self._eff_area_corr*source_counts
+        else:
+            return source_counts
 
     def get_flare_counts(self, id, time_bins, saa_mask, echan):
         """
@@ -435,25 +484,6 @@ class Model(object):
             ), "The time_bins and saa_mask should be of equal length"
             source_counts[np.where(~saa_mask)] = 0.0
 
-        return source_counts
-
-    def get_point_source_counts(self, id, time_bins, saa_mask):
-        """
-        
-        :param echan:
-        :param saa_mask:
-        :param time_bins:
-        :param id:
-        :return: 
-        """
-        source_counts = list(self._point_sources.values())[id].get_counts(time_bins)
-
-        # The SAA sections will be set to zero if a saa_mask is provided
-        if saa_mask is not None:
-            assert len(time_bins) == len(
-                saa_mask
-            ), "The time_bins and saa_mask should be of equal length"
-            source_counts[np.where(~saa_mask)] = 0.0
         return source_counts
 
     def get_saa_counts(self, time_bins, saa_mask):
@@ -538,8 +568,10 @@ class Model(object):
                 saa_mask
             ), "The time_bins and saa_mask should be of equal length"
             total_counts[np.where(~saa_mask)] = 0.0
-
-        return total_counts
+        if self._use_eff_area_correction:
+            return self._eff_area_corr*total_counts
+        else:
+            return total_counts
 
     def get_counts(self, time_bins, bin_mask=None, saa_mask=None):
         """
@@ -564,6 +596,7 @@ class Model(object):
         total_counts = np.zeros((len(time_bins), self._nr_detectors, self._nr_echans))
 
         for continuum_source in self._continuum_sources.values():
+
             total_counts[:, :, continuum_source.echan] += continuum_source.get_counts(
                 time_bins=time_bins, bin_mask=bin_mask
             )
@@ -572,9 +605,6 @@ class Model(object):
         #     if flare_source.echan == echan:
         #         total_counts += flare_source.get_counts(time_bins, echan, bin_mask)
         #
-        # for point_source in self._point_sources.values():
-        #     if point_source.echan == echan:
-        #         total_counts += point_source.get_counts(time_bins, echan, bin_mask)
 
         for saa_source in self._saa_sources.values():
             total_counts[:, :, saa_source.echan] += saa_source.get_counts(
@@ -582,14 +612,24 @@ class Model(object):
             )
 
         for global_source in self._global_sources.values():
-            total_counts += global_source.get_counts(
-                time_bins=time_bins, bin_mask=bin_mask
-            )
+            if self._use_eff_area_correction:
+                total_counts += self._eff_area_corr*global_source.get_counts(
+                    time_bins=time_bins, bin_mask=bin_mask
+                )
+            else:
+                total_counts += global_source.get_counts(
+                    time_bins=time_bins, bin_mask=bin_mask
+                )
 
         for fit_spectrum_source in self._fit_spectrum_sources.values():
-            total_counts += fit_spectrum_source.get_counts(
-                time_bins=time_bins, bin_mask=bin_mask
-            )
+            if self._use_eff_area_correction:
+                total_counts += self._eff_area_corr*fit_spectrum_source.get_counts(
+                    time_bins=time_bins, bin_mask=bin_mask
+                )
+            else:
+                total_counts += fit_spectrum_source.get_counts(
+                    time_bins=time_bins, bin_mask=bin_mask
+                )
 
         # The SAA sections will be set to zero if a saa_mask is provided
         if saa_mask is not None:

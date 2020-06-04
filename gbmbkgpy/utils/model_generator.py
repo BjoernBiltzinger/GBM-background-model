@@ -237,7 +237,8 @@ class BackgroundModelGenerator(object):
         self._model = Model(
             *self._source_list,
             echans=config["general"]["echans"],
-            detectors=config["general"]["detectors"]
+            detectors=config["general"]["detectors"],
+            use_eff_area_correction=config["setup"]["use_eff_area_correction"]
         )
         print_progress("Done")
 
@@ -424,6 +425,13 @@ class BackgroundModelGenerator(object):
                 parameter_bounds["CGB_spectrum_fitted_break_energy"] = {
                     "bounds": config["bounds"]["cgb_free_bound"]["Eb"],
                     "gaussian_parameter": config["gaussian_bounds"]["cgb_free_bound"]["Eb"],
+                }
+
+        if config["setup"]["use_eff_area_correction"]:
+            for det in config["general"]["detectors"][1:]:
+                parameter_bounds[f"eff_area_corr_{det}"] = {
+                    "bounds": config["bounds"]["eff_area_correction"],
+                    "gaussian_parameter": config["gaussian_bounds"]["eff_area_correction"],
                 }
 
         self._parameter_bounds = parameter_bounds
