@@ -52,7 +52,7 @@ class Model(object):
 
         self._nr_echans = len(echans)
 
-        self._detectors = detectors
+        self._detectors = sorted(detectors)
 
         self._continuum_sources = collections.OrderedDict()
 
