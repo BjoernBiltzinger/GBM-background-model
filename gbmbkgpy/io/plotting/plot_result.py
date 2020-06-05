@@ -154,6 +154,7 @@ class ResultPlotGenerator(object):
             if hasattr(f, "ppc_counts"):
 
                 result_dict["ppc_counts"] = f["ppc_counts"][()]
+                result_dict["ppc_time_bins"] = f["ppc_time_bins"][()]
 
             else:
 
@@ -222,7 +223,7 @@ class ResultPlotGenerator(object):
         result_dict["time_stamp"] = datetime.now().strftime("%y%m%d_%H%M")
 
         # TODO: Add PPC calc
-        result_dict["ppc_counts"] = []
+        result_dict["ppc_counts"] = None
 
         return cls(config_file=config_file, result_dict=result_dict)
 
@@ -233,6 +234,9 @@ class ResultPlotGenerator(object):
             for det_idx, det in enumerate(self._result_dict["detectors"]):
 
                 for echan_idx, echan in enumerate(self._result_dict["echans"]):
+
+                    if self._result_dict["ppc_counts"] is None:
+                        self.show_ppc = False
 
                     total_steps = (
                         12
@@ -529,32 +533,37 @@ class ResultPlotGenerator(object):
         p_bar.increase()
 
         if self.show_ppc and self._result_dict["ppc_counts"] is not None:
-            rebinned_ppc_rates = []
+            # rebinned_ppc_rates = []
 
-            ppc_counts_det_echan = self._result_dict["ppc_counts"][
-                :, :, det_idx, echan_idx
-            ]
+            # ppc_counts_det_echan = self._result_dict["ppc_counts"][
+            #     :, :, det_idx, echan_idx
+            # ]
 
-            for j, ppc in enumerate(ppc_counts_det_echan):
-                set_saa_zero(
-                    ppc_counts_det_echan[j], saa_mask=self._result_dict["saa_mask"],
-                )
-                if rebin:
-                    rebinned_ppc_rates.append(
-                        this_rebinner.rebin(ppc_counts_det_echan[j])
-                        / self._rebinned_time_bin_widths
-                    )
-                else:
-                    rebinned_ppc_rates.append(
-                        ppc_counts_det_echan[j] / self._rebinned_time_bin_widths
-                    )
+            # for j, ppc in enumerate(ppc_counts_det_echan):
+            #     set_saa_zero(
+            #         ppc_counts_det_echan[j], saa_mask=self._result_dict["saa_mask"],
+            #     )
+            #     if rebin:
+            #         rebinned_ppc_rates.append(
+            #             this_rebinner.rebin(ppc_counts_det_echan[j])
+            #             / self._rebinned_time_bin_widths
+            #         )
+            #     else:
+            #         rebinned_ppc_rates.append(
+            #             ppc_counts_det_echan[j] / self._rebinned_time_bin_widths
+            #         )
 
-                p_bar.increase()
-            rebinned_ppc_rates = np.array(rebinned_ppc_rates)
+            #     p_bar.increase()
+            # rebinned_ppc_rates = np.array(rebinned_ppc_rates)
+
+            ppc_time_bin_widths = np.diff(self._result_dict["ppc_time_bins"], axis=1)[:, 0]
+            ppc_time_bin_means = np.mean(self._result_dict["ppc_time_bins"], axis=1)
+
+            ppc_rates = self._result_dict["ppc_counts"][:, :, det_idx, echan_idx] / ppc_time_bin_widths
 
             residual_plot.add_ppc(
-                rebinned_ppc_rates=rebinned_ppc_rates,
-                rebinned_time_bin_mean=self._rebinned_time_bin_mean,
+                rebinned_ppc_rates=ppc_rates,
+                rebinned_time_bin_mean=ppc_time_bin_means,
                 q_levels=[0.68, 0.95, 0.99],
                 colors=self.ppc_styles["color"],
                 alpha=self.ppc_styles["alpha"],
