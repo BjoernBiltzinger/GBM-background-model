@@ -100,15 +100,11 @@ start_precalc = datetime.now()
 
 if config["general"]["data_type"] in ["ctime", "cspec"]:
 
-    model_generator_class = BackgroundModelGenerator
-
     model_generator = BackgroundModelGenerator()
 
     model_generator.from_config_dict(config)
 
 elif config["general"]["data_type"] == "trigdat":
-
-    model_generator_class = TrigdatBackgroundModelGenerator
 
     model_generator = TrigdatBackgroundModelGenerator()
 
@@ -150,9 +146,6 @@ if config["fit"]["method"] == "multinest":
         output_dir=output_dir,
     )
 
-    # Create corner plot
-    minimizer.create_corner_plot()
-
 else:
 
     raise KeyError("Invalid fit method")
@@ -168,28 +161,8 @@ stop_fit = datetime.now()
 
 start_export = datetime.now()
 
-if config["export"]["save_unbinned"] and config["general"]["min_bin_width"] > 1e-9:
-
-    # Create copy of config dictionary
-    config_export = config
-
-    config_export["general"]["min_bin_width"] = 1e-9
-
-    model_generator = model_generator_class()
-
-    model_generator.from_config_dict(config_export)
-
-    model_generator.likelihood.set_free_parameters(minimizer.best_fit_values)
-
-    # Wait for all ranks
-    comm.barrier()
-
 data_exporter = DataExporter(
-    data=model_generator.data,
-    model=model_generator.model,
-    saa_object=model_generator.saa_calc,
-    echans=config["general"]["echans"],
-    best_fit_values=minimizer.best_fit_values,
+    model_generator=model_generator, best_fit_values=minimizer.best_fit_values,
 )
 
 result_file_name = "fit_result_dates_{}_dets_{}_echans_{}.hdf5".format(
@@ -204,6 +177,22 @@ data_exporter.save_data(
     save_ppc=config["export"]["save_ppc"],
 )
 
+if rank == 0:
+
+    if config["export"].get("save_result_path", False):
+
+        result_paths_file = os.path.join(
+            get_path_of_external_data_dir(),
+            "fits",
+            "mn_out",
+            config["general"].get("trigger", "-".join(config["general"]["dates"])),
+            f'bkg_results.txt',
+        )
+
+        with open(result_paths_file, "a",) as results_file:
+            results_file.write(os.path.join(output_dir, result_file_name))
+            results_file.write("\n")
+
 comm.barrier()
 
 stop_export = datetime.now()
@@ -211,27 +200,33 @@ stop_export = datetime.now()
 ################## Plotting ########################################
 start_plotting = datetime.now()
 
-if rank == 0:
-    print("Start plotting")
+if config["plot"].get("result_plot", True):
 
-    plot_generator = ResultPlotGenerator.from_result_file(
-        config_file=args.config_file_plot,
-        result_data_file=os.path.join(output_dir, result_file_name),
-    )
+    if rank == 0:
+        print("Start plotting")
 
-    # If we fit the background to trigdat data, then we will highlight the active
-    # time, that we excluded from the fit, in the plot
-    if config["general"]["data_type"] == "trigdat":
-        plot_generator.add_occ_region(
-            occ_name="Active Time",
-            time_start=model_generator.data.trigtime - 15,
-            time_stop=model_generator.data.trigtime + 150,
-            time_format="MET",
-            color="red",
-            alpha=0.1,
+        plot_generator = ResultPlotGenerator.from_result_file(
+            config_file=args.config_file_plot,
+            result_data_file=os.path.join(output_dir, result_file_name),
         )
 
-    plot_generator.create_plots(output_dir=output_dir)
+        # If we fit the background to trigdat data, then we will highlight the active
+        # time, that we excluded from the fit, in the plot
+        if config["general"]["data_type"] == "trigdat":
+            plot_generator.add_occ_region(
+                occ_name="Active Time",
+                time_start=model_generator.data.trigtime - 15,
+                time_stop=model_generator.data.trigtime + 150,
+                time_format="MET",
+                color="red",
+                alpha=0.1,
+            )
+
+        plot_generator.create_plots(output_dir=output_dir)
+
+if config["plot"].get("corner_plot", True):
+    # Create corner plot
+    minimizer.create_corner_plot()
 
 comm.barrier()
 

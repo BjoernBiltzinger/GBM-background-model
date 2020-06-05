@@ -62,9 +62,10 @@ class Response_Precalculation(object):
 
         responses = {}
 
-        for det in detectors:
+        for det in sorted(detectors):
             responses[det] = Det_Response_Precalculation(
-                det, dates, echans, Ngrid, Ebin_edge_incoming, data_type, trigger, simulation
+                det, sorted(dates), sorted(echans), Ngrid,
+                Ebin_edge_incoming, data_type, trigger, simulation
             )
 
         self._responses = responses

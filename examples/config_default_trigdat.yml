@@ -35,10 +35,28 @@ setup:
   use_cr:       true
   use_earth:    true
   use_cgb:      true
-  ps_list:      ['CRAB']
-  fix_ps:       [true]
-  fix_earth:    false
-  fix_cgb:      false
+  ps_list:
+    CRAB:
+      fixed: true
+      spectrum:
+        pl:
+          spectrum_type: pl
+          powerlaw_index: 2
+    SCOX-1:
+      fixed: true
+      spectrum:
+        pl:
+          spectrum_type: pl
+          powerlaw_index: 2
+    CYGX-1:
+      fixed: true
+      spectrum:
+        pl:
+          spectrum_type: pl
+          powerlaw_index: 2
+
+  fix_earth:    true
+  fix_cgb:      true
   use_sun:      false
   bgo_cr_approximation: true
 
@@ -47,26 +65,78 @@ setup:
 ####### Point source: Amplitude, Earth/CGB fixec: Amplitude, Earth/CGB free: Amplitude, #############
 ############################ index1, index2 and break energy#########################################
 bounds:
-  saa_bound:          [[1, 1.0e+4],      [1.0e-5, 1.0e-1]]
-  cr_bound:           [[1.0e-1, 1.0e+2], [0.1, 1.0e+2]]
-  earth_fixed_bound:  [[1.0e-3, 1]]
-  cgb_fixed_bound:    [[1.0e-2, 0.5]]
-  earth_free_bound:   [[1.0e-3, 1],      [-8, -3],   [1.1, 1.9], [20, 40]]
-  cgb_free_bound:     [[0.01, 0.5],      [0.5, 1.7], [2.2, 3.1], [27, 40]]
-  ps_fixed_bound:     [[1.0e-4, 1]]
-  ps_free_bound:      [[1.0e-4, 1],      [1.5, 2.5]]
-  sun_bound:          [[1.0e-2, 1.0e+2], [0.5,4]]
+  saa_bound:
+    norm:   [1, 1.0e+4]
+    decay:  [1.0e-5, 1.0e-1]
+  cr_bound:
+    const:  [1.0e-1, 1.0e+2]
+    norm:   [0.1, 1.0e+2]
+  earth_fixed_bound:
+    norm:   [1.0e-3, 1]
+  cgb_fixed_bound:
+    norm:   [1.0e-2, 0.5]
+  earth_free_bound:
+    norm:   [1.0e-3, 1]
+    alpha:  [-8, -3]
+    beta:   [1.1, 1.9]
+    Eb:     [20, 40]
+  cgb_free_bound:
+    norm:   [0.01, 0.5]
+    alpha:  [0.5, 1.7]
+    beta:   [2.2, 3.1]
+    Eb:     [27, 40]
+  ps_fixed_bound:
+    pl:
+      norm:   [1.0e-1, 100]
+    bb:
+      norm:   [1.0e-4, 100]
+  ps_free_bound:
+    pl:
+      norm:   [1.0e-1, 100]
+      index:  [1,3]
+    bb:
+      norm:   [1.0e-4, 100]
+      temp:   [0,5]
+  sun_bound:
+    norm: [1.0e-2, 1.0e+2]
+    index: [0.5,4]
 
 gaussian_bounds:
-  saa_bound:          [[null, null], [null, null]]
-  cr_bound:           [[null, null], [null, null]]
-  earth_fixed_bound:  [[null, null]]
-  cgb_fixed_bound:    [[null, null]]
-  earth_free_bound:   [[null, null], [-5, 2],     [1.72, 0.1],  [null, null]]
-  cgb_free_bound:     [[null, null], [1.32, 0.1], [2.88, 0.15], [null, null]]
-  ps_fixed_bound:     [[null, null]]
-  ps_free_bound:      [[null, null], [2.1, 0.3]]
-  sun_bound:          [[null, null], [2., 1.]]
+  saa_bound:
+    norm:   [null, null]
+    decay:  [null, null]
+  cr_bound:
+    const:  [null, null]
+    norm:   [null, null]
+  earth_fixed_bound:
+    norm:   [null, null]
+  cgb_fixed_bound:
+    norm:   [null, null]
+  earth_free_bound:
+    norm:   [null, null]
+    alpha:  [-5, 2]
+    beta:   [1.72, 0.1]
+    Eb:     [null, null]
+  cgb_free_bound:
+    norm:   [null, null]
+    alpha:  [1.32, 0.1]
+    beta:   [2.88, 0.15]
+    Ep:     [null, null]
+  ps_fixed_bound:
+    pl:
+      norm: [null, null]
+    bb:
+      norm:  [null, null]
+  ps_free_bound:
+    pl:
+      norm: [null, null]
+      index: [null, null]
+    bb:
+      norm: [null, null]
+      temp: [null, null]
+  sun_bound:
+    norm:   [null, null]
+    index:  [2., 1.]
 
 ##################### Input for fit method ##########################################################
 fit:
@@ -79,23 +149,14 @@ fit:
 ##################### Input for Result Export  ######################################################
 export:
   save_cov_matrix: false
-  save_ppc: true
+  save_ppc: false
   save_unbinned: true
+  save_result_path: true
 
 ############################### Input for plotting ##################################################
 ### bin_width to bin the data, change_time from MET to seconds since midnight, show residuals? ######
 ### show data?, show grb trigger times? if yes at which time ('20:57:03.000' format) and what name? #
 ### show ppc?, xlim and ylim (as list e.g. [0,100]), legend outside of the plot? ####################
 plot:
-  bin_width:      30
-  change_time:    true
-  show_residuals: false
-  show_data:      true
-  plot_sources:   true
-  show_grb_trigger: true
-  times_mark:     []
-  names_mark:     []
-  ppc:            true
-  xlim:           null
-  ylim:           null
-  legend_outside: false
+  corner_plot:    false
+  result_plot:    false
