@@ -428,7 +428,7 @@ class Data(object):
         counts = counts.astype(np.int64)
 
         # Only keep the count informations we need for the echan's we want to fit
-        counts = counts.T[self._echan_mask].T
+        counts = counts[:, self._echan_mask]
 
         return counts, time_bins, day_met
 
