@@ -49,7 +49,7 @@ class BackgroundLike(object):
         self._get_sources_fit_spectrum()
         self._build_log_like()
 
-    def _set_free_parameters(self, new_parameters):
+    def set_free_parameters(self, new_parameters):
         """
         Set the free parameters to the new values
         :param new_parameters: 
@@ -190,7 +190,7 @@ class BackgroundLike(object):
         """
                 :return: the poisson log likelihood
                 """
-        self._set_free_parameters(parameters)
+        self.set_free_parameters(parameters)
 
         ######### Calculate rates for new spectral parameter
         for source in self._sources_fit_spectrum:
