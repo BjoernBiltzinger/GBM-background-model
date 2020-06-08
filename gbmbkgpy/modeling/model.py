@@ -231,7 +231,8 @@ class Model(object):
                         mu=1.0,
                         sigma=0.1,
                         normalization=True,
-                        prior="truncated_gaussian"
+                        #prior="truncated_gaussian"
+                        prior="uniform"
                     )
 
         self._parameters = parameters
