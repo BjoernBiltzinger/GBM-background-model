@@ -428,7 +428,7 @@ class BackgroundModelGenerator(object):
                 }
 
         if config["setup"]["use_eff_area_correction"]:
-            for det in config["general"]["detectors"][1:]:
+            for det in sorted(config["general"]["detectors"])[1:]:
                 parameter_bounds[f"eff_area_corr_{det}"] = {
                     "bounds": config["bounds"]["eff_area_correction"],
                     "gaussian_parameter": config["gaussian_bounds"]["eff_area_correction"],

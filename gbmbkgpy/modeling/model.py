@@ -111,7 +111,7 @@ class Model(object):
             # new eff_area_corr array
             for i, det in enumerate(self._detectors[1:]):
 
-                 self._eff_area_corr[0,i+1,0] = self.free_parameters[f"eff_area_corr_{self._detectors[i+1]}"].value
+                 self._eff_area_corr[0,i+1,0] = self.free_parameters[f"eff_area_corr_{det}"].value
 
     def set_parameter_bounds(self, param_dict):
         """
@@ -231,8 +231,8 @@ class Model(object):
                         mu=1.0,
                         sigma=0.1,
                         normalization=True,
-                        #prior="truncated_gaussian"
-                        prior="uniform"
+                        prior="truncated_gaussian"
+                        #prior="uniform"
                     )
 
         self._parameters = parameters
