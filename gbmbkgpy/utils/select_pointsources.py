@@ -70,7 +70,9 @@ class SelectPointsources(object):
         if not (self._time>min_mjd and self._time<max_mjd):
             start = yes_or_no(f"Your current pointsources_swift.h5 file does not cover the time"\
                               " you want to use. Do you want to update it?")
-
+            if start:
+                with tempfile.TemporaryDirectory() as tmpdirname:
+                    build_swift_pointsource_database(tmpdirname)
         self.ps_sign_swift()
 
     def ps_sign_swift(self):
@@ -283,7 +285,7 @@ def build_swift_pointsource_database(save_swift_data_folder):
               "band in Swift from start of Swift to today. This will take a while and about [bold red]500 MB[/bold red] "\
               "will be downloaded.")
         console.print("#############################################################################")
-        start = yes_or_no(f"Your current point source database covers the time from {min_mjd} to {max_mjd} ({min_date} to {max_date}). Do you want to update it?")
+        start = yes_or_no(f"Your current point source database covers the time from {min_mjd} mjd to {max_mjd} mjd ({min_date} to {max_date}). Do you want to update it?")
 
     else:
         console.print("You are about to create the point source database, which contains all"\
