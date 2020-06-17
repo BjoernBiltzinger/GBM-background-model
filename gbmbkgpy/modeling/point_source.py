@@ -6,7 +6,11 @@ from scipy.interpolate import interpolate
 
 from gbmbkgpy.utils.progress_bar import progress_bar
 from gbmbkgpy.utils.spectrum import _spec_integral_pl, _spec_integral_bb
+from gbmbkgpy.io.package_data import get_path_of_data_file
+
 import numpy as np
+import pandas as pd
+from rich.console import Console
 
 try:
 
@@ -170,7 +174,10 @@ class PointSrc_fixed(PointSrc_free):
         if self._spec_type == 'bb':
             self._bb_temp = spec['blackbody_temp']
         if self._spec_type == 'pl':
-            self._pl_index = spec['powerlaw_index']
+            if spec['powerlaw_index']=="swift":
+                self._pl_index = self._get_swift_pl_index()
+            else:
+                self._pl_index = spec['powerlaw_index']
 
     def get_ps_rates(self, met):
         """
@@ -239,6 +246,27 @@ class PointSrc_fixed(PointSrc_free):
         if self._spec_type == 'pl':
             e_norm = 1.0
             return _spec_integral_pl(e1, e2, 1, e_norm, self._pl_index)
+
+    def _get_swift_pl_index(self):
+        """
+        Get the index of this point source from the pl fit to the 105 month survey of Swift
+        :return: pl index
+        """
+        console = Console()
+        bat = pd.read_table(get_path_of_data_file("background_point_sources/",
+                                                  "BAT_catalog_clean.dat"),
+                            names=["name1", "name2", "pl_index"])
+
+        res = bat.pl_index[bat[bat.name2 == self.name].index].values
+        if len(res) == 0:
+            pl_index = 3
+            console.print(f"[red]No index found for {self.name} in the swift 105 month survey."\
+                          f" I will set the index to [/red] [bold green]-{pl_index}[/bold green]")
+        else:
+            pl_index = float(res[0])
+            console.print(f"[green]Index for {self.name} is set to {-1*pl_index}"\
+                          " according to the Swift 105 month survey")
+        return pl_index
 
     @property
     def spec_type(self):

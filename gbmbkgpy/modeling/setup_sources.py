@@ -19,7 +19,11 @@ from gbmbkgpy.modeling.point_source import (
 
 import numpy as np
 import pandas as pd
-from gbmbkgpy.io.package_data import get_path_of_data_file
+import tempfile
+import os
+
+from gbmbkgpy.io.package_data import get_path_of_data_dir, get_path_of_external_data_dir, get_path_of_data_file
+from gbmbkgpy.utils.select_pointsources import SelectPointsources
 
 # see if we have mpi and/or are upalsing parallel
 try:
@@ -367,6 +371,7 @@ def setup_ps(
         geometry=geometry,
         echans=echans,
         point_source_list=point_source_list,
+        data=data
     )
 
     PS_Continuum_dic = {}
@@ -374,8 +379,11 @@ def setup_ps(
     for i, (key, ps) in enumerate(point_sources.items()):
 
         if not isinstance(ps, PointSrc_fixed):
-            identifier = '_'.join(key.split('_')[:-1])
 
+            identifier = '_'.join(key.split('_')[:-1])
+            if identifier == '':
+                identifier = key
+            print(identifier)
             if 'bb' in point_source_list[identifier]["spectrum"]:
                 if 'pl' in point_source_list[identifier]["spectrum"]:
                     spec = 'bb+pl'
@@ -566,6 +574,7 @@ def build_point_sources(
         geometry,
         echans,
         point_source_list=[],
+        data=None
 ):
     """
     This function reads the point_sources.dat file and builds the point sources
@@ -632,5 +641,46 @@ def build_point_sources(
                             echans=echans,
                             spec=point_source_list[ps]['spectrum'][entry],
                         )
+    # Add the auto point source selection using the Swift survey if wanted
+    if "auto_swift" in point_source_list.keys():
+        # Write a temp .dat file with all the point sources, after that we can do the
+        # same as above for a given list
+
+        # Threshold flux which point sources should be added in units of Crab 15-50keV Flux
+        limit = point_source_list["auto_swift"]["flux_limit"]
+
+        # Use first day in data object to get the needed point sources
+        day = data.dates[0]
+
+        # Exclude some of them?
+        exclude = point_source_list["auto_swift"]["exclude"]
+        exclude = [entry.upper() for entry in exclude]
+        # Initalize Pointsource selection
+        sp = SelectPointsources(limit, time_string=day)
+
+        # Create temp file
+        filepath = os.path.join(get_path_of_external_data_dir(), "ps_auto_swift.dat")
+        #temp = tempfile.NamedTemporaryFile(suffix=".dat")
+        # Write information in temp
+        sp.write_psfile(filepath)
+
+        # Read it as pandas
+        ps_df_add = pd.read_table(filepath, names=["name", "ra", "dec"])
+        # Add all of them as fixed pl sources
+        spec = {"spectrum_type": "pl", "powerlaw_index": "swift"}
+        
+        for row in ps_df_add.itertuples():
+            if not row[1].upper() in exclude:
+
+                point_sources_dic[f"{row[1]}_pl"] = PointSrc_fixed(
+                    name=row[1],
+                    ra=row[2],
+                    dec=row[3],
+                    det_responses=det_responses,
+                    geometry=geometry,
+                    echans=echans,
+                    spec=spec,
+                )
+        #temp.close()
 
     return point_sources_dic
