@@ -261,7 +261,7 @@ class PointSrc_fixed(PointSrc_free):
         if len(res) == 0:
             pl_index = 3
             console.print(f"[red]No index found for {self.name} in the swift 105 month survey."\
-                          f" I will set the index to [/red] [bold green]-{pl_index}[/bold green]")
+                          f" We will set the index to [/red] [bold green]-{pl_index}[/bold green]")
         else:
             pl_index = float(res[0])
             console.print(f"[green]Index for {self.name} is set to {-1*pl_index}"\
