@@ -436,6 +436,7 @@ class PHAWriter(object):
         observed_counts,
         model_counts,
         stat_err,
+        det_echan_loaded=None
     ):
         self._dates = dates
         self._trigger = trigger
@@ -447,6 +448,7 @@ class PHAWriter(object):
         self._observed_counts = observed_counts
         self._model_counts = model_counts
         self._stat_err = stat_err
+        self._det_echan_loaded = det_echan_loaded
 
     @classmethod
     def from_result_files(cls, result_file_list):
@@ -524,6 +526,10 @@ class PHAWriter(object):
                     # Append the det_echan touple to avoid overloading
                     det_echan_loaded.append(det_echan)
 
+        echans.sort()
+        detectors.sort()
+        det_echan_loaded.sort()
+
         return cls(
             dates,
             trigger,
@@ -535,6 +541,7 @@ class PHAWriter(object):
             observed_counts,
             model_counts,
             stat_err,
+            det_echan_loaded
         )
 
     @classmethod
@@ -562,6 +569,9 @@ class PHAWriter(object):
 
             stat_err = f["stat_err"][()]
 
+        if trigger == "None":
+            trigger = None
+
         return cls(
             dates,
             trigger,
@@ -581,7 +591,7 @@ class PHAWriter(object):
 
             f.attrs["dates"] = self._dates
 
-            f.attrs["trigger"] = self._trigger
+            f.attrs["trigger"] = self._trigger if self._trigger is not None else "None"
 
             f.attrs["trigger_time"] = self._trigger_time
 
@@ -605,8 +615,8 @@ class PHAWriter(object):
 
             f.create_dataset("stat_err", data=self._stat_err, compression="lzf")
 
-    def save_pha(
-        self, out_put_dir, active_time_start, active_time_end, trigger_time=None
+    def write_pha(
+            self, output_dir, active_time_start, active_time_end, trigger_time=None, file_name=None, overwrite=False
     ):
         """
         Creates saves a background file for each detector
@@ -626,14 +636,7 @@ class PHAWriter(object):
         for det in self._detectors:
             det_idx = valid_det_names.index(det)
 
-            if self._trigger is None:
-                file_name = "{}_bkg_{}.pha".format("_".join(self._dates), det)
-            else:
-                file_name = "{}_bkg_{}.pha".format(self._trigger, det)
-
-            output_file = os.path.join(out_put_dir, file_name)
-
-            tstart = time_bins[idx_valid_bin][:, 0]
+            tstart = time_bins[idx_valid_bin][0, 0]
 
             telapse = (
                 time_bins[idx_valid_bin][-1, 1] - time_bins[idx_valid_bin][0, 0],
@@ -642,6 +645,8 @@ class PHAWriter(object):
             observed_counts = np.sum(
                 self._observed_counts[idx_valid_bin, det_idx, :], axis=0
             )
+
+            observed_rate = observed_counts / telapse
 
             model_counts = np.sum(self._model_counts[idx_valid_bin, det_idx, :], axis=0)
 
@@ -659,7 +664,28 @@ class PHAWriter(object):
                 + observed_counts[7] * 1e-5
             )
 
-            spectrum = PHAII(
+            # Write observed spectrum to PHA file
+            observed_spectrum = PHAII(
+                instrument_name="GBM_{}".format(det_name_lookup[det]),
+                telescope_name="Fermi",
+                tstart=tstart,
+                telapse=telapse,
+                channel=self._echans,
+                rate=observed_rate,
+                quality=np.zeros_like(observed_rate, dtype=int),
+                grouping=np.ones_like(self._echans),
+                exposure=telapse - dead_time,
+                backscale=1.,
+                respfile=None,
+                ancrfile=None,
+                back_file=None,
+                sys_err=np.zeros_like(observed_rate),
+                stat_err=None,
+                is_poisson=True,
+            )
+
+            # Write background spectrum to PHA file
+            background_spectrum = PHAII(
                 instrument_name="GBM_{}".format(det_name_lookup[det]),
                 telescope_name="Fermi",
                 tstart=tstart,
@@ -669,13 +695,33 @@ class PHAWriter(object):
                 quality=np.zeros_like(model_rate, dtype=int),
                 grouping=np.ones_like(self._echans),
                 exposure=telapse - dead_time,
-                backscale=np.ones_like(model_rate),
+                backscale=1.,
                 respfile=None,
                 ancrfile=None,
                 back_file=None,
-                sys_err=None,
+                sys_err=np.zeros_like(model_rate),
                 stat_err=stat_err,
                 is_poisson=False,
             )
 
-            spectrum.writeto(output_file)
+            if file_name is None:
+
+                if self._trigger is None:
+
+                    file_name = "_".join(self._dates)
+
+                else:
+
+                    file_name = self._trigger
+
+            obs_file_path = os.path.join(
+                output_dir,
+                "{}_{}.pha".format(file_name, det)
+            )
+            bkg_file_path = os.path.join(
+                output_dir,
+                "{}_{}_bak.pha".format(file_name, det)
+            )
+
+            observed_spectrum.writeto(obs_file_path, overwrite=overwrite)
+            background_spectrum.writeto(bkg_file_path, overwrite=overwrite)
