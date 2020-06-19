@@ -10,7 +10,6 @@ from gbmbkgpy.io.package_data import get_path_of_data_file
 
 import numpy as np
 import pandas as pd
-from rich.console import Console
 
 try:
 
@@ -252,7 +251,6 @@ class PointSrc_fixed(PointSrc_free):
         Get the index of this point source from the pl fit to the 105 month survey of Swift
         :return: pl index
         """
-        console = Console()
         bat = pd.read_table(get_path_of_data_file("background_point_sources/",
                                                   "BAT_catalog_clean.dat"),
                             names=["name1", "name2", "pl_index"])
@@ -260,12 +258,14 @@ class PointSrc_fixed(PointSrc_free):
         res = bat.pl_index[bat[bat.name2 == self.name].index].values
         if len(res) == 0:
             pl_index = 3
-            console.print(f"[red]No index found for {self.name} in the swift 105 month survey."\
-                          f" We will set the index to [/red] [bold green]-{pl_index}[/bold green]")
+            print((f"No index found for {self.name} in the swift 105 month survey."\
+                   f" We will set the index to -{pl_index}")
+
         else:
             pl_index = float(res[0])
-            console.print(f"[green]Index for {self.name} is set to {-1*pl_index}"\
-                          " according to the Swift 105 month survey")
+            print(f"Index for {self.name} is set to {-1*pl_index}"\
+                  " according to the Swift 105 month survey")
+
         return pl_index
 
     @property
