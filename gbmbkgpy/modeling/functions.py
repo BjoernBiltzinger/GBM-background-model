@@ -530,7 +530,7 @@ class GlobalFunctionSpectrumFit(Function):
         elif self._spec == "pl":
 
             C = Parameter(
-                coefficient_name + "_norm",
+                coefficient_name + "_norm_pl",
                 initial_value=1.0,
                 min_value=0,
                 max_value=None,

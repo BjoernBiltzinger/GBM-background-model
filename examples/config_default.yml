@@ -49,8 +49,12 @@ setup:
     #      spectrum_type: pl
     #      powerlaw_index: 3
 
+    auto_swift:
+        flux_limit: 0.1
+        exclude: [Crab]
+
     CRAB:
-      fixed: true
+      fixed: false
       spectrum:
         pl:
           spectrum_type: pl
@@ -60,6 +64,7 @@ setup:
   fix_cgb:      true
   use_sun:      false
   bgo_cr_approximation: true
+  use_eff_area_correction: true
 
 ################################ Bounds for the different sources ###################################
 ####### SAA: Amplitude and decay constant, CR: Constant and McIlwain normalization ##################
@@ -101,6 +106,8 @@ bounds:
   sun_bound:
     norm: [1.0e-2, 1.0e+2]
     index: [0.5,4]
+  eff_area_correction: [0.8,1.2]
+
 
 gaussian_bounds:
   saa_bound:
@@ -138,6 +145,7 @@ gaussian_bounds:
   sun_bound:
     norm:   [null, null]
     index:  [2., 1.]
+  eff_area_correction: [1,0.1]
 
 ##################### Input for fit method ##########################################################
 fit:
