@@ -196,13 +196,13 @@ else:
             (e2 - e1)
             / 6.0
             * (
-                (_selfpectrum_pl(e1, c_pl, e_norm, index) + _spectrum_bb(e1, c_bb, temp))
+                (_spectrum_pl(e1, c_pl, e_norm, index) + _spectrum_bb(e1, c_bb, temp))
                 + 4
                 * (
                     _spectrum_pl((e1 + e2) / 2.0, c_pl, e_norm, index)
                     + _spectrum_bb((e1 + e2) / 2.0, c_bb, temp)
                 )
-                + (_selfpectrum_pl(e2, c_pl, e_norm, index) + _spectrum_bb(e2, c_bb, temp))
+                + (_spectrum_pl(e2, c_pl, e_norm, index) + _spectrum_bb(e2, c_bb, temp))
             )
         )
 
