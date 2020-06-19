@@ -159,7 +159,7 @@ class Solar_Flare(Function):
 
 
 class SAA_Decay(Function):
-    def __init__(self, saa_number, echan, detector="all"):
+    def __init__(self, saa_number, echan, model="exponential", detector="all", det_idx=None):
         A = Parameter(
             "norm_saa-{}_det-{}_echan-{}".format(saa_number, detector, echan),
             initial_value=1.0,
@@ -178,8 +178,11 @@ class SAA_Decay(Function):
             prior="log_uniform",
         )
 
-        if detector == "all":
-            self._det_idx = None
+        self._model = model
+
+        self._det_idx = det_idx
+
+        self._build_decay_function()
 
         super(SAA_Decay, self).__init__(A, saa_decay_constant)
 
@@ -210,6 +213,45 @@ class SAA_Decay(Function):
 
         self._out = np.zeros_like(self._time_bins[:, 0])
 
+    def _build_decay_function(self):
+
+        if self._model == "exponential":
+
+            def _decay_function(t0, tstart, tstop, A, saa_decay_constant):
+                """
+                Calculates the exponential decay for the SAA exit
+                The the values are calculated for the start and stop times of the bins with the analytic solution of the integral
+                for a function A*exp(-saa_decay_constant*(t-t0)) which is -A/saa_decay_constant *
+                (exp(-saa_decay_constant*(tend_bin-to) - exp(-saa_decay_constant*(tstart_bin-to))
+                :param A:
+                :param saa_decay_constant:
+                :return:
+                """
+                return ne.evaluate(
+                    "-A / saa_decay_constant*(exp((t0-tstop)*abs(saa_decay_constant)) - exp((t0 - tstart)*abs(saa_decay_constant)))"
+                )
+
+        elif self._model == "linear":
+
+            def _decay_function(t0, tstart, tstop, A, saa_decay_constant):
+                """
+                Calculates the linear decay for the SAA exit
+                The the values are calculated for the start and stop times of the bins with the analytic solution for the integral
+                of the function A - saa_decay_constany(t-t0)
+                :param A:
+                :param saa_decay_constant:
+                :return:
+                """
+                return ne.evaluate(
+                    "-A*tstart - saa_decay_constant*t0*tstart + (saa_decay_constant*tstart**2)/2 + A*tstop + saa_decay_constant*t0*tstop - (saa_decay_constant*tstop**2)/2"
+                )
+
+        else:
+            raise NotImplementedError("The model is not implemented")
+
+        self._decay_function = _decay_function
+
+
     def _evaluate(self, A, saa_decay_constant):
         """
         Calculates the exponential decay for the SAA exit
@@ -224,9 +266,7 @@ class SAA_Decay(Function):
         tstart = self._tstart
         tstop = self._tstop
 
-        self._out[~self._idx_start] = ne.evaluate(
-            "-A / saa_decay_constant*(exp((t0-tstop)*abs(saa_decay_constant)) - exp((t0 - tstart)*abs(saa_decay_constant)))"
-        )
+        self._out[~self._idx_start] = self._decay_function(t0, tstart, tstop, A, saa_decay_constant)
 
         if self._det_idx is None:
 
