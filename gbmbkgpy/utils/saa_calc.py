@@ -27,6 +27,7 @@ class SAA_calc(object):
         data,
         bins_to_add=8,
         time_after_SAA=5000,
+        time_before_SAA=None,
         short_time_intervals=False,
         nr_decays=1,
     ):
@@ -58,7 +59,7 @@ class SAA_calc(object):
 
         self._time_bins = data.time_bins
         self._build_masks(
-            bins_to_add, time_after_SAA, short_time_intervals, nr_decays=nr_decays
+            bins_to_add, time_after_SAA, time_before_SAA, short_time_intervals, nr_decays=nr_decays
         )
         self._rebinned = False
         self._rebinned_saa_mask = None
@@ -116,7 +117,7 @@ class SAA_calc(object):
             return np.array([])
 
     def _build_masks(
-        self, bins_to_add, time_after_SAA, short_time_intervals, nr_decays
+            self, bins_to_add, time_after_SAA, time_before_SAA, short_time_intervals, nr_decays
     ):
         """
         Calculates masks that cover the SAAs and some time bins before and after the SAAs
@@ -204,6 +205,20 @@ class SAA_calc(object):
                             j += 1
 
                         self._saa_mask[slice_idx[i, 1] : slice_idx[i, 1] + j] = False
+
+            if time_before_SAA is not None:
+                # Do the same for before every SAA exit.
+                for i in range(len(slice_idx)):
+
+                    j = 0
+                    while (
+                        time_before_SAA
+                        > self._time_bins[:, 1][slice_idx[i, 0]]
+                            - self._time_bins[:, 0][slice_idx[i, 0] - j]
+                    ):
+                        j += 1
+
+                    self._saa_mask[slice_idx[i, 0] - j : slice_idx[i, 0]] = False
 
             # If wanted delete separeted time intervals shorter than 1000 seconds (makes plots nicer)
             if not short_time_intervals:

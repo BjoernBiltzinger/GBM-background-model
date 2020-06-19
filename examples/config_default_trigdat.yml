@@ -19,10 +19,12 @@ response:
 ####### Input for SAA mask precaluclation [time to exclude after SAA, delete short time intervals? ##
 saa:
   time_after_saa: 0
+  time_before_saa: 0
   short_time_intervals: false
-  nr_decays: 1
+  nr_decays_per_exit: 1
   decay_at_day_start: true
   decay_per_detector: false
+  decay_model: exponential
 
 ###### Input for geometry calculation [n time bins per day to calculate the geometry ################
 geometry:
