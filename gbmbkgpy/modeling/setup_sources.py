@@ -58,9 +58,10 @@ def Setup(
     point_source_list=[],
     fix_earth=False,
     fix_cgb=False,
-    nr_saa_decays=1,
+    saa_decays_per_exit=1,
     saa_decay_per_detector=False,
-    decay_at_day_start=True,
+    saa_decay_at_day_start=True,
+    saa_decay_model="exponential",
     bgo_cr_approximation=False,
     use_numba=False,
 ):
@@ -110,7 +111,7 @@ def Setup(
         if use_saa:
             total_sources.extend(
                 setup_SAA(
-                    data, saa_object, echan, index, nr_saa_decays, decay_at_day_start, saa_decay_per_detector
+                    data, saa_object, echan, index, saa_decays_per_exit, saa_decay_at_day_start, saa_decay_per_detector, saa_decay_model
                 )
             )
 
@@ -174,13 +175,15 @@ def setup_SAA(data,
               saa_object,
               echan,
               index,
-              nr_decays=1,
+              decays_per_exit=1,
               decay_at_day_start=True,
-              decay_per_detector=False):
+              decay_per_detector=False,
+              decay_model="exponential"):
     """
     Setup for SAA sources
     :param decay_at_day_start:
-    :param nr_decays: Number of decays that should be fittet to each SAA Exit
+    :param decays_per_exit: Number of decays that should be fittet to each SAA Exit
+    :param decay_model: used model for decay: "exponential" or "linear"
     :param index:
     :param saa_object: SAA precalculation object
     :param echan: energy channel
@@ -196,7 +199,7 @@ def setup_SAA(data,
     day_start = []
 
     if decay_at_day_start and len(data.day_met) <= 1:
-        for i in range(nr_decays):
+        for i in range(decays_per_exit):
             day_start.append(data.day_met)
 
     start_times = np.append(np.array(day_start), saa_object.saa_exit_times)
@@ -210,7 +213,9 @@ def setup_SAA(data,
                 saa_dec = SAA_Decay(
                     saa_number=str(saa_n),
                     echan=str(echan),
-                    detector=det
+                    model=decay_model,
+                    detector=det,
+                    det_idx=det_idx
                 )
 
                 saa_dec.set_saa_exit_time(np.array([time]))
@@ -235,7 +240,9 @@ def setup_SAA(data,
             saa_dec = SAA_Decay(
                 saa_number=str(saa_n),
                 echan=str(echan),
-                detector="all"
+                model=decay_model,
+                detector="all",
+                det_idx=None
             )
 
             saa_dec.set_saa_exit_time(np.array([time]))

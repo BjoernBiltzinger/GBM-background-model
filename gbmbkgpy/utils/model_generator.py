@@ -223,9 +223,10 @@ class BackgroundModelGenerator(object):
             fix_earth=config["setup"]["fix_earth"],
             fix_cgb=config["setup"]["fix_cgb"],
             use_sun=config["setup"]["use_sun"],
-            nr_saa_decays=config["saa"]["nr_decays"],
-            decay_at_day_start=config["saa"]["decay_at_day_start"],
+            saa_decays_per_exit=config["saa"]["nr_decays_per_exit"],
+            saa_decay_at_day_start=config["saa"]["decay_at_day_start"],
             saa_decay_per_detector=config["saa"]["decay_per_detector"],
+            saa_decay_model=config["saa"].get("decay_model", "exponential"),
             bgo_cr_approximation=config["setup"]["bgo_cr_approximation"],
             use_numba=config["fit"].get("use_numba", False),
         )
