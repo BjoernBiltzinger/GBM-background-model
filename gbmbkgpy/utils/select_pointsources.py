@@ -11,10 +11,27 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 import tempfile
 
-from rich.console import Console
-from rich.progress import track
-
 from gbmbkgpy.io.package_data import get_path_of_data_file
+
+try:
+
+    # see if we have mpi and/or are upalsing parallel
+
+    from mpi4py import MPI
+
+    if MPI.COMM_WORLD.Get_size() > 1:  # need parallel capabilities
+        using_mpi = True
+
+        comm = MPI.COMM_WORLD
+        rank = comm.Get_rank()
+        size = comm.Get_size()
+
+    else:
+
+        using_mpi = False
+except:
+
+    using_mpi = False
 
 class SelectPointsources(object):
 
@@ -41,12 +58,10 @@ class SelectPointsources(object):
 
         self._limit = limit1550Crab*0.000220*1000 #0.000220 cnts/s/cm^2 is 1 mCrab in 15-50 keV band for Swift
 
-        console = Console()
-
         # If file does not exist we have to create it
         if not os.path.exists(get_path_of_data_file("background_point_sources/", "pointsources_swift.h5")):
-            console.print("[red]The pointsource_swift.h5 file does not exist in the data folder."\
-                          "To use the point source selection you need to create this file.[/red]")
+            print("The pointsource_swift.h5 file does not exist in the data folder."\
+                  "To use the point source selection you need to create this file.")
             with tempfile.TemporaryDirectory() as tmpdirname:
                 build_swift_pointsource_database(tmpdirname)
             if not os.path.exists(get_path_of_data_file("background_point_sources/", "pointsources_swift.h5")):
@@ -262,90 +277,106 @@ def build_swift_pointsource_database(save_swift_data_folder):
     Build the swift pointsource database.
     :param save_data_folder: Folder where the swift data files are saved
     """
-    console = Console()
-    if os.path.exists(get_path_of_data_file("background_point_sources/",
-                                            "pointsources_swift.h5")):
-
-        with h5py.File(get_path_of_data_file("background_point_sources/",
-                                             "pointsources_swift.h5"),
-                       "r") as h:
-            times_all = np.zeros((len(h.keys()), 20000))
-            for i, key in enumerate(h.keys()):
-                times = h[key]["Time"][()]
-                times_all[i][:len(times)] = times
-
-        min_mjd = np.min(times_all[times_all > 0])
-        max_mjd = np.max(times_all)
-
-        min_date = (Time(min_mjd, format='mjd').isot).split("T")[0]
-        max_date = (Time(max_mjd, format='mjd').isot).split("T")[0]
-
-        console.print("You are about to recreate the point source database, which contains all"\
-              "point sources seen by [bold red]Swift[/bold red] and their according brightness in the 15-50 keV"\
-              "band in Swift from start of Swift to today. This will take a while and about [bold red]500 MB[/bold red] "\
-              "will be downloaded.")
-        console.print("#############################################################################")
-        start = yes_or_no(f"Your current point source database covers the time from {min_mjd} mjd to {max_mjd} mjd ({min_date} to {max_date}). Do you want to update it?")
-
+    if using_mpi:
+        if rank==0:
+            do_it = True
+        else:
+            do_it = False
     else:
-        console.print("You are about to create the point source database, which contains all"\
-                      "point sources seen by [bold red]Swift[/bold red] and their according brightness in the 15-50 keV"\
-                      "band in Swift from start of Swift to today."\
-                      "This will take a while and about [bold red]500 MB[/bold red] "\
-                      "will be downloaded.")
-        console.print("#############################################################################")
-        start = yes_or_no("Do you want to create it now?")
+        do_it = True
 
-    if start:
-        console.print("Start (re)creation of point source database...", style="bold red")
-        console.print("Parse point source names from website...")
-        # Parse pointsource names from website
-        fp = urllib.request.urlopen('https://swift.gsfc.nasa.gov/results/transients/')
-        mybytes = fp.read()
+    if do_it:
 
-        mystr = mybytes.decode("utf8")
-        fp.close()
-        sp = mystr.split("a href")[1:]
+        if os.path.exists(get_path_of_data_file("background_point_sources/",
+                                                 "pointsources_swift.h5")):
 
-        final = []
-        for s in sp:
-            if s[2:6] == "weak":
-                e = s.split("/")[1].split(">")[0][:-1]
-            else:
-                e = s.split(">")[0][2:-1]
-            if e != '':
-                final.append(e)
-        final = final[16:-11]
-        console.print("Download all needed swift datafiles...")
-        # Download the datafile for every datafile - This will take a while...
-        for i in track(range(len(final))):
-            final_path = f"{save_swift_data_folder}/{final[i]}.fits"
-            #if not os.path.exists(final_path):
-            try:
-                url = f"https://swift.gsfc.nasa.gov/results/transients/weak/{final[i]}.lc.fits"
-                path_to_file = download_file(url)
-                shutil.move(path_to_file, final_path)
-            except:
-                url = f"https://swift.gsfc.nasa.gov/results/transients/{final[i]}.lc.fits"
-                path_to_file = download_file(url)
-                shutil.move(path_to_file, final_path)
-                    
-        console.print("Save everything we need in hdf5 point source database...")
-        # Save everything in a h5 file for convenience and speed
-        with h5py.File(get_path_of_data_file("background_point_sources/",
-                                             "pointsources_swift.h5"),
-                       "w") as h:
+            with h5py.File(get_path_of_data_file("background_point_sources/",
+                                                  "pointsources_swift.h5"),
+                           "r") as h:
+                times_all = np.zeros((len(h.keys()), 20000))
+                for i, key in enumerate(h.keys()):
+                    times = h[key]["Time"][()]
+                    times_all[i][:len(times)] = times
 
-            for name in os.listdir(save_swift_data_folder):
+            min_mjd = np.min(times_all[times_all > 0])
+            max_mjd = np.max(times_all)
 
-                path = os.path.join(save_swift_data_folder, name)
-                with fits.open(path) as f:
-                    gr = h.create_group(name.split('.fits')[0])
-                    gr.create_dataset("Rates", data=f["RATE"].data["RATE"])
-                    gr.create_dataset("Error", data=f["RATE"].data["ERROR"])
-                    gr.create_dataset("Time", data=f["RATE"].data["TIME"])
-                    gr.attrs["Ra"] = f["RATE"].header["RA_OBJ"]
-                    gr.attrs["Dec"] = f["RATE"].header["DEC_OBJ"]
-        console.print("Done")
-    else:
-        console.print("The point source database will [bold red]NOT[/bold red] be (re)created.")
+            min_date = (Time(min_mjd, format='mjd').isot).split("T")[0]
+            max_date = (Time(max_mjd, format='mjd').isot).split("T")[0]
+
+            print("You are about to recreate the point source database, which contains all"\
+                  "point sources seen by Swift and their according brightness in the 15-50 keV"\
+                  "band in Swift from start of Swift to today. This will take a while and about 500 MB "\
+                  "will be downloaded.")
+            print("#############################################################################")
+            start = yes_or_no(f"Your current point source database covers the time from {min_mjd} mjd to {max_mjd} mjd ({min_date} to {max_date}). Do you want to update it?")
+
+        else:
+            print("You are about to create the point source database, which contains all"\
+                  "point sources seen by Swift  and their according brightness in the 15-50 keV"\
+                  "band in Swift from start of Swift to today."\
+                  "This will take a while and about 500 MB "\
+                  "will be downloaded.")
+            print("#############################################################################")
+            start = yes_or_no("Do you want to create it now?")
+
+        if start:
+            print("Start (re)creation of point source database...")
+            print("Parse point source names from website...")
+            # Parse pointsource names from website
+            fp = urllib.request.urlopen('https://swift.gsfc.nasa.gov/results/transients/')
+            mybytes = fp.read()
+
+            mystr = mybytes.decode("utf8")
+            fp.close()
+            sp = mystr.split("a href")[1:]
+
+            final = []
+            for s in sp:
+                if s[2:6] == "weak":
+                    e = s.split("/")[1].split(">")[0][:-1]
+                else:
+                    e = s.split(">")[0][2:-1]
+                if e != '':
+                    final.append(e)
+            final = final[16:-11]
+            print("Download all needed swift datafiles...")
+            # Download the datafile for every datafile - This will take a while...
+            with progress_bar(
+                    len(final),
+                    title="Download all needed swift datafiles..."
+            ) as p:
+                for i in range(len(final)):
+                    final_path = f"{save_swift_data_folder}/{final[i]}.fits"
+                    #if not os.path.exists(final_path):
+                    try:
+                        url = f"https://swift.gsfc.nasa.gov/results/transients/weak/{final[i]}.lc.fits"
+                        path_to_file = download_file(url)
+                        shutil.move(path_to_file, final_path)
+                    except:
+                        url = f"https://swift.gsfc.nasa.gov/results/transients/{final[i]}.lc.fits"
+                        path_to_file = download_file(url)
+                        shutil.move(path_to_file, final_path)
+
+            print("Save everything we need in hdf5 point source database...")
+            # Save everything in a h5 file for convenience and speed
+            with h5py.File(get_path_of_data_file("background_point_sources/",
+                                                 "pointsources_swift.h5"),
+                           "w") as h:
+
+                for name in os.listdir(save_swift_data_folder):
+
+                    path = os.path.join(save_swift_data_folder, name)
+                    with fits.open(path) as f:
+                        gr = h.create_group(name.split('.fits')[0])
+                        gr.create_dataset("Rates", data=f["RATE"].data["RATE"])
+                        gr.create_dataset("Error", data=f["RATE"].data["ERROR"])
+                        gr.create_dataset("Time", data=f["RATE"].data["TIME"])
+                        gr.attrs["Ra"] = f["RATE"].header["RA_OBJ"]
+                        gr.attrs["Dec"] = f["RATE"].header["DEC_OBJ"]
+            print("Done")
+        else:
+            print("The point source database will [bold red]NOT[/bold red] be (re)created.")
+
+    if using_mpi:
+        comm.barrier()
