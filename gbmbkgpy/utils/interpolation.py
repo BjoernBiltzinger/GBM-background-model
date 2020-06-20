@@ -32,17 +32,15 @@ def _interpolation_search(x, z):
             return j
     return imin
 
-
-@guvectorize(
-    "(f8[:],f8[:],i8[:],f8[:])", "(),(n)->(),()", cache=True, target="parallel"
-)
-def _locate(xn, x, index, theta):
-    """
-    Locates the elements of xn on the grid x, with multithreading.
-    """
-    index[0] = i = _interpolation_search(x, xn[0])
-    theta[0] = (xn[0] - x[i]) / (x[i + 1] - x[i])
-
+@njit
+def _locate(xn, x):
+    index = np.zeros(len(xn))
+    theta = np.zeros(len(xn))
+    for i in range(len(xn)):
+        j = int(_interpolation_search(x,xn[i]))
+        index[i] = j
+        theta[i] = (xn[i]-x[j])/(x[j+1]-x[j])
+    return index, theta
 
 @njit("float64[:,:,:](int64[:], float64[:], float64[:,:,:])", parallel=True, cache=True)
 def _linear_numba(index, theta, y):
