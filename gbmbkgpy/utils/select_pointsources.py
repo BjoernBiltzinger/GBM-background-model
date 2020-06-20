@@ -12,6 +12,7 @@ from matplotlib.animation import FuncAnimation
 import tempfile
 
 from gbmbkgpy.io.package_data import get_path_of_data_file
+from gbmbkgpy.utils.progress_bar import progress_bar
 
 try:
 
