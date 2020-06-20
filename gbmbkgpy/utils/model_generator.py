@@ -121,7 +121,7 @@ class BackgroundModelGenerator(object):
             data=self._data,
             time_after_SAA=config["saa"]["time_after_saa"],
             short_time_intervals=config["saa"]["short_time_intervals"],
-            nr_decays=config["saa"]["nr_decays"],
+            nr_decays=config["saa"]["nr_decays_per_exit"],
         )
 
         print_progress("Done")
