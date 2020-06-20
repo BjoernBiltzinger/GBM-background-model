@@ -10,6 +10,8 @@ from astropy.time import Time
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 import tempfile
+from multiprocessing import Pool
+import itertools
 
 from gbmbkgpy.io.package_data import get_path_of_data_file
 from gbmbkgpy.utils.progress_bar import progress_bar
@@ -273,7 +275,20 @@ def yes_or_no(question):
         if reply[0] == 'n' or reply[0] == 'no':
             return False
 
-def build_swift_pointsource_database(save_swift_data_folder):
+
+def download_ps_file(save_swift_data_folder, remote_file_name):
+    final_path = f"{save_swift_data_folder}/{remote_file_name}.fits"
+    #if not os.path.exists(final_path):                                                                                                                                  
+    try:
+        url = f"https://swift.gsfc.nasa.gov/results/transients/weak/{remote_file_name}.lc.fits"
+        path_to_file = download_file(url)
+        shutil.move(path_to_file, final_path)
+    except:
+        url = f"https://swift.gsfc.nasa.gov/results/transients/{remote_file_name}.lc.fits"
+        path_to_file = download_file(url)
+        shutil.move(path_to_file, final_path)
+    
+def build_swift_pointsource_database(save_swift_data_folder, multiprocessing=False):
     """
     Build the swift pointsource database.
     :param save_data_folder: Folder where the swift data files are saved
@@ -343,21 +358,31 @@ def build_swift_pointsource_database(save_swift_data_folder):
             final = final[16:-11]
             print("Download all needed swift datafiles...")
             # Download the datafile for every datafile - This will take a while...
-            with progress_bar(
-                    len(final),
-                    title="Download all needed swift datafiles..."
-            ) as p:
-                for i in range(len(final)):
-                    final_path = f"{save_swift_data_folder}/{final[i]}.fits"
-                    #if not os.path.exists(final_path):
-                    try:
-                        url = f"https://swift.gsfc.nasa.gov/results/transients/weak/{final[i]}.lc.fits"
-                        path_to_file = download_file(url)
-                        shutil.move(path_to_file, final_path)
-                    except:
-                        url = f"https://swift.gsfc.nasa.gov/results/transients/{final[i]}.lc.fits"
-                        path_to_file = download_file(url)
-                        shutil.move(path_to_file, final_path)
+
+            if multiprocessing:
+            
+                with Pool() as pool:
+
+                    download_arguments = zip(itertools.repeat(save_swift_data_folder), final)
+
+                    results = pool.starmap(download_ps_file, download_arguments)
+                    
+            else:
+                with progress_bar(
+                        len(final),
+                        title="Download all needed swift datafiles..."
+                ) as p:
+                    for i in range(len(final)):
+                        final_path = f"{save_swift_data_folder}/{final[i]}.fits"
+                        #if not os.path.exists(final_path):
+                        try:
+                            url = f"https://swift.gsfc.nasa.gov/results/transients/weak/{final[i]}.lc.fits"
+                            path_to_file = download_file(url)
+                            shutil.move(path_to_file, final_path)
+                        except:
+                            url = f"https://swift.gsfc.nasa.gov/results/transients/{final[i]}.lc.fits"
+                            path_to_file = download_file(url)
+                            shutil.move(path_to_file, final_path)
 
             print("Save everything we need in hdf5 point source database...")
             # Save everything in a h5 file for convenience and speed
