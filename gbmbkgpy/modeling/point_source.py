@@ -258,7 +258,7 @@ class PointSrc_fixed(PointSrc_free):
         res = bat.pl_index[bat[bat.name2 == self.name].index].values
         if len(res) == 0:
             pl_index = 3
-            print((f"No index found for {self.name} in the swift 105 month survey."\
+            print(f"No index found for {self.name} in the swift 105 month survey."\
                    f" We will set the index to -{pl_index}")
 
         else:
