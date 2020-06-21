@@ -213,7 +213,9 @@ class Rebinner(object):
             rebinned_vector = []
 
             for low_bound, hi_bound in zip(self._starts, self._stops):
-                rebinned_vector.append(np.sqrt(np.sum(vector[low_bound:hi_bound] ** 2, axis=0)))
+                rebinned_vector.append(
+                    np.sqrt(np.sum(vector[low_bound:hi_bound] ** 2, axis=0))
+                )
 
             rebinned_vectors.append(np.array(rebinned_vector))
 

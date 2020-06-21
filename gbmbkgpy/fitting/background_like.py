@@ -367,7 +367,9 @@ class BackgroundLike(object):
 
 
 @numba.njit(
-    numba.float64(numba.float64[:, :, :], numba.int64[:, :, :]), parallel=False, fastmath=True
+    numba.float64(numba.float64[:, :, :], numba.int64[:, :, :]),
+    parallel=False,
+    fastmath=True,
 )
 def _log_likelihood_numba(M, counts):
     # Poisson loglikelihood statistic (Cash) is:
@@ -381,7 +383,9 @@ def _log_likelihood_numba(M, counts):
 
 
 @numba.njit(
-    numba.float64(numba.float64[:, :, :], numba.float64[:, :, :]), parallel=False, fastmath=True
+    numba.float64(numba.float64[:, :, :], numba.float64[:, :, :]),
+    parallel=False,
+    fastmath=True,
 )
 def _log_likelihood_numba_trigdat(M, counts):
     # Poisson loglikelihood statistic (Cash) is:

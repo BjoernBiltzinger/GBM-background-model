@@ -59,7 +59,11 @@ class SAA_calc(object):
 
         self._time_bins = data.time_bins
         self._build_masks(
-            bins_to_add, time_after_SAA, time_before_SAA, short_time_intervals, nr_decays=nr_decays
+            bins_to_add,
+            time_after_SAA,
+            time_before_SAA,
+            short_time_intervals,
+            nr_decays=nr_decays,
         )
         self._rebinned = False
         self._rebinned_saa_mask = None
@@ -117,7 +121,12 @@ class SAA_calc(object):
             return np.array([])
 
     def _build_masks(
-            self, bins_to_add, time_after_SAA, time_before_SAA, short_time_intervals, nr_decays
+        self,
+        bins_to_add,
+        time_after_SAA,
+        time_before_SAA,
+        short_time_intervals,
+        nr_decays,
     ):
         """
         Calculates masks that cover the SAAs and some time bins before and after the SAAs
@@ -214,7 +223,7 @@ class SAA_calc(object):
                     while (
                         time_before_SAA
                         > self._time_bins[:, 1][slice_idx[i, 0]]
-                            - self._time_bins[:, 0][slice_idx[i, 0] - j]
+                        - self._time_bins[:, 0][slice_idx[i, 0] - j]
                     ):
                         j += 1
 

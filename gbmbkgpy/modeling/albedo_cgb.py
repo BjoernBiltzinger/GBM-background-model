@@ -75,9 +75,7 @@ class Albedo_CGB_free(object):
             (
                 cgb_response_sums[det],
                 earth_response_sums[det],
-            ) = self._get_effective_response_albedo_cgb(
-                det_response=self._rsp[det]
-            )
+            ) = self._get_effective_response_albedo_cgb(det_response=self._rsp[det])
 
         self._cgb_response_sums = cgb_response_sums
         self._earth_response_sums = earth_response_sums
@@ -102,7 +100,9 @@ class Albedo_CGB_free(object):
 
         # Calculate the normalization of the spacecraft position vectors
         earth_position_cart_norm = np.sqrt(
-            np.sum(self._geom.earth_position_cart * self._geom.earth_position_cart, axis=1)
+            np.sum(
+                self._geom.earth_position_cart * self._geom.earth_position_cart, axis=1
+            )
         ).reshape((len(self._geom.earth_position_cart), 1))
 
         # Calculate the normalization of the grid points of the response precalculation
@@ -113,9 +113,10 @@ class Albedo_CGB_free(object):
         tmp = np.clip(
             np.dot(
                 self._geom.earth_position_cart / earth_position_cart_norm,
-                resp_grid_points.T / resp_grid_points_norm.T
+                resp_grid_points.T / resp_grid_points_norm.T,
             ),
-            -1, 1
+            -1,
+            1,
         )
 
         # Calculate separation angle between
@@ -133,17 +134,17 @@ class Albedo_CGB_free(object):
 
         # TODO: Check why the earth occultation mask has to be inverted for the earth
         # and not the other way around!
-        effective_response_earth = np.tensordot(
-            ~earth_occultion_idx,
-            det_response.response_array,
-            [(1,), (0,)]
-        ) * sr_points
+        effective_response_earth = (
+            np.tensordot(
+                ~earth_occultion_idx, det_response.response_array, [(1,), (0,)]
+            )
+            * sr_points
+        )
 
-        effective_response_cgb = np.tensordot(
-            earth_occultion_idx,
-            det_response.response_array,
-            [(1,), (0,)]
-        ) * sr_points
+        effective_response_cgb = (
+            np.tensordot(earth_occultion_idx, det_response.response_array, [(1,), (0,)])
+            * sr_points
+        )
 
         return effective_response_earth, effective_response_cgb
 
@@ -214,19 +215,11 @@ class Albedo_CGB_fixed(Albedo_CGB_free):
         # This true flux is binned in energy bins as defined in the response object
 
         folded_flux_cgb = np.zeros(
-            (
-                len(self._geom.geometry_times),
-                len(self._detectors),
-                len(self._echans),
-            )
+            (len(self._geom.geometry_times), len(self._detectors), len(self._echans),)
         )
 
         folded_flux_earth = np.zeros(
-            (
-                len(self._geom.geometry_times),
-                len(self._detectors),
-                len(self._echans),
-            )
+            (len(self._geom.geometry_times), len(self._detectors), len(self._echans),)
         )
 
         for det_idx, det in enumerate(self._detectors):

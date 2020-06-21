@@ -47,7 +47,9 @@ class ExternalProps(object):
         :param dates: [YYMMDD, YYMMDD,]
         """
 
-        assert len(dates[0]) == 6, f"Day must be in format YYMMDD, but you provided: {dates}"
+        assert (
+            len(dates[0]) == 6
+        ), f"Day must be in format YYMMDD, but you provided: {dates}"
         self._detectors = detectors
 
         self._side_0 = ["n0", "n1", "n2", "n3", "n4", "n5"]
@@ -83,7 +85,7 @@ class ExternalProps(object):
     def bgo_cr_approximation(self, met):
 
         if isinstance(met[0], np.ndarray) or isinstance(met[0], list):
-           
+
             bgo_cr_rates = np.zeros((len(met), len(self._detectors), len(met[0])))
 
             for det_idx, det in enumerate(self._detectors):
@@ -92,7 +94,9 @@ class ExternalProps(object):
                 elif det in self._side_1:
                     bgo_cr_rates[:, det_idx, :] = self._bgo_1_rate_interp(met)
                 else:
-                    raise AssertionError("Use a valid NaI det name to use this function.")
+                    raise AssertionError(
+                        "Use a valid NaI det name to use this function."
+                    )
 
         else:
 
@@ -104,8 +108,10 @@ class ExternalProps(object):
                 elif det in self._side_1:
                     bgo_cr_rates[:, det_idx] = self._bgo_1_rate_interp(met)
                 else:
-                    raise AssertionError("Use a valid NaI det name to use this function.")
-               
+                    raise AssertionError(
+                        "Use a valid NaI det name to use this function."
+                    )
+
         return bgo_cr_rates
 
     def mc_l_rates(self, met):
@@ -125,7 +131,7 @@ class ExternalProps(object):
                 cr_rates[:, det_idx] = self._mc_l_interp(met)
 
         return cr_rates
-        #return np.tile(self.mc_l(met), (len(self._detectors), 1))
+        # return np.tile(self.mc_l(met), (len(self._detectors), 1))
 
     def mc_l(self, met):
         """
