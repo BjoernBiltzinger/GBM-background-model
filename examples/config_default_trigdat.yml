@@ -45,7 +45,7 @@ setup:
         exclude: [Crab]
 
     CRAB:
-      fixed: false
+      fixed: true
       spectrum:
         pl:
           spectrum_type: pl
@@ -69,9 +69,9 @@ bounds:
     const:  [1.0e-1, 1.0e+2]
     norm:   [0.1, 1.0e+2]
   earth_fixed_bound:
-    norm:   [1.0e-3, 1]
+    norm:   [0.5e-2, 3e-2]
   cgb_fixed_bound:
-    norm:   [1.0e-2, 0.5]
+    norm:   [4.0e-2, 0.3]
   earth_free_bound:
     norm:   [1.0e-3, 1]
     alpha:  [-8, -3]
@@ -84,20 +84,21 @@ bounds:
     Eb:     [27, 40]
   ps_fixed_bound:
     pl:
-      norm:   [1.0e-1, 100]
+      norm:   [1.0e-4, 1e9]
     bb:
-      norm:   [1.0e-4, 100]
+      norm:   [1.0e-4, 1e9]
   ps_free_bound:
     pl:
-      norm:   [1.0e-1, 100]
-      index:  [1,3]
+      norm:   [1.0e-1, 1e5]
+      index:  [0,4]
     bb:
-      norm:   [1.0e-4, 100]
-      temp:   [0,5]
+      norm:   [1.0e-4, 10000]
+      temp:   [0,50]
   sun_bound:
     norm: [1.0e-2, 1.0e+2]
     index: [0.5,4]
   eff_area_correction: [0.8,1.2]
+
 gaussian_bounds:
   saa_bound:
     norm:   [null, null]
@@ -118,7 +119,7 @@ gaussian_bounds:
     norm:   [null, null]
     alpha:  [1.32, 0.1]
     beta:   [2.88, 0.15]
-    Ep:     [null, null]
+    Eb:     [null, null]
   ps_fixed_bound:
     pl:
       norm: [null, null]
@@ -126,15 +127,15 @@ gaussian_bounds:
       norm:  [null, null]
   ps_free_bound:
     pl:
-      norm: [null, null]
-      index: [null, null]
+      norm: [2, 1]
+      index: [2, 1]
     bb:
       norm: [null, null]
-      temp: [null, null]
+      temp: [10, 5]
   sun_bound:
     norm:   [null, null]
     index:  [2., 1.]
-  eff_area_correction: [1,0.1]
+  eff_area_correction: [1.0, 0.1]
 
 ##################### Input for fit method ##########################################################
 fit:
@@ -156,5 +157,5 @@ export:
 ### show data?, show grb trigger times? if yes at which time ('20:57:03.000' format) and what name? #
 ### show ppc?, xlim and ylim (as list e.g. [0,100]), legend outside of the plot? ####################
 plot:
-  corner_plot:    false
-  result_plot:    false
+  corner_plot:    true
+  result_plot:    true
