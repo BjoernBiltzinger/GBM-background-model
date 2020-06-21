@@ -56,7 +56,7 @@ class Response_Precalculation(object):
         Ebin_edge_incoming=None,
         data_type="ctime",
         trigger=None,
-        simulation=False
+        simulation=False,
     ):
         self._echans = echans
 
@@ -64,8 +64,14 @@ class Response_Precalculation(object):
 
         for det in sorted(detectors):
             responses[det] = Det_Response_Precalculation(
-                det, sorted(dates), sorted(echans), Ngrid,
-                Ebin_edge_incoming, data_type, trigger, simulation
+                det,
+                sorted(dates),
+                sorted(echans),
+                Ngrid,
+                Ebin_edge_incoming,
+                data_type,
+                trigger,
+                simulation,
             )
 
         self._responses = responses
@@ -237,7 +243,11 @@ class Det_Response_Precalculation(object):
             if simulation:
 
                 datafile_path = os.path.join(
-                    get_path_of_external_data_dir(), "simulation", data_type, dates[0], datafile_name
+                    get_path_of_external_data_dir(),
+                    "simulation",
+                    data_type,
+                    dates[0],
+                    datafile_name,
                 )
 
             else:
@@ -360,7 +370,7 @@ class Det_Response_Precalculation(object):
         """
         Get the needed reponses for this run
         """
-        self._response_array = self.all_response_array[:,:,self._echan_mask]
+        self._response_array = self.all_response_array[:, :, self._echan_mask]
         # We do not need this anymore
         del self._all_response_array
 
@@ -540,9 +550,7 @@ class Det_Response_Precalculation(object):
             ) as p:
                 for point in self._points:
                     # get the response of every point
-                    matrix = self._response(point[0],
-                                            point[1],
-                                            point[2], DRM).matrix
+                    matrix = self._response(point[0], point[1], point[2], DRM).matrix
                     responses.append(matrix.T)
                     p.increase()
 

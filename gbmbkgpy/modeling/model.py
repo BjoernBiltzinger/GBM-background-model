@@ -43,12 +43,14 @@ class Model(object):
 
         self._nr_detectors = len(detectors)
 
-        if self._nr_detectors==1 and self._use_eff_area_correction:
-            print("Effective area correction makes no sense when only one detector is used...")
+        if self._nr_detectors == 1 and self._use_eff_area_correction:
+            print(
+                "Effective area correction makes no sense when only one detector is used..."
+            )
             self._use_eff_area_correction = False
-            
+
         if self._use_eff_area_correction:
-            self._eff_area_corr = np.ones((1,self._nr_detectors,1))
+            self._eff_area_corr = np.ones((1, self._nr_detectors, 1))
 
         self._nr_echans = len(echans)
 
@@ -107,11 +109,13 @@ class Model(object):
             parameter.value = new_parameters[i]
 
         if self._use_eff_area_correction:
-            self._eff_area_corr = np.ones((1,self._nr_detectors,1))
+            self._eff_area_corr = np.ones((1, self._nr_detectors, 1))
             # new eff_area_corr array
             for i, det in enumerate(self._detectors[1:]):
 
-                 self._eff_area_corr[0,i+1,0] = self.free_parameters[f"eff_area_corr_{det}"].value
+                self._eff_area_corr[0, i + 1, 0] = self.free_parameters[
+                    f"eff_area_corr_{det}"
+                ].value
 
     def set_parameter_bounds(self, param_dict):
         """
@@ -124,7 +128,6 @@ class Model(object):
             self.parameters[param_name].gaussian_parameter = bound_dict[
                 "gaussian_parameter"
             ]
-
 
     @property
     def normalization_parameters(self):
@@ -218,9 +221,11 @@ class Model(object):
         # already initaized and we will use them again. If no initalize them new.
 
         if self._use_eff_area_correction:
-            for i in range(self._nr_detectors-1):
+            for i in range(self._nr_detectors - 1):
                 try:
-                    parameters[f"eff_area_corr_{self._detectors[i+1]}"] = self._parameters[f"eff_area_corr_{self._detectors[i+1]}"]
+                    parameters[
+                        f"eff_area_corr_{self._detectors[i+1]}"
+                    ] = self._parameters[f"eff_area_corr_{self._detectors[i+1]}"]
                 except AttributeError:
                     parameters[f"eff_area_corr_{self._detectors[i+1]}"] = Parameter(
                         f"eff_area_corr_{self._detectors[i+1]}",
@@ -232,7 +237,7 @@ class Model(object):
                         sigma=0.1,
                         normalization=True,
                         prior="truncated_gaussian"
-                        #prior="uniform"
+                        # prior="uniform"
                     )
 
         self._parameters = parameters
@@ -389,7 +394,7 @@ class Model(object):
             continuum_counts[~saa_mask] = 0.0
 
         return continuum_counts
-        
+
     def _sources_echan_number_parameter(self):
         """
         :return: sources, echan of sources, number so parameters per source
@@ -436,7 +441,7 @@ class Model(object):
             source_counts[np.where(~saa_mask)] = 0.0
 
         if self._use_eff_area_correction:
-            return self._eff_area_corr*source_counts
+            return self._eff_area_corr * source_counts
         else:
             return source_counts
 
@@ -461,7 +466,7 @@ class Model(object):
             source_counts[np.where(~saa_mask)] = 0.0
 
         if self._use_eff_area_correction:
-            return self._eff_area_corr*source_counts
+            return self._eff_area_corr * source_counts
         else:
             return source_counts
 
@@ -570,7 +575,7 @@ class Model(object):
             ), "The time_bins and saa_mask should be of equal length"
             total_counts[np.where(~saa_mask)] = 0.0
         if self._use_eff_area_correction:
-            return self._eff_area_corr*total_counts
+            return self._eff_area_corr * total_counts
         else:
             return total_counts
 
@@ -614,7 +619,7 @@ class Model(object):
 
         for global_source in self._global_sources.values():
             if self._use_eff_area_correction:
-                total_counts += self._eff_area_corr*global_source.get_counts(
+                total_counts += self._eff_area_corr * global_source.get_counts(
                     time_bins=time_bins, bin_mask=bin_mask
                 )
             else:
@@ -624,7 +629,7 @@ class Model(object):
 
         for fit_spectrum_source in self._fit_spectrum_sources.values():
             if self._use_eff_area_correction:
-                total_counts += self._eff_area_corr*fit_spectrum_source.get_counts(
+                total_counts += self._eff_area_corr * fit_spectrum_source.get_counts(
                     time_bins=time_bins, bin_mask=bin_mask
                 )
             else:

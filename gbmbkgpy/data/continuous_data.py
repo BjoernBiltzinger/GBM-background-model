@@ -126,9 +126,9 @@ class Data(object):
 
         self._rebinned_saa_mask = self._data_rebinner.rebinned_saa_mask
 
-        self._rebinned_counts = self._data_rebinner.rebin(
-            self._counts
-        )[0].astype(np.int64)
+        self._rebinned_counts = self._data_rebinner.rebin(self._counts)[0].astype(
+            np.int64
+        )
 
         # Initialize the valid bin mask to all True
         self._valid_rebinned_time_mask = np.ones(
@@ -349,7 +349,11 @@ class Data(object):
 
         if self._simulation:
             datafile_path = os.path.join(
-                get_path_of_external_data_dir(), "simulation", self._data_type, day, datafile_name
+                get_path_of_external_data_dir(),
+                "simulation",
+                self._data_type,
+                day,
+                datafile_name,
             )
         else:
             datafile_path = os.path.join(

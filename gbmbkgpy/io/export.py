@@ -436,7 +436,7 @@ class PHAWriter(object):
         observed_counts,
         model_counts,
         stat_err,
-        det_echan_loaded=None
+        det_echan_loaded=None,
     ):
         self._dates = dates
         self._trigger = trigger
@@ -541,7 +541,7 @@ class PHAWriter(object):
             observed_counts,
             model_counts,
             stat_err,
-            det_echan_loaded
+            det_echan_loaded,
         )
 
     @classmethod
@@ -616,7 +616,13 @@ class PHAWriter(object):
             f.create_dataset("stat_err", data=self._stat_err, compression="lzf")
 
     def write_pha(
-            self, output_dir, active_time_start, active_time_end, trigger_time=None, file_name=None, overwrite=False
+        self,
+        output_dir,
+        active_time_start,
+        active_time_end,
+        trigger_time=None,
+        file_name=None,
+        overwrite=False,
     ):
         """
         Creates saves a background file for each detector
@@ -660,8 +666,7 @@ class PHAWriter(object):
             # Each event in the echans 0-6 gives a dead time of 2.6 μs
             # Each event in the over flow channel 7 gives a dead time of 10 μs
             dead_time = (
-                np.sum(observed_counts[0:7]) * 2.6 * 1e-6
-                + observed_counts[7] * 1e-5
+                np.sum(observed_counts[0:7]) * 2.6 * 1e-6 + observed_counts[7] * 1e-5
             )
 
             # Write observed spectrum to PHA file
@@ -675,7 +680,7 @@ class PHAWriter(object):
                 quality=np.zeros_like(observed_rate, dtype=int),
                 grouping=np.ones_like(self._echans),
                 exposure=telapse - dead_time,
-                backscale=1.,
+                backscale=1.0,
                 respfile=None,
                 ancrfile=None,
                 back_file=None,
@@ -695,7 +700,7 @@ class PHAWriter(object):
                 quality=np.zeros_like(model_rate, dtype=int),
                 grouping=np.ones_like(self._echans),
                 exposure=telapse - dead_time,
-                backscale=1.,
+                backscale=1.0,
                 respfile=None,
                 ancrfile=None,
                 back_file=None,
@@ -714,13 +719,9 @@ class PHAWriter(object):
 
                     file_name = self._trigger
 
-            obs_file_path = os.path.join(
-                output_dir,
-                "{}_{}.pha".format(file_name, det)
-            )
+            obs_file_path = os.path.join(output_dir, "{}_{}.pha".format(file_name, det))
             bkg_file_path = os.path.join(
-                output_dir,
-                "{}_{}_bak.pha".format(file_name, det)
+                output_dir, "{}_{}_bak.pha".format(file_name, det)
             )
 
             observed_spectrum.writeto(obs_file_path, overwrite=overwrite)

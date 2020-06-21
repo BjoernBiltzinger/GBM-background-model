@@ -331,7 +331,7 @@ class MultiNestFit(object):
         self._best_fit_values = best_fit_values
         self._minimum = minimum
 
-        print('The MAP of the model parameters:')
+        print("The MAP of the model parameters:")
         print(dict(zip(self._param_names, best_fit_values)))
 
         return best_fit_values, minimum
@@ -430,4 +430,6 @@ class MultiNestFit(object):
                 c2.plotter.plot(filename=os.path.join(self._output_dir, "corner.pdf"))
 
             else:
-                print('Your model only has one paramter, we cannot make a cornerplot for this.')
+                print(
+                    "Your model only has one paramter, we cannot make a cornerplot for this."
+                )

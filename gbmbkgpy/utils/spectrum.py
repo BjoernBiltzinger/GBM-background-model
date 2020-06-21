@@ -55,8 +55,7 @@ if has_numba:
         :return: differential pl evaluation [1/kev*s]
         """
 
-        return c*energy**2/(np.expm1(energy/temp))
-
+        return c * energy ** 2 / (np.expm1(energy / temp))
 
     ##################### Integration of spectra #############################
 
@@ -104,7 +103,10 @@ if has_numba:
             )
         return res
 
-    @njit(float64[:](float64[:], float64[:], float64, float64, float64, float64, float64), cache=True)
+    @njit(
+        float64[:](float64[:], float64[:], float64, float64, float64, float64, float64),
+        cache=True,
+    )
     def _spec_integral_bb_pl(e1, e2, c_pl, e_norm, index, c_bb, temp):
         """
         Calculates the flux of photons between two energies
@@ -119,10 +121,19 @@ if has_numba:
                 (e2[i] - e1[i])
                 / 6.0
                 * (
-                    (_spectrum_pl(e1[i], c_pl, e_norm, index)+_spectrum_bb(e1[i], c_bb, temp))
-                    + 4 *(_spectrum_pl((e1[i] + e2[i]) / 2.0, c_pl, e_norm, index)+
-                          _spectrum_bb((e1[i] + e2[i]) / 2.0, c_bb, temp))
-                    + (_spectrum_pl(e2[i], c_pl, e_norm, index) + _spectrum_bb(e2[i], c_bb, temp))
+                    (
+                        _spectrum_pl(e1[i], c_pl, e_norm, index)
+                        + _spectrum_bb(e1[i], c_bb, temp)
+                    )
+                    + 4
+                    * (
+                        _spectrum_pl((e1[i] + e2[i]) / 2.0, c_pl, e_norm, index)
+                        + _spectrum_bb((e1[i] + e2[i]) / 2.0, c_bb, temp)
+                    )
+                    + (
+                        _spectrum_pl(e2[i], c_pl, e_norm, index)
+                        + _spectrum_bb(e2[i], c_bb, temp)
+                    )
                 )
             )
         return res
@@ -153,29 +164,28 @@ if has_numba:
                 )
             )
         return res
+
+
 else:
     ################################## NUMPY Implementations #################################################
 
     ############################# Vectorized Spectrum Functions###########################
 
-
     def _spectrum_bpl(energy, c, break_energy, index1, index2):
 
-        return c / ((energy / break_energy) ** index1 + (energy / break_energy) ** index2)
-
+        return c / (
+            (energy / break_energy) ** index1 + (energy / break_energy) ** index2
+        )
 
     def _spectrum_pl(energy, c, e_norm, index):
 
         return c / (energy / e_norm) ** index
 
-
     def _spectrum_bb(energy, c, temp):
 
         return c * energy ** 2 / (np.expm1(energy / temp))
 
-
     ########################## Integration over energy bins ###############################
-
 
     def _spec_integral_pl(e1, e2, c, e_norm, index):
 
@@ -188,7 +198,6 @@ else:
                 + _spectrum_pl(e2, c, e_norm, index)
             )
         )
-
 
     def _spec_integral_bb_pl(e1, e2, c_pl, e_norm, index, c_bb, temp):
 
@@ -205,7 +214,6 @@ else:
                 + (_spectrum_pl(e2, c_pl, e_norm, index) + _spectrum_bb(e2, c_bb, temp))
             )
         )
-
 
     def _spec_integral_bpl(e1, e2, c, break_energy, index1, index2):
 

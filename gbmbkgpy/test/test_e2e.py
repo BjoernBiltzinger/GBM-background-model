@@ -23,7 +23,9 @@ import pytest
 def test_model_builder():
     path_of_tests = os.path.dirname(os.path.abspath(__file__))
 
-    data_path = os.path.join(get_path_of_external_data_dir(), "simulation", "ctime", "150126")
+    data_path = os.path.join(
+        get_path_of_external_data_dir(), "simulation", "ctime", "150126"
+    )
     file_name = "glg_ctime_n0_150126_v00.pha"
 
     if not os.path.exists(data_path):

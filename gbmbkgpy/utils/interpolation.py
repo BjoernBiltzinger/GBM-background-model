@@ -32,15 +32,17 @@ def _interpolation_search(x, z):
             return j
     return imin
 
+
 @njit
 def _locate(xn, x):
     index = np.zeros(len(xn))
     theta = np.zeros(len(xn))
     for i in range(len(xn)):
-        j = int(_interpolation_search(x,xn[i]))
+        j = int(_interpolation_search(x, xn[i]))
         index[i] = j
-        theta[i] = (xn[i]-x[j])/(x[j+1]-x[j])
+        theta[i] = (xn[i] - x[j]) / (x[j + 1] - x[j])
     return index, theta
+
 
 @njit("float64[:,:,:](int64[:], float64[:], float64[:,:,:])", parallel=True, cache=True)
 def _linear_numba(index, theta, y):

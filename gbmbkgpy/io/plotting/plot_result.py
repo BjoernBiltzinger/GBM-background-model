@@ -476,7 +476,7 @@ class ResultPlotGenerator(object):
                     continue
 
             # Replace underscores by - for latex:
-            label = label.replace('_', '-')
+            label = label.replace("_", "-")
 
             if rebin:
                 rebinned_source_counts = this_rebinner.rebin(
@@ -556,10 +556,15 @@ class ResultPlotGenerator(object):
             #     p_bar.increase()
             # rebinned_ppc_rates = np.array(rebinned_ppc_rates)
 
-            ppc_time_bin_widths = np.diff(self._result_dict["ppc_time_bins"], axis=1)[:, 0]
+            ppc_time_bin_widths = np.diff(self._result_dict["ppc_time_bins"], axis=1)[
+                :, 0
+            ]
             ppc_time_bin_means = np.mean(self._result_dict["ppc_time_bins"], axis=1)
 
-            ppc_rates = self._result_dict["ppc_counts"][:, :, det_idx, echan_idx] / ppc_time_bin_widths
+            ppc_rates = (
+                self._result_dict["ppc_counts"][:, :, det_idx, echan_idx]
+                / ppc_time_bin_widths
+            )
 
             residual_plot.add_ppc(
                 rebinned_ppc_rates=ppc_rates,
