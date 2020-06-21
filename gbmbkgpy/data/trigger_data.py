@@ -199,10 +199,10 @@ class TrigData(object):
     @property
     def dates(self):
         """
-        Returns the trigger name to keep it conform with daily data, this is used to create the output directory
+        Returns the date of the trigger
         :return:
         """
-        return [self._trigger]
+        return [self._trigger[2:8]]
 
     @property
     def rebinned_saa_mask(self):
@@ -426,6 +426,7 @@ class TrigData(object):
                     rates[:, det_data_idx, echan_data_idx] * time_bin_widths
                 )
 
+        self._rates = np.array(rates)
         self._counts = np.array(counts)
         self._time_bins = time_bins
 
