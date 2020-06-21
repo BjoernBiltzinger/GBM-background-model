@@ -257,7 +257,7 @@ class BackgroundModelGenerator(object):
                     config["saa"]["decay_at_day_start"]
                     and len(config["general"]["dates"]) == 1
                 ):
-                    offset = config["saa"]["nr_decays"]
+                    offset = config["saa"]["nr_decays_per_exit"]
                 else:
                     offset = 0
 

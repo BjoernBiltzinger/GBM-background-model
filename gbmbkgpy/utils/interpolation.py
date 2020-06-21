@@ -33,9 +33,9 @@ def _interpolation_search(x, z):
     return imin
 
 
-@njit
+@njit("Tuple((int64[:], float64[:]))(float64[:], float64[:])")
 def _locate(xn, x):
-    index = np.zeros(len(xn))
+    index = np.zeros(len(xn), dtype=np.int64)
     theta = np.zeros(len(xn))
     for i in range(len(xn)):
         j = int(_interpolation_search(x, xn[i]))
