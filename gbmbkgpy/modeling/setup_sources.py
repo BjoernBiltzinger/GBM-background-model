@@ -678,7 +678,7 @@ def build_point_sources(
         sp = SelectPointsources(limit, time_string=day)
 
         # Create temp file
-        temp_dir = os.path.join(get_path_of_external_data_dir, ".tmp")
+        temp_dir = os.path.join(get_path_of_external_data_dir(), ".tmp")
 
         if not os.path.exists(temp_dir):
             os.mkdirs(temp_dir)
