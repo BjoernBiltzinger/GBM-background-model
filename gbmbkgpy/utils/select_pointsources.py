@@ -169,13 +169,26 @@ class SelectPointsources(object):
         return ps_dict
 
     def write_psfile(self, filename):
-        if self._ps_dict is None:
-            self.ps_sign_swift()
-        with open(filename, "w") as f:
-            for key in self._ps_dict.keys():
-                ra = self._ps_dict[key]["Ra"]
-                dec = self._ps_dict[key]["Dec"]
-                f.write(f"{key}\t{ra}\t{dec}\n")
+        if using_mpi:
+            if rank == 0:
+                do_it = True
+            else:
+                do_it = False
+        else:
+            do_it = True
+
+        if do_it:
+
+            if self._ps_dict is None:
+                self.ps_sign_swift()
+            with open(filename, "w") as f:
+                for key in self._ps_dict.keys():
+                    ra = self._ps_dict[key]["Ra"]
+                    dec = self._ps_dict[key]["Dec"]
+                    f.write(f"{key}\t{ra}\t{dec}\n")
+
+        if using_mpi:
+            comm.barrier()
 
     def plot_ps(self):
         """
