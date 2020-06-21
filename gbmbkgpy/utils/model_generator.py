@@ -626,6 +626,20 @@ class TrigdatBackgroundModelGenerator(BackgroundModelGenerator):
         )
         print_progress("Done")
 
+    def _instantiate_ext_properties(self, config):
+        # Create external properties object pass the trigger_data instance for the
+        # bgo cr approximation
+        print_progress("Download and prepare external properties...")
+
+        self._ep = ExternalProps(
+            dates=config["general"]["dates"],
+            detectors=config["general"]["detectors"],
+            bgo_cr_approximation=config["setup"]["bgo_cr_approximation"],
+            trig_data=self._data
+        )
+
+        print_progress("Done")
+
     def _precalc_repsonse(self, config):
         # Create a Response precalculation object, that precalculates the responses on a spherical grid arount the detector.
         # These calculations use the full DRM's and thus include sat. scattering and partial loss of energy by the photons.
