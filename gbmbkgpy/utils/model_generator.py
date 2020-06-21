@@ -332,7 +332,7 @@ class BackgroundModelGenerator(object):
         for i, ps in enumerate(config["setup"]["ps_list"]):
             if ps == "auto_swift":
                 filepath = os.path.join(
-                    get_path_of_external_data_dir(), ".tmp", "ps_auto_swift.dat"
+                    get_path_of_external_data_dir(), "tmp", "ps_auto_swift.dat"
                 )
                 # Read it as pandas
                 ps_df_add = pd.read_table(filepath, names=["name", "ra", "dec"])
