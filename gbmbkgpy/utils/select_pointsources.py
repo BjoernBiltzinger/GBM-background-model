@@ -181,6 +181,10 @@ class SelectPointsources(object):
 
             if self._ps_dict is None:
                 self.ps_sign_swift()
+
+            if os.path.exists(filename):
+                os.remove(filename)
+
             with open(filename, "w") as f:
                 for key in self._ps_dict.keys():
                     ra = self._ps_dict[key]["Ra"]
