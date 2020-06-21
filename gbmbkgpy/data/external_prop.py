@@ -136,10 +136,6 @@ class ExternalProps(object):
 
         return self._mc_l_interp(met)
 
-    @property
-    def point_sources(self):
-        return self._point_sources_dic
-
     def _one_day_build_lat_spacecraft(self, date):
         """This function reads a LAT-spacecraft file and stores the data in arrays of the form: lat_time, mc_b, mc_l.\n
         Input:\n
