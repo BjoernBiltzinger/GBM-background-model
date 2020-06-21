@@ -13,6 +13,7 @@ import tempfile
 from multiprocessing import Pool
 import itertools
 
+from gbmbkgpy.io.file_utils import if_dir_containing_file_not_existing_then_make
 from gbmbkgpy.io.package_data import get_path_of_data_file
 from gbmbkgpy.utils.progress_bar import progress_bar
 
@@ -181,6 +182,8 @@ class SelectPointsources(object):
 
             if self._ps_dict is None:
                 self.ps_sign_swift()
+
+            if_dir_containing_file_not_existing_then_make(filename)
 
             if os.path.exists(filename):
                 os.remove(filename)
