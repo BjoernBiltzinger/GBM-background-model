@@ -681,7 +681,7 @@ def build_point_sources(
         temp_dir = os.path.join(get_path_of_external_data_dir(), ".tmp")
 
         if not os.path.exists(temp_dir):
-            os.mkdirs(temp_dir)
+            os.makedirs(temp_dir)
 
         filepath = os.path.join(temp_dir, "ps_auto_swift.dat")
 
