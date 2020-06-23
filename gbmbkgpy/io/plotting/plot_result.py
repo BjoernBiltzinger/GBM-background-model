@@ -30,6 +30,7 @@ try:
         using_mpi = False
         rank = 0
 except:
+
     using_mpi = False
     rank = 0
 
@@ -800,9 +801,10 @@ class ResultPlotGenerator(object):
             "6": "540 keV - 985 keV",
             "7": "985 keV - 2 MeV",
         }
-
-        return echan_dict[str(echan)]
-
+        if echan in echan_dict.keys():
+            return echan_dict[str(echan)]
+        else:
+            return f'Echan {echan}'
 
 def set_saa_zero(vector, saa_mask):
     vector[np.where(~saa_mask)] = 0.0
