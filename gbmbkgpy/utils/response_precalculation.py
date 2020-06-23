@@ -541,17 +541,18 @@ class Det_Response_Precalculation(object):
                 responses = comm.bcast(responses_g, root=0)
 
             else:
+                num_per_run = 4000.0
                 # Split the grid points in runs with 4000 points each
-                num_split = int(np.ceil(self._Ngrid / 4000.0))
+                num_split = int(np.ceil(self._Ngrid / num_per_run))
 
                 # Save start and stop index of every run
-                N_grid_start = np.arange(0, num_split * 4000, 4000)
+                N_grid_start = np.arange(0, num_split * num_per_run, num_per_run)
                 N_grid_stop = np.array([])
                 for i in range(num_split):
                     if i == num_split - 1:
                         N_grid_stop = np.append(N_grid_stop, self._Ngrid)
                     else:
-                        N_grid_stop = np.append(N_grid_stop, (i + 1) * 4000)
+                        N_grid_stop = np.append(N_grid_stop, (i + 1) * num_per_run)
 
                 # Calcualte the response for all runs and save them as separate arrays in one big array
                 responses_all_split = []
