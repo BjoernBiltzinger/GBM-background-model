@@ -217,6 +217,8 @@ class Det_Response_Precalculation(object):
 
                 self._load_response_cache(response_cache_file)
 
+                self._get_needed_responses()
+                
             else:
 
                 print(
@@ -269,8 +271,6 @@ class Det_Response_Precalculation(object):
 
             # Calculate the reponse for all points on the unit sphere
             self._calculate_responses()
-
-        self._get_needed_responses()
 
     @property
     def points(self):
@@ -433,22 +433,22 @@ class Det_Response_Precalculation(object):
         """
         Get the needed reponses for this run
         """
-        self._response_array = self._add_response_echan()
+        self._response_array = self._add_response_echan(self._all_response_array)
         # We do not need this anymore
         del self._all_response_array
 
-    def _add_response_echan(self):
+    def _add_response_echan(self, response_array):
         """
         Add the responses of the needed echans and combined echans
         :return:
         """
-        sum_response = np.zeros((len(self._all_response_array),
-                                 len(self._all_response_array[1]),
+        sum_response = np.zeros((len(response_array),
+                                 len(response_array[0]),
                                  len(self._echans_mask)))
         for i, echan_mask in enumerate(self._echans_mask):
             for j, entry in enumerate(echan_mask):
                 if entry:
-                    sum_response[:,:,i]+=self._all_response_array[:,:,j]
+                    sum_response[:, :, i] += response_array[:, :, j]
 
         return sum_response
 
@@ -538,7 +538,7 @@ class Det_Response_Precalculation(object):
                     responses_g = np.concatenate(responses_g)
 
                 # broadcast the resulting list to all ranks
-                responses = comm.bcast(responses_g, root=0)
+                responses = self._add_response_echan(comm.bcast(responses_g, root=0))
 
             else:
                 num_per_run = 4000.0
@@ -612,13 +612,13 @@ class Det_Response_Precalculation(object):
                     responses_split = comm.bcast(responses_split_g, root=0)
 
                     # Add results of this run to the big array
-                    responses_all_split.append(responses_split)
-
+                    responses_all_split.append(self._add_response_echan(responses_split))
+                    del responses_split, responses_split_g
                 # Concatenate the big array to get one array with length Ngrid where the entries are the responses
                 # of the points
 
                 responses = np.concatenate(responses_all_split)
-
+                del reponses_all_split
         else:
             with progress_bar(
                 len(self._points),
@@ -632,8 +632,9 @@ class Det_Response_Precalculation(object):
                     matrix = self._response(point[0], point[1], point[2], DRM).matrix
                     responses.append(matrix.T)
                     p.increase()
+                responses = self._add_response_echan(np.array(responses))
 
-        self._all_response_array = np.array(responses)
+        self._response_array = np.array(responses)
 
     def _fibonacci_sphere(self, samples=1):
         """
