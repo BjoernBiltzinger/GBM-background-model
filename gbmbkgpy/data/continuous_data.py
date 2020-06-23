@@ -60,49 +60,53 @@ class Data(object):
         assert (
             data_type == "ctime" or data_type == "cspec"
         ), "Please use a valid data type: ctime or cspec"
+        self._data_type = data_type
         for det in detectors:
             assert (
                 det in valid_det_names
             ), "Please use a valid det name. One of these: {}".format(valid_det_names)
+
         assert type(dates) == list and len(dates[0]) == 6, (
             "Date variable has to be a list and every entry must have "
             "the format YYMMDD"
         )
-        if data_type == "ctime":
-            assert (
-                type(echans)
-                and max(echans) <= 7
-                and min(echans) >= 0
-                and all(isinstance(x, int) for x in echans)
-            ), (
-                "Echan_list variable must be a list and can only "
-                "have integer entries between 0 and 7"
-            )
 
-        if data_type == "cspec":
-            assert (
-                type(echans)
-                and max(echans) <= 127
-                and min(echans) >= 0
-                and all(isinstance(x, int) for x in echans)
-            ), (
-                "Echan_list variable must be a list and can only "
-                "have integer entries between 0 and 127"
-            )
+        self._echan_mask_construction(echans)
 
-        self._data_type = data_type
+        #if data_type == "ctime":
+        #    assert (
+        #        type(echans)
+        #        and max(echans) <= 7
+        #        and min(echans) >= 0
+        #        and all(isinstance(x, int) for x in echans)
+        #    ), (
+        #        "Echan_list variable must be a list and can only "
+        #        "have integer entries between 0 and 7"
+        #    )
+
+        #if data_type == "cspec":
+        #    assert (
+        #        type(echans)
+        #        and max(echans) <= 127
+        #        and min(echans) >= 0
+        #        and all(isinstance(x, int) for x in echans)
+        #    ), (
+        #        "Echan_list variable must be a list and can only "
+        #        "have integer entries between 0 and 127"
+        #    )
+
         self._detectors = sorted(detectors)
         self._dates = sorted(dates)
-        self._echans = sorted(echans)
+        self._echans = echans
         self._simulation = simulation
 
-        if self._data_type == "ctime":
-            self._echan_mask = np.zeros(8, dtype=bool)
-            self._echan_mask[self._echans] = True
+        #if self._data_type == "ctime":
+        #    self._echan_mask = np.zeros(8, dtype=bool)
+        #    self._echan_mask[self._echans] = True
 
-        elif self._data_type == "cspec":
-            self._echan_mask = np.zeros(128, dtype=bool)
-            self._echan_mask[self._echans] = True
+        #elif self._data_type == "cspec":
+        #    self._echan_mask = np.zeros(128, dtype=bool)
+        #    self._echan_mask[self._echans] = True
 
         self._build_arrays()
 
@@ -112,6 +116,66 @@ class Data(object):
         self._rebinned_time_bins = None
         self._rebinned_saa_mask = None
 
+    def _echan_mask_construction(self, echans):
+        """
+        Construct the echan masks for the reconstructed energy ranges
+        :param echans: list with echans
+        """
+        if self._data_type == "ctime":
+            echans_mask = []
+            for e in echans:
+                bounds = e.split("-")
+                mask = np.zeros(8, dtype=bool)
+                if len(bounds) == 1:
+                    # Only one echan given
+                    index = int(bounds[0])
+                    assert (index <= 7 and index >= 0), (
+                        "Only Echan numbers between 0 and 7 are allowed"
+                    )
+                    mask[index] = True
+                else:
+                    # Echan start and stop given
+                    index_start = int(bounds[0])
+                    index_stop = int(bounds[1])
+                    assert (index_start <= 7 and index_start >= 0), (
+                        "Only Echan numbers between 0 and 7 are allowed"
+                    )
+                    assert (index_stop <= 7 and index_stop >= 0), (
+                        "Only Echan numbers between 0 and 7 are allowed"
+                    )
+                    mask[index_start:index_stop+1] = np.ones(1+index_stop-
+                                                           index_start,
+                                                           dtype=bool)
+                echans_mask.append(mask)
+
+        if self._data_type == "cspec":
+            echans_mask = []
+            for e in echans:
+                bounds = e.split("-")
+                mask = np.zeros(128, dtype=bool)
+                if len(bounds) == 1:
+                    # Only one echan given
+                    index = int(bounds[0])
+                    assert (index <= 127 and index >= 0), (
+                        "Only Echan numbers between 0 and 127 are allowed"
+                    )
+                    mask[index] = True
+                else:
+                    # Echan start and stop given
+                    index_start = int(bounds[0])
+                    index_stop = int(bounds[1])
+                    assert (index_start <= 127 and index_start >= 0), (
+                        "Only Echan numbers between 0 and 127 are allowed"
+                    )
+                    assert (index_stop <= 127 and index_stop >= 0), (
+                        "Only Echan numbers between 0 and 127 are allowed"
+                    )
+                    mask[index_start:index_stop+1] = np.ones(1+index_stop-
+                                                           index_start,
+                                                           dtype=bool)
+                echans_mask.append(mask)
+        self._echans_mask = echans_mask
+        
     def rebinn_data(self, min_bin_width, saa_mask, save_memory=False):
         """
         Rebins the time bins to a min bin width
@@ -432,9 +496,23 @@ class Data(object):
         counts = counts.astype(np.int64)
 
         # Only keep the count informations we need for the echan's we want to fit
-        counts = counts[:, self._echan_mask]
+        counts = self._add_counts_echan(counts)
 
         return counts, time_bins, day_met
+
+    def _add_counts_echan(self, counts):
+        """
+        Add the counts together according to the echan masks
+        :param counts: Counts in all time bins and all echans
+        :return: summed counts in the definied echans and combined echans
+        """
+        sum_counts = np.zeros((len(counts), len(self._echans_mask)))
+        for i, echan_mask in enumerate(self._echans_mask):
+            for j, entry in enumerate(echan_mask):
+                if entry:
+                    sum_counts[:, i] += counts[:, j]
+
+        return sum_counts
 
     def mask_invalid_bins(self, geometry_times):
         """
