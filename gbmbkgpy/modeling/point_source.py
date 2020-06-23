@@ -60,20 +60,44 @@ class PointSrc_free(object):
         self._echans = echans
 
         if self._data_type == "ctime" or self._data_type == "trigdat":
-
-            self._echan_mask = np.zeros(8, dtype=bool)
+            echans_mask = []
 
             for e in echans:
-
-                self._echan_mask[e] = True
+                bounds = e.split("-")
+                mask = np.zeros(8, dtype=bool)
+                if len(bounds)==1:
+                     # Only one echan given
+                    index = int(bounds[0])
+                    mask[index] = True
+                else:
+                    # Echan start and stop given
+                    index_start = int(bounds[0])
+                    index_stop = int(bounds[1])
+                    mask[index_start:index_stop+1] = np.ones(1+index_stop-
+                                                           index_start,
+                                                           dtype=bool)
+                echans_mask.append(mask)
 
         elif self._data_type == "cspec":
-
-            self._echan_mask = np.zeros(128, dtype=bool)
+            echans_mask = []
 
             for e in echans:
+                bounds = e.split("-")
+                mask = np.zeros(128, dtype=bool)
+                if len(bounds)==1:
+                    # Only one echan given
+                    index = int(bounds[0])
+                    mask[index] = True
+                else:
+                    # Echan start and stop given
+                    index_start = int(bounds[0])
+                    index_stop = int(bounds[1])
+                    mask[index_start:index_stop+1] = np.ones(1+index_stop-
+                                                           index_start,
+                                                           dtype=bool)
+                echans_mask.append(mask)
 
-                self._echan_mask[e] = True
+        self._echans_mask = echans_mask
 
         self._calc_det_responses()
 
@@ -104,7 +128,7 @@ class PointSrc_free(object):
         response_matrix = []
 
         for j in range(len(self._geom.quaternion)):
-            response_step = (
+            all_response_step = (
                 DRMGen(
                     self._geom.quaternion[j],
                     self._geom.sc_pos[j],
@@ -114,8 +138,14 @@ class PointSrc_free(object):
                     ebin_edge_out=det_response.Ebin_out_edge,
                 )
                 .to_3ML_response(self._ra, self._dec)
-                .matrix[self._echan_mask]
+                .matrix
             )
+
+            # sum the responses needed
+            response_step = np.zeros((len(self._echans_mask), len(all_response_step[0])))
+            for i, echan_mask in enumerate(self._echans_mask):
+                for j, entry in enumerate(echan_mask):
+                    response_step[i] += all_response_step[j]
 
             response_matrix.append(response_step.T)
 

@@ -66,7 +66,7 @@ class Response_Precalculation(object):
             responses[det] = Det_Response_Precalculation(
                 det,
                 sorted(dates),
-                sorted(echans),
+                echans,
                 Ngrid,
                 Ebin_edge_incoming,
                 data_type,
@@ -137,35 +137,37 @@ class Det_Response_Precalculation(object):
             data_type
         )
 
-        if data_type == "ctime":
-            assert (
-                type(echans)
-                and max(echans) <= 7
-                and min(echans) >= 0
-                and all(isinstance(x, int) for x in echans)
-            ), "Echan_list variable must be a list and can only have integer entries between 0 and 7"
+        #if data_type == "ctime":
+        #    assert (
+        #        type(echans)
+        #        and max(echans) <= 7
+        #        and min(echans) >= 0
+        #        and all(isinstance(x, int) for x in echans)
+        #    ), "Echan_list variable must be a list and can only have integer entries between 0 and 7"
 
-        if data_type == "cspec":
-            assert (
-                type(echans)
-                and max(echans) <= 127
-                and min(echans) >= 0
-                and all(isinstance(x, int) for x in echans)
-            ), "Echan_list variable must be a list and can only have integer entries between 0 and 7"
+        #if data_type == "cspec":
+        #    assert (
+        #        type(echans)
+        #        and max(echans) <= 127
+        #        and min(echans) >= 0
+        #        and all(isinstance(x, int) for x in echans)
+        #    ), "Echan_list variable must be a list and can only have integer entries between 0 and 7"
 
+        #if data_type == "trigdat":
+        #    assert (
+        #        type(echans)
+        #        and max(echans) <= 7
+        #        and min(echans) >= 0
+        #        and all(isinstance(x, int) for x in echans)
+        #    ), "Echan_list variable must be a list and can only have integer entries between 0 and 7"
         if data_type == "trigdat":
-            assert (
-                type(echans)
-                and max(echans) <= 7
-                and min(echans) >= 0
-                and all(isinstance(x, int) for x in echans)
-            ), "Echan_list variable must be a list and can only have integer entries between 0 and 7"
-
             assert (
                 trigger is not None
             ), "If you use trigdat data you have to provide a trigger."
 
         self._data_type = data_type
+
+        self._echan_mask_construction(echans)
 
         self._echans = echans
 
@@ -177,13 +179,13 @@ class Det_Response_Precalculation(object):
         # by the response generator
         self._det = valid_det_names.index(det)
 
-        if self._data_type == "ctime" or self._data_type == "trigdat":
-            self._echan_mask = np.zeros(8, dtype=bool)
-            self._echan_mask[self._echans] = True
+        #if self._data_type == "ctime" or self._data_type == "trigdat":
+        #    self._echan_mask = np.zeros(8, dtype=bool)
+        #    self._echan_mask[self._echans] = True
 
-        elif self._data_type == "cspec":
-            self._echan_mask = np.zeros(128, dtype=bool)
-            self._echan_mask[self._echans] = True
+        #elif self._data_type == "cspec":
+        #    self._echan_mask = np.zeros(128, dtype=bool)
+        #    self._echan_mask[self._echans] = True
 
         if Ebin_edge_incoming is None:
             # Incoming spectrum between ~3 and ~5000 keV in 300 bins
@@ -306,6 +308,67 @@ class Det_Response_Precalculation(object):
     def data_type(self):
         return self._data_type
 
+    def _echan_mask_construction(self, echans):
+        """
+        Construct the echan masks for the reconstructed energy ranges
+        :param echans: list with echans
+        """
+        if self._data_type == "ctime" or self._data_type == 'trigdat':
+            echans_mask = []
+            for e in echans:
+                bounds = e.split("-")
+                mask = np.zeros(8, dtype=bool)
+                if len(bounds)==1:
+                    # Only one echan given
+                    index = int(bounds[0])
+                    assert (index<=7 and index>=0), (
+                        "Only Echan numbers between 0 and 7 are allowed"
+                    )
+                    mask[index] = True
+                else:
+                    # Echan start and stop given
+                    index_start = int(bounds[0])
+                    index_stop = int(bounds[1])
+                    assert (index_start<=7 and index_start>=0), (
+                        "Only Echan numbers between 0 and 7 are allowed"
+                    )
+                    assert (index_stop<=7 and index_stop>=0), (
+                        "Only Echan numbers between 0 and 7 are allowed"
+                    )
+                    mask[index_start:index_stop+1] = np.ones(1+index_stop-
+                                                           index_start,
+                                                           dtype=bool)
+                echans_mask.append(mask)
+
+        if self._data_type == "cspec":
+            echans_mask = []
+            for e in echans:
+                bounds = e.split("-")
+                mask = np.zeros(128, dtype=bool)
+                if len(bounds)==1:
+                    # Only one echan given
+                    index = int(bounds[0])
+                    assert (index<=127 and index>=0), (
+                        "Only Echan numbers between 0 and 127 are allowed"
+                    )
+                    mask[index] = True
+                else:
+                    # Echan start and stop given
+                    index_start = int(bounds[0])
+                    index_stop = int(bounds[1])
+                    assert (index_start<=127 and index_start>=0), (
+                        "Only Echan numbers between 0 and 127 are allowed"
+                    )
+                    assert (index_stop<=127 and index_stop>=0), (
+                        "Only Echan numbers between 0 and 127 are allowed"
+                    )
+                    mask[index_start:index_stop+1] = np.ones(1+index_stop-
+                                                           index_start,
+                                                           dtype=bool)
+                echans_mask.append(mask)
+
+        self._echans_mask = echans_mask
+
     def set_Ebin_edge_incoming(self, Ebin_edge_incoming):
         """
         Set new Ebins for the incoming photons
@@ -370,9 +433,24 @@ class Det_Response_Precalculation(object):
         """
         Get the needed reponses for this run
         """
-        self._response_array = self.all_response_array[:, :, self._echan_mask]
+        self._response_array = self._add_response_echan()
         # We do not need this anymore
         del self._all_response_array
+
+    def _add_response_echan(self):
+        """
+        Add the responses of the needed echans and combined echans
+        :return:
+        """
+        sum_response = np.zeros((len(self._all_response_array),
+                                 len(self._all_response_array[1]),
+                                 len(self._echans_mask)))
+        for i, echan_mask in enumerate(self._echans_mask):
+            for j, entry in enumerate(echan_mask):
+                if entry:
+                    sum_response[:,:,i]+=self._all_response_array[:,:,j]
+
+        return sum_response
 
     def _response(self, x, y, z, DRM):
         """
