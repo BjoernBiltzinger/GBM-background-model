@@ -618,7 +618,7 @@ class Det_Response_Precalculation(object):
                 # of the points
 
                 responses = np.concatenate(responses_all_split)
-                del reponses_all_split
+
         else:
             with progress_bar(
                 len(self._points),
