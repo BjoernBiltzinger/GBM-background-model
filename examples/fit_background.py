@@ -73,6 +73,7 @@ parser.add_argument("-dates", "--dates", type=str, nargs="+", help="Date string"
 parser.add_argument("-dets", "--detectors", type=str, nargs="+", help="Name detector")
 parser.add_argument("-e", "--echans", type=int, nargs="+", help="Echan number")
 parser.add_argument("-trig", "--trigger", type=str, help="Name of trigger")
+parser.add_argument("-out", "--output_dir", type=str, help="Path to the output directory to continue a stopped fit")
 
 args = parser.parse_args()
 
@@ -122,16 +123,18 @@ stop_precalc = datetime.now()
 
 start_fit = datetime.now()
 
-output_dir = os.path.join(
-    get_path_of_external_data_dir(),
-    "fits",
-    "mn_out",
-    config["general"].get("trigger", "-".join(config["general"]["dates"])),
-    "det_" + "-".join(config["general"]["detectors"]),
-    "echan_" + "-".join([str(e) for e in config["general"]["echans"]]),
-    datetime.now().strftime("%m-%d_%H-%M") + "/",
-)
-
+if args.output_dir is None:
+    output_dir = os.path.join(
+        get_path_of_external_data_dir(),
+        "fits",
+        "mn_out",
+        config["general"].get("trigger", "-".join(config["general"]["dates"])),
+        "det_" + "-".join(config["general"]["detectors"]),
+        "echan_" + "-".join([str(e) for e in config["general"]["echans"]]),
+        datetime.now().strftime("%m-%d_%H-%M") + "/",
+    )
+else:
+    output_dir = args.output_dir
 
 if config["fit"]["method"] == "multinest":
     minimizer = MultiNestFit(
