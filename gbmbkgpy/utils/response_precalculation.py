@@ -132,7 +132,7 @@ class Det_Response_Precalculation(object):
             )
 
         assert (
-            data_type == "ctime" or data_type == "cspec " or data_type == "trigdat"
+            data_type == "ctime" or data_type == "cspec" or data_type == "trigdat"
         ), "Please use a valid data_type (ctime, cspec or trigdat). Your input is {}.".format(
             data_type
         )
