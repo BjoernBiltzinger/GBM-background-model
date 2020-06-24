@@ -53,7 +53,7 @@ setup:
     auto_swift:
         flux_limit: 0.1
         exclude: [Crab]
-
+        free: [SCOX-1]
     CRAB:
       fixed: false
       spectrum:
