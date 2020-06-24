@@ -394,6 +394,12 @@ def setup_ps(
     )
 
     PS_Continuum_dic = {}
+    if "auto_swift" in point_source_list.keys():
+        filepath = os.path.join(get_path_of_external_data_dir(), "tmp", "ps_auto_swift.dat")
+        ps_df_add = pd.read_table(filepath, names=["name", "ra", "dec"])
+
+        auto_swift_ps = [entry[1].upper() for entry in ps_df_add.itertuples()]
+        exclude = [entry.upper() for entry in point_source_list["auto_swift"]["exclude"]]
 
     for i, (key, ps) in enumerate(point_sources.items()):
 
@@ -402,20 +408,24 @@ def setup_ps(
             identifier = "_".join(key.split("_")[:-1])
             if identifier == "":
                 identifier = key
-            print(identifier)
-            if "bb" in point_source_list[identifier]["spectrum"]:
-                if "pl" in point_source_list[identifier]["spectrum"]:
-                    spec = "bb+pl"
-                else:
-                    spec = "bb"
-            elif "pl" in point_source_list[identifier]["spectrum"]:
-                spec = "pl"
-            else:
-                raise NotImplementedError(
-                    "Only pl or bb or both spectra for point sources!"
-                )
 
+            if (identifier.upper() in auto_swift_ps) and (identifier.upper() not in exclude):
+                spec = 'pl'
+
+            else:
+                if "bb" in point_source_list[identifier]["spectrum"]:
+                    if "pl" in point_source_list[identifier]["spectrum"]:
+                        spec = "bb+pl"
+                    else:
+                        spec = "bb"
+                elif "pl" in point_source_list[identifier]["spectrum"]:
+                    spec = "pl"
+                else:
+                    raise NotImplementedError(
+                        "Only pl or bb or both spectra for point sources!"
+                    )
             PS_Continuum_dic["{}".format(ps.name)] = GlobalFunctionSpectrumFit(
+
                 "ps_{}_spectrum_fitted".format(ps.name),
                 spectrum=spec,
                 E_norm=1,
@@ -674,6 +684,8 @@ def build_point_sources(
         # Exclude some of them?
         exclude = point_source_list["auto_swift"]["exclude"]
         exclude = [entry.upper() for entry in exclude]
+        free =  point_source_list["auto_swift"]["free"]
+        free = [entry.upper() for entry in free]
         # Initalize Pointsource selection
         sp = SelectPointsources(limit, time_string=day)
 
@@ -690,16 +702,25 @@ def build_point_sources(
 
         for row in ps_df_add.itertuples():
             if not row[1].upper() in exclude:
-
-                point_sources_dic[f"{row[1]}_pl"] = PointSrc_fixed(
-                    name=row[1],
-                    ra=row[2],
-                    dec=row[3],
-                    det_responses=det_responses,
-                    geometry=geometry,
-                    echans=echans,
-                    spec=spec,
-                )
+                if row[1].upper() in free:
+                    point_sources_dic[f"{row[1]}_pl"] =  PointSrc_free(
+                        name=row[1],
+                        ra=row[2],
+                        dec=row[3],
+                        det_responses=det_responses,
+                        geometry=geometry,
+                        echans=echans,
+                    )
+                else:
+                    point_sources_dic[f"{row[1]}_pl"] = PointSrc_fixed(
+                        name=row[1],
+                        ra=row[2],
+                        dec=row[3],
+                        det_responses=det_responses,
+                        geometry=geometry,
+                        echans=echans,
+                        spec=spec,
+                    )
         # temp.close()
 
     return point_sources_dic

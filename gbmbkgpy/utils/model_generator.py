@@ -339,14 +339,39 @@ class BackgroundModelGenerator(object):
                 exclude = [
                     entry.upper() for entry in config["setup"]["ps_list"][ps]["exclude"]
                 ]
+                free = [
+                    entry.upper() for entry in config["setup"]["ps_list"][ps]["free"]
+                ]
                 for row in ps_df_add.itertuples():
                     if row[1].upper() not in exclude:
-                        parameter_bounds[f"norm_point_source-{row[1]}_pl"] = {
-                            "bounds": config["bounds"]["ps_fixed_bound"]["pl"]["norm"],
-                            "gaussian_parameter": config["gaussian_bounds"][
-                                "ps_fixed_bound"
-                            ]["pl"]["norm"],
-                        }
+                        if row[1].upper() not in free:
+                            parameter_bounds[f"norm_point_source-{row[1]}_pl"] = {
+                                "bounds": config["bounds"]["ps_fixed_bound"]["pl"]["norm"],
+                                "gaussian_parameter": config["gaussian_bounds"][
+                                    "ps_fixed_bound"
+                                ]["pl"]["norm"],
+                            }
+                        else:
+                            parameter_bounds[
+                                    f"ps_{row[1]}_spectrum_fitted_norm_pl".format(ps)
+                                ] = {
+                                    "bounds": config["bounds"]["ps_free_bound"]["pl"][
+                                        "norm"
+                                    ],
+                                    "gaussian_parameter": config["gaussian_bounds"][
+                                        "ps_free_bound"
+                                    ]["pl"]["norm"],
+                                }
+                            parameter_bounds[
+                                    f"ps_{row[1]}_spectrum_fitted_index".format(ps)
+                                ] = {
+                                    "bounds": config["bounds"]["ps_free_bound"]["pl"][
+                                        "index"
+                                    ],
+                                    "gaussian_parameter": config["gaussian_bounds"][
+                                        "ps_free_bound"
+                                    ]["pl"]["index"],
+                                }
             else:
                 if config["setup"]["ps_list"][ps]["fixed"]:
                     if ps[:4] != "list":

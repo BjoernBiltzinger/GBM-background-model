@@ -28,7 +28,7 @@ try:
         else:
             pr = False
     else:
-
+        pr = True
         using_mpi = False
 except:
 
