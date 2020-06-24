@@ -23,14 +23,17 @@ try:
         comm = MPI.COMM_WORLD
         rank = comm.Get_rank()
         size = comm.Get_size()
-
+        if rank == 0:
+            pr = True
+        else:
+            pr = False
     else:
 
         using_mpi = False
 except:
 
     using_mpi = False
-
+    pr = True
 
 class PointSrc_free(object):
     def __init__(self, name, ra, dec, det_responses, geometry, echans):
@@ -293,17 +296,19 @@ class PointSrc_fixed(PointSrc_free):
         res = bat.pl_index[bat[bat.name2 == self.name].index].values
         if len(res) == 0:
             pl_index = 3
-            print(
-                f"No index found for {self.name} in the swift 105 month survey."
-                f" We will set the index to -{pl_index}"
-            )
+            if pr:
+                print(
+                    f"No index found for {self.name} in the swift 105 month survey."
+                    f" We will set the index to -{pl_index}"
+                )
 
         else:
             pl_index = float(res[0])
-            print(
-                f"Index for {self.name} is set to {-1*pl_index}"
-                " according to the Swift 105 month survey"
-            )
+            if pr:
+                print(
+                    f"Index for {self.name} is set to {-1*pl_index}"
+                    " according to the Swift 105 month survey"
+                )
 
         return pl_index
 
