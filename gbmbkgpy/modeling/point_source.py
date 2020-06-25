@@ -148,7 +148,8 @@ class PointSrc_free(object):
             response_step = np.zeros((len(self._echans_mask), len(all_response_step[0])))
             for i, echan_mask in enumerate(self._echans_mask):
                 for j, entry in enumerate(echan_mask):
-                    response_step[i] += all_response_step[j]
+                    if entry:
+                        response_step[i] += all_response_step[j]
 
             response_matrix.append(response_step.T)
 
