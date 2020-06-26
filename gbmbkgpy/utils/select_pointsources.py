@@ -39,12 +39,13 @@ except:
 
 
 class SelectPointsources(object):
-    def __init__(self, limit1550Crab, time_string=None, mjd=None, update=False):
+    def __init__(self, limit1550Crab, time_string=None, mjd=None, update=None):
         """
         :param limit1550Crab: Threshold in fractions of the Crab in the energy range 15-50 keV
         :param time_string: Day as string, e.g. 201201 fot 1st December 2020
         :param mjd: Day as mjd
-        :param update: If file does not cover the selected time then update without asking
+        :param update: Update Catalog if selected time is outside file-range. \
+        (True=force-update, False=no-update, None=ask)
         """
         assert (time_string is None) or (
             mjd is None
@@ -104,22 +105,25 @@ class SelectPointsources(object):
         min_date = (Time(min_mjd, format="mjd").isot).split("T")[0]
         max_date = (Time(max_mjd, format="mjd").isot).split("T")[0]
 
-        start = False
-
         if not (self._time > min_mjd and self._time < max_mjd):
+            force = False
 
-            if update:
-                start = True
-
-            else:
+            if update is None:
                 start = yes_or_no(
                         f"Your current pointsources_swift.h5 file does not cover the time"
                         " you want to use. Do you want to update it?"
                     )
 
-        if start:
-            with tempfile.TemporaryDirectory() as tmpdirname:
-                build_swift_pointsource_database(tmpdirname, force=update)
+            elif update:
+                start = True
+                force = True
+
+            else:
+                start = False
+
+            if start:
+                with tempfile.TemporaryDirectory() as tmpdirname:
+                    build_swift_pointsource_database(tmpdirname, force=force)
 
         self.ps_sign_swift()
 
