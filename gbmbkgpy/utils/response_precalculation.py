@@ -43,6 +43,8 @@ valid_det_names = [
     "n9",
     "na",
     "nb",
+    "b0",
+    "b1"
 ]
 
 
