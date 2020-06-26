@@ -678,7 +678,7 @@ def build_point_sources(
         sp = SelectPointsources(
             limit,
             time_string=day,
-            update=point_source_list["auto_swift"].get("update_catalog", False)
+            update=point_source_list["auto_swift"].get("update_catalog", None)
         )
 
         # Create temp file
