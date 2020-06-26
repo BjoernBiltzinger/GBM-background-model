@@ -622,6 +622,7 @@ class TrigdatBackgroundModelGenerator(BackgroundModelGenerator):
             detectors=config["general"]["detectors"],
             data_type=config["general"]["data_type"],
             echans=config["general"]["echans"],
+            trigdat_file=config["general"].get("trigdat_file", None),
             test=config["general"].get("test", False),
         )
         print_progress("Done")
