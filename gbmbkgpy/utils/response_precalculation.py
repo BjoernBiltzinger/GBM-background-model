@@ -52,8 +52,8 @@ class Response_Precalculation(object):
     def __init__(
         self,
         detectors,
-        dates,
         echans,
+        dates=None,
         Ngrid=40000,
         Ebin_edge_incoming=None,
         data_type="ctime",
@@ -64,11 +64,14 @@ class Response_Precalculation(object):
 
         responses = {}
 
+        if dates is not None:
+            dates.sort()
+
         for det in sorted(detectors):
             responses[det] = Det_Response_Precalculation(
                 det,
-                sorted(dates),
                 sorted(echans),
+                dates,
                 Ngrid,
                 Ebin_edge_incoming,
                 data_type,
@@ -97,8 +100,8 @@ class Det_Response_Precalculation(object):
     def __init__(
         self,
         det,
-        dates,
         echans,
+        dates=None,
         Ngrid=40000,
         Ebin_edge_incoming=None,
         data_type="ctime",
@@ -118,9 +121,10 @@ class Det_Response_Precalculation(object):
             valid_det_names, det
         )
 
-        assert (
-            type(dates[0]) == str and len(dates[0]) == 6
-        ), "Day must be a string of the format YYMMDD, but is {}".format(dates[0])
+        if trigger is None:
+            assert (
+                type(dates[0]) == str and len(dates[0]) == 6
+            ), "Day must be a string of the format YYMMDD, but is {}".format(dates[0])
 
         assert type(Ngrid) == int, "Ngrid has to be an integer, but is a {}.".format(
             type(Ngrid)
@@ -406,6 +410,7 @@ class Det_Response_Precalculation(object):
             self.Ebin_in_edge,
             mat_type=0,
             ebin_edge_out=self._Ebin_out_edge,
+            occult=True
         )
 
         # If MPI is used split up the points among the used cores to speed up
