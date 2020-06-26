@@ -346,7 +346,7 @@ def download_ps_file(save_swift_data_folder, remote_file_name):
         shutil.move(path_to_file, final_path)
 
 
-def build_swift_pointsource_database(save_swift_data_folder, multiprocessing=False):
+def build_swift_pointsource_database(save_swift_data_folder, multiprocessing=False, force=False):
     """
     Build the swift pointsource database.
     :param save_data_folder: Folder where the swift data files are saved
@@ -361,52 +361,58 @@ def build_swift_pointsource_database(save_swift_data_folder, multiprocessing=Fal
 
     if do_it:
 
-        if os.path.exists(
-            get_path_of_data_file("background_point_sources/", "pointsources_swift.h5")
-        ):
+        if force:
 
-            with h5py.File(
-                get_path_of_data_file(
-                    "background_point_sources/", "pointsources_swift.h5"
-                ),
-                "r",
-            ) as h:
-                times_all = np.zeros((len(h.keys()), 20000))
-                for i, key in enumerate(h.keys()):
-                    times = h[key]["Time"][()]
-                    times_all[i][: len(times)] = times
-
-            min_mjd = np.min(times_all[times_all > 0])
-            max_mjd = np.max(times_all)
-
-            min_date = (Time(min_mjd, format="mjd").isot).split("T")[0]
-            max_date = (Time(max_mjd, format="mjd").isot).split("T")[0]
-
-            print(
-                "You are about to recreate the point source database, which contains all"
-                "point sources seen by Swift and their according brightness in the 15-50 keV"
-                "band in Swift from start of Swift to today. This will take a while and about 500 MB "
-                "will be downloaded."
-            )
-            print(
-                "#############################################################################"
-            )
-            start = yes_or_no(
-                f"Your current point source database covers the time from {min_mjd} mjd to {max_mjd} mjd ({min_date} to {max_date}). Do you want to update it?"
-            )
+            start = True
 
         else:
-            print(
-                "You are about to create the point source database, which contains all"
-                "point sources seen by Swift  and their according brightness in the 15-50 keV"
-                "band in Swift from start of Swift to today."
-                "This will take a while and about 500 MB "
-                "will be downloaded."
-            )
-            print(
-                "#############################################################################"
-            )
-            start = yes_or_no("Do you want to create it now?")
+
+            if os.path.exists(
+                get_path_of_data_file("background_point_sources/", "pointsources_swift.h5")
+            ):
+
+                with h5py.File(
+                    get_path_of_data_file(
+                        "background_point_sources/", "pointsources_swift.h5"
+                    ),
+                    "r",
+                ) as h:
+                    times_all = np.zeros((len(h.keys()), 20000))
+                    for i, key in enumerate(h.keys()):
+                        times = h[key]["Time"][()]
+                        times_all[i][: len(times)] = times
+
+                min_mjd = np.min(times_all[times_all > 0])
+                max_mjd = np.max(times_all)
+
+                min_date = (Time(min_mjd, format="mjd").isot).split("T")[0]
+                max_date = (Time(max_mjd, format="mjd").isot).split("T")[0]
+
+                print(
+                    "You are about to recreate the point source database, which contains all"
+                    "point sources seen by Swift and their according brightness in the 15-50 keV"
+                    "band in Swift from start of Swift to today. This will take a while and about 500 MB "
+                    "will be downloaded."
+                )
+                print(
+                    "#############################################################################"
+                )
+                start = yes_or_no(
+                    f"Your current point source database covers the time from {min_mjd} mjd to {max_mjd} mjd ({min_date} to {max_date}). Do you want to update it?"
+                )
+
+            else:
+                print(
+                    "You are about to create the point source database, which contains all"
+                    "point sources seen by Swift  and their according brightness in the 15-50 keV"
+                    "band in Swift from start of Swift to today."
+                    "This will take a while and about 500 MB "
+                    "will be downloaded."
+                )
+                print(
+                    "#############################################################################"
+                )
+                start = yes_or_no("Do you want to create it now?")
 
         if start:
             print("Start (re)creation of point source database...")
