@@ -19,10 +19,12 @@ response:
 ####### Input for SAA mask precaluclation [time to exclude after SAA, delete short time intervals? ##
 saa:
   time_after_saa: 0
+  time_before_saa: 0
   short_time_intervals: false
-  nr_decays: 1
+  nr_decays_per_exit: 1
   decay_at_day_start: true
   decay_per_detector: false
+  decay_model: exponential
 
 ###### Input for geometry calculation [n time bins per day to calculate the geometry ################
 geometry:
@@ -36,19 +38,13 @@ setup:
   use_earth:    true
   use_cgb:      true
   ps_list:
+
+
+    auto_swift:
+        flux_limit: 0.1
+        exclude: [Crab]
+
     CRAB:
-      fixed: true
-      spectrum:
-        pl:
-          spectrum_type: pl
-          powerlaw_index: 2
-    SCOX-1:
-      fixed: true
-      spectrum:
-        pl:
-          spectrum_type: pl
-          powerlaw_index: 2
-    CYGX-1:
       fixed: true
       spectrum:
         pl:
@@ -59,6 +55,7 @@ setup:
   fix_cgb:      true
   use_sun:      false
   bgo_cr_approximation: true
+  use_eff_area_correction: true
 
 ################################ Bounds for the different sources ###################################
 ####### SAA: Amplitude and decay constant, CR: Constant and McIlwain normalization ##################
@@ -72,9 +69,9 @@ bounds:
     const:  [1.0e-1, 1.0e+2]
     norm:   [0.1, 1.0e+2]
   earth_fixed_bound:
-    norm:   [1.0e-3, 1]
+    norm:   [0.5e-2, 3e-2]
   cgb_fixed_bound:
-    norm:   [1.0e-2, 0.5]
+    norm:   [4.0e-2, 0.3]
   earth_free_bound:
     norm:   [1.0e-3, 1]
     alpha:  [-8, -3]
@@ -87,19 +84,20 @@ bounds:
     Eb:     [27, 40]
   ps_fixed_bound:
     pl:
-      norm:   [1.0e-1, 100]
+      norm:   [1.0e-4, 1e9]
     bb:
-      norm:   [1.0e-4, 100]
+      norm:   [1.0e-4, 1e9]
   ps_free_bound:
     pl:
-      norm:   [1.0e-1, 100]
-      index:  [1,3]
+      norm:   [1.0e-1, 1e5]
+      index:  [0,4]
     bb:
-      norm:   [1.0e-4, 100]
-      temp:   [0,5]
+      norm:   [1.0e-4, 10000]
+      temp:   [0,50]
   sun_bound:
     norm: [1.0e-2, 1.0e+2]
     index: [0.5,4]
+  eff_area_correction: [0.8,1.2]
 
 gaussian_bounds:
   saa_bound:
@@ -121,7 +119,7 @@ gaussian_bounds:
     norm:   [null, null]
     alpha:  [1.32, 0.1]
     beta:   [2.88, 0.15]
-    Ep:     [null, null]
+    Eb:     [null, null]
   ps_fixed_bound:
     pl:
       norm: [null, null]
@@ -129,14 +127,15 @@ gaussian_bounds:
       norm:  [null, null]
   ps_free_bound:
     pl:
-      norm: [null, null]
-      index: [null, null]
+      norm: [2, 1]
+      index: [2, 1]
     bb:
       norm: [null, null]
-      temp: [null, null]
+      temp: [10, 5]
   sun_bound:
     norm:   [null, null]
     index:  [2., 1.]
+  eff_area_correction: [1.0, 0.1]
 
 ##################### Input for fit method ##########################################################
 fit:
@@ -158,5 +157,5 @@ export:
 ### show data?, show grb trigger times? if yes at which time ('20:57:03.000' format) and what name? #
 ### show ppc?, xlim and ylim (as list e.g. [0,100]), legend outside of the plot? ####################
 plot:
-  corner_plot:    false
-  result_plot:    false
+  corner_plot:    true
+  result_plot:    true

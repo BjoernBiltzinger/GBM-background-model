@@ -49,16 +49,6 @@ class BackgroundLike(object):
         self._get_sources_fit_spectrum()
         self._build_log_like()
 
-    def _set_free_parameters(self, new_parameters):
-        """
-        Set the free parameters to the new values
-        :param new_parameters: 
-        :return: 
-        """
-
-        for i, parameter in enumerate(self._free_parameters.values()):
-            parameter.value = new_parameters[i]
-
     def set_free_parameters(self, new_parameters):
         """
         Set the free parameters to the new values
@@ -200,7 +190,7 @@ class BackgroundLike(object):
         """
                 :return: the poisson log likelihood
                 """
-        self._set_free_parameters(parameters)
+        self.set_free_parameters(parameters)
 
         ######### Calculate rates for new spectral parameter
         for source in self._sources_fit_spectrum:
@@ -377,7 +367,9 @@ class BackgroundLike(object):
 
 
 @numba.njit(
-    numba.float64(numba.float64[:, :, :], numba.int64[:, :, :]), parallel=False, fastmath=True
+    numba.float64(numba.float64[:, :, :], numba.int64[:, :, :]),
+    parallel=False,
+    fastmath=True,
 )
 def _log_likelihood_numba(M, counts):
     # Poisson loglikelihood statistic (Cash) is:
@@ -391,7 +383,9 @@ def _log_likelihood_numba(M, counts):
 
 
 @numba.njit(
-    numba.float64(numba.float64[:, :, :], numba.float64[:, :, :]), parallel=False, fastmath=True
+    numba.float64(numba.float64[:, :, :], numba.float64[:, :, :]),
+    parallel=False,
+    fastmath=True,
 )
 def _log_likelihood_numba_trigdat(M, counts):
     # Poisson loglikelihood statistic (Cash) is:

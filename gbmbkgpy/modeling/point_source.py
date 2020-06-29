@@ -6,7 +6,10 @@ from scipy.interpolate import interpolate
 
 from gbmbkgpy.utils.progress_bar import progress_bar
 from gbmbkgpy.utils.spectrum import _spec_integral_pl, _spec_integral_bb
+from gbmbkgpy.io.package_data import get_path_of_data_file
+
 import numpy as np
+import pandas as pd
 
 try:
 
@@ -92,9 +95,7 @@ class PointSrc_free(object):
 
         for det_idx, det in enumerate(self._detectors):
 
-            ps_response[det] = self._response_one_det(
-                det_response=self._rsp[det]
-            )
+            ps_response[det] = self._response_one_det(det_response=self._rsp[det])
 
         self._ps_response = ps_response
 
@@ -130,9 +131,18 @@ class PointSrc_free(object):
 
 class PointSrc_fixed(PointSrc_free):
     def __init__(
-            self, name, ra, dec, det_responses, geometry, echans, spec#spectral_index=2.114
+        self,
+        name,
+        ra,
+        dec,
+        det_responses,
+        geometry,
+        echans,
+        spec,  # spectral_index=2.114
     ):
-        super(PointSrc_fixed, self).__init__(name, ra, dec, det_responses, geometry, echans)
+        super(PointSrc_fixed, self).__init__(
+            name, ra, dec, det_responses, geometry, echans
+        )
         """
         Initialize a PS and precalculates the rates for all the times for which the geomerty was
         calculated.
@@ -164,13 +174,18 @@ class PointSrc_fixed(PointSrc_free):
         self._spec_type = spec["spectrum_type"]
 
         # Check if spectral type is valid
-        assert (self._spec_type == 'bb' or self._spec_type == 'pl'), "Spectral Type must be bb (Blackbody) or pl (Powerlaw)"
+        assert (
+            self._spec_type == "bb" or self._spec_type == "pl"
+        ), "Spectral Type must be bb (Blackbody) or pl (Powerlaw)"
 
         # Read spectral params
-        if self._spec_type == 'bb':
-            self._bb_temp = spec['blackbody_temp']
-        if self._spec_type == 'pl':
-            self._pl_index = spec['powerlaw_index']
+        if self._spec_type == "bb":
+            self._bb_temp = spec["blackbody_temp"]
+        if self._spec_type == "pl":
+            if spec["powerlaw_index"] == "swift":
+                self._pl_index = self._get_swift_pl_index()
+            else:
+                self._pl_index = spec["powerlaw_index"]
 
     def get_ps_rates(self, met):
         """
@@ -200,17 +215,12 @@ class PointSrc_fixed(PointSrc_free):
         """
 
         folded_flux_ps = np.zeros(
-            (
-                len(self._geom.geometry_times),
-                len(self._detectors),
-                len(self._echans),
-            )
+            (len(self._geom.geometry_times), len(self._detectors), len(self._echans),)
         )
 
         for det_idx, det in enumerate(self._detectors):
             true_flux_ps = self._integral_ps(
-                e1=self._rsp[det].Ebin_in_edge[:-1],
-                e2=self._rsp[det].Ebin_in_edge[1:]
+                e1=self._rsp[det].Ebin_in_edge[:-1], e2=self._rsp[det].Ebin_in_edge[1:]
             )
 
             ps_response_det = self._ps_response[det]
@@ -233,12 +243,39 @@ class PointSrc_fixed(PointSrc_free):
         :params index: Index of spectrum
         :return: flux in the Ebin_in
         """
-        if self._spec_type == 'bb':
+        if self._spec_type == "bb":
             return _spec_integral_bb(e1, e2, 1, self._bb_temp)
 
-        if self._spec_type == 'pl':
+        if self._spec_type == "pl":
             e_norm = 1.0
             return _spec_integral_pl(e1, e2, 1, e_norm, self._pl_index)
+
+    def _get_swift_pl_index(self):
+        """
+        Get the index of this point source from the pl fit to the 105 month survey of Swift
+        :return: pl index
+        """
+        bat = pd.read_table(
+            get_path_of_data_file("background_point_sources/", "BAT_catalog_clean.dat"),
+            names=["name1", "name2", "pl_index"],
+        )
+
+        res = bat.pl_index[bat[bat.name2 == self.name].index].values
+        if len(res) == 0:
+            pl_index = 3
+            print(
+                f"No index found for {self.name} in the swift 105 month survey."
+                f" We will set the index to -{pl_index}"
+            )
+
+        else:
+            pl_index = float(res[0])
+            print(
+                f"Index for {self.name} is set to {-1*pl_index}"
+                " according to the Swift 105 month survey"
+            )
+
+        return pl_index
 
     @property
     def spec_type(self):

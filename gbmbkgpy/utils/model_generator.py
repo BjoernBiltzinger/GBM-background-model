@@ -1,5 +1,6 @@
 import yaml
 import pandas as pd
+import os
 
 from gbmbkgpy.data.continuous_data import Data
 from gbmbkgpy.data.external_prop import ExternalProps
@@ -12,7 +13,7 @@ from gbmbkgpy.utils.response_precalculation import Response_Precalculation
 from gbmbkgpy.modeling.setup_sources import Setup
 from gbmbkgpy.modeling.albedo_cgb import Albedo_CGB_fixed, Albedo_CGB_free
 from gbmbkgpy.modeling.sun import Sun
-
+from gbmbkgpy.io.package_data import get_path_of_external_data_dir
 
 try:
     # see if we have mpi and/or are upalsing parallel
@@ -120,7 +121,7 @@ class BackgroundModelGenerator(object):
             data=self._data,
             time_after_SAA=config["saa"]["time_after_saa"],
             short_time_intervals=config["saa"]["short_time_intervals"],
-            nr_decays=config["saa"]["nr_decays"],
+            nr_decays=config["saa"]["nr_decays_per_exit"],
         )
 
         print_progress("Done")
@@ -136,8 +137,8 @@ class BackgroundModelGenerator(object):
         print_progress("Download and prepare external properties...")
 
         self._ep = ExternalProps(
-            dates=config["general"]["dates"],
             detectors=config["general"]["detectors"],
+            dates=config["general"]["dates"],
             bgo_cr_approximation=config["setup"]["bgo_cr_approximation"],
         )
 
@@ -154,11 +155,11 @@ class BackgroundModelGenerator(object):
 
         self._resp = Response_Precalculation(
             detectors=config["general"]["detectors"],
-            dates=config["general"]["dates"],
             echans=config["general"]["echans"],
+            dates=config["general"]["dates"],
             Ngrid=config["response"]["Ngrid"],
             data_type=config["general"]["data_type"],
-            simulation=config["general"].get("simulation", False)
+            simulation=config["general"].get("simulation", False),
         )
 
         print_progress("Done")
@@ -223,9 +224,10 @@ class BackgroundModelGenerator(object):
             fix_earth=config["setup"]["fix_earth"],
             fix_cgb=config["setup"]["fix_cgb"],
             use_sun=config["setup"]["use_sun"],
-            nr_saa_decays=config["saa"]["nr_decays"],
-            decay_at_day_start=config["saa"]["decay_at_day_start"],
+            saa_decays_per_exit=config["saa"]["nr_decays_per_exit"],
+            saa_decay_at_day_start=config["saa"]["decay_at_day_start"],
             saa_decay_per_detector=config["saa"]["decay_per_detector"],
+            saa_decay_model=config["saa"].get("decay_model", "exponential"),
             bgo_cr_approximation=config["setup"]["bgo_cr_approximation"],
             use_numba=config["fit"].get("use_numba", False),
         )
@@ -237,7 +239,8 @@ class BackgroundModelGenerator(object):
         self._model = Model(
             *self._source_list,
             echans=config["general"]["echans"],
-            detectors=config["general"]["detectors"]
+            detectors=config["general"]["detectors"],
+            use_eff_area_correction=config["setup"]["use_eff_area_correction"],
         )
         print_progress("Done")
 
@@ -254,7 +257,7 @@ class BackgroundModelGenerator(object):
                     config["saa"]["decay_at_day_start"]
                     and len(config["general"]["dates"]) == 1
                 ):
-                    offset = config["saa"]["nr_decays"]
+                    offset = config["saa"]["nr_decays_per_exit"]
                 else:
                     offset = 0
 
@@ -264,30 +267,48 @@ class BackgroundModelGenerator(object):
 
                         for det in self._data.detectors:
 
-                            parameter_bounds["norm_saa-{}_det-{}_echan-{}".format(saa_nr, det, e)] = {
+                            parameter_bounds[
+                                "norm_saa-{}_det-{}_echan-{}".format(saa_nr, det, e)
+                            ] = {
                                 "bounds": config["bounds"]["saa_bound"]["norm"],
-                                "gaussian_parameter": config["gaussian_bounds"]["saa_bound"]["norm"],
+                                "gaussian_parameter": config["gaussian_bounds"][
+                                    "saa_bound"
+                                ]["norm"],
                             }
-                            parameter_bounds["decay_saa-{}_det-{}_echan-{}".format(saa_nr, det, e)] = {
+                            parameter_bounds[
+                                "decay_saa-{}_det-{}_echan-{}".format(saa_nr, det, e)
+                            ] = {
                                 "bounds": config["bounds"]["saa_bound"]["decay"],
-                                "gaussian_parameter": config["gaussian_bounds"]["saa_bound"]["decay"],
+                                "gaussian_parameter": config["gaussian_bounds"][
+                                    "saa_bound"
+                                ]["decay"],
                             }
 
                     else:
 
-                        parameter_bounds["norm_saa-{}_det-all_echan-{}".format(saa_nr, e)] = {
+                        parameter_bounds[
+                            "norm_saa-{}_det-all_echan-{}".format(saa_nr, e)
+                        ] = {
                             "bounds": config["bounds"]["saa_bound"]["norm"],
-                            "gaussian_parameter": config["gaussian_bounds"]["saa_bound"]["norm"],
+                            "gaussian_parameter": config["gaussian_bounds"][
+                                "saa_bound"
+                            ]["norm"],
                         }
-                        parameter_bounds["decay_saa-{}_det-all_echan-{}".format(saa_nr, e)] = {
+                        parameter_bounds[
+                            "decay_saa-{}_det-all_echan-{}".format(saa_nr, e)
+                        ] = {
                             "bounds": config["bounds"]["saa_bound"]["decay"],
-                            "gaussian_parameter": config["gaussian_bounds"]["saa_bound"]["decay"],
+                            "gaussian_parameter": config["gaussian_bounds"][
+                                "saa_bound"
+                            ]["decay"],
                         }
 
             if config["setup"]["use_constant"]:
                 parameter_bounds["constant_echan-{}".format(e)] = {
                     "bounds": config["bounds"]["cr_bound"]["const"],
-                    "gaussian_parameter": config["gaussian_bounds"]["cr_bound"]["const"],
+                    "gaussian_parameter": config["gaussian_bounds"]["cr_bound"][
+                        "const"
+                    ],
                 }
 
             if config["setup"]["use_cr"]:
@@ -309,71 +330,150 @@ class BackgroundModelGenerator(object):
 
         # If PS spectrum is fixed only the normalization, otherwise C, index
         for i, ps in enumerate(config["setup"]["ps_list"]):
-            if config["setup"]["ps_list"][ps]["fixed"]:
-                if ps[:4] != 'list':
-                    for entry in config["setup"]["ps_list"][ps]["spectrum"]:
-                        parameter_bounds[f"norm_point_source-{ps}_{entry}"] = {
-                            "bounds": config["bounds"]["ps_fixed_bound"][entry]["norm"],
-                            "gaussian_parameter": config["gaussian_bounds"]["ps_fixed_bound"][entry]["norm"],
+            if ps == "auto_swift":
+                filepath = os.path.join(
+                    get_path_of_external_data_dir(), "tmp", "ps_auto_swift.dat"
+                )
+                # Read it as pandas
+                ps_df_add = pd.read_table(filepath, names=["name", "ra", "dec"])
+                exclude = [
+                    entry.upper() for entry in config["setup"]["ps_list"][ps]["exclude"]
+                ]
+                for row in ps_df_add.itertuples():
+                    if row[1].upper() not in exclude:
+                        parameter_bounds[f"norm_point_source-{row[1]}_pl"] = {
+                            "bounds": config["bounds"]["ps_fixed_bound"]["pl"]["norm"],
+                            "gaussian_parameter": config["gaussian_bounds"][
+                                "ps_fixed_bound"
+                            ]["pl"]["norm"],
                         }
-                else:
-                    ps_df_add = pd.read_table(config["setup"]["ps_list"][ps]["path"],
-                                              names=["name", "ra", "dec"])
-                    for row in ps_df_add.itertuples():
-                        for entry in config["setup"]["ps_list"][ps]["spectrum"]:
-                            parameter_bounds[f"norm_point_source-{row[1]}_{entry}"] = {
-                                "bounds": config["bounds"]["ps_fixed_bound"][entry]["norm"],
-                                "gaussian_parameter": config["gaussian_bounds"]["ps_fixed_bound"][entry]["norm"],
-                            }
-
             else:
-                if ps[:4] != 'list':
-                    for entry in config["setup"]["ps_list"][ps]["spectrum"]:
-                        if entry == 'pl':
-                            parameter_bounds["ps_{}_spectrum_fitted_norm_pl".format(ps)] = {
-                                "bounds": config["bounds"]["ps_free_bound"][entry]["norm"],
-                                "gaussian_parameter": config["gaussian_bounds"]["ps_free_bound"][entry]["norm"],
-                            }
-                            parameter_bounds["ps_{}_spectrum_fitted_index".format(ps)] = {
-                                "bounds": config["bounds"]["ps_free_bound"][entry]["index"],
-                                "gaussian_parameter": config["gaussian_bounds"]["ps_free_bound"][entry]["index"],
-                            }
-                        elif entry == 'bb':
-
-                            parameter_bounds["ps_{}_spectrum_fitted_norm_bb".format(ps)] = {
-                                "bounds": config["bounds"]["ps_free_bound"][entry]["norm"],
-                                "gaussian_parameter": config["gaussian_bounds"]["ps_free_bound"][entry]["norm"],
-                            }
-                            parameter_bounds["ps_{}_spectrum_fitted_temp".format(ps)] = {
-                                "bounds": config["bounds"]["ps_free_bound"][entry]["temp"],
-                                "gaussian_parameter": config["gaussian_bounds"]["ps_free_bound"][entry]["temp"],
-                            }
-                else:
-                    ps_df_add = pd.read_table(config["setup"]["ps_list"][ps]["path"],
-                                              names=["name", "ra", "dec"])
-                    for row in ps_df_add.itertuples():
+                if config["setup"]["ps_list"][ps]["fixed"]:
+                    if ps[:4] != "list":
                         for entry in config["setup"]["ps_list"][ps]["spectrum"]:
-                            if entry == 'pl':
-                                parameter_bounds[f"ps_{row[1]}_spectrum_fitted_norm_pl"] = {
-                                    "bounds": config["bounds"]["ps_free_bound"][entry]["norm"],
-                                    "gaussian_parameter": config["gaussian_bounds"]["ps_free_bound"][entry]["norm"],
+                            parameter_bounds[f"norm_point_source-{ps}_{entry}"] = {
+                                "bounds": config["bounds"]["ps_fixed_bound"][entry][
+                                    "norm"
+                                ],
+                                "gaussian_parameter": config["gaussian_bounds"][
+                                    "ps_fixed_bound"
+                                ][entry]["norm"],
+                            }
+                    else:
+                        ps_df_add = pd.read_table(
+                            config["setup"]["ps_list"][ps]["path"],
+                            names=["name", "ra", "dec"],
+                        )
+                        for row in ps_df_add.itertuples():
+                            for entry in config["setup"]["ps_list"][ps]["spectrum"]:
+                                parameter_bounds[
+                                    f"norm_point_source-{row[1]}_{entry}"
+                                ] = {
+                                    "bounds": config["bounds"]["ps_fixed_bound"][entry][
+                                        "norm"
+                                    ],
+                                    "gaussian_parameter": config["gaussian_bounds"][
+                                        "ps_fixed_bound"
+                                    ][entry]["norm"],
                                 }
-                                parameter_bounds[f"ps_{row[1]}_spectrum_fitted_index"] = {
-                                    "bounds": config["bounds"]["ps_free_bound"][entry]["index"],
-                                    "gaussian_parameter": config["gaussian_bounds"]["ps_free_bound"][entry]["index"],
-                                }
-                            elif entry == 'bb':
 
-                                parameter_bounds[f"ps_{row[1]}_spectrum_fitted_norm_bb"] = {
-                                    "bounds": config["bounds"]["ps_free_bound"][entry]["norm"],
-                                    "gaussian_parameter": config["gaussian_bounds"]["ps_free_bound"][entry]["norm"],
+                else:
+                    if ps[:4] != "list":
+                        for entry in config["setup"]["ps_list"][ps]["spectrum"]:
+                            if entry == "pl":
+                                parameter_bounds[
+                                    "ps_{}_spectrum_fitted_norm_pl".format(ps)
+                                ] = {
+                                    "bounds": config["bounds"]["ps_free_bound"][entry][
+                                        "norm"
+                                    ],
+                                    "gaussian_parameter": config["gaussian_bounds"][
+                                        "ps_free_bound"
+                                    ][entry]["norm"],
                                 }
-                                parameter_bounds[f"ps_{row[1]}_spectrum_fitted_temp"] = {
-                                    "bounds": config["bounds"]["ps_free_bound"][entry]["temp"],
-                                    "gaussian_parameter": config["gaussian_bounds"]["ps_free_bound"][entry]["temp"],
+                                parameter_bounds[
+                                    "ps_{}_spectrum_fitted_index".format(ps)
+                                ] = {
+                                    "bounds": config["bounds"]["ps_free_bound"][entry][
+                                        "index"
+                                    ],
+                                    "gaussian_parameter": config["gaussian_bounds"][
+                                        "ps_free_bound"
+                                    ][entry]["index"],
                                 }
+                            elif entry == "bb":
 
-                        
+                                parameter_bounds[
+                                    "ps_{}_spectrum_fitted_norm_bb".format(ps)
+                                ] = {
+                                    "bounds": config["bounds"]["ps_free_bound"][entry][
+                                        "norm"
+                                    ],
+                                    "gaussian_parameter": config["gaussian_bounds"][
+                                        "ps_free_bound"
+                                    ][entry]["norm"],
+                                }
+                                parameter_bounds[
+                                    "ps_{}_spectrum_fitted_temp".format(ps)
+                                ] = {
+                                    "bounds": config["bounds"]["ps_free_bound"][entry][
+                                        "temp"
+                                    ],
+                                    "gaussian_parameter": config["gaussian_bounds"][
+                                        "ps_free_bound"
+                                    ][entry]["temp"],
+                                }
+                    else:
+                        ps_df_add = pd.read_table(
+                            config["setup"]["ps_list"][ps]["path"],
+                            names=["name", "ra", "dec"],
+                        )
+                        for row in ps_df_add.itertuples():
+                            for entry in config["setup"]["ps_list"][ps]["spectrum"]:
+                                if entry == "pl":
+                                    parameter_bounds[
+                                        f"ps_{row[1]}_spectrum_fitted_norm_pl"
+                                    ] = {
+                                        "bounds": config["bounds"]["ps_free_bound"][
+                                            entry
+                                        ]["norm"],
+                                        "gaussian_parameter": config["gaussian_bounds"][
+                                            "ps_free_bound"
+                                        ][entry]["norm"],
+                                    }
+                                    parameter_bounds[
+                                        f"ps_{row[1]}_spectrum_fitted_index"
+                                    ] = {
+                                        "bounds": config["bounds"]["ps_free_bound"][
+                                            entry
+                                        ]["index"],
+                                        "gaussian_parameter": config["gaussian_bounds"][
+                                            "ps_free_bound"
+                                        ][entry]["index"],
+                                    }
+                                elif entry == "bb":
+
+                                    parameter_bounds[
+                                        f"ps_{row[1]}_spectrum_fitted_norm_bb"
+                                    ] = {
+                                        "bounds": config["bounds"]["ps_free_bound"][
+                                            entry
+                                        ]["norm"],
+                                        "gaussian_parameter": config["gaussian_bounds"][
+                                            "ps_free_bound"
+                                        ][entry]["norm"],
+                                    }
+                                    parameter_bounds[
+                                        f"ps_{row[1]}_spectrum_fitted_temp"
+                                    ] = {
+                                        "bounds": config["bounds"]["ps_free_bound"][
+                                            entry
+                                        ]["temp"],
+                                        "gaussian_parameter": config["gaussian_bounds"][
+                                            "ps_free_bound"
+                                        ][entry]["temp"],
+                                    }
+
         if config["setup"]["use_earth"]:
             # If earth spectrum is fixed only the normalization, otherwise C, index1, index2 and E_break
             if config["setup"]["fix_earth"]:
@@ -386,19 +486,27 @@ class BackgroundModelGenerator(object):
             else:
                 parameter_bounds["earth_albedo_spectrum_fitted_norm"] = {
                     "bounds": config["bounds"]["earth_free_bound"]["norm"],
-                    "gaussian_parameter": config["gaussian_bounds"]["earth_free_bound"]["norm"],
+                    "gaussian_parameter": config["gaussian_bounds"]["earth_free_bound"][
+                        "norm"
+                    ],
                 }
                 parameter_bounds["earth_albedo_spectrum_fitted_index1"] = {
                     "bounds": config["bounds"]["earth_free_bound"]["alpha"],
-                    "gaussian_parameter": config["gaussian_bounds"]["earth_free_bound"]["alpha"],
+                    "gaussian_parameter": config["gaussian_bounds"]["earth_free_bound"][
+                        "alpha"
+                    ],
                 }
                 parameter_bounds["earth_albedo_spectrum_fitted_index2"] = {
                     "bounds": config["bounds"]["earth_free_bound"]["beta"],
-                    "gaussian_parameter": config["gaussian_bounds"]["earth_free_bound"]["beta"],
+                    "gaussian_parameter": config["gaussian_bounds"]["earth_free_bound"][
+                        "beta"
+                    ],
                 }
                 parameter_bounds["earth_albedo_spectrum_fitted_break_energy"] = {
                     "bounds": config["bounds"]["earth_free_bound"]["Eb"],
-                    "gaussian_parameter": config["gaussian_bounds"]["earth_free_bound"]["Eb"],
+                    "gaussian_parameter": config["gaussian_bounds"]["earth_free_bound"][
+                        "Eb"
+                    ],
                 }
 
         if config["setup"]["use_cgb"]:
@@ -406,24 +514,43 @@ class BackgroundModelGenerator(object):
             if config["setup"]["fix_cgb"]:
                 parameter_bounds["norm_cgb"] = {
                     "bounds": config["bounds"]["cgb_fixed_bound"]["norm"],
-                    "gaussian_parameter": config["gaussian_bounds"]["cgb_fixed_bound"]["norm"],
+                    "gaussian_parameter": config["gaussian_bounds"]["cgb_fixed_bound"][
+                        "norm"
+                    ],
                 }
             else:
                 parameter_bounds["CGB_spectrum_fitted_norm"] = {
                     "bounds": config["bounds"]["cgb_free_bound"]["norm"],
-                    "gaussian_parameter": config["gaussian_bounds"]["cgb_free_bound"]["norm"],
+                    "gaussian_parameter": config["gaussian_bounds"]["cgb_free_bound"][
+                        "norm"
+                    ],
                 }
                 parameter_bounds["CGB_spectrum_fitted_index1"] = {
                     "bounds": config["bounds"]["cgb_free_bound"]["alpha"],
-                    "gaussian_parameter": config["gaussian_bounds"]["cgb_free_bound"]["alpha"],
+                    "gaussian_parameter": config["gaussian_bounds"]["cgb_free_bound"][
+                        "alpha"
+                    ],
                 }
                 parameter_bounds["CGB_spectrum_fitted_index2"] = {
                     "bounds": config["bounds"]["cgb_free_bound"]["beta"],
-                    "gaussian_parameter": config["gaussian_bounds"]["cgb_free_bound"]["beta"],
+                    "gaussian_parameter": config["gaussian_bounds"]["cgb_free_bound"][
+                        "beta"
+                    ],
                 }
                 parameter_bounds["CGB_spectrum_fitted_break_energy"] = {
                     "bounds": config["bounds"]["cgb_free_bound"]["Eb"],
-                    "gaussian_parameter": config["gaussian_bounds"]["cgb_free_bound"]["Eb"],
+                    "gaussian_parameter": config["gaussian_bounds"]["cgb_free_bound"][
+                        "Eb"
+                    ],
+                }
+
+        if config["setup"]["use_eff_area_correction"]:
+            for det in sorted(config["general"]["detectors"])[1:]:
+                parameter_bounds[f"eff_area_corr_{det}"] = {
+                    "bounds": config["bounds"]["eff_area_correction"],
+                    "gaussian_parameter": config["gaussian_bounds"][
+                        "eff_area_correction"
+                    ],
                 }
 
         self._parameter_bounds = parameter_bounds
@@ -495,8 +622,22 @@ class TrigdatBackgroundModelGenerator(BackgroundModelGenerator):
             detectors=config["general"]["detectors"],
             data_type=config["general"]["data_type"],
             echans=config["general"]["echans"],
+            trigdat_file=config["general"].get("trigdat_file", None),
             test=config["general"].get("test", False),
         )
+        print_progress("Done")
+
+    def _instantiate_ext_properties(self, config):
+        # Create external properties object pass the trigger_data instance for the
+        # bgo cr approximation
+        print_progress("Download and prepare external properties...")
+
+        self._ep = ExternalProps(
+            detectors=config["general"]["detectors"],
+            bgo_cr_approximation=config["setup"]["bgo_cr_approximation"],
+            trig_data=self._data
+        )
+
         print_progress("Done")
 
     def _precalc_repsonse(self, config):
@@ -510,7 +651,6 @@ class TrigdatBackgroundModelGenerator(BackgroundModelGenerator):
 
         self._resp = Response_Precalculation(
             detectors=config["general"]["detectors"],
-            dates=config["general"]["dates"],
             echans=config["general"]["echans"],
             Ngrid=config["response"]["Ngrid"],
             data_type=config["general"]["data_type"],
