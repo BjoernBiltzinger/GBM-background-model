@@ -40,18 +40,25 @@ except:
 
 
 class ExternalProps(object):
-    def __init__(self, dates, detectors, bgo_cr_approximation=False):
+    def __init__(self, detectors, dates=None, bgo_cr_approximation=False, trig_data=None):
         """
         Build the external properties for a given day
         :param detectors: list
         :param dates: [YYMMDD, YYMMDD,]
         """
 
-        assert len(dates[0]) == 6, f"Day must be in format YYMMDD, but you provided: {dates}"
+        if trig_data is not None:
+            assert bgo_cr_approximation, "Fitting trigdat data requires the bgo cr approximation"
+
+        else:
+            assert (
+                len(dates[0]) == 6
+            ), f"Day must be in format YYMMDD, but you provided: {dates}"
+
         self._detectors = detectors
 
-        self._side_0 = ["n0", "n1", "n2", "n3", "n4", "n5"]
-        self._side_1 = ["n6", "n7", "n8", "n9", "na", "nb"]
+        self._side_0 = ["n0", "n1", "n2", "n3", "n4", "n5", "b0"]
+        self._side_1 = ["n6", "n7", "n8", "n9", "na", "nb", "b1"]
 
         # Global list which weeks where already added to the lat data (to prevent double entries later)
         self._weeks = np.array([])
@@ -78,12 +85,12 @@ class ExternalProps(object):
                     self._lon_geo = np.append(self._lon_geo, lon_geo)
             self._mc_l_interp = interpolate.interp1d(self._lat_time, self._mc_l)
         else:
-            self._build_bgo_cr_approximation(dates, detectors)
+            self._build_bgo_cr_approximation(dates, detectors, trig_data)
 
     def bgo_cr_approximation(self, met):
 
         if isinstance(met[0], np.ndarray) or isinstance(met[0], list):
-           
+
             bgo_cr_rates = np.zeros((len(met), len(self._detectors), len(met[0])))
 
             for det_idx, det in enumerate(self._detectors):
@@ -92,7 +99,9 @@ class ExternalProps(object):
                 elif det in self._side_1:
                     bgo_cr_rates[:, det_idx, :] = self._bgo_1_rate_interp(met)
                 else:
-                    raise AssertionError("Use a valid NaI det name to use this function.")
+                    raise AssertionError(
+                        "Use a valid NaI det name to use this function."
+                    )
 
         else:
 
@@ -104,8 +113,10 @@ class ExternalProps(object):
                 elif det in self._side_1:
                     bgo_cr_rates[:, det_idx] = self._bgo_1_rate_interp(met)
                 else:
-                    raise AssertionError("Use a valid NaI det name to use this function.")
-               
+                    raise AssertionError(
+                        "Use a valid NaI det name to use this function."
+                    )
+
         return bgo_cr_rates
 
     def mc_l_rates(self, met):
@@ -125,7 +136,7 @@ class ExternalProps(object):
                 cr_rates[:, det_idx] = self._mc_l_interp(met)
 
         return cr_rates
-        #return np.tile(self.mc_l(met), (len(self._detectors), 1))
+        # return np.tile(self.mc_l(met), (len(self._detectors), 1))
 
     def mc_l(self, met):
         """
@@ -135,10 +146,6 @@ class ExternalProps(object):
         """
 
         return self._mc_l_interp(met)
-
-    @property
-    def point_sources(self):
-        return self._point_sources_dic
 
     def _one_day_build_lat_spacecraft(self, date):
         """This function reads a LAT-spacecraft file and stores the data in arrays of the form: lat_time, mc_b, mc_l.\n
@@ -281,7 +288,7 @@ class ExternalProps(object):
 
         return mc_l, mc_b, lat_time, lat_geo, lon_geo
 
-    def _calc_bgo_rates(self, date, bgo_det):
+    def _calc_bgo_rates_cspec(self, date, bgo_det):
 
         data_type = "cspec"
         echans = np.arange(85, 105, 1)
@@ -315,7 +322,6 @@ class ExternalProps(object):
         rates = rebinned_counts / (rebinned_time_bins[:, 1] - rebinned_time_bins[:, 0])
 
         # Add first time and last time with corresponding rate to rate_list
-
         rates = np.concatenate((rates[:1], rates, rates[-1:]))
 
         times = np.concatenate(
@@ -324,7 +330,38 @@ class ExternalProps(object):
 
         return times, rates
 
-    def _build_bgo_cr_approximation(self, dates, detectors):
+    def _calc_bgo_rates_trigdata(self, trig_data, bgo_det):
+        if bgo_det == "b0":
+            bgo_idx = 12
+        elif bgo_det == "b1":
+            bgo_idx = 13
+        else:
+            raise AssertionError("Invalid detector")
+
+        total_time_bins = trig_data._time_bins
+        time_bin_widths = np.diff(total_time_bins, axis=1)[:, 0]
+
+        bgo_rates = trig_data._rates[:, bgo_idx, 7]
+        bgo_counts = bgo_rates * time_bin_widths
+
+        min_bin_width = 30
+
+        this_rebinner = Rebinner(total_time_bins, min_bin_width)
+        rebinned_time_bins = this_rebinner.time_rebinned
+        (rebinned_counts,) = this_rebinner.rebin(bgo_counts)
+
+        rates = rebinned_counts / (rebinned_time_bins[:, 1] - rebinned_time_bins[:, 0])
+
+        # Add first time and last time with corresponding rate to rate_list
+        rates = np.concatenate((rates[:1], rates, rates[-1:]))
+
+        times = np.concatenate(
+            (total_time_bins[:1, 0], np.mean(rebinned_time_bins, axis=1), total_time_bins[-1:, 1])
+        )
+
+        return times, rates
+
+    def _build_bgo_cr_approximation(self, dates, detectors, trig_data):
         """
         Function that gets the count rate of the 85-105th energy channel of the BGO
         of the correct side and uses this as function proportional to the CR influence in
@@ -345,16 +382,22 @@ class ExternalProps(object):
 
         if get_b0:
 
-            for date_idx, date in enumerate(dates):
+            if trig_data is None:
 
-                bgo_0_times, bgo_0_rates = self._calc_bgo_rates(date, "b0")
+                for date_idx, date in enumerate(dates):
 
-                if date_idx == 0:
-                    self._bgo_0_times = bgo_0_times
-                    self._bgo_0_rates = bgo_0_rates
-                else:
-                    self._bgo_0_times = np.append(self._bgo_0_times, bgo_0_times)
-                    self._bgo_0_rates = np.append(self._bgo_0_rates, bgo_0_rates)
+                    bgo_0_times, bgo_0_rates = self._calc_bgo_rates_cspec(date, "b0")
+
+                    if date_idx == 0:
+                        self._bgo_0_times = bgo_0_times
+                        self._bgo_0_rates = bgo_0_rates
+                    else:
+                        self._bgo_0_times = np.append(self._bgo_0_times, bgo_0_times)
+                        self._bgo_0_rates = np.append(self._bgo_0_rates, bgo_0_rates)
+
+            else:
+
+                self._bgo_0_times, self._bgo_0_rates = self._calc_bgo_rates_trigdata(trig_data, "b0")
 
             self._bgo_0_rate_interp = interpolate.UnivariateSpline(
                 self._bgo_0_times, self._bgo_0_rates, s=1000, k=3
@@ -362,16 +405,22 @@ class ExternalProps(object):
 
         if get_b1:
 
-            for date_idx, date in enumerate(dates):
+            if trig_data is None:
 
-                bgo_1_times, bgo_1_rates = self._calc_bgo_rates(date, "b1")
+                for date_idx, date in enumerate(dates):
 
-                if date_idx == 0:
-                    self._bgo_1_times = bgo_1_times
-                    self._bgo_1_rates = bgo_1_rates
-                else:
-                    self._bgo_1_times = np.append(self._bgo_1_times, bgo_1_times)
-                    self._bgo_1_rates = np.append(self._bgo_1_rates, bgo_1_rates)
+                    bgo_1_times, bgo_1_rates = self._calc_bgo_rates_cspec(date, "b1")
+
+                    if date_idx == 0:
+                        self._bgo_1_times = bgo_1_times
+                        self._bgo_1_rates = bgo_1_rates
+                    else:
+                        self._bgo_1_times = np.append(self._bgo_1_times, bgo_1_times)
+                        self._bgo_1_rates = np.append(self._bgo_1_rates, bgo_1_rates)
+
+            else:
+
+                self._bgo_1_times, self._bgo_1_rates = self._calc_bgo_rates_trigdata(trig_data, "b1")
 
             self._bgo_1_rate_interp = interpolate.UnivariateSpline(
                 self._bgo_1_times, self._bgo_1_rates, s=1000, k=3

@@ -9,17 +9,22 @@ from gbmbkgpy.modeling.functions import (
     SAA_Decay,
     ContinuumFunction,
     GlobalFunction,
-    GlobalFunctionSpectrumFit
+    GlobalFunctionSpectrumFit,
 )
 
-from gbmbkgpy.modeling.point_source import (
-    PointSrc_fixed,
-    PointSrc_free
-)
+from gbmbkgpy.modeling.point_source import PointSrc_fixed, PointSrc_free
 
 import numpy as np
 import pandas as pd
-from gbmbkgpy.io.package_data import get_path_of_data_file
+import tempfile
+import os
+
+from gbmbkgpy.io.package_data import (
+    get_path_of_data_dir,
+    get_path_of_external_data_dir,
+    get_path_of_data_file,
+)
+from gbmbkgpy.utils.select_pointsources import SelectPointsources
 
 # see if we have mpi and/or are upalsing parallel
 try:
@@ -58,9 +63,10 @@ def Setup(
     point_source_list=[],
     fix_earth=False,
     fix_cgb=False,
-    nr_saa_decays=1,
+    saa_decays_per_exit=1,
     saa_decay_per_detector=False,
-    decay_at_day_start=True,
+    saa_decay_at_day_start=True,
+    saa_decay_model="exponential",
     bgo_cr_approximation=False,
     use_numba=False,
 ):
@@ -99,7 +105,7 @@ def Setup(
         and type(use_cgb) == bool
         and type(fix_earth) == bool
         and type(fix_cgb) == bool
-        ), "Please only use True or False here."
+    ), "Please only use True or False here."
 
     total_sources = []
 
@@ -110,7 +116,14 @@ def Setup(
         if use_saa:
             total_sources.extend(
                 setup_SAA(
-                    data, saa_object, echan, index, nr_saa_decays, decay_at_day_start, saa_decay_per_detector
+                    data,
+                    saa_object,
+                    echan,
+                    index,
+                    saa_decays_per_exit,
+                    saa_decay_at_day_start,
+                    saa_decay_per_detector,
+                    saa_decay_model,
                 )
             )
 
@@ -126,9 +139,7 @@ def Setup(
 
     if use_sun:
         total_sources.append(
-            setup_sun(
-                data, sun_object, saa_object, use_numba=use_numba
-            )
+            setup_sun(data, sun_object, saa_object, use_numba=use_numba)
         )
 
     if len(point_source_list) > 0:
@@ -170,17 +181,21 @@ def Setup(
     return total_sources
 
 
-def setup_SAA(data,
-              saa_object,
-              echan,
-              index,
-              nr_decays=1,
-              decay_at_day_start=True,
-              decay_per_detector=False):
+def setup_SAA(
+    data,
+    saa_object,
+    echan,
+    index,
+    decays_per_exit=1,
+    decay_at_day_start=True,
+    decay_per_detector=False,
+    decay_model="exponential",
+):
     """
     Setup for SAA sources
     :param decay_at_day_start:
-    :param nr_decays: Number of decays that should be fittet to each SAA Exit
+    :param decays_per_exit: Number of decays that should be fittet to each SAA Exit
+    :param decay_model: used model for decay: "exponential" or "linear"
     :param index:
     :param saa_object: SAA precalculation object
     :param echan: energy channel
@@ -196,7 +211,7 @@ def setup_SAA(data,
     day_start = []
 
     if decay_at_day_start and len(data.day_met) <= 1:
-        for i in range(nr_decays):
+        for i in range(decays_per_exit):
             day_start.append(data.day_met)
 
     start_times = np.append(np.array(day_start), saa_object.saa_exit_times)
@@ -210,7 +225,9 @@ def setup_SAA(data,
                 saa_dec = SAA_Decay(
                     saa_number=str(saa_n),
                     echan=str(echan),
-                    detector=det
+                    model=decay_model,
+                    detector=det,
+                    det_idx=det_idx,
                 )
 
                 saa_dec.set_saa_exit_time(np.array([time]))
@@ -225,7 +242,11 @@ def setup_SAA(data,
                 saa_dec.precalulate_time_bins_integral()
 
                 SAA_Decay_list.append(
-                    SAASource("saa_{:d} det_{} echan_{}".format(saa_n, det, echan), saa_dec, index)
+                    SAASource(
+                        "saa_{:d} det_{} echan_{}".format(saa_n, det, echan),
+                        saa_dec,
+                        index,
+                    )
                 )
 
             saa_n += 1
@@ -235,7 +256,9 @@ def setup_SAA(data,
             saa_dec = SAA_Decay(
                 saa_number=str(saa_n),
                 echan=str(echan),
-                detector="all"
+                model=decay_model,
+                detector="all",
+                det_idx=None,
             )
 
             saa_dec.set_saa_exit_time(np.array([time]))
@@ -259,7 +282,7 @@ def setup_sun(cd, sun_object, saa_object, use_numba=False):
     """
     Setup for sun as bkg source
     """
-    Sun = GlobalFunctionSpectrumFit("sun", spectrum='pl', E_norm=1, use_numba=use_numba)
+    Sun = GlobalFunctionSpectrumFit("sun", spectrum="pl", E_norm=1, use_numba=use_numba)
 
     Sun.set_response_array(sun_object.sun_response_array)
 
@@ -367,6 +390,7 @@ def setup_ps(
         geometry=geometry,
         echans=echans,
         point_source_list=point_source_list,
+        data=data
     )
 
     PS_Continuum_dic = {}
@@ -374,21 +398,24 @@ def setup_ps(
     for i, (key, ps) in enumerate(point_sources.items()):
 
         if not isinstance(ps, PointSrc_fixed):
-            identifier = '_'.join(key.split('_')[:-1])
 
-            if 'bb' in point_source_list[identifier]["spectrum"]:
-                if 'pl' in point_source_list[identifier]["spectrum"]:
-                    spec = 'bb+pl'
+            identifier = "_".join(key.split("_")[:-1])
+            if identifier == "":
+                identifier = key
+            print(identifier)
+            if "bb" in point_source_list[identifier]["spectrum"]:
+                if "pl" in point_source_list[identifier]["spectrum"]:
+                    spec = "bb+pl"
                 else:
-                    spec = 'bb'
-            elif 'pl' in point_source_list[identifier]["spectrum"]:
-                spec = 'pl'
+                    spec = "bb"
+            elif "pl" in point_source_list[identifier]["spectrum"]:
+                spec = "pl"
             else:
-                raise NotImplementedError("Only pl or bb or both spectra for point sources!")
+                raise NotImplementedError(
+                    "Only pl or bb or both spectra for point sources!"
+                )
 
-            PS_Continuum_dic[
-                "{}".format(ps.name)
-            ] = GlobalFunctionSpectrumFit(
+            PS_Continuum_dic["{}".format(ps.name)] = GlobalFunctionSpectrumFit(
                 "ps_{}_spectrum_fitted".format(ps.name),
                 spectrum=spec,
                 E_norm=1,
@@ -460,9 +487,9 @@ def setup_earth_free(data, albedo_cgb_object, saa_object, use_numba=False):
     :return:
     """
 
-    earth_albedo = GlobalFunctionSpectrumFit("earth_albedo_spectrum_fitted",
-                                             spectrum="bpl",
-                                             use_numba=use_numba)
+    earth_albedo = GlobalFunctionSpectrumFit(
+        "earth_albedo_spectrum_fitted", spectrum="bpl", use_numba=use_numba
+    )
 
     earth_albedo.build_spec_integral()
 
@@ -517,7 +544,9 @@ def setup_cgb_free(data, albedo_cgb_object, saa_object, use_numba=False):
     :param saa_object:
     :return:
     """
-    cgb = GlobalFunctionSpectrumFit("CGB_spectrum_fitted", spectrum='bpl', use_numba=use_numba)
+    cgb = GlobalFunctionSpectrumFit(
+        "CGB_spectrum_fitted", spectrum="bpl", use_numba=use_numba
+    )
 
     cgb.build_spec_integral()
 
@@ -562,10 +591,7 @@ def setup_cgb_fix(data, albedo_cgb_object, saa_object):
 
 
 def build_point_sources(
-        det_responses,
-        geometry,
-        echans,
-        point_source_list=[],
+    det_responses, geometry, echans, point_source_list=[], data=None
 ):
     """
     This function reads the point_sources.dat file and builds the point sources
@@ -576,7 +602,7 @@ def build_point_sources(
     """
     file_path = get_path_of_data_file("background_point_sources/", "point_sources.dat")
     ps_df = pd.read_table(file_path, names=["name", "ra", "dec"])
-    
+
     # instantiate dic of point source objects
     point_sources_dic = {}
 
@@ -595,7 +621,7 @@ def build_point_sources(
                     )
 
                 else:
-                    for entry in point_source_list[ps]['spectrum']:
+                    for entry in point_source_list[ps]["spectrum"]:
                         point_sources_dic[f"{row[1]}_{entry}"] = PointSrc_fixed(
                             name=row[1],
                             ra=row[2],
@@ -603,13 +629,15 @@ def build_point_sources(
                             det_responses=det_responses,
                             geometry=geometry,
                             echans=echans,
-                            spec=point_source_list[ps]['spectrum'][entry],
+                            spec=point_source_list[ps]["spectrum"][entry],
                         )
 
     # Add the point sources that are given as file with list of point sources
     for i, ps in enumerate(point_source_list):
-        if ps[:4] == 'list':
-            ps_df_add = pd.read_table(point_source_list[ps]["path"], names=["name", "ra", "dec"])
+        if ps[:4] == "list":
+            ps_df_add = pd.read_table(
+                point_source_list[ps]["path"], names=["name", "ra", "dec"]
+            )
             for row in ps_df_add.itertuples():
                 if not point_source_list[ps]["fixed"]:
                     point_sources_dic[f"{ps}_{row[1]}"] = PointSrc_free(
@@ -622,7 +650,7 @@ def build_point_sources(
                     )
 
                 else:
-                    for entry in point_source_list[ps]['spectrum']:
+                    for entry in point_source_list[ps]["spectrum"]:
                         point_sources_dic[f"{ps}_{row[1]}_{entry}"] = PointSrc_fixed(
                             name=row[1],
                             ra=row[2],
@@ -630,7 +658,52 @@ def build_point_sources(
                             det_responses=det_responses,
                             geometry=geometry,
                             echans=echans,
-                            spec=point_source_list[ps]['spectrum'][entry],
+                            spec=point_source_list[ps]["spectrum"][entry],
                         )
+    # Add the auto point source selection using the Swift survey if wanted
+    if "auto_swift" in point_source_list.keys():
+        # Write a temp .dat file with all the point sources, after that we can do the
+        # same as above for a given list
+
+        # Threshold flux which point sources should be added in units of Crab 15-50keV Flux
+        limit = point_source_list["auto_swift"]["flux_limit"]
+
+        # Use first day in data object to get the needed point sources
+        day = data.dates[0]
+
+        # Exclude some of them?
+        exclude = point_source_list["auto_swift"]["exclude"]
+        exclude = [entry.upper() for entry in exclude]
+        # Initalize Pointsource selection
+        sp = SelectPointsources(
+            limit,
+            time_string=day,
+            update=point_source_list["auto_swift"].get("update_catalog", None)
+        )
+
+        # Create temp file
+        filepath = os.path.join(get_path_of_external_data_dir(), "tmp", "ps_auto_swift.dat")
+
+        # Write information in temp
+        sp.write_psfile(filepath)
+
+        # Read it as pandas
+        ps_df_add = pd.read_table(filepath, names=["name", "ra", "dec"])
+        # Add all of them as fixed pl sources
+        spec = {"spectrum_type": "pl", "powerlaw_index": "swift"}
+
+        for row in ps_df_add.itertuples():
+            if not row[1].upper() in exclude:
+
+                point_sources_dic[f"{row[1]}_pl"] = PointSrc_fixed(
+                    name=row[1],
+                    ra=row[2],
+                    dec=row[3],
+                    det_responses=det_responses,
+                    geometry=geometry,
+                    echans=echans,
+                    spec=spec,
+                )
+        # temp.close()
 
     return point_sources_dic

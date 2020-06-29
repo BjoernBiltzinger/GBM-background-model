@@ -3,7 +3,8 @@ from gbmbkgpy.utils.spectrum import (
     _spec_integral_pl,
     _spec_integral_bb_pl,
     _spec_integral_bpl,
-    _spec_integral_bb)
+    _spec_integral_bb,
+)
 import numpy as np
 import numexpr as ne
 
@@ -73,6 +74,7 @@ if has_numba:
                         (x[i, 1] - x[i, 0]) * (y[i, j, k, 1] + y[i, j, k, 0]) / 2
                     )
         return res
+
 
 class Function(object):
     def __init__(self, *parameters, use_numba=False):
@@ -159,7 +161,9 @@ class Solar_Flare(Function):
 
 
 class SAA_Decay(Function):
-    def __init__(self, saa_number, echan, detector="all"):
+    def __init__(
+        self, saa_number, echan, model="exponential", detector="all", det_idx=None
+    ):
         A = Parameter(
             "norm_saa-{}_det-{}_echan-{}".format(saa_number, detector, echan),
             initial_value=1.0,
@@ -178,8 +182,11 @@ class SAA_Decay(Function):
             prior="log_uniform",
         )
 
-        if detector == "all":
-            self._det_idx = None
+        self._model = model
+
+        self._det_idx = det_idx
+
+        self._build_decay_function()
 
         super(SAA_Decay, self).__init__(A, saa_decay_constant)
 
@@ -210,6 +217,44 @@ class SAA_Decay(Function):
 
         self._out = np.zeros_like(self._time_bins[:, 0])
 
+    def _build_decay_function(self):
+
+        if self._model == "exponential":
+
+            def _decay_function(t0, tstart, tstop, A, saa_decay_constant):
+                """
+                Calculates the exponential decay for the SAA exit
+                The the values are calculated for the start and stop times of the bins with the analytic solution of the integral
+                for a function A*exp(-saa_decay_constant*(t-t0)) which is -A/saa_decay_constant *
+                (exp(-saa_decay_constant*(tend_bin-to) - exp(-saa_decay_constant*(tstart_bin-to))
+                :param A:
+                :param saa_decay_constant:
+                :return:
+                """
+                return ne.evaluate(
+                    "-A / saa_decay_constant*(exp((t0-tstop)*abs(saa_decay_constant)) - exp((t0 - tstart)*abs(saa_decay_constant)))"
+                )
+
+        elif self._model == "linear":
+
+            def _decay_function(t0, tstart, tstop, A, saa_decay_constant):
+                """
+                Calculates the linear decay for the SAA exit
+                The the values are calculated for the start and stop times of the bins with the analytic solution for the integral
+                of the function A - saa_decay_constany(t-t0)
+                :param A:
+                :param saa_decay_constant:
+                :return:
+                """
+                return ne.evaluate(
+                    "-A*tstart - saa_decay_constant*t0*tstart + (saa_decay_constant*tstart**2)/2 + A*tstop + saa_decay_constant*t0*tstop - (saa_decay_constant*tstop**2)/2"
+                )
+
+        else:
+            raise NotImplementedError("The model is not implemented")
+
+        self._decay_function = _decay_function
+
     def _evaluate(self, A, saa_decay_constant):
         """
         Calculates the exponential decay for the SAA exit
@@ -224,8 +269,8 @@ class SAA_Decay(Function):
         tstart = self._tstart
         tstop = self._tstop
 
-        self._out[~self._idx_start] = ne.evaluate(
-            "-A / saa_decay_constant*(exp((t0-tstop)*abs(saa_decay_constant)) - exp((t0 - tstart)*abs(saa_decay_constant)))"
+        self._out[~self._idx_start] = self._decay_function(
+            t0, tstart, tstop, A, saa_decay_constant
         )
 
         if self._det_idx is None:
@@ -234,14 +279,12 @@ class SAA_Decay(Function):
 
         else:
 
-            out_matrix = np.zeros((
-                len(self._time_bins[:, 0]),
-                self._nr_detectors
-            ))
+            out_matrix = np.zeros((len(self._time_bins[:, 0]), self._nr_detectors))
 
             out_matrix[:, self._det_idx] = self._out
 
             return out_matrix
+
 
 class ContinuumFunction(Function):
     def __init__(self, coefficient_name):
@@ -490,7 +533,7 @@ class GlobalFunctionSpectrumFit(Function):
         elif self._spec == "pl":
 
             C = Parameter(
-                coefficient_name + "_norm",
+                coefficient_name + "_norm_pl",
                 initial_value=1.0,
                 min_value=0,
                 max_value=None,
@@ -526,15 +569,16 @@ class GlobalFunctionSpectrumFit(Function):
                 prior="log_uniform",
             )
 
-            index = Parameter(coefficient_name + "_index",
-                              initial_value=1.0,
-                              min_value=0,
-                              max_value=3,
-                              delta=0.1,
-                              mu=1,
-                              sigma=1,
-                              normalization=False,
-                              prior="truncated_gaussian",
+            index = Parameter(
+                coefficient_name + "_index",
+                initial_value=1.0,
+                min_value=0,
+                max_value=3,
+                delta=0.1,
+                mu=1,
+                sigma=1,
+                normalization=False,
+                prior="truncated_gaussian",
             )
 
             C_bb = Parameter(
@@ -562,7 +606,7 @@ class GlobalFunctionSpectrumFit(Function):
             super(GlobalFunctionSpectrumFit, self).__init__(
                 C_pl, index, C_bb, temp, use_numba=use_numba
             )
-        elif self._spec == 'bb':
+        elif self._spec == "bb":
 
             C = Parameter(
                 coefficient_name + "_norm_bb",
@@ -588,11 +632,13 @@ class GlobalFunctionSpectrumFit(Function):
 
             super(GlobalFunctionSpectrumFit, self).__init__(
                 C, temp, use_numba=use_numba
-                )
+            )
         else:
 
             raise ValueError(
-                "Spectrum must be bpl, pl or bb+pl at the moment. But is {}".format(self._spec)
+                "Spectrum must be bpl, pl or bb+pl at the moment. But is {}".format(
+                    self._spec
+                )
             )
 
     def set_dets_echans(self, detectors, echans):
@@ -702,28 +748,29 @@ class GlobalFunctionSpectrumFit(Function):
 
             def _integral(e1, e2):
 
-                return _spec_integral_pl(
-                    e1, e2, self._C, self._E_norm, self._index
-                )
+                return _spec_integral_pl(e1, e2, self._C, self._E_norm, self._index)
 
-        elif self._spec == 'bb+pl':
+        elif self._spec == "bb+pl":
 
             def _integral(e1, e2):
 
                 return _spec_integral_bb_pl(
-                    e1, e2, self._C_pl, self._E_norm, self._index, self._C_bb, self._temp
+                    e1,
+                    e2,
+                    self._C_pl,
+                    self._E_norm,
+                    self._index,
+                    self._C_bb,
+                    self._temp,
                 )
 
-        elif self._spec == 'bb':
+        elif self._spec == "bb":
 
             def _integral(e1, e2):
 
-                return _spec_integral_bb(
-                    e1, e2, self._C, self._temp
-                )
+                return _spec_integral_bb(e1, e2, self._C, self._temp)
 
         self._spec_integral = _integral
-
 
     def _fold_spectrum(self, *parameters):
         """
@@ -746,13 +793,13 @@ class GlobalFunctionSpectrumFit(Function):
             self._C = parameters[0]
             self._index = parameters[1]
 
-        elif self._spec == 'bb+pl':
+        elif self._spec == "bb+pl":
             self._C_pl = parameters[0]
             self._index = parameters[1]
             self._C_bb = parameters[2]
             self._temp = parameters[3]
 
-        elif self._spec == 'bb':
+        elif self._spec == "bb":
             self._C = parameters[0]
             self._temp = parameters[1]
 
