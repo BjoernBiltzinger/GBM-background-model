@@ -8,7 +8,7 @@ general:
   dates:      ['160310']
   detectors:   ['n1']
   data_type:  'ctime'
-  echans: [2]
+  echans: ["2"]
   min_bin_width: 30
 
 ################# Input for response precalculation [how many grid poits?] ##########################
