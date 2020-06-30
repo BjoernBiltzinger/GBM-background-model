@@ -477,8 +477,8 @@ class PHAWriter(object):
                 trigger = trigger_f
                 trigger_time = trigger_time_f
                 time_bins = np.vstack((time_bins_start_f, time_bins_stop_f)).T
-                observed_counts = np.zeros((len(time_bins_stop_f), 12, 8))
-                model_counts = np.zeros((len(time_bins_stop_f), 12, 8))
+                observed_counts = np.zeros((len(time_bins_stop_f), 14, 8))
+                model_counts = np.zeros((len(time_bins_stop_f), 14, 8))
                 stat_err = np.zeros_like(model_counts)
 
             else:

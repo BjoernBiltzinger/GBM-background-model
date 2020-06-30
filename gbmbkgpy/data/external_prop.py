@@ -40,24 +40,25 @@ except:
 
 
 class ExternalProps(object):
-    def __init__(self, dates, detectors, bgo_cr_approximation=False, trig_data=None):
+    def __init__(self, detectors, dates=None, bgo_cr_approximation=False, trig_data=None):
         """
         Build the external properties for a given day
         :param detectors: list
         :param dates: [YYMMDD, YYMMDD,]
         """
 
-        assert (
-            len(dates[0]) == 6
-        ), f"Day must be in format YYMMDD, but you provided: {dates}"
-
         if trig_data is not None:
             assert bgo_cr_approximation, "Fitting trigdat data requires the bgo cr approximation"
 
+        else:
+            assert (
+                len(dates[0]) == 6
+            ), f"Day must be in format YYMMDD, but you provided: {dates}"
+
         self._detectors = detectors
 
-        self._side_0 = ["n0", "n1", "n2", "n3", "n4", "n5"]
-        self._side_1 = ["n6", "n7", "n8", "n9", "na", "nb"]
+        self._side_0 = ["n0", "n1", "n2", "n3", "n4", "n5", "b0"]
+        self._side_1 = ["n6", "n7", "n8", "n9", "na", "nb", "b1"]
 
         # Global list which weeks where already added to the lat data (to prevent double entries later)
         self._weeks = np.array([])
@@ -381,20 +382,22 @@ class ExternalProps(object):
 
         if get_b0:
 
-            for date_idx, date in enumerate(dates):
+            if trig_data is None:
 
-                if trig_data is None:
+                for date_idx, date in enumerate(dates):
+
                     bgo_0_times, bgo_0_rates = self._calc_bgo_rates_cspec(date, "b0")
 
-                else:
-                    bgo_0_times, bgo_0_rates = self._calc_bgo_rates_trigdata(trig_data, "b0")
+                    if date_idx == 0:
+                        self._bgo_0_times = bgo_0_times
+                        self._bgo_0_rates = bgo_0_rates
+                    else:
+                        self._bgo_0_times = np.append(self._bgo_0_times, bgo_0_times)
+                        self._bgo_0_rates = np.append(self._bgo_0_rates, bgo_0_rates)
 
-                if date_idx == 0:
-                    self._bgo_0_times = bgo_0_times
-                    self._bgo_0_rates = bgo_0_rates
-                else:
-                    self._bgo_0_times = np.append(self._bgo_0_times, bgo_0_times)
-                    self._bgo_0_rates = np.append(self._bgo_0_rates, bgo_0_rates)
+            else:
+
+                self._bgo_0_times, self._bgo_0_rates = self._calc_bgo_rates_trigdata(trig_data, "b0")
 
             self._bgo_0_rate_interp = interpolate.UnivariateSpline(
                 self._bgo_0_times, self._bgo_0_rates, s=1000, k=3
@@ -402,20 +405,22 @@ class ExternalProps(object):
 
         if get_b1:
 
-            for date_idx, date in enumerate(dates):
+            if trig_data is None:
 
-                if trig_data is None:
+                for date_idx, date in enumerate(dates):
+
                     bgo_1_times, bgo_1_rates = self._calc_bgo_rates_cspec(date, "b1")
 
-                else:
-                    bgo_1_times, bgo_1_rates = self._calc_bgo_rates_trigdata(trig_data, "b1")
+                    if date_idx == 0:
+                        self._bgo_1_times = bgo_1_times
+                        self._bgo_1_rates = bgo_1_rates
+                    else:
+                        self._bgo_1_times = np.append(self._bgo_1_times, bgo_1_times)
+                        self._bgo_1_rates = np.append(self._bgo_1_rates, bgo_1_rates)
 
-                if date_idx == 0:
-                    self._bgo_1_times = bgo_1_times
-                    self._bgo_1_rates = bgo_1_rates
-                else:
-                    self._bgo_1_times = np.append(self._bgo_1_times, bgo_1_times)
-                    self._bgo_1_rates = np.append(self._bgo_1_rates, bgo_1_rates)
+            else:
+
+                self._bgo_1_times, self._bgo_1_rates = self._calc_bgo_rates_trigdata(trig_data, "b1")
 
             self._bgo_1_rate_interp = interpolate.UnivariateSpline(
                 self._bgo_1_times, self._bgo_1_rates, s=1000, k=3
