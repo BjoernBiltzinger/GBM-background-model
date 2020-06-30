@@ -164,6 +164,8 @@ class PointSrc_fixed(PointSrc_free):
         # Interpolate between the times, for which the geometry was calculated
         self._interpolate_ps_rates()
 
+        self._time_variation_interp = None
+
     def _read_spec(self, spec):
         """
         Read the spec dict to figure out which spectral type and which params should be used
@@ -187,6 +189,12 @@ class PointSrc_fixed(PointSrc_free):
             else:
                 self._pl_index = spec["powerlaw_index"]
 
+    def set_time_variation_interp(self, interp):
+        """
+        Set an interpolator defining the time variation of the point source
+       """
+        self._time_variation_interp = interp
+
     def get_ps_rates(self, met):
         """
         Returns an array with the predicted count rates for the times for which the geometry
@@ -204,6 +212,17 @@ class PointSrc_fixed(PointSrc_free):
 
         ps_rates = np.swapaxes(ps_rates, 1, 2)
         ps_rates = np.swapaxes(ps_rates, 2, 3)
+
+        if self._time_variation_interp is not None:
+
+            time_variation = np.tile(
+                self._time_variation_interp(met),
+                (len(self._echans), len(self._detectors), 1, 1)
+            )
+
+            time_variation = np.swapaxes(time_variation, 0, 2)
+
+            ps_rates = ps_rates * np.clip(time_variation, a_min=0, a_max=None)
 
         return ps_rates
 
