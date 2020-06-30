@@ -137,29 +137,6 @@ class Det_Response_Precalculation(object):
             data_type
         )
 
-        #if data_type == "ctime":
-        #    assert (
-        #        type(echans)
-        #        and max(echans) <= 7
-        #        and min(echans) >= 0
-        #        and all(isinstance(x, int) for x in echans)
-        #    ), "Echan_list variable must be a list and can only have integer entries between 0 and 7"
-
-        #if data_type == "cspec":
-        #    assert (
-        #        type(echans)
-        #        and max(echans) <= 127
-        #        and min(echans) >= 0
-        #        and all(isinstance(x, int) for x in echans)
-        #    ), "Echan_list variable must be a list and can only have integer entries between 0 and 7"
-
-        #if data_type == "trigdat":
-        #    assert (
-        #        type(echans)
-        #        and max(echans) <= 7
-        #        and min(echans) >= 0
-        #        and all(isinstance(x, int) for x in echans)
-        #    ), "Echan_list variable must be a list and can only have integer entries between 0 and 7"
         if data_type == "trigdat":
             assert (
                 trigger is not None
@@ -178,14 +155,6 @@ class Det_Response_Precalculation(object):
         # Translate the n0-nb and b0,b1 notation to the detector 0-14 notation that is used
         # by the response generator
         self._det = valid_det_names.index(det)
-
-        #if self._data_type == "ctime" or self._data_type == "trigdat":
-        #    self._echan_mask = np.zeros(8, dtype=bool)
-        #    self._echan_mask[self._echans] = True
-
-        #elif self._data_type == "cspec":
-        #    self._echan_mask = np.zeros(128, dtype=bool)
-        #    self._echan_mask[self._echans] = True
 
         if Ebin_edge_incoming is None:
             # Incoming spectrum between ~3 and ~5000 keV in 300 bins

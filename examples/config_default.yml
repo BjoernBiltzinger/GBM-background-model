@@ -52,14 +52,8 @@ setup:
 
     auto_swift:
         flux_limit: 0.1
-        exclude: [Crab]
-        free: [SCOX-1]
-    CRAB:
-      fixed: false
-      spectrum:
-        pl:
-          spectrum_type: pl
-          powerlaw_index: 2
+        exclude: []
+        free: [Crab, SCOX-1]
 
   fix_earth:    true
   fix_cgb:      true
