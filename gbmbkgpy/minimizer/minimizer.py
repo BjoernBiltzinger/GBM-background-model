@@ -15,10 +15,10 @@ class Minimizer(object):
         self._fitted_params_steps = {}
         self._fitted_params = {}
 
-        self._day = self._likelihood._data._day
-        self._det = self._likelihood._data._det
+        self._day = self._likelihood._data.dates[0]
+        self._det = self._likelihood._data.detectors[0]
 
-    def fit(self, n_interations=3, method_1="L-BFGS-B", method_2="Powell"):
+    def fit(self, n_interations=3, method_1="L-BFGS-B", method_2="Powell", use_saa=True):
         """
         Fits the model stepwise by calling the scipy.minimize in the following steps:
         1. Fit linear/normalization paramters
@@ -42,7 +42,7 @@ class Minimizer(object):
         )
         self._fit_with_bounds(method_1, type="linear", iter_nr=1)
 
-        if self._likelihood.use_SAA:
+        if use_saa:
             # Fix the normalizations and fit for the other parameters
             self._likelihood.fix_parameters(
                 self._likelihood.get_normalization_parameter_list[0:4]

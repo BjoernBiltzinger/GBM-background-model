@@ -601,7 +601,7 @@ def setup_cgb_fix(data, albedo_cgb_object, saa_object):
 
 
 def build_point_sources(
-    det_responses, geometry, echans, point_source_list=[], data=None
+        det_responses, geometry, echans, point_source_list=[], data=None
 ):
     """
     This function reads the point_sources.dat file and builds the point sources

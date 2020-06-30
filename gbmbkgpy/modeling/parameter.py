@@ -74,6 +74,10 @@ class Parameter(object):
             ff,
         )
 
+    @property
+    def info(self):
+        return self.__repr__()
+
     def _get_value(self):
 
         return self._value

@@ -203,6 +203,7 @@ class MultiNestFit(object):
         self._param_priors = collections.OrderedDict()
 
         for parameter_name in self.parameters:
+            print(parameter_name)
 
             min_value, max_value, mu, sigma = self.parameters[
                 parameter_name
