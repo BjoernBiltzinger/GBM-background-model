@@ -137,8 +137,8 @@ class BackgroundModelGenerator(object):
         print_progress("Download and prepare external properties...")
 
         self._ep = ExternalProps(
-            dates=config["general"]["dates"],
             detectors=config["general"]["detectors"],
+            dates=config["general"]["dates"],
             bgo_cr_approximation=config["setup"]["bgo_cr_approximation"],
         )
 
@@ -155,8 +155,8 @@ class BackgroundModelGenerator(object):
 
         self._resp = Response_Precalculation(
             detectors=config["general"]["detectors"],
-            dates=config["general"]["dates"],
             echans=config["general"]["echans"],
+            dates=config["general"]["dates"],
             Ngrid=config["response"]["Ngrid"],
             data_type=config["general"]["data_type"],
             simulation=config["general"].get("simulation", False),
@@ -647,6 +647,7 @@ class TrigdatBackgroundModelGenerator(BackgroundModelGenerator):
             detectors=config["general"]["detectors"],
             data_type=config["general"]["data_type"],
             echans=config["general"]["echans"],
+            trigdat_file=config["general"].get("trigdat_file", None),
             test=config["general"].get("test", False),
         )
         print_progress("Done")
@@ -657,7 +658,6 @@ class TrigdatBackgroundModelGenerator(BackgroundModelGenerator):
         print_progress("Download and prepare external properties...")
 
         self._ep = ExternalProps(
-            dates=config["general"]["dates"],
             detectors=config["general"]["detectors"],
             bgo_cr_approximation=config["setup"]["bgo_cr_approximation"],
             trig_data=self._data
@@ -676,7 +676,6 @@ class TrigdatBackgroundModelGenerator(BackgroundModelGenerator):
 
         self._resp = Response_Precalculation(
             detectors=config["general"]["detectors"],
-            dates=config["general"]["dates"],
             echans=config["general"]["echans"],
             Ngrid=config["response"]["Ngrid"],
             data_type=config["general"]["data_type"],
