@@ -12,9 +12,11 @@ from matplotlib.animation import FuncAnimation
 import tempfile
 from multiprocessing import Pool
 import itertools
+from scipy import interpolate
+from gbmgeometry.utils.gbm_time import GBMTime
 
 from gbmbkgpy.io.file_utils import if_dir_containing_file_not_existing_then_make
-from gbmbkgpy.io.package_data import get_path_of_data_file
+from gbmbkgpy.io.package_data import get_path_of_external_data_dir
 from gbmbkgpy.utils.progress_bar import progress_bar
 
 try:
@@ -52,16 +54,17 @@ class SelectPointsources(object):
         ), "Either enter time_string or mjd, not both!"
 
         if time_string is not None:
-            t = Time(
+            self._t = Time(
                 f"20{time_string[:2]}-{time_string[2:4]}-{time_string[4:6]}T00:00:00.000",
                 format="isot",
                 scale="utc",
             )
 
-            self._time = t.mjd
+            self._time = self._t.mjd
 
         elif mjd is not None:
             self._time = mjd
+            self._t = Time(mjd, format="mjd")
 
         else:
             raise AssertionError("Please give either time_string or mjd")
@@ -70,30 +73,34 @@ class SelectPointsources(object):
             limit1550Crab * 0.000220 * 1000
         )  # 0.000220 cnts/s/cm^2 is 1 mCrab in 15-50 keV band for Swift
 
+        self._ps_db_path = os.path.join(
+            get_path_of_external_data_dir(),
+            "background_point_sources",
+            "pointsources_swift.h5",
+        )
+
+        self._ps_orbit_db_path = os.path.join(
+            get_path_of_external_data_dir(),
+            "background_point_sources",
+            "pointsources_swift_orbit.h5",
+        )
+
         # If file does not exist we have to create it
-        if not os.path.exists(
-            get_path_of_data_file("background_point_sources/", "pointsources_swift.h5")
-        ):
+        if not os.path.exists(self._ps_db_path):
             print(
                 "The pointsource_swift.h5 file does not exist in the data folder."
                 "To use the point source selection you need to create this file."
             )
             with tempfile.TemporaryDirectory() as tmpdirname:
                 build_swift_pointsource_database(tmpdirname)
-            if not os.path.exists(
-                get_path_of_data_file(
-                    "background_point_sources/", "pointsources_swift.h5"
-                )
-            ):
+
+            if not os.path.exists(self._ps_db_path):
                 raise AssertionError(
                     "The pointsource_swift.h5 file still does not exist in the data folder. Aborting..."
                 )
 
         # Check if the time covered by the pointsource_swift file covers the day we want to use
-        with h5py.File(
-            get_path_of_data_file("background_point_sources/", "pointsources_swift.h5"),
-            "r",
-        ) as h:
+        with h5py.File(self._ps_db_path, "r") as h:
             times_all = np.zeros((len(h.keys()), 20000))
             for i, key in enumerate(h.keys()):
                 times = h[key]["Time"][()]
@@ -110,9 +117,9 @@ class SelectPointsources(object):
 
             if update is None:
                 start = yes_or_no(
-                        f"Your current pointsources_swift.h5 file does not cover the time"
-                        " you want to use. Do you want to update it?"
-                    )
+                    f"Your current pointsources_swift.h5 file does not cover the time"
+                    " you want to use. Do you want to update it?"
+                )
 
             elif update:
                 start = True
@@ -132,10 +139,7 @@ class SelectPointsources(object):
         Return dict with the pointsources above a certain threshold on a given day in Swift
         :return: Dict with pointsources on this day above threshold
         """
-        with h5py.File(
-            get_path_of_data_file("background_point_sources/", "pointsources_swift.h5"),
-            "r",
-        ) as h:
+        with h5py.File(self._ps_db_path, "r",) as h:
             rates_all = np.zeros(len(h.keys()))
             errors_all = np.zeros(len(h.keys()))
             names = []
@@ -182,6 +186,60 @@ class SelectPointsources(object):
         self._ps_dict = ps_dict
 
         return ps_dict
+
+    def ps_time_variation(self):
+        """
+        Return dict with the pointsources above a certain threshold on a given day in Swift
+        :return: Dict with pointsources on this day above threshold
+        """
+        print("Build time variablity of poiny sources")
+        # If file does not exist we have to create it
+        if not os.path.exists(self._ps_orbit_db_path):
+            print(
+                "The pointsource_swift_orbit.h5 file does not exist in the data folder."
+                "To use the point source selection you need to create this file."
+            )
+            with tempfile.TemporaryDirectory() as tmpdirname:
+                build_swift_pointsource_database(tmpdirname, orbit_resolution=True)
+
+        # Use 20 days before and after for interpolation
+        t_start = self._t - 20
+        t_stop = self._t + 20
+
+        met_start = GBMTime(t_start).met
+        met_stop = GBMTime(t_stop).met
+
+        ps_variation = {}
+
+        with h5py.File(self._ps_orbit_db_path, "r",) as h:
+
+            for ps_name, ps in self._ps_dict.items():
+                print(ps_name)
+
+                h5_name = ps_name.replace("+", "p")
+
+                rates = h[h5_name]["Rates"][()]
+                errors = h[h5_name]["Error"][()]
+                times = h[h5_name]["Time"][()]
+
+                mask = np.logical_and(times>met_start, times<met_stop)
+
+                # Clip rates to 0 as negative rates are non physical
+                ps_variation[ps_name] = {
+                    "times": times[mask],
+                    "rates": np.clip(rates[mask], a_min=0, a_max=None),
+                    "errors": errors[mask]
+                }
+
+        ps_interpolators = {}
+
+        for ps_name, ps in ps_variation.items():
+
+            ps_interpolators[ps_name] = interpolate.UnivariateSpline(
+                ps["times"], ps["rates"] / abs(np.mean(ps["rates"])), s=50, k=3
+            )
+
+        return ps_interpolators
 
     def write_psfile(self, filename):
         if using_mpi:
@@ -262,10 +320,7 @@ class SelectPointsources(object):
         ax.grid()
 
         # Read in the h5 file only once to save time;
-        with h5py.File(
-            get_path_of_data_file("background_point_sources/", "pointsources_swift.h5"),
-            "r",
-        ) as h:
+        with h5py.File(self._ps_db_path, "r",) as h:
             rates_all = np.zeros((len(h.keys()), 20000))
             errors_all = np.zeros((len(h.keys()), 20000))
             times_all = np.zeros((len(h.keys()), 20000))
@@ -345,26 +400,43 @@ def yes_or_no(question):
             return False
 
 
-def download_ps_file(save_swift_data_folder, remote_file_name):
+def download_ps_file(save_swift_data_folder, remote_file_name, orbit_resolution=False):
     final_path = f"{save_swift_data_folder}/{remote_file_name}.fits"
     # if not os.path.exists(final_path):
+    if orbit_resolution:
+        file_substring = ".orbit"
+    else:
+        file_substring = ""
+
     try:
-        url = f"https://swift.gsfc.nasa.gov/results/transients/weak/{remote_file_name}.lc.fits"
+        url = f"https://swift.gsfc.nasa.gov/results/transients/weak/{remote_file_name}{file_substring}.lc.fits"
         path_to_file = download_file(url)
         shutil.move(path_to_file, final_path)
     except:
-        url = (
-            f"https://swift.gsfc.nasa.gov/results/transients/{remote_file_name}.lc.fits"
-        )
+        url = f"https://swift.gsfc.nasa.gov/results/transients/{remote_file_name}{file_substring}.lc.fits"
         path_to_file = download_file(url)
         shutil.move(path_to_file, final_path)
 
 
-def build_swift_pointsource_database(save_swift_data_folder, multiprocessing=False, force=False):
+def build_swift_pointsource_database(
+    save_swift_data_folder, multiprocessing=False, force=False, orbit_resolution=False
+):
     """
     Build the swift pointsource database.
     :param save_data_folder: Folder where the swift data files are saved
     """
+
+    if orbit_resolution:
+        filename = "pointsources_swift_orbit.h5"
+    else:
+        filename = "pointsources_swift.h5"
+
+    database_file = os.path.join(
+        get_path_of_external_data_dir(), "background_point_sources", filename
+    )
+
+    if_dir_containing_file_not_existing_then_make(database_file)
+
     if using_mpi:
         if rank == 0:
             do_it = True
@@ -381,16 +453,9 @@ def build_swift_pointsource_database(save_swift_data_folder, multiprocessing=Fal
 
         else:
 
-            if os.path.exists(
-                get_path_of_data_file("background_point_sources/", "pointsources_swift.h5")
-            ):
+            if os.path.exists(database_file):
 
-                with h5py.File(
-                    get_path_of_data_file(
-                        "background_point_sources/", "pointsources_swift.h5"
-                    ),
-                    "r",
-                ) as h:
+                with h5py.File(database_file, "r") as h:
                     times_all = np.zeros((len(h.keys()), 20000))
                     for i, key in enumerate(h.keys()):
                         times = h[key]["Time"][()]
@@ -458,9 +523,17 @@ def build_swift_pointsource_database(save_swift_data_folder, multiprocessing=Fal
                 # this uses all available threds on the machine, this might not be save...
                 with Pool() as pool:
 
-                    download_arguments = zip(
-                        itertools.repeat(save_swift_data_folder), final
-                    )
+                    if orbit_resolution:
+                        download_arguments = zip(
+                            itertools.repeat(save_swift_data_folder),
+                            final,
+                            itertools.repeat(True),
+                        )
+
+                    else:
+                        download_arguments = zip(
+                            itertools.repeat(save_swift_data_folder), final
+                        )
 
                     results = pool.starmap(download_ps_file, download_arguments)
 
@@ -471,18 +544,16 @@ def build_swift_pointsource_database(save_swift_data_folder, multiprocessing=Fal
 
                     for remote_file_name in final:
 
-                        download_ps_file(save_swift_data_folder, remote_file_name)
+                        download_ps_file(
+                            save_swift_data_folder, remote_file_name, orbit_resolution
+                        )
 
                         p.increase()
 
             print("Save everything we need in hdf5 point source database...")
+
             # Save everything in a h5 file for convenience and speed
-            with h5py.File(
-                get_path_of_data_file(
-                    "background_point_sources/", "pointsources_swift.h5"
-                ),
-                "w",
-            ) as h:
+            with h5py.File(database_file, "w") as h:
 
                 for name in os.listdir(save_swift_data_folder):
 
@@ -497,7 +568,7 @@ def build_swift_pointsource_database(save_swift_data_folder, multiprocessing=Fal
             print("Done")
         else:
             print(
-                "The point source database will [bold red]NOT[/bold red] be (re)created."
+                "The point source database will NOT be (re)created."
             )
 
     if using_mpi:
