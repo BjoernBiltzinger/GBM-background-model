@@ -73,40 +73,10 @@ class Data(object):
 
         self._echan_mask_construction(echans)
 
-        #if data_type == "ctime":
-        #    assert (
-        #        type(echans)
-        #        and max(echans) <= 7
-        #        and min(echans) >= 0
-        #        and all(isinstance(x, int) for x in echans)
-        #    ), (
-        #        "Echan_list variable must be a list and can only "
-        #        "have integer entries between 0 and 7"
-        #    )
-
-        #if data_type == "cspec":
-        #    assert (
-        #        type(echans)
-        #        and max(echans) <= 127
-        #        and min(echans) >= 0
-        #        and all(isinstance(x, int) for x in echans)
-        #    ), (
-        #        "Echan_list variable must be a list and can only "
-        #        "have integer entries between 0 and 127"
-        #    )
-
         self._detectors = sorted(detectors)
         self._dates = sorted(dates)
         self._echans = echans
         self._simulation = simulation
-
-        #if self._data_type == "ctime":
-        #    self._echan_mask = np.zeros(8, dtype=bool)
-        #    self._echan_mask[self._echans] = True
-
-        #elif self._data_type == "cspec":
-        #    self._echan_mask = np.zeros(128, dtype=bool)
-        #    self._echan_mask[self._echans] = True
 
         self._build_arrays()
 
