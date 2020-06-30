@@ -48,7 +48,7 @@ valid_det_names = [
 
 
 class TrigData(object):
-    def __init__(self, trigger, detectors, data_type, echans, test=False):
+    def __init__(self, trigger, detectors, data_type, echans, trigdat_file=None, test=False):
         """
         Initalize the TrigData Class, which contains the information about the time bins
         and counts of the data.
@@ -83,7 +83,7 @@ class TrigData(object):
             for e in echans:
                 self._echan_mask[e] = True
 
-        self._build_arrays()
+        self._build_arrays(trigdat_file)
 
         self._rebinned = False
         self._data_rebinner = None
@@ -269,31 +269,35 @@ class TrigData(object):
         """
         return self._trigdata_path
 
-    def _build_arrays(self):
+    def _build_arrays(self, trigdata_path=None):
         year = "20%s" % self._trigger[2:4]
 
-        # Download data-file and poshist file if not existing:
-        datafile_name = "glg_{0}_{1}_{2}_v00.fit".format(
-            self._data_type, "all", self._trigger
-        )
-        datafile_path = os.path.join(
-            get_path_of_external_data_dir(), self._data_type, year, datafile_name
-        )
+        if trigdata_path is None:
+            # Download data-file and poshist file if not existing:
+            datafile_name = "glg_{0}_{1}_{2}_v00.fit".format(
+                self._data_type, "all", self._trigger
+            )
+            datafile_path = os.path.join(
+                get_path_of_external_data_dir(), self._data_type, year, datafile_name
+            )
 
-        # If MPI is used only one rank should download the data; the others wait
-        if rank == 0:
-            if not file_existing_and_readable(datafile_path):
-                download_trigdata_file(self._trigger, self._data_type)
+            # If MPI is used only one rank should download the data; the others wait
+            if rank == 0:
+                if not file_existing_and_readable(datafile_path):
+                    download_trigdata_file(self._trigger, self._data_type)
 
-        if using_mpi:
-            comm.Barrier()
+            if using_mpi:
+                comm.Barrier()
 
-        self._trigdata_path = datafile_path
+            self._trigdata_path = datafile_path
+
+        else:
+            self._trigdata_path = trigdata_path
 
         evntrate = "EVNTRATE"
 
         # Open the datafile of the CTIME/CSPEC data and read in all needed quantities
-        with fits.open(datafile_path) as trigdat:
+        with fits.open(self._trigdata_path) as trigdat:
             self._trigtime = trigdat[evntrate].header["TRIGTIME"]
             bin_start = trigdat[evntrate].data["TIME"]
             bin_stop = trigdat[evntrate].data["ENDTIME"]

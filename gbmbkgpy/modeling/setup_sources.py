@@ -390,7 +390,7 @@ def setup_ps(
         geometry=geometry,
         echans=echans,
         point_source_list=point_source_list,
-        data=data,
+        data=data
     )
 
     PS_Continuum_dic = {}
@@ -687,7 +687,11 @@ def build_point_sources(
         free =  point_source_list["auto_swift"]["free"]
         free = [entry.upper() for entry in free]
         # Initalize Pointsource selection
-        sp = SelectPointsources(limit, time_string=day)
+        sp = SelectPointsources(
+            limit,
+            time_string=day,
+            update=point_source_list["auto_swift"].get("update_catalog", None)
+        )
 
         # Create temp file
         filepath = os.path.join(get_path_of_external_data_dir(), "tmp", "ps_auto_swift.dat")

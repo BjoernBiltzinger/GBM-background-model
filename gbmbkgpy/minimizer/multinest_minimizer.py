@@ -146,10 +146,9 @@ class MultiNestFit(object):
 
             if rank == 0:
 
-                # If we used a temporary output dir then move it to the final destination
+                # If we used a temporary output dir then remove the symbolic link
                 if tmp_output_dir != self._output_dir:
-
-                    shutil.move(tmp_output_dir, self._output_dir)
+                    os.unlink(tmp_output_dir[:-1])
 
                 self.analyze_result()
 
@@ -159,11 +158,9 @@ class MultiNestFit(object):
 
         else:
 
-            # If we used a temporary output dir then move it to the final destination
-
+            # If we used a temporary output dir then remove the symbolic link
             if tmp_output_dir != self._output_dir:
-
-                shutil.move(tmp_output_dir, self._output_dir)
+                os.unlink(tmp_output_dir[:-1])
 
             self.analyze_result()
 
@@ -356,8 +353,15 @@ class MultiNestFit(object):
                 datetime.now().strftime("%m-%d_%H-%M") + "/",
             )
 
+        else:
+            # Append '/' to output dir if not last char
+            if output_dir[-1] != '/':
+
+                output_dir = output_dir + '/'
+
         # If the output path is to long (MultiNest only supports 100 chars)
-        # we will us a random directory name and move it when MultiNest finished.
+        # we will create a symbolic link with a random directory name
+        # and remove it when MultiNest finished.
 
         if len(output_dir) > 72:
 
@@ -377,15 +381,25 @@ class MultiNestFit(object):
 
             if rank == 0:
 
-                if not os.access(tmp_output_dir, os.F_OK):
+                if not os.access(output_dir, os.F_OK):
                     print("Making New Directory")
-                    os.makedirs(tmp_output_dir)
+                    os.makedirs(output_dir)
+
+                if tmp_output_dir != output_dir:
+
+                    if not os.access(tmp_output_dir, os.F_OK):
+                        os.symlink(output_dir, tmp_output_dir[:-1])
 
         else:
 
-            if not os.access(tmp_output_dir, os.F_OK):
+            if not os.access(output_dir, os.F_OK):
                 print("Making New Directory")
-                os.makedirs(tmp_output_dir)
+                os.makedirs(output_dir)
+
+            if tmp_output_dir != output_dir:
+
+                if not os.access(tmp_output_dir, os.F_OK):
+                    os.symlink(output_dir, tmp_output_dir[:-1])
 
         return output_dir, tmp_output_dir
 
