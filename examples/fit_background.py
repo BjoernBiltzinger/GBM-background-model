@@ -196,8 +196,6 @@ if rank == 0:
             results_file.write(os.path.join(output_dir, result_file_name))
             results_file.write("\n")
 
-comm.barrier()
-
 stop_export = datetime.now()
 
 ################## Plotting ########################################
@@ -230,8 +228,6 @@ if config["plot"].get("result_plot", True):
 if config["plot"].get("corner_plot", True):
     # Create corner plot
     minimizer.create_corner_plot()
-
-comm.barrier()
 
 stop_plotting = datetime.now()
 

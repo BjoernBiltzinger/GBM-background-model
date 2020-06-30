@@ -33,7 +33,7 @@ plot:
   ylabel:               null
   dpi:                  600
   show_legend:          true
-  legend_outside:       false
+  legend_outside:       true
   show_title:           true
   axis_title:           null
 

@@ -57,6 +57,20 @@ class Source(object):
             )  # np.full(len(time_bins), True)
         return self._shape()[bin_mask]
 
+    def __repr__(self):
+        params = '\n    '.join([param.info for param in self.parameters.values()])
+
+        info = f"""### {self.name} ###
+type: {self.source_type}
+echan: {self.echan}
+paramters:
+    {params}
+
+"""
+
+        return info
+
+    
     @property
     def name(self):
         return self._name

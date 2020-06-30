@@ -17,7 +17,7 @@ response:
 
 ####### Input for SAA mask precaluclation [time to exclude after SAA, delete short time intervals? ##
 saa:
-  time_after_saa: 50
+  time_after_saa: 5000
   short_time_intervals: false
   nr_decays_per_exit: 2
   decay_at_day_start: true
@@ -30,7 +30,7 @@ geometry:
 
 ##### Input for source Setup [use CR, use Earth, use CGB, point source list, fix earth, fix cgb #####
 setup:
-  use_saa:      true
+  use_saa:      false
   use_constant: true
   use_cr:       true
   use_earth:    true
@@ -73,7 +73,7 @@ bounds:
     const:  [1.0e-1, 1.0e+2]
     norm:   [0.1, 1.0e+2]
   earth_fixed_bound:
-    norm:   [0.5e-2, 3e-2]
+    norm:   [0.5e-2, 3.0e-2]
   cgb_fixed_bound:
     norm:   [4.0e-2, 0.3]
   earth_free_bound:
@@ -88,12 +88,12 @@ bounds:
     Eb:     [27, 40]
   ps_fixed_bound:
     pl:
-      norm:   [1.0e-4, 1e9]
+      norm:   [1.0e-4, 1.0e+9]
     bb:
-      norm:   [1.0e-4, 1e9]
+      norm:   [1.0e-4, 1.0e+9]
   ps_free_bound:
     pl:
-      norm:   [1.0e-1, 1e5]
+      norm:   [1.0e-1, 1.0e+5]
       index:  [0,4]
     bb:
       norm:   [1.0e-4, 10000]
@@ -153,7 +153,7 @@ fit:
 export:
   save_cov_matrix: false
   save_ppc: true
-  save_unbinned: true
+  save_unbinned: false
 
 ############################### Input for plotting ##################################################
 ### bin_width to bin the data, change_time from MET to seconds since midnight, show residuals? ######
