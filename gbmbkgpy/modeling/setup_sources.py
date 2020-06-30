@@ -243,7 +243,7 @@ def setup_SAA(
 
                 SAA_Decay_list.append(
                     SAASource(
-                        "saa_{:d} det_{} echan_{}".format(saa_n, det, echan),
+                        f"saa_{saa_n} det_{det} echan_{echan}",
                         saa_dec,
                         index,
                     )
@@ -271,7 +271,7 @@ def setup_SAA(
             saa_dec.precalulate_time_bins_integral()
 
             SAA_Decay_list.append(
-                SAASource("saa_{:d} echan_{}".format(saa_n, echan), saa_dec, index)
+                SAASource(f"saa_{saa_n} echan_{echan}", saa_dec, index)
             )
             saa_n += 1
 
@@ -313,7 +313,7 @@ def setup_Constant(data, saa_object, echan, index):
     Constant.integrate_array(data.time_bins)
 
     Constant_Continuum = ContinuumSource(
-        "Constant_echan_{:d}".format(echan), Constant, index
+        f"Constant_echan_{echan}", Constant, index
     )
     return Constant_Continuum
 
@@ -340,7 +340,7 @@ def setup_CosmicRays(data, ep, saa_object, echan, index, bgo_cr_approximation):
         mag_con.integrate_array(data.time_bins)
 
         Source_Magnetic_Continuum = ContinuumSource(
-            "BGO_CR_Approx_echan_{:d}".format(echan), mag_con, index
+            f"BGO_CR_Approx_echan_{echan}", mag_con, index
         )
 
     else:
@@ -355,7 +355,7 @@ def setup_CosmicRays(data, ep, saa_object, echan, index, bgo_cr_approximation):
         mag_con.integrate_array(data.time_bins)
 
         Source_Magnetic_Continuum = ContinuumSource(
-            "McIlwain_L-parameter_echan_{:d}".format(echan), mag_con, index
+            f"McIlwain_L-parameter_echan_{echan}", mag_con, index
         )
 
     return Source_Magnetic_Continuum
