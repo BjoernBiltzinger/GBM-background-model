@@ -228,7 +228,7 @@ class ResultPlotGenerator(object):
 
         return cls(config_file=config_file, result_dict=result_dict)
 
-    def create_plots(self, output_dir):
+    def create_plots(self, output_dir, time_stamp=None):
 
         for day_idx, day in enumerate(self._result_dict["dates"]):
 
@@ -245,7 +245,8 @@ class ResultPlotGenerator(object):
                         else 12 + len(self._result_dict["ppc_counts"])
                     )
 
-                    time_stamp = datetime.now().strftime("%y%m%d_%H%M")
+                    if time_stamp is None:
+                        time_stamp = datetime.now().strftime("%y%m%d_%H%M")
 
                     plot_path = (
                         f"{output_dir}/"
