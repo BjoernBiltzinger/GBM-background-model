@@ -433,6 +433,7 @@ class PHAWriter(object):
         echans,
         detectors,
         time_bins,
+        saa_mask,
         observed_counts,
         model_counts,
         stat_err,
@@ -445,6 +446,7 @@ class PHAWriter(object):
         self._echans = echans
         self._detectors = detectors
         self._time_bins = time_bins
+        self._saa_mask = saa_mask
         self._observed_counts = observed_counts
         self._model_counts = model_counts
         self._stat_err = stat_err
@@ -466,6 +468,7 @@ class PHAWriter(object):
                 echans_f = f.attrs["echans"]
                 time_bins_start_f = f["time_bins_start"][()]
                 time_bins_stop_f = f["time_bins_stop"][()]
+                saa_mask_f = f["saa_mask"][()]
 
                 observed_counts_f = f["observed_counts"][()]
                 model_counts_f = f["model_counts"][()]
@@ -477,6 +480,7 @@ class PHAWriter(object):
                 trigger = trigger_f
                 trigger_time = trigger_time_f
                 time_bins = np.vstack((time_bins_start_f, time_bins_stop_f)).T
+                saa_mask = saa_mask_f
                 observed_counts = np.zeros((len(time_bins_stop_f), 14, 8))
                 model_counts = np.zeros((len(time_bins_stop_f), 14, 8))
                 stat_err = np.zeros_like(model_counts)
@@ -487,7 +491,10 @@ class PHAWriter(object):
                 assert trigger == trigger_f
                 assert trigger_time == trigger_time_f
                 assert np.array_equal(
-                    time_bins, np.vstack((time_bins_start_f, time_bins_stop_f)).T,
+                    time_bins, np.vstack((time_bins_start_f, time_bins_stop_f)).T
+                )
+                assert np.array_equal(
+                    saa_mask, saa_mask_f
                 )
 
             for det_tmp_idx, det in enumerate(detectors_f):
@@ -538,6 +545,7 @@ class PHAWriter(object):
             echans,
             detectors,
             time_bins,
+            saa_mask,
             observed_counts,
             model_counts,
             stat_err,
@@ -563,6 +571,8 @@ class PHAWriter(object):
 
             time_bins = f["time_bins"][()]
 
+            saa_mask = f["saa_mask"][()]
+
             observed_counts = f["observed_counts"][()]
 
             model_counts = f["model_counts"][()]
@@ -580,6 +590,7 @@ class PHAWriter(object):
             echans,
             detectors,
             time_bins,
+            saa_mask,
             observed_counts,
             model_counts,
             stat_err,
@@ -603,6 +614,10 @@ class PHAWriter(object):
 
             f.create_dataset(
                 "time_bins", data=self._time_bins, compression="lzf",
+            )
+
+            f.create_dataset(
+                "saa_mask", data=self._saa_mask, compression="lzf",
             )
 
             f.create_dataset(
