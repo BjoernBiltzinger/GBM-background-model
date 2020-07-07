@@ -456,6 +456,10 @@ def setup_ps(
 
             PS_Continuum_dic["{}".format(ps.name)].set_responses(responses=ps.responses)
 
+            PS_Continuum_dic["{}".format(ps.name)].set_norm_time_variability(
+                ps._time_variation_interp(np.mean(data.time_bins, axis=1))
+            )
+            
             PS_Sources_list.append(
                 FitSpectrumSource(
                     name="{}".format(ps.name),
@@ -735,7 +739,6 @@ def build_point_sources(
                         echans=echans,
                         spec=spec,
                         )
-
 
                     if point_source_list["auto_swift"].get("time_variable", False):
                         print("Point source is set to variate with time")

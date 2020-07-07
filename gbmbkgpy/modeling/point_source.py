@@ -102,6 +102,8 @@ class PointSrc_free(object):
 
         self._echans_mask = echans_mask
 
+        self._time_variation_interp = None
+
         self._calc_det_responses()
 
     @property
@@ -115,6 +117,12 @@ class PointSrc_free(object):
         was calculated.
         """
         return self._ps_response
+
+    def set_time_variation_interp(self, interp):
+        """
+        Set an interpolator defining the time variation of the point source
+       """
+        self._time_variation_interp = interp
 
     def _calc_det_responses(self):
 
@@ -198,8 +206,6 @@ class PointSrc_fixed(PointSrc_free):
         # Interpolate between the times, for which the geometry was calculated
         self._interpolate_ps_rates()
 
-        self._time_variation_interp = None
-
     def _read_spec(self, spec):
         """
         Read the spec dict to figure out which spectral type and which params should be used
@@ -222,12 +228,6 @@ class PointSrc_fixed(PointSrc_free):
                 self._pl_index = self._get_swift_pl_index()
             else:
                 self._pl_index = spec["powerlaw_index"]
-
-    def set_time_variation_interp(self, interp):
-        """
-        Set an interpolator defining the time variation of the point source
-       """
-        self._time_variation_interp = interp
 
     def get_ps_rates(self, met):
         """
