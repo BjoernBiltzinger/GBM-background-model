@@ -456,9 +456,14 @@ def setup_ps(
 
             PS_Continuum_dic["{}".format(ps.name)].set_responses(responses=ps.responses)
 
-            PS_Continuum_dic["{}".format(ps.name)].set_norm_time_variability(
-                ps._time_variation_interp(np.mean(data.time_bins, axis=1))
-            )
+            if ps._time_variation_interp is None:
+               PS_Continuum_dic["{}".format(ps.name)].set_norm_time_variability(
+                np.ones_like(np.mean(data.time_bins, axis=1))
+               )
+            else:
+                PS_Continuum_dic["{}".format(ps.name)].set_norm_time_variability(
+                    ps._time_variation_interp(np.mean(data.time_bins, axis=1))
+                )
             
             PS_Sources_list.append(
                 FitSpectrumSource(
