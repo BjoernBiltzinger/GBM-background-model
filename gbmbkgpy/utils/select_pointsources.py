@@ -3,7 +3,7 @@ import os
 from astropy.utils.data import download_file
 import shutil
 import urllib.request
-
+import csv
 import h5py
 import numpy as np
 from astropy.time import Time
@@ -83,6 +83,12 @@ class SelectPointsources(object):
             get_path_of_external_data_dir(),
             "background_point_sources",
             "pointsources_swift_orbit.h5",
+        )
+
+        self._ps_maxi_scans_db = os.path.join(
+            get_path_of_external_data_dir(),
+            "background_point_sources",
+            "pointsources_maxi_scan.h5",
         )
 
         # If file does not exist we have to create it
@@ -192,7 +198,7 @@ class SelectPointsources(object):
         Return dict with the pointsources above a certain threshold on a given day in Swift
         :return: Dict with pointsources on this day above threshold
         """
-        print("Build time variablity of poiny sources")
+        print("Build time variablity of point sources")
         # If file does not exist we have to create it
         if not os.path.exists(self._ps_orbit_db_path):
             print(
@@ -202,34 +208,128 @@ class SelectPointsources(object):
             with tempfile.TemporaryDirectory() as tmpdirname:
                 build_swift_pointsource_database(tmpdirname, orbit_resolution=True)
 
-        # Use 20 days before and after for interpolation
-        t_start = self._t - 20
-        t_stop = self._t + 20
+        # If file does not exist we have to create it
+        if not os.path.exists(self._ps_orbit_db_path):
+            print(
+                "The pointsource_maxi_scans.h5 file does not exist in the data folder."
+                "To use the point source selection you need to create this file."
+            )
+            with tempfile.TemporaryDirectory() as tmpdirname:
+                build_maxi_pointsource_database(tmpdirname)
 
-        met_start = GBMTime(t_start).met
-        met_stop = GBMTime(t_stop).met
+        # Use 3 days before and after for interpolation
+        t_start_long = self._t - 3
+        t_stop_long = self._t + 4
+
+        met_start_long = GBMTime(t_start_long).met
+        met_stop_long = GBMTime(t_stop_long).met
+
+        t_start_day = self._t
+        t_stop_day = self._t + 1
+
+        met_start_day = GBMTime(t_start_day).met
+        met_stop_day = GBMTime(t_stop_day).met
 
         ps_variation = {}
 
-        with h5py.File(self._ps_orbit_db_path, "r",) as h:
+        with h5py.File(self._ps_orbit_db_path, "r",) as ps_swift:
+            with h5py.File(self._ps_maxi_scans_db, "r",) as ps_maxi:
 
-            for ps_name, ps in self._ps_dict.items():
-                print(ps_name)
+                for ps_name, ps in self._ps_dict.items():
 
-                h5_name = ps_name.replace("+", "p")
+                    h5_name = ps_name.replace("+", "p")
 
-                rates = h[h5_name]["Rates"][()]
-                errors = h[h5_name]["Error"][()]
-                times = h[h5_name]["Time"][()]
+                    rates_swift = ps_swift[h5_name]["Rates"][()]
+                    errors_swift = ps_swift[h5_name]["Error"][()]
+                    times_swift = ps_swift[h5_name]["Time"][()]
 
-                mask = np.logical_and(times>met_start, times<met_stop)
+                    # mask
+                    mask_swift_long = np.logical_and(times_swift>met_start_long,
+                                                     times_swift<met_stop_long)
 
-                # Clip rates to 0 as negative rates are non physical
-                ps_variation[ps_name] = {
-                    "times": times[mask],
-                    "rates": np.clip(rates[mask], a_min=0, a_max=None),
-                    "errors": errors[mask]
-                }
+                    mask_swift_day = np.logical_and(times_swift>met_start_day,
+                                                    times_swift<met_stop_day)
+                    num_data_points_swift_day = np.sum(mask_swift_day)
+                    inter = [s for s in ps_maxi.keys() if ps_name.upper() in s]
+                    if len(inter)>0:
+                        h5_name_maxi = inter[0]
+                        rates_maxi = ps_maxi[h5_name_maxi]["Rates"][()]
+                        errors_maxi = ps_maxi[h5_name_maxi]["Error"][()]
+                        times_maxi = ps_maxi[h5_name_maxi]["Time"][()]
+
+                        mask_maxi_long = np.logical_and(times_maxi>met_start_long,
+                                                        times_maxi<met_stop_long)
+
+                        mask_maxi_day = np.logical_and(times_maxi>met_start_day,
+                                                       times_maxi<met_stop_day)
+                        # Check which one has better coverage
+
+                        num_data_points_maxi_day = np.sum(mask_maxi_day)
+
+                    else:
+                        num_data_points_maxi_day = -1
+                        
+                    if num_data_points_maxi_day>=num_data_points_swift_day:
+                        use_maxi = True
+                        use_swift = False
+                    else:
+                        use_maxi = False
+                        use_swift = True
+                    print(f"Maxi data points: {num_data_points_maxi_day}, Swift data points: {num_data_points_swift_day}")
+                    if use_maxi:
+                        print(f"Use maxi time variability for {ps_name}")
+                        # Check number of data points on day
+                        if num_data_points_maxi_day < 10:
+                            print(f"Only {num_data_points_maxi_day} data points for point source {ps_name}. This can go wrong....")
+
+                        # Check that there is no big gap at start of day or at end of day
+                        start_id = np.argwhere(times_maxi > met_start_day)[0]
+                        if times_maxi[start_id]-times_maxi[start_id-1] > 2*3600:
+                            print(f"At the start of the day there is {times_maxi[start_id]-times_maxi[start_id-1]} seconds with no data point for point source {ps_name}")
+
+                        stop_id = np.argwhere(times_maxi < met_stop_day)[-1]
+                        if times_maxi[stop_id+1]-times_maxi[stop_id] > 2*3600:
+                            print(f"At the end of the day there is {times_maxi[stop_id+1]-times_maxi[stop_id]} seconds with no data point for point source {ps_name}")
+
+                        rates = np.clip(rates_maxi[mask_maxi_long],
+                                        a_min=0,
+                                        a_max=None)
+                        rates_norm = rates/(np.mean(rates))
+                        errors = errors_maxi[mask_maxi_long]
+                        errors_norm = errors/(np.mean(rates))
+                        ps_variation[ps_name] = {
+                            "times": times_maxi[mask_maxi_long],
+                            "rates": rates_norm,
+                            "errors": errors_norm
+                        }
+
+                    if use_swift:
+                        print(f"Use swift time variability for {ps_name}")
+                        # Check number of data points on day
+                        if num_data_points_swift_day < 10:
+                            print(f"Only {num_data_points_swift_day} data points for point source {ps_name}. This can go wrong....")
+
+                        # Check that there is no big gap at start of day or at end of day
+                        start_id = np.argwhere(times_swift > met_start_day)[0]
+                        if times_swift[start_id]-times_swift[start_id-1] > 2*3600:
+                            print(f"At the start of the day there is {times_swift[start_id]-times_swift[start_id-1]} seconds with no data point for point source {ps_name}")
+
+                        stop_id = np.argwhere(times_swift < met_stop_day)[-1]
+                        if times_swift[stop_id+1]-times_swift[stop_id] > 2*3600:
+                            print(f"At the end of the day there is {times_swift[stop_id+1]-times_swift[stop_id]} seconds with no data point for point source {ps_name}")
+
+                        rates = np.clip(rates_swift[mask_swift_long],
+                                        a_min=0,
+                                        a_max=None)
+                        rates_norm = rates/(np.mean(rates))
+                        errors = errors_swift[mask_swift_long]
+                        errors_norm = errors/(np.mean(rates))
+                        ps_variation[ps_name] = {
+                            "times": times_swift[mask_swift_long],
+                            "rates": rates_norm,
+                            "errors": errors_norm
+                        }
+                    # TODO combine maxi and swift (inter normalization?)
 
         ps_interpolators = {}
 
@@ -456,7 +556,7 @@ def build_swift_pointsource_database(
             if os.path.exists(database_file):
 
                 with h5py.File(database_file, "r") as h:
-                    times_all = np.zeros((len(h.keys()), 20000))
+                    times_all = np.zeros((len(h.keys()), 200000))
                     for i, key in enumerate(h.keys()):
                         times = h[key]["Time"][()]
                         times_all[i][: len(times)] = times
@@ -565,6 +665,193 @@ def build_swift_pointsource_database(
                         gr.create_dataset("Time", data=f["RATE"].data["TIME"])
                         gr.attrs["Ra"] = f["RATE"].header["RA_OBJ"]
                         gr.attrs["Dec"] = f["RATE"].header["DEC_OBJ"]
+            print("Done")
+        else:
+            print(
+                "The point source database will NOT be (re)created."
+            )
+
+    if using_mpi:
+        comm.barrier()
+
+
+def download_ps_maxi_file(save_maxi_data_folder, remote_file_name):
+    final_path = f"{save_maxi_data_folder}/{remote_file_name}.fits"
+    try:
+        url = f"http://maxi.riken.jp/pubdata/v3.rkn/{remote_file_name}/glcscan_lcbg_hv0.csv"
+        path_to_file = download_file(url)
+        shutil.move(path_to_file, final_path)
+    except:
+        url = f"http://maxi.riken.jp/pubdata/v3.rkn/{remote_file_name}/glcscan_regbg_hv0.csv"
+        path_to_file = download_file(url)
+        shutil.move(path_to_file, final_path)
+
+def calculate_met_from_mjd(mjd):
+    """
+    calculated the Fermi MET given MJD
+    :return:
+    """
+    utc_tt_diff = np.ones(len(mjd))*69.184
+    utc_tt_diff[mjd<=57754.00000000] -= 1
+    utc_tt_diff[mjd<=57204.00000000] -= 1
+    utc_tt_diff[mjd<=56109.00000000] -= 1
+    utc_tt_diff[mjd<=54832.00000000] -= 1
+    met = (
+        mjd - 51910 - 0.0007428703703
+    ) * 86400.0 + utc_tt_diff
+
+    return met
+
+def build_maxi_pointsource_database(
+    save_maxi_data_folder, multiprocessing=False
+):
+    """
+    Build the swift pointsource database.
+    :param save_data_folder: Folder where the swift data files are saved
+    """
+
+
+    filename = "pointsources_maxi_scan.h5"
+
+    database_file = os.path.join(
+        get_path_of_external_data_dir(), "background_point_sources", filename
+    )
+
+    if_dir_containing_file_not_existing_then_make(database_file)
+
+    if using_mpi:
+        if rank == 0:
+            do_it = True
+        else:
+            do_it = False
+    else:
+        do_it = True
+
+    if do_it:
+
+        if os.path.exists(database_file):
+
+            with h5py.File(database_file, "r") as h:
+                times_all = np.zeros((len(h.keys()), 20000))
+                for i, key in enumerate(h.keys()):
+                    times = h[key]["Time"][()]
+                    times_all[i][: len(times)] = times
+
+            min_mjd = np.min(times_all[times_all > 0])
+            max_mjd = np.max(times_all)
+
+            min_date = (Time(min_mjd, format="mjd").isot).split("T")[0]
+            max_date = (Time(max_mjd, format="mjd").isot).split("T")[0]
+
+            print(
+                "You are about to recreate the point source database, which contains all"
+                "point sources seen by Maxi and their according brightness in the 2-20 keV"
+                "band in Maxi from start of Maxi to today. This will take a while and about 500 MB "
+                "will be downloaded."
+            )
+            print(
+                "#############################################################################"
+            )
+            start = yes_or_no(
+                f"Your current point source database covers the time from {min_mjd} mjd to {max_mjd} mjd ({min_date} to {max_date}). Do you want to update it?"
+            )
+
+        else:
+            print(
+                "You are about to create the point source database, which contains all"
+                "point sources seen by MAXI and their according brightness in the 15-50 keV"
+                "band in MAXI from start of MAXI to today."
+                "This will take a while and about 500 MB "
+                "will be downloaded."
+            )
+            print(
+                "#############################################################################"
+            )
+            start = yes_or_no("Do you want to create it now?")
+
+        if start:
+            print("Start (re)creation of point source database...")
+            print("Parse point source names from website...")
+            # Parse pointsource names from website
+
+            import urllib
+            fp = urllib.request.urlopen(
+                "http://maxi.riken.jp/pubdata/v3.rkn/"
+            )
+            mybytes = fp.read()
+
+            mystr = mybytes.decode("utf8")
+            fp.close()
+            
+            sp = mystr.split("<th>")
+
+            ids = []
+            names = {}
+
+            for line in sp:
+                if "href" in line:
+                    ids.append(line.split("<a href=")[1].split("/")[0][1:])
+                    names[ids[-1]] = line.split("target_v3rkn")[1].split("</a>")[0][3:-1].replace(" ","").upper()
+
+            print("Download all needed swift datafiles...")
+            # Download the datafile for every datafile - This will take a while...
+
+            if multiprocessing:
+
+                # this uses all available threds on the machine, this might not be save...
+                with Pool() as pool:
+
+
+                    download_arguments = zip(
+                        itertools.repeat(save_maxi_data_folder), names
+                    )
+
+                    results = pool.starmap(download_ps_maxi_file, download_arguments)
+
+            else:
+                with progress_bar(
+                    len(names), title="Download all needed swift datafiles..."
+                ) as p:
+
+                    for remote_file_name in names:
+
+                        download_ps_maxi_file(
+                            save_maxi_data_folder, remote_file_name
+                        )
+
+                        p.increase()
+
+            print("Save everything we need in hdf5 point source database...")
+
+            # Save everything in a h5 file for convenience and speed
+            with h5py.File(database_file, "w") as h:
+
+                for name in os.listdir(save_maxi_data_folder):
+                    path = os.path.join(save_maxi_data_folder, name)
+                    with open('/home/bjorn/Downloads/glcscan_lcbg_hv0.csv', newline='') as csvfile:
+
+                        reader = csv.reader(csvfile, delimiter=',', quotechar='|')
+                        rates = np.array([])
+                        errors = np.array([])
+                        times = np.array([])
+                        for i, row in enumerate(reader):
+                            error = float(row[8])
+                            rates = np.append(rates, float(row[7]))
+                            errors = np.append(errors, error)
+                            times = np.append(times, float(row[0]))
+                        n = names[name.split(".fits")[0]].upper()
+                        gr = h.create_group(n)
+                        gr.create_dataset("Rates", data=rates)
+                        gr.create_dataset("Error", data=errors)
+
+                        # Transform maxi mjd times to GBM/SWIFT MET
+
+                        mets = calculate_met_from_mjd(times)
+
+                        gr.create_dataset("Time", data=mets)
+                        #gr.attrs["Ra"] = f["LCDAT_PIBAND4"].header["RA"]
+                        #gr.attrs["Dec"] = f["LCDAT_PIBAND4"].header["DEC"]
+
             print("Done")
         else:
             print(

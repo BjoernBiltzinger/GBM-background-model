@@ -690,6 +690,13 @@ def build_point_sources(
         exclude = [entry.upper() for entry in exclude]
         free =  point_source_list["auto_swift"]["free"]
         free = [entry.upper() for entry in free]
+        time_variable = point_source_list["auto_swift"].get("time_variable", False)
+
+        all_time_variable_same = True
+        if type(time_variable) is not bool:
+            time_variable = [entry.upper() for entry in time_variable]
+            all_time_variable_same = False
+            
         # Initalize Pointsource selection
         sp = SelectPointsources(
             limit,
@@ -703,9 +710,13 @@ def build_point_sources(
         # Write information in temp
         sp.write_psfile(filepath)
 
-        if point_source_list["auto_swift"].get("time_variable", False):
-            ps_time_var_interp = sp.ps_time_variation()
-
+        if all_time_variable_same:
+            if time_variable:
+                ps_time_var_interp = sp.ps_time_variation()
+        else:
+            if len(time_variable)>0:
+                ps_time_var_interp = sp.ps_time_variation()
+        print(time_variable)
         # Read it as pandas
         ps_df_add = pd.read_table(filepath, names=["name", "ra", "dec"])
         # Add all of them as fixed pl sources
@@ -723,12 +734,6 @@ def build_point_sources(
                         echans=echans,
                     )
 
-                    if point_source_list["auto_swift"].get("time_variable", False):
-                        print("Point source is set to variate with time")
-
-                        point_sources_dic[f"{row[1]}_pl"].set_time_variation_interp(
-                            ps_time_var_interp[row[1]]
-                            )
                 else:
                     point_sources_dic[f"{row[1]}_pl"] = PointSrc_fixed(
                         name=row[1],
@@ -740,13 +745,21 @@ def build_point_sources(
                         spec=spec,
                         )
 
-                    if point_source_list["auto_swift"].get("time_variable", False):
-                        print("Point source is set to variate with time")
+                if all_time_variable_same:
+
+                    if time_variable:
+                        print(f"Point source {row[1]} is set to variate with time")
 
                         point_sources_dic[f"{row[1]}_pl"].set_time_variation_interp(
                             ps_time_var_interp[row[1]]
-                            )
+                        )
+                else:
+                    if row[1].upper() in ",".join(time_variable):
+                        print(f"Point source {row[1]} is set to variate with time")
 
+                        point_sources_dic[f"{row[1]}_pl"].set_time_variation_interp(
+                            ps_time_var_interp[row[1]]
+                        )
         # temp.close()
 
     return point_sources_dic

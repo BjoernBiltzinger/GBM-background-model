@@ -653,7 +653,7 @@ class GlobalFunctionSpectrumFit(Function):
         """
         time_variation = np.tile(
                 norm_time_var,
-                (len(self._echans), len(self._detectors), 1, 1)
+                (len(self._echans), len(self._detectors), 1)
             )
 
         time_variation = np.swapaxes(time_variation, 0, 2)
