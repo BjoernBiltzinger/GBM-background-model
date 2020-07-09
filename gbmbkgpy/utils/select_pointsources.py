@@ -828,7 +828,7 @@ def build_maxi_pointsource_database(
 
                 for name in os.listdir(save_maxi_data_folder):
                     path = os.path.join(save_maxi_data_folder, name)
-                    with open('/home/bjorn/Downloads/glcscan_lcbg_hv0.csv', newline='') as csvfile:
+                    with open(path, newline='') as csvfile:
 
                         reader = csv.reader(csvfile, delimiter=',', quotechar='|')
                         rates = np.array([])
