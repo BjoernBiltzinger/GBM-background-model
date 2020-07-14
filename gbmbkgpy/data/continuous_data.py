@@ -358,7 +358,7 @@ class Data(object):
                 assert np.array_equal(day_met_total, day_met_array)
                 count_total[:, det_idx, :] = count_array
 
-        self._counts = count_total
+        self._counts = count_total.astype(np.int64)
         self._time_bins = time_bins_total
         self._day_start_times = day_start_times_total
         self._day_stop_times = day_stop_times_total
