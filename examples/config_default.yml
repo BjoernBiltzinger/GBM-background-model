@@ -65,81 +65,115 @@ setup:
 ####### SAA: Amplitude and decay constant, CR: Constant and McIlwain normalization ##################
 ####### Point source: Amplitude, Earth/CGB fixec: Amplitude, Earth/CGB free: Amplitude, #############
 ############################ index1, index2 and break energy#########################################
-bounds:
-  saa_bound:
-    norm:   [1, 1.0e+4]
-    decay:  [1.0e-5, 1.0e-1]
-  cr_bound:
-    const:  [1.0e-1, 1.0e+2]
-    norm:   [0.1, 1.0e+2]
-  earth_fixed_bound:
-    norm:   [0.5e-2, 3.0e-2]
-  cgb_fixed_bound:
-    norm:   [4.0e-2, 0.3]
-  earth_free_bound:
-    norm:   [1.0e-3, 1]
-    alpha:  [-8, -3]
-    beta:   [1.1, 1.9]
-    Eb:     [20, 40]
-  cgb_free_bound:
-    norm:   [0.01, 0.5]
-    alpha:  [0.5, 1.7]
-    beta:   [2.2, 3.1]
-    Eb:     [27, 40]
-  ps_fixed_bound:
-    pl:
-      norm:   [1.0e-4, 1.0e+9]
-    bb:
-      norm:   [1.0e-4, 1.0e+9]
-  ps_free_bound:
-    pl:
-      norm:   [1.0e-1, 1.0e+5]
-      index:  [0,4]
-    bb:
-      norm:   [1.0e-4, 10000]
-      temp:   [0,50]
-  sun_bound:
-    norm: [1.0e-2, 1.0e+2]
-    index: [0.5,4]
-  eff_area_correction: [0.8,1.2]
-
-gaussian_bounds:
-  saa_bound:
-    norm:   [null, null]
-    decay:  [null, null]
-  cr_bound:
-    const:  [null, null]
-    norm:   [null, null]
-  earth_fixed_bound:
-    norm:   [null, null]
-  cgb_fixed_bound:
-    norm:   [null, null]
-  earth_free_bound:
-    norm:   [null, null]
-    alpha:  [-5, 2]
-    beta:   [1.72, 0.1]
-    Eb:     [null, null]
-  cgb_free_bound:
-    norm:   [null, null]
-    alpha:  [1.32, 0.1]
-    beta:   [2.88, 0.15]
-    Eb:     [null, null]
-  ps_fixed_bound:
-    pl:
-      norm: [null, null]
-    bb:
-      norm:  [null, null]
-  ps_free_bound:
-    pl:
-      norm: [null, null]
-      index: [2, 1]
-    bb:
-      norm: [null, null]
-      temp: [10, 5]
-  sun_bound:
-    norm:   [null, null]
-    index:  [2., 1.]
-  eff_area_correction: [1.0, 0.1]
+priors:
+  saa:
+    norm:
+      prior: log_uniform
+      bounds: [1, 1.0e+4]
+      gaussian: [null, null]
+    decay:
+      prior: log_uniform
+      bounds: [1.0e-5, 1.0e-1]
+      gaussian: [null, null]
+  cr:
+    const:
+      prior: log_uniform
+      bounds: [1.0e-1, 1.0e+2]
+      gaussian: [null, null]
+    norm:
+      prior: log_uniform
+      bounds: [0.1, 1.0e+2]
+      gaussian: [null, null]
+  earth:
+    fixed:
+      norm:
+        prior: log_uniform
+        bounds: [0.5e-2, 3.0e-2]
+        gaussian: [null, null]
+    free:
+      norm:
+        prior: log_uniform
+        bounds: [1.0e-3, 1]
+        gaussian: [null, null]
+      alpha:
+        prior: log_uniform
+        bounds: [-8, -3]
+        gaussian: [-5, 2]
+      beta:
+        prior: log_uniform
+        bounds: [1.1, 1.9]
+        gaussian: [1.72, 0.1]
+      Eb:
+        prior: log_uniform
+        bounds: [20, 40]
+        gaussian: [null, null]
+  cgb:
+    fixed:
+      norm:
+        prior: log_uniform
+        bounds: [4.0e-2, 0.3]
+        gaussian: [null, null]
+    free:
+      norm:
+        prior: log_uniform
+        bounds: [0.01, 0.5]
+        gaussian: [null, null]
+      alpha:
+        prior: truncated_gaussian
+        bounds: [0.5, 1.7]
+        gaussian: [1.32, 0.1]
+      beta:
+        prior: truncated_gaussian
+        bounds: [2.2, 3.1]
+        gaussian: [2.88, 0.15]
+      Eb:
+        prior: log_uniform
+        bounds: [27, 40]
+        gaussian: [null, null]
+  ps:
+    fixed:
+      pl:
+        norm:
+          prior: log_uniform
+          bounds: [1.0e-4, 1.0e+9]
+          gaussian: [null, null]
+      bb:
+        norm:
+          prior: log_uniform
+          bounds: [1.0e-4, 1.0e+9]
+          gaussian: [null, null]
+    free:
+      pl:
+        norm:
+          prior: log_uniform
+          bounds: [1.0e-1, 1.0e+5]
+          gaussian: [null, null]
+        index:
+          prior: truncated_gaussian
+          bounds: [0,4]
+          gaussian: [2, 1]
+      bb:
+        norm:
+          prior: log_uniform
+          bounds: [1.0e-4, 10000]
+          gaussian: [null, null]
+        temp:
+          prior: truncated_gaussian
+          bounds: [0,50]
+          gaussian: [10, 5]
+  sun:
+    norm:
+        prior: log_uniform
+        bounds: [1.0e-2, 1.0e+2]
+        gaussian: [null, null]
+    index:
+        prior: truncated_gaussian
+        bounds: [0.5,4]
+        gaussian: [2, 1]
+  eff_area_correction:
+      prior: truncated_gaussian
+      bounds: [0.8,1.2]
+      gaussian: [1, 0.1]
 
 ##################### Input for fit method ##########################################################
 fit:
