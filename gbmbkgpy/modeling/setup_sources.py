@@ -684,7 +684,7 @@ def build_point_sources(
         # Exclude some of them?
         exclude = point_source_list["auto_swift"]["exclude"]
         exclude = [entry.upper() for entry in exclude]
-        free =  point_source_list["auto_swift"]["free"]
+        free =  point_source_list["auto_swift"].get("free", [])
         free = [entry.upper() for entry in free]
         # Initalize Pointsource selection
         sp = SelectPointsources(

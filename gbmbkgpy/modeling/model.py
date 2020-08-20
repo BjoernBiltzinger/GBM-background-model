@@ -117,17 +117,18 @@ class Model(object):
                     f"eff_area_corr_{det}"
                 ].value
 
-    def set_parameter_bounds(self, param_dict):
+    def set_parameter_priors(self, priors_dict):
         """
-        Set the parameter bounds
-        :param param_dict:
+        Set the parameter priors
+        :param priors_dict:
         :return:
         """
-        for param_name, bound_dict in param_dict.items():
-            self.parameters[param_name].bounds = bound_dict["bounds"]
-            self.parameters[param_name].gaussian_parameter = bound_dict[
-                "gaussian_parameter"
-            ]
+        for param_name, prior_dict in priors_dict.items():
+            self.parameters[param_name].bounds = prior_dict["bounds"]
+            self.parameters[param_name].gaussian_parameter = prior_dict["gaussian"]
+
+            if prior_dict.get("prior", None) is not None:
+                self.parameters[param_name].prior = prior_dict["prior"]
 
     @property
     def normalization_parameters(self):

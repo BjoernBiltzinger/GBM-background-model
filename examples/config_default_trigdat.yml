@@ -9,7 +9,7 @@ general:
   trigger:    'bn200412381'
   detectors:   ['n1']
   data_type:  'trigdat'
-  echans: [3]
+  echans: ["3"]
   min_bin_width: 1.0e-99
 
 ################# Input for response precalculation [how many grid poits?] ##########################

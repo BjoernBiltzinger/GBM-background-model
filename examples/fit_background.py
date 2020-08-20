@@ -71,7 +71,7 @@ parser.add_argument(
 
 parser.add_argument("-dates", "--dates", type=str, nargs="+", help="Date string")
 parser.add_argument("-dets", "--detectors", type=str, nargs="+", help="Name detector")
-parser.add_argument("-e", "--echans", type=int, nargs="+", help="Echan number")
+parser.add_argument("-e", "--echans", type=str, nargs="+", help="Echan number")
 parser.add_argument("-trig", "--trigger", type=str, help="Name of trigger")
 parser.add_argument("-out", "--output_dir", type=str, help="Path to the output directory to continue a stopped fit")
 

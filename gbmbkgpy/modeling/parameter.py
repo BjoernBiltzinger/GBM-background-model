@@ -154,7 +154,7 @@ class Parameter(object):
     )
 
     def _set_gaussian_parameter(self, parameter):
-        """Sets the boundaries for this parameter to min_value and max_value"""
+        """Sets the mean and variance of the gaussian prior for this paramter"""
 
         # Use the properties so that the checks and the handling of units are made automatically
 
@@ -180,6 +180,23 @@ class Parameter(object):
         doc="Gets or sets the gaussian paramter" " (mu and sigma) for this parameter",
     )
 
+    def _set_prior(self, prior):
+        """Sets the prior type for this paramter"""
+        # Use the properties so that the checks and the handling of units are made automatically
+        self._prior = None
+
+        self._prior = prior
+
+    def _get_prior(self):
+        """Returns the current boundaries for the parameter"""
+
+        return self._prior
+
+    prior = property(
+        _get_prior,
+        _set_prior,
+        doc="Gets or sets the prior type" " for this parameter",
+    )
     @property
     def normalization(self):
         return self._normalization
@@ -187,10 +204,6 @@ class Parameter(object):
     @property
     def name(self):
         return self._name
-
-    @property
-    def prior(self):
-        return self._prior
 
     @property
     def get_prior_parameter(self):
