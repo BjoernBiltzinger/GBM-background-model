@@ -369,7 +369,7 @@ class SelectPointsources(object):
         if using_mpi:
             comm.barrier()
 
-    def plot_ps(self):
+    def plot_ps(self, save_path=None):
         """
         Plot point sources in mollweide projection.
         :return: Figure
@@ -393,9 +393,12 @@ class SelectPointsources(object):
                 color=colors[i],
                 s=100 * rate,
             )
-
-        ax.legend(loc="center left", bbox_to_anchor=(1, 0.5), ncol=3)
+        box = ax.get_position()
+        ax.set_position([box.x0, box.y0+box.height*0.1, box.width, box.height*0.9])
+        lgd = ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.05), ncol=3, fancybox=True, shadow=True)
         ax.grid()
+        if save_path!=None:
+            fig.savefig(save_path,bbox_extra_artists=(lgd,), bbox_inches='tight')
         return fig
 
     def animate_swift_ps(self, limit1550Crab=None, mjd_list=None, dpi=150):
