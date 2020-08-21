@@ -67,7 +67,7 @@ def Setup(
     saa_decay_per_detector=False,
     saa_decay_at_day_start=True,
     saa_decay_model="exponential",
-    bgo_cr_approximation=False,
+    cr_approximation="MCL",
     use_numba=False,
 ):
     """
@@ -133,7 +133,7 @@ def Setup(
         if use_cr:
             total_sources.append(
                 setup_CosmicRays(
-                    data, ep, saa_object, echan, index, bgo_cr_approximation
+                    data, ep, saa_object, echan, index, cr_approximation
                 )
             )
 
@@ -318,7 +318,7 @@ def setup_Constant(data, saa_object, echan, index):
     return Constant_Continuum
 
 
-def setup_CosmicRays(data, ep, saa_object, echan, index, bgo_cr_approximation):
+def setup_CosmicRays(data, ep, saa_object, echan, index, cr_approximation):
     """
     Setup for CosmicRay source
     :param index:
@@ -329,7 +329,7 @@ def setup_CosmicRays(data, ep, saa_object, echan, index, bgo_cr_approximation):
     :return: Constant and magnetic continuum source
     """
     mag_con = ContinuumFunction(f"norm_magnetic_echan-{echan}")
-    if bgo_cr_approximation:
+    if cr_approximation=="BGO":
 
         mag_con.set_function_array(ep.bgo_cr_approximation((data.time_bins)))
 
@@ -343,7 +343,7 @@ def setup_CosmicRays(data, ep, saa_object, echan, index, bgo_cr_approximation):
             f"BGO_CR_Approx_echan_{echan}", mag_con, index
         )
 
-    else:
+    elif cr_approximation=="MCL":
 
         mag_con.set_function_array(ep.mc_l_rates((data.time_bins)))
 
@@ -356,6 +356,21 @@ def setup_CosmicRays(data, ep, saa_object, echan, index, bgo_cr_approximation):
 
         Source_Magnetic_Continuum = ContinuumSource(
             f"McIlwain_L-parameter_echan_{echan}", mag_con, index
+        )
+
+    else:
+
+        mag_con.set_function_array(ep.acd_cr_approximation(data.time_bins))
+
+        mag_con.set_saa_zero(saa_object.saa_mask)
+
+        mag_con.remove_vertical_movement()
+
+        # precalculate the integration over the time bins
+        mag_con.integrate_array(data.time_bins)
+
+        Source_Magnetic_Continuum = ContinuumSource(
+            f"LAT_ACD-parameter_echan_{echan}", mag_con, index
         )
 
     return Source_Magnetic_Continuum
@@ -740,6 +755,7 @@ def build_point_sources(
                     )
 
                 else:
+
                     point_sources_dic[f"{row[1]}_pl"] = PointSrc_fixed(
                         name=row[1],
                         ra=row[2],
@@ -748,6 +764,7 @@ def build_point_sources(
                         geometry=geometry,
                         echans=echans,
                         spec=spec,
+
                         )
 
                 if all_time_variable_same:
