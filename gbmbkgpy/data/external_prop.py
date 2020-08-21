@@ -2,6 +2,7 @@ import astropy.io.fits as fits
 import astropy.time as astro_time
 import astropy.units as u
 import numpy as np
+import h5py
 import scipy.interpolate as interpolate
 from gbmgeometry import GBMTime
 import os
@@ -40,12 +41,16 @@ except:
 
 
 class ExternalProps(object):
-    def __init__(self, detectors, dates=None, bgo_cr_approximation=False, trig_data=None):
+    def __init__(self, detectors, dates=None, cr_approximation="MCL", trig_data=None):
         """
         Build the external properties for a given day
         :param detectors: list
         :param dates: [YYMMDD, YYMMDD,]
         """
+
+        assert cr_approximation in ["MCL", "BGO", "ACD"], "Please set the cosmic ray appoximation to"\
+            "MCL (McIlwain L-parameter), BGO (High energy BGO count rates) or ACD (LAT-ACD Data)!"\
+            "You entered {}, which is not valid!".format(cr_approximation)
 
         if trig_data is not None:
             assert bgo_cr_approximation, "Fitting trigdat data requires the bgo cr approximation"
@@ -62,7 +67,7 @@ class ExternalProps(object):
 
         # Global list which weeks where already added to the lat data (to prevent double entries later)
         self._weeks = np.array([])
-        if not bgo_cr_approximation:
+        if cr_approximation == "MCL":
             for i, date in enumerate(dates):
                 (
                     mc_l,
@@ -84,8 +89,42 @@ class ExternalProps(object):
                     self._lat_geo = np.append(self._lat_geo, lat_geo)
                     self._lon_geo = np.append(self._lon_geo, lon_geo)
             self._mc_l_interp = interpolate.interp1d(self._lat_time, self._mc_l)
-        else:
+        elif cr_approximation == "BGO":
             self._build_bgo_cr_approximation(dates, detectors, trig_data)
+        else:
+            self._build_acd_cr_approximation(dates)
+
+    def acd_cr_approximation(self, met):
+
+        if isinstance(met[0], np.ndarray) or isinstance(met[0], list):
+
+            acd_cr_rates = np.zeros((len(met), len(self._detectors), len(met[0])))
+
+            for det_idx, det in enumerate(self._detectors):
+                if det in self._side_0:
+                    acd_cr_rates[:, det_idx, :] = self._acd_B_rate_interp(met)
+                elif det in self._side_1:
+                    acd_cr_rates[:, det_idx, :] = self._acd_A_rate_interp(met)
+                else:
+                    raise AssertionError(
+                        "Use a valid NaI det name to use this function."
+                    )
+
+        else:
+
+            acd_cr_rates = np.zeros((len(met), len(self._detectors)))
+
+            for det_idx, det in enumerate(self._detectors):
+                if det in self._side_0:
+                    acd_cr_rates[:, det_idx] = self._acd_A_rate_interp(met)
+                elif det in self._side_1:
+                    acd_cr_rates[:, det_idx] = self._acd_B_rate_interp(met)
+                else:
+                    raise AssertionError(
+                        "Use a valid NaI det name to use this function."
+                    )
+
+        return acd_cr_rates
 
     def bgo_cr_approximation(self, met):
 
@@ -425,7 +464,78 @@ class ExternalProps(object):
             self._bgo_1_rate_interp = interpolate.UnivariateSpline(
                 self._bgo_1_times, self._bgo_1_rates, s=1000, k=3
             )
+    def _build_acd_cr_approximation(self, dates):
+        """
+        Function that gets the count rate of the 85-105th energy channel of the BGO
+        of the correct side and uses this as function proportional to the CR influence in
+        the NaI energy channels. Makes less sense when SAA is included!
+        :param date: Date
+        :param det: NaI detector
+        """
 
+        met_start, met_stop = self._start_stop_time(dates)
+
+        with h5py.File("/home/bjorn/Documents/2018_sideA_clean.h5", "r") as f:
+            timesA = f["timestamps"][()]
+            countsA = f["counts"][()]
+            deltatA = f["delta_t"][()]
+
+        with h5py.File("/home/bjorn/Documents/2018_sideB_clean.h5", "r") as f:
+            timesB = f["timestamps"][()]
+            countsB = f["counts"][()]
+            deltatB = f["delta_t"][()]
+
+        with h5py.File("/home/bjorn/Documents/2018_sideC_clean.h5", "r") as f:
+            timesC = f["timestamps"][()]
+            countsC = f["counts"][()]
+            deltatC = f["delta_t"][()]
+
+        with h5py.File("/home/bjorn/Documents/2018_sideD_clean.h5", "r") as f:
+            timesD = f["timestamps"][()]
+            countsD = f["counts"][()]
+            deltatD = f["delta_t"][()]
+
+        # Get the needed time interval
+        maskA = np.argwhere(np.logical_and(timesA>met_start, timesA<met_stop))
+        maskB = np.argwhere(np.logical_and(timesB>met_start, timesB<met_stop))
+        maskC = np.argwhere(np.logical_and(timesC>met_start, timesC<met_stop))
+        maskD = np.argwhere(np.logical_and(timesD>met_start, timesD<met_stop))
+
+        factA = len(timesA[maskA])/20000.
+        factB = len(timesB[maskB])/20000.
+        factC = len(timesC[maskC])/20000.
+        factD = len(timesD[maskD])/20000.
+
+        print(factA)
+        print(timesA[maskA][0], timesA[maskA][-1])
+
+        assert len(timesA[maskA])>0, "No LAT ACD data available for the dates you want to use..."\
+            "Please use either BGO or MCL for cosmic rays"
+        self._acd_A_rate_interp = interpolate.UnivariateSpline(
+                timesA[maskA], countsA[maskA]/deltatA[maskA], s=int(5000000*factA), k=5
+            )
+        self._acd_B_rate_interp = interpolate.UnivariateSpline(
+                timesB[maskB], countsB[maskB]/deltatB[maskB], s=int(5000000*factB), k=5
+            )
+        self._acd_C_rate_interp = interpolate.UnivariateSpline(
+                timesC[maskC], countsC[maskC]/deltatC[maskC], s=int(5000000*factC), k=5
+            )
+        self._acd_D_rate_interp = interpolate.UnivariateSpline(
+                timesD[maskD], countsD[maskD]/deltatD[maskD], s=int(5000000*factD), k=5
+            )
+
+    def _start_stop_time(self, dates):
+        mets = np.array([])
+
+        for date in dates:
+            t = astro_time.Time(f'20{date[:2]}-{date[2:4]}-{date[4:6]}T00:00:00', format='isot', scale='utc')
+            mets = np.append(mets, GBMTime(t).met)
+
+        min_time = np.min(mets)-1000
+        max_time = np.max(mets)+24*3600+1000
+
+        return min_time, max_time
+    
     def lat_acd(self, time_bins, use_side):
 
         data_path = "/home/bbiltzing/output_acd.csv"
