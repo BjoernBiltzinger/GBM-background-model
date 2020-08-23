@@ -298,7 +298,7 @@ class BackgroundModelGenerator(object):
 
             if config["setup"]["use_cr"]:
                 if f"cr_echan-{e}" in config["priors"]:
-                    parameter_bounds["constant_echan-{}".format(e)] = config["priors"][
+                    parameter_bounds["norm_magnetic_echan-{}".format(e)] = config["priors"][
                         f"cr_echan-{e}"
                     ]["norm"]
                 else:
