@@ -286,14 +286,25 @@ class BackgroundModelGenerator(object):
                         ] = config["priors"]["saa"]["decay"]
 
             if config["setup"]["use_constant"]:
-                parameter_bounds["constant_echan-{}".format(e)] = config["priors"][
-                    "cr"
-                ]["const"]
+
+                if f"cr_echan-{e}" in config["priors"]:
+                    parameter_bounds["constant_echan-{}".format(e)] = config["priors"][
+                        f"cr_echan-{e}"
+                    ]["const"]
+                else:
+                    parameter_bounds["constant_echan-{}".format(e)] = config["priors"][
+                        "cr"
+                    ]["const"]
 
             if config["setup"]["use_cr"]:
-                parameter_bounds["norm_magnetic_echan-{}".format(e)] = config["priors"][
-                    "cr"
-                ]["norm"]
+                if f"cr_echan-{e}" in config["priors"]:
+                    parameter_bounds["constant_echan-{}".format(e)] = config["priors"][
+                        f"cr_echan-{e}"
+                    ]["norm"]
+                else:
+                    parameter_bounds["norm_magnetic_echan-{}".format(e)] = config["priors"][
+                        "cr"
+                    ]["norm"]
 
         if config["setup"]["use_sun"]:
             parameter_bounds["sun_norm"] = config["priors"]["sun"]["norm"]
@@ -316,23 +327,31 @@ class BackgroundModelGenerator(object):
                 ]
                 for row in ps_df_add.itertuples():
                     if row[1].upper() not in exclude:
-                        parameter_bounds[f"norm_point_source-{row[1]}_pl"] = config[
-                            "priors"
-                        ]["ps"]["fixed"]["pl"]["norm"]
-                    else:
-                        parameter_bounds[
-                            f"ps_{row[1]}_spectrum_fitted_norm_pl".format(ps)
-                        ] = config["priors"]["ps"]["free"]["pl"]["norm"]
-                        parameter_bounds[
-                            f"ps_{row[1]}_spectrum_fitted_index".format(ps)
-                        ] = config["priors"]["ps"]["free"]["pl"]["index"]
+                        if row[1].upper() not in free:
+                            parameter_bounds[f"norm_point_source-{row[1]}_pl"] = config[
+                                "priors"
+                            ]["ps"]["fixed"]["pl"]["norm"]
+                        else:
+                            parameter_bounds[
+                                f"ps_{row[1]}_spectrum_fitted_norm_pl".format(ps)
+                            ] = config["priors"]["ps"]["free"]["pl"]["norm"]
+                            parameter_bounds[
+                                f"ps_{row[1]}_spectrum_fitted_index".format(ps)
+                            ] = config["priors"]["ps"]["free"]["pl"]["index"]
             else:
                 if config["setup"]["ps_list"][ps]["fixed"]:
                     if ps[:4] != "list":
                         for spectrum in config["setup"]["ps_list"][ps]["spectrum"]:
-                            parameter_bounds[
-                                f"norm_point_source-{ps}_{spectrum}"
-                            ] = config["priors"]["ps"]["fixed"][spectrum]["norm"]
+                            # Check if PS specific prior is passed
+                            if ps.upper() in config["priors"]["ps"]:
+                                parameter_bounds[
+                                    f"norm_point_source-{ps}_{spectrum}"
+                                ] = config["priors"]["ps"][ps.upper()][spectrum]["norm"]
+                            # use generic one
+                            else:
+                                parameter_bounds[
+                                    f"norm_point_source-{ps}_{spectrum}"
+                                ] = config["priors"]["ps"]["fixed"][spectrum]["norm"]
                     else:
                         ps_df_add = pd.read_table(
                             config["setup"]["ps_list"][ps]["path"],
@@ -435,9 +454,15 @@ class BackgroundModelGenerator(object):
 
         if config["setup"]["use_eff_area_correction"]:
             for det in sorted(config["general"]["detectors"])[1:]:
-                parameter_bounds[f"eff_area_corr_{det}"] = config["priors"][
-                    "eff_area_correction"
-                ]
+
+                if "eff_area_correction_{det}" in config["priors"]:
+                    parameter_bounds[f"eff_area_corr_{det}"] = config["priors"][
+                        f"eff_area_correction_{det}"
+                    ]
+                else:
+                    parameter_bounds[f"eff_area_corr_{det}"] = config["priors"][
+                        "eff_area_correction"
+                    ]
 
         self._parameter_bounds = parameter_bounds
 

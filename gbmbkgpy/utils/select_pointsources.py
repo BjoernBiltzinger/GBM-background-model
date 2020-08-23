@@ -14,7 +14,7 @@ from multiprocessing import Pool
 import itertools
 
 from gbmbkgpy.io.file_utils import if_dir_containing_file_not_existing_then_make
-from gbmbkgpy.io.package_data import get_path_of_data_file
+from gbmbkgpy.io.package_data import get_path_of_data_file, get_path_of_external_data_file
 from gbmbkgpy.utils.progress_bar import progress_bar
 
 try:
@@ -72,7 +72,7 @@ class SelectPointsources(object):
 
         # If file does not exist we have to create it
         if not os.path.exists(
-            get_path_of_data_file("background_point_sources/", "pointsources_swift.h5")
+                get_path_of_external_data_file("background_point_sources/", "pointsources_swift.h5")
         ):
             print(
                 "The pointsource_swift.h5 file does not exist in the data folder."
@@ -81,7 +81,7 @@ class SelectPointsources(object):
             with tempfile.TemporaryDirectory() as tmpdirname:
                 build_swift_pointsource_database(tmpdirname)
             if not os.path.exists(
-                get_path_of_data_file(
+                get_path_of_external_data_file(
                     "background_point_sources/", "pointsources_swift.h5"
                 )
             ):
@@ -91,7 +91,7 @@ class SelectPointsources(object):
 
         # Check if the time covered by the pointsource_swift file covers the day we want to use
         with h5py.File(
-            get_path_of_data_file("background_point_sources/", "pointsources_swift.h5"),
+            get_path_of_external_data_file("background_point_sources/", "pointsources_swift.h5"),
             "r",
         ) as h:
             times_all = np.zeros((len(h.keys()), 20000))
@@ -133,7 +133,7 @@ class SelectPointsources(object):
         :return: Dict with pointsources on this day above threshold
         """
         with h5py.File(
-            get_path_of_data_file("background_point_sources/", "pointsources_swift.h5"),
+            get_path_of_external_data_file("background_point_sources/", "pointsources_swift.h5"),
             "r",
         ) as h:
             rates_all = np.zeros(len(h.keys()))
@@ -263,7 +263,7 @@ class SelectPointsources(object):
 
         # Read in the h5 file only once to save time;
         with h5py.File(
-            get_path_of_data_file("background_point_sources/", "pointsources_swift.h5"),
+            get_path_of_external_data_file("background_point_sources/", "pointsources_swift.h5"),
             "r",
         ) as h:
             rates_all = np.zeros((len(h.keys()), 20000))
@@ -335,6 +335,10 @@ class SelectPointsources(object):
 
         return ani
 
+    @property
+    def ps_dict(self):
+        return self._ps_dict
+
 
 def yes_or_no(question):
     while "the answer is invalid":
@@ -382,11 +386,11 @@ def build_swift_pointsource_database(save_swift_data_folder, multiprocessing=Fal
         else:
 
             if os.path.exists(
-                get_path_of_data_file("background_point_sources/", "pointsources_swift.h5")
+                get_path_of_external_data_file("background_point_sources/", "pointsources_swift.h5")
             ):
 
                 with h5py.File(
-                    get_path_of_data_file(
+                    get_path_of_external_data_file(
                         "background_point_sources/", "pointsources_swift.h5"
                     ),
                     "r",
@@ -478,7 +482,7 @@ def build_swift_pointsource_database(save_swift_data_folder, multiprocessing=Fal
             print("Save everything we need in hdf5 point source database...")
             # Save everything in a h5 file for convenience and speed
             with h5py.File(
-                get_path_of_data_file(
+                get_path_of_external_data_file(
                     "background_point_sources/", "pointsources_swift.h5"
                 ),
                 "w",

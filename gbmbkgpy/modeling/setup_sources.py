@@ -610,16 +610,17 @@ def build_point_sources(
     :param source_list:
     :return:
     """
-    file_path = get_path_of_data_file("background_point_sources/", "point_sources.dat")
+    file_path = get_path_of_data_file("background_point_sources/", "point_sources_swift.dat")
     ps_df = pd.read_table(file_path, names=["name", "ra", "dec"])
 
     # instantiate dic of point source objects
     point_sources_dic = {}
 
     ### Single core calc ###
-    for row in ps_df.itertuples():
-        for i, ps in enumerate(point_source_list):
+    for i, ps in enumerate(point_source_list):
+        for row in ps_df.itertuples():
             if row[1] == ps:
+
                 if not point_source_list[ps]["fixed"]:
                     point_sources_dic[row[1]] = PointSrc_free(
                         name=row[1],
@@ -641,6 +642,7 @@ def build_point_sources(
                             echans=echans,
                             spec=point_source_list[ps]["spectrum"][entry],
                         )
+                break
 
     # Add the point sources that are given as file with list of point sources
     for i, ps in enumerate(point_source_list):
