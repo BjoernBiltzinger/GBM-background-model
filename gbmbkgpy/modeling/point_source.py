@@ -50,8 +50,8 @@ class PointSrc_free(object):
         """
         self._name = name
 
-        self._ra = ra
-        self._dec = dec
+        self._ra = float(ra)
+        self._dec = float(dec)
 
         self._detectors = list(det_responses.responses.keys())
 

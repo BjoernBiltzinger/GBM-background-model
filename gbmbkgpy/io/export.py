@@ -517,6 +517,8 @@ class PHAWriter(object):
                         det, echan
                     )
 
+                    echan = int(echan)
+
                     # Combine the observed counts
                     observed_counts[:, det_idx, echan] = observed_counts_f[
                         :, det_tmp_idx, echan_idx
