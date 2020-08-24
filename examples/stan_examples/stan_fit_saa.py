@@ -7,6 +7,7 @@ import os
 import yaml
 from datetime import datetime
 
+from gbmbkgpy.utils.stan import StanDataConstructor
 from gbmbkgpy.utils.model_generator import BackgroundModelGenerator
 from gbmbkgpy.minimizer.multinest_minimizer import MultiNestFit
 from gbmbkgpy.io.plotting.plot import Plotter
@@ -35,18 +36,19 @@ model = CmdStanModel(stan_file="stan_model_saa.stan",
 
 
 # Number of threads per Chain
-threads_per_chain = 4
+threads_per_chain = 64
 
 
 # StanDataConstructor
-StanDataConstructor(model_generator=model_generator,
-                    threads_per_chain=threads_per_chain)
+stan_data = StanDataConstructor(model_generator=model_generator,
+                                threads_per_chain=threads_per_chain)
 
+data_dict =  stan_data.construct_data_dict()
 
 # Sample
-fit = model.sample(data=build_stan_data(),
-                   output_dir="/ptmp/bbilt/stan_log/",
-                   chains=2,
+fit = model.sample(data=data_dict,
+                   output_dir="./",
+                   chains=1,
                    seed=int(np.random.rand()*10000),
                    parallel_chains=1,
                    threads_per_chain=threads_per_chain,
@@ -58,8 +60,8 @@ fit = model.sample(data=build_stan_data(),
 # Buiöd arviz object
 ar = av.from_cmdstanpy(fit,
                        posterior_predictive="ppc",
-                       observed_data={"counts": build_stan_data()["counts"]},
-                       constant_data={"time_bins": build_stan_data()["time_bins"],
+                       observed_data={"counts": data_dict["counts"]},
+                       constant_data={"time_bins": data_dict["time_bins"],
                                      "dets": model_generator.data.detectors,
                                      "echans": model_generator.data.echans},
                        predictions=["f_fixed","f_saa","f_cont"])
