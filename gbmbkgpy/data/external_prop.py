@@ -496,32 +496,66 @@ class ExternalProps(object):
             deltatD = f["delta_t"][()]
 
         # Get the needed time interval
-        maskA = np.argwhere(np.logical_and(timesA>met_start, timesA<met_stop))
-        maskB = np.argwhere(np.logical_and(timesB>met_start, timesB<met_stop))
-        maskC = np.argwhere(np.logical_and(timesC>met_start, timesC<met_stop))
-        maskD = np.argwhere(np.logical_and(timesD>met_start, timesD<met_stop))
-
-        factA = len(timesA[maskA])/20000.
-        factB = len(timesB[maskB])/20000.
-        factC = len(timesC[maskC])/20000.
-        factD = len(timesD[maskD])/20000.
-
-        print(factA)
-        print(timesA[maskA][0], timesA[maskA][-1])
-
+        maskA = np.argwhere(np.logical_and(timesA>met_start, timesA<met_stop)).flatten()
+        maskB = np.argwhere(np.logical_and(timesB>met_start, timesB<met_stop)).flatten()
+        maskC = np.argwhere(np.logical_and(timesC>met_start, timesC<met_stop)).flatten()
+        maskD = np.argwhere(np.logical_and(timesD>met_start, timesD<met_stop)).flatten()
         assert len(timesA[maskA])>0, "No LAT ACD data available for the dates you want to use..."\
             "Please use either BGO or MCL for cosmic rays"
+        
+        #factA = len(timesA[maskA])/20000.
+        #factB = len(timesB[maskB])/20000.
+        #factC = len(timesC[maskC])/20000.
+        #factD = len(timesD[maskD])/20000.
+
+        timesA_use = np.vstack((timesA[maskA][:-1], timesA[maskA][1:])).T
+        timesB_use = np.vstack((timesB[maskB][:-1], timesB[maskB][1:])).T
+        timesC_use = np.vstack((timesC[maskC][:-1], timesC[maskC][1:])).T
+        timesD_use = np.vstack((timesD[maskD][:-1], timesD[maskD][1:])).T
+
+        countsA_use = countsA[maskA][:-1]
+        countsB_use = countsB[maskB][:-1]
+        countsC_use = countsC[maskC][:-1]
+        countsD_use = countsD[maskD][:-1]
+
+        deltat_useA = deltatA[maskA][:-1]
+        deltat_useB = deltatA[maskB][:-1]
+        deltat_useC = deltatA[maskC][:-1]
+        deltat_useD = deltatA[maskD][:-1]
+
+        # Rebin
+        rebinnerA = Rebinner(timesA_use, 30)
+        rebinnerB = Rebinner(timesB_use, 30)
+        rebinnerC = Rebinner(timesC_use, 30)
+        rebinnerD = Rebinner(timesD_use, 30)
+
+        timesA_reb = rebinnerA.time_rebinned
+        timesB_reb = rebinnerB.time_rebinned
+        timesC_reb = rebinnerC.time_rebinned
+        timesD_reb = rebinnerD.time_rebinned
+
+        rebinned_countsA = rebinnerA.rebin(countsA_use)[0]
+        rebinned_countsB = rebinnerB.rebin(countsB_use)[0]
+        rebinned_countsC = rebinnerC.rebin(countsC_use)[0]
+        rebinned_countsD = rebinnerD.rebin(countsD_use)[0]
+
+        deltat_rebA = rebinnerA.rebin(deltat_useA)[0]
+        deltat_rebB = rebinnerB.rebin(deltat_useB)[0]
+        deltat_rebC = rebinnerC.rebin(deltat_useC)[0]
+        deltat_rebD = rebinnerD.rebin(deltat_useD)[0]
+
+        print(timesA_use[0], timesA_use[-1])
         self._acd_A_rate_interp = interpolate.UnivariateSpline(
-                timesA[maskA], countsA[maskA]/deltatA[maskA], s=int(5000000*factA), k=5
+                timesA_reb[:,0], rebinned_countsA/deltat_rebA, s=1000000, k=5
             )
         self._acd_B_rate_interp = interpolate.UnivariateSpline(
-                timesB[maskB], countsB[maskB]/deltatB[maskB], s=int(5000000*factB), k=5
+                timesB_reb[:,0], rebinned_countsB/deltat_rebB, s=1000000, k=5
             )
         self._acd_C_rate_interp = interpolate.UnivariateSpline(
-                timesC[maskC], countsC[maskC]/deltatC[maskC], s=int(5000000*factC), k=5
+                timesC_reb[:,0], rebinned_countsC/deltat_rebC, s=1000000, k=5
             )
         self._acd_D_rate_interp = interpolate.UnivariateSpline(
-                timesD[maskD], countsD[maskD]/deltatD[maskD], s=int(5000000*factD), k=5
+                timesD_reb[:,0], rebinned_countsD/deltat_rebD, s=1000000, k=5
             )
 
     def _start_stop_time(self, dates):
