@@ -86,9 +86,6 @@ data {
   // Number of free pointsources and fixed sources
   int<lower=0> num_fixed_comp;
 
-  // Earth and CGB free? If yes set this to 1 if not set this to 0
-  int<lower=0, upper=1> earth_cgb_free;
-
   // Energy input bins for response calc.
   int<lower=1> rsp_num_Ein;
   vector[rsp_num_Ein] Ebins_in[2];

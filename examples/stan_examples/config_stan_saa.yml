@@ -6,9 +6,9 @@
 ################## General Input [Days, Detector, Data Type, Energy Channels] #######################
 general:
   dates:      ['130131']
-  detectors:   ['n9' #,'n6','na'] #,"na"]#,'n3','n4','n5','n8',"na"]
+  detectors:   ['n9'] #,'n6','na'] #,"na"]#,'n3','n4','n5','n8',"na"]
   data_type:  'ctime'
-  echans: ["1","2","4"] #"15","16","17","18","19","20","21","22","23","24","25","26","27","28","29","30"]#["15-20","20-25","25-30"]
+  echans: ["2","4"] #"15","16","17","18","19","20","21","22","23","24","25","26","27","28","29","30"]#["15-20","20-25","25-30"]
   min_bin_width: 30
 
 ################# Input for response precalculation [how many grid poits?] ##########################
@@ -75,7 +75,7 @@ setup:
   fix_earth:    true
   fix_cgb:      true
   use_sun:      false
-  bgo_cr_approximation: true
+  cr_approximation: BGO
   use_eff_area_correction: true
 
 ################################ Bounds for the different sources ###################################
