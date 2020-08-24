@@ -139,7 +139,7 @@ class BackgroundModelGenerator(object):
         self._ep = ExternalProps(
             detectors=config["general"]["detectors"],
             dates=config["general"]["dates"],
-            bgo_cr_approximation=config["setup"]["bgo_cr_approximation"],
+            cr_approximation=config["setup"]["cr_approximation"],
         )
 
         print_progress("Done")
@@ -228,7 +228,7 @@ class BackgroundModelGenerator(object):
             saa_decay_at_day_start=config["saa"]["decay_at_day_start"],
             saa_decay_per_detector=config["saa"]["decay_per_detector"],
             saa_decay_model=config["saa"].get("decay_model", "exponential"),
-            bgo_cr_approximation=config["setup"]["bgo_cr_approximation"],
+            cr_approximation=config["setup"]["cr_approximation"],
             use_numba=config["fit"].get("use_numba", False),
         )
 
@@ -545,8 +545,8 @@ class TrigdatBackgroundModelGenerator(BackgroundModelGenerator):
 
         self._ep = ExternalProps(
             detectors=config["general"]["detectors"],
-            bgo_cr_approximation=config["setup"]["bgo_cr_approximation"],
-            trig_data=self._data,
+            cr_approximation=config["setup"]["cr_approximation"],
+            trig_data=self._data
         )
 
         print_progress("Done")
