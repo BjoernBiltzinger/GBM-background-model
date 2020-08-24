@@ -493,9 +493,7 @@ class PHAWriter(object):
                 assert np.array_equal(
                     time_bins, np.vstack((time_bins_start_f, time_bins_stop_f)).T
                 )
-                assert np.array_equal(
-                    saa_mask, saa_mask_f
-                )
+                assert np.array_equal(saa_mask, saa_mask_f)
 
             for det_tmp_idx, det in enumerate(detectors_f):
 

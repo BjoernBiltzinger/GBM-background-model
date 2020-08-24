@@ -243,90 +243,106 @@ class SelectPointsources(object):
                     times_swift = ps_swift[h5_name]["Time"][()]
 
                     # mask
-                    mask_swift_long = np.logical_and(times_swift>met_start_long,
-                                                     times_swift<met_stop_long)
+                    mask_swift_long = np.logical_and(
+                        times_swift > met_start_long, times_swift < met_stop_long
+                    )
 
-                    mask_swift_day = np.logical_and(times_swift>met_start_day,
-                                                    times_swift<met_stop_day)
+                    mask_swift_day = np.logical_and(
+                        times_swift > met_start_day, times_swift < met_stop_day
+                    )
                     num_data_points_swift_day = np.sum(mask_swift_day)
                     inter = [s for s in ps_maxi.keys() if ps_name.upper() in s]
-                    if len(inter)>0:
+                    if len(inter) > 0:
                         h5_name_maxi = inter[0]
                         rates_maxi = ps_maxi[h5_name_maxi]["Rates"][()]
                         errors_maxi = ps_maxi[h5_name_maxi]["Error"][()]
                         times_maxi = ps_maxi[h5_name_maxi]["Time"][()]
 
-                        mask_maxi_long = np.logical_and(times_maxi>met_start_long,
-                                                        times_maxi<met_stop_long)
+                        mask_maxi_long = np.logical_and(
+                            times_maxi > met_start_long, times_maxi < met_stop_long
+                        )
 
-                        mask_maxi_day = np.logical_and(times_maxi>met_start_day,
-                                                       times_maxi<met_stop_day)
+                        mask_maxi_day = np.logical_and(
+                            times_maxi > met_start_day, times_maxi < met_stop_day
+                        )
                         # Check which one has better coverage
 
                         num_data_points_maxi_day = np.sum(mask_maxi_day)
 
                     else:
                         num_data_points_maxi_day = -1
-                        
-                    if num_data_points_maxi_day>=num_data_points_swift_day:
+
+                    if num_data_points_maxi_day >= num_data_points_swift_day:
                         use_maxi = True
                         use_swift = False
                     else:
                         use_maxi = False
                         use_swift = True
-                    print(f"Maxi data points: {num_data_points_maxi_day}, Swift data points: {num_data_points_swift_day}")
+                    print(
+                        f"Maxi data points: {num_data_points_maxi_day}, Swift data points: {num_data_points_swift_day}"
+                    )
                     if use_maxi:
                         print(f"Use maxi time variability for {ps_name}")
                         # Check number of data points on day
                         if num_data_points_maxi_day < 10:
-                            print(f"Only {num_data_points_maxi_day} data points for point source {ps_name}. This can go wrong....")
+                            print(
+                                f"Only {num_data_points_maxi_day} data points for point source {ps_name}. This can go wrong...."
+                            )
 
                         # Check that there is no big gap at start of day or at end of day
                         start_id = np.argwhere(times_maxi > met_start_day)[0]
-                        if times_maxi[start_id]-times_maxi[start_id-1] > 2*3600:
-                            print(f"At the start of the day there is {times_maxi[start_id]-times_maxi[start_id-1]} seconds with no data point for point source {ps_name}")
+                        if times_maxi[start_id] - times_maxi[start_id - 1] > 2 * 3600:
+                            print(
+                                f"At the start of the day there is {times_maxi[start_id]-times_maxi[start_id-1]} seconds with no data point for point source {ps_name}"
+                            )
 
                         stop_id = np.argwhere(times_maxi < met_stop_day)[-1]
-                        if times_maxi[stop_id+1]-times_maxi[stop_id] > 2*3600:
-                            print(f"At the end of the day there is {times_maxi[stop_id+1]-times_maxi[stop_id]} seconds with no data point for point source {ps_name}")
+                        if times_maxi[stop_id + 1] - times_maxi[stop_id] > 2 * 3600:
+                            print(
+                                f"At the end of the day there is {times_maxi[stop_id+1]-times_maxi[stop_id]} seconds with no data point for point source {ps_name}"
+                            )
 
-                        rates = np.clip(rates_maxi[mask_maxi_long],
-                                        a_min=0,
-                                        a_max=None)
-                        rates_norm = rates/(np.mean(rates))
+                        rates = np.clip(rates_maxi[mask_maxi_long], a_min=0, a_max=None)
+                        rates_norm = rates / (np.mean(rates))
                         errors = errors_maxi[mask_maxi_long]
-                        errors_norm = errors/(np.mean(rates))
+                        errors_norm = errors / (np.mean(rates))
                         ps_variation[ps_name] = {
                             "times": times_maxi[mask_maxi_long],
                             "rates": rates_norm,
-                            "errors": errors_norm
+                            "errors": errors_norm,
                         }
 
                     if use_swift:
                         print(f"Use swift time variability for {ps_name}")
                         # Check number of data points on day
                         if num_data_points_swift_day < 10:
-                            print(f"Only {num_data_points_swift_day} data points for point source {ps_name}. This can go wrong....")
+                            print(
+                                f"Only {num_data_points_swift_day} data points for point source {ps_name}. This can go wrong...."
+                            )
 
                         # Check that there is no big gap at start of day or at end of day
                         start_id = np.argwhere(times_swift > met_start_day)[0]
-                        if times_swift[start_id]-times_swift[start_id-1] > 2*3600:
-                            print(f"At the start of the day there is {times_swift[start_id]-times_swift[start_id-1]} seconds with no data point for point source {ps_name}")
+                        if times_swift[start_id] - times_swift[start_id - 1] > 2 * 3600:
+                            print(
+                                f"At the start of the day there is {times_swift[start_id]-times_swift[start_id-1]} seconds with no data point for point source {ps_name}"
+                            )
 
                         stop_id = np.argwhere(times_swift < met_stop_day)[-1]
-                        if times_swift[stop_id+1]-times_swift[stop_id] > 2*3600:
-                            print(f"At the end of the day there is {times_swift[stop_id+1]-times_swift[stop_id]} seconds with no data point for point source {ps_name}")
+                        if times_swift[stop_id + 1] - times_swift[stop_id] > 2 * 3600:
+                            print(
+                                f"At the end of the day there is {times_swift[stop_id+1]-times_swift[stop_id]} seconds with no data point for point source {ps_name}"
+                            )
 
-                        rates = np.clip(rates_swift[mask_swift_long],
-                                        a_min=0,
-                                        a_max=None)
-                        rates_norm = rates/(np.mean(rates))
+                        rates = np.clip(
+                            rates_swift[mask_swift_long], a_min=0, a_max=None
+                        )
+                        rates_norm = rates / (np.mean(rates))
                         errors = errors_swift[mask_swift_long]
-                        errors_norm = errors/(np.mean(rates))
+                        errors_norm = errors / (np.mean(rates))
                         ps_variation[ps_name] = {
                             "times": times_swift[mask_swift_long],
                             "rates": rates_norm,
-                            "errors": errors_norm
+                            "errors": errors_norm,
                         }
                     # TODO combine maxi and swift (inter normalization?)
 
@@ -393,11 +409,19 @@ class SelectPointsources(object):
                 s=100 * rate,
             )
         box = ax.get_position()
-        ax.set_position([box.x0, box.y0+box.height*0.1, box.width, box.height*0.9])
-        lgd = ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.05), ncol=3, fancybox=True, shadow=True)
+        ax.set_position(
+            [box.x0, box.y0 + box.height * 0.1, box.width, box.height * 0.9]
+        )
+        lgd = ax.legend(
+            loc="upper center",
+            bbox_to_anchor=(0.5, -0.05),
+            ncol=3,
+            fancybox=True,
+            shadow=True,
+        )
         ax.grid()
-        if save_path!=None:
-            fig.savefig(save_path,bbox_extra_artists=(lgd,), bbox_inches='tight')
+        if save_path != None:
+            fig.savefig(save_path, bbox_extra_artists=(lgd,), bbox_inches="tight")
         return fig
 
     def animate_swift_ps(self, limit1550Crab=None, mjd_list=None, dpi=150):
@@ -673,9 +697,7 @@ def build_swift_pointsource_database(
                         gr.attrs["Dec"] = f["RATE"].header["DEC_OBJ"]
             print("Done")
         else:
-            print(
-                "The point source database will NOT be (re)created."
-            )
+            print("The point source database will NOT be (re)created.")
 
     if using_mpi:
         comm.barrier()
@@ -692,30 +714,27 @@ def download_ps_maxi_file(save_maxi_data_folder, remote_file_name):
         path_to_file = download_file(url)
         shutil.move(path_to_file, final_path)
 
+
 def calculate_met_from_mjd(mjd):
     """
     calculated the Fermi MET given MJD
     :return:
     """
-    utc_tt_diff = np.ones(len(mjd))*69.184
-    utc_tt_diff[mjd<=57754.00000000] -= 1
-    utc_tt_diff[mjd<=57204.00000000] -= 1
-    utc_tt_diff[mjd<=56109.00000000] -= 1
-    utc_tt_diff[mjd<=54832.00000000] -= 1
-    met = (
-        mjd - 51910 - 0.0007428703703
-    ) * 86400.0 + utc_tt_diff
+    utc_tt_diff = np.ones(len(mjd)) * 69.184
+    utc_tt_diff[mjd <= 57754.00000000] -= 1
+    utc_tt_diff[mjd <= 57204.00000000] -= 1
+    utc_tt_diff[mjd <= 56109.00000000] -= 1
+    utc_tt_diff[mjd <= 54832.00000000] -= 1
+    met = (mjd - 51910 - 0.0007428703703) * 86400.0 + utc_tt_diff
 
     return met
 
-def build_maxi_pointsource_database(
-    save_maxi_data_folder, multiprocessing=False
-):
+
+def build_maxi_pointsource_database(save_maxi_data_folder, multiprocessing=False):
     """
     Build the swift pointsource database.
     :param save_data_folder: Folder where the swift data files are saved
     """
-
 
     filename = "pointsources_maxi_scan.h5"
 
@@ -781,14 +800,13 @@ def build_maxi_pointsource_database(
             # Parse pointsource names from website
 
             import urllib
-            fp = urllib.request.urlopen(
-                "http://maxi.riken.jp/pubdata/v3.rkn/"
-            )
+
+            fp = urllib.request.urlopen("http://maxi.riken.jp/pubdata/v3.rkn/")
             mybytes = fp.read()
 
             mystr = mybytes.decode("utf8")
             fp.close()
-            
+
             sp = mystr.split("<th>")
 
             ids = []
@@ -797,7 +815,12 @@ def build_maxi_pointsource_database(
             for line in sp:
                 if "href" in line:
                     ids.append(line.split("<a href=")[1].split("/")[0][1:])
-                    names[ids[-1]] = line.split("target_v3rkn")[1].split("</a>")[0][3:-1].replace(" ","").upper()
+                    names[ids[-1]] = (
+                        line.split("target_v3rkn")[1]
+                        .split("</a>")[0][3:-1]
+                        .replace(" ", "")
+                        .upper()
+                    )
 
             print("Download all needed swift datafiles...")
             # Download the datafile for every datafile - This will take a while...
@@ -806,7 +829,6 @@ def build_maxi_pointsource_database(
 
                 # this uses all available threds on the machine, this might not be save...
                 with Pool() as pool:
-
 
                     download_arguments = zip(
                         itertools.repeat(save_maxi_data_folder), names
@@ -821,9 +843,7 @@ def build_maxi_pointsource_database(
 
                     for remote_file_name in names:
 
-                        download_ps_maxi_file(
-                            save_maxi_data_folder, remote_file_name
-                        )
+                        download_ps_maxi_file(save_maxi_data_folder, remote_file_name)
 
                         p.increase()
 
@@ -834,9 +854,9 @@ def build_maxi_pointsource_database(
 
                 for name in os.listdir(save_maxi_data_folder):
                     path = os.path.join(save_maxi_data_folder, name)
-                    with open(path, newline='') as csvfile:
+                    with open(path, newline="") as csvfile:
 
-                        reader = csv.reader(csvfile, delimiter=',', quotechar='|')
+                        reader = csv.reader(csvfile, delimiter=",", quotechar="|")
                         rates = np.array([])
                         errors = np.array([])
                         times = np.array([])
@@ -855,14 +875,12 @@ def build_maxi_pointsource_database(
                         mets = calculate_met_from_mjd(times)
 
                         gr.create_dataset("Time", data=mets)
-                        #gr.attrs["Ra"] = f["LCDAT_PIBAND4"].header["RA"]
-                        #gr.attrs["Dec"] = f["LCDAT_PIBAND4"].header["DEC"]
+                        # gr.attrs["Ra"] = f["LCDAT_PIBAND4"].header["RA"]
+                        # gr.attrs["Dec"] = f["LCDAT_PIBAND4"].header["DEC"]
 
             print("Done")
         else:
-            print(
-                "The point source database will NOT be (re)created."
-            )
+            print("The point source database will NOT be (re)created.")
 
     if using_mpi:
         comm.barrier()

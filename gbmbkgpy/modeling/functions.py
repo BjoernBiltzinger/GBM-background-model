@@ -652,14 +652,13 @@ class GlobalFunctionSpectrumFit(Function):
         Set temporal norm variiation
         """
         time_variation = np.tile(
-                norm_time_var,
-                (len(self._echans), len(self._detectors), 1)
-            )
+            norm_time_var, (len(self._echans), len(self._detectors), 1)
+        )
 
         time_variation = np.swapaxes(time_variation, 0, 2)
 
         self._norm_time_variability = np.clip(time_variation, a_min=0, a_max=None)
-        
+
     def set_effective_responses(self, effective_responses):
         """
         effective response sum for all times for which the geometry was calculated (NO INTERPOLATION HERE)

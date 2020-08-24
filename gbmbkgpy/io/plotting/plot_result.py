@@ -805,7 +805,8 @@ class ResultPlotGenerator(object):
         if echan in echan_dict.keys():
             return echan_dict[str(echan)]
         else:
-            return f'Echan {echan}'
+            return f"Echan {echan}"
+
 
 def set_saa_zero(vector, saa_mask):
     vector[np.where(~saa_mask)] = 0.0

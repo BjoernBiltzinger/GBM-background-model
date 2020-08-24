@@ -44,7 +44,7 @@ valid_det_names = [
     "na",
     "nb",
     "b0",
-    "b1"
+    "b1",
 ]
 
 
@@ -193,7 +193,7 @@ class Det_Response_Precalculation(object):
                 self._load_response_cache(response_cache_file)
 
                 self._get_needed_responses()
-                
+
             else:
 
                 print(
@@ -288,31 +288,31 @@ class Det_Response_Precalculation(object):
         Construct the echan masks for the reconstructed energy ranges
         :param echans: list with echans
         """
-        if self._data_type == "ctime" or self._data_type == 'trigdat':
+        if self._data_type == "ctime" or self._data_type == "trigdat":
             echans_mask = []
             for e in echans:
                 bounds = e.split("-")
                 mask = np.zeros(8, dtype=bool)
-                if len(bounds)==1:
+                if len(bounds) == 1:
                     # Only one echan given
                     index = int(bounds[0])
-                    assert (index<=7 and index>=0), (
-                        "Only Echan numbers between 0 and 7 are allowed"
-                    )
+                    assert (
+                        index <= 7 and index >= 0
+                    ), "Only Echan numbers between 0 and 7 are allowed"
                     mask[index] = True
                 else:
                     # Echan start and stop given
                     index_start = int(bounds[0])
                     index_stop = int(bounds[1])
-                    assert (index_start<=7 and index_start>=0), (
-                        "Only Echan numbers between 0 and 7 are allowed"
+                    assert (
+                        index_start <= 7 and index_start >= 0
+                    ), "Only Echan numbers between 0 and 7 are allowed"
+                    assert (
+                        index_stop <= 7 and index_stop >= 0
+                    ), "Only Echan numbers between 0 and 7 are allowed"
+                    mask[index_start : index_stop + 1] = np.ones(
+                        1 + index_stop - index_start, dtype=bool
                     )
-                    assert (index_stop<=7 and index_stop>=0), (
-                        "Only Echan numbers between 0 and 7 are allowed"
-                    )
-                    mask[index_start:index_stop+1] = np.ones(1+index_stop-
-                                                           index_start,
-                                                           dtype=bool)
                 echans_mask.append(mask)
 
         if self._data_type == "cspec":
@@ -320,26 +320,26 @@ class Det_Response_Precalculation(object):
             for e in echans:
                 bounds = e.split("-")
                 mask = np.zeros(128, dtype=bool)
-                if len(bounds)==1:
+                if len(bounds) == 1:
                     # Only one echan given
                     index = int(bounds[0])
-                    assert (index<=127 and index>=0), (
-                        "Only Echan numbers between 0 and 127 are allowed"
-                    )
+                    assert (
+                        index <= 127 and index >= 0
+                    ), "Only Echan numbers between 0 and 127 are allowed"
                     mask[index] = True
                 else:
                     # Echan start and stop given
                     index_start = int(bounds[0])
                     index_stop = int(bounds[1])
-                    assert (index_start<=127 and index_start>=0), (
-                        "Only Echan numbers between 0 and 127 are allowed"
+                    assert (
+                        index_start <= 127 and index_start >= 0
+                    ), "Only Echan numbers between 0 and 127 are allowed"
+                    assert (
+                        index_stop <= 127 and index_stop >= 0
+                    ), "Only Echan numbers between 0 and 127 are allowed"
+                    mask[index_start : index_stop + 1] = np.ones(
+                        1 + index_stop - index_start, dtype=bool
                     )
-                    assert (index_stop<=127 and index_stop>=0), (
-                        "Only Echan numbers between 0 and 127 are allowed"
-                    )
-                    mask[index_start:index_stop+1] = np.ones(1+index_stop-
-                                                           index_start,
-                                                           dtype=bool)
                 echans_mask.append(mask)
 
         self._echans_mask = echans_mask
@@ -417,9 +417,9 @@ class Det_Response_Precalculation(object):
         Add the responses of the needed echans and combined echans
         :return:
         """
-        sum_response = np.zeros((len(response_array),
-                                 len(response_array[0]),
-                                 len(self._echans_mask)))
+        sum_response = np.zeros(
+            (len(response_array), len(response_array[0]), len(self._echans_mask))
+        )
         for i, echan_mask in enumerate(self._echans_mask):
             for j, entry in enumerate(echan_mask):
                 if entry:
@@ -457,7 +457,7 @@ class Det_Response_Precalculation(object):
             self.Ebin_in_edge,
             mat_type=0,
             ebin_edge_out=self._Ebin_out_edge,
-            occult=True
+            occult=True,
         )
 
         # If MPI is used split up the points among the used cores to speed up
@@ -588,7 +588,9 @@ class Det_Response_Precalculation(object):
                     responses_split = comm.bcast(responses_split_g, root=0)
 
                     # Add results of this run to the big array
-                    responses_all_split.append(self._add_response_echan(responses_split))
+                    responses_all_split.append(
+                        self._add_response_echan(responses_split)
+                    )
                     del responses_split, responses_split_g
                 # Concatenate the big array to get one array with length Ngrid where the entries are the responses
                 # of the points

@@ -298,13 +298,13 @@ class BackgroundModelGenerator(object):
 
             if config["setup"]["use_cr"]:
                 if f"cr_echan-{e}" in config["priors"]:
-                    parameter_bounds["norm_magnetic_echan-{}".format(e)] = config["priors"][
-                        f"cr_echan-{e}"
-                    ]["norm"]
+                    parameter_bounds["norm_magnetic_echan-{}".format(e)] = config[
+                        "priors"
+                    ][f"cr_echan-{e}"]["norm"]
                 else:
-                    parameter_bounds["norm_magnetic_echan-{}".format(e)] = config["priors"][
-                        "cr"
-                    ]["norm"]
+                    parameter_bounds["norm_magnetic_echan-{}".format(e)] = config[
+                        "priors"
+                    ]["cr"]["norm"]
 
         if config["setup"]["use_sun"]:
             parameter_bounds["sun_norm"] = config["priors"]["sun"]["norm"]
@@ -546,7 +546,7 @@ class TrigdatBackgroundModelGenerator(BackgroundModelGenerator):
         self._ep = ExternalProps(
             detectors=config["general"]["detectors"],
             cr_approximation=config["setup"]["cr_approximation"],
-            trig_data=self._data
+            trig_data=self._data,
         )
 
         print_progress("Done")

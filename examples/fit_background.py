@@ -73,7 +73,12 @@ parser.add_argument("-dates", "--dates", type=str, nargs="+", help="Date string"
 parser.add_argument("-dets", "--detectors", type=str, nargs="+", help="Name detector")
 parser.add_argument("-e", "--echans", type=str, nargs="+", help="Echan number")
 parser.add_argument("-trig", "--trigger", type=str, help="Name of trigger")
-parser.add_argument("-out", "--output_dir", type=str, help="Path to the output directory to continue a stopped fit")
+parser.add_argument(
+    "-out",
+    "--output_dir",
+    type=str,
+    help="Path to the output directory to continue a stopped fit",
+)
 
 args = parser.parse_args()
 
@@ -189,7 +194,7 @@ if rank == 0:
             "fits",
             "mn_out",
             config["general"].get("trigger", "-".join(config["general"]["dates"])),
-            f'bkg_results.txt',
+            f"bkg_results.txt",
         )
 
         with open(result_paths_file, "a",) as results_file:

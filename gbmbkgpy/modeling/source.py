@@ -58,7 +58,7 @@ class Source(object):
         return self._shape()[bin_mask]
 
     def __repr__(self):
-        params = '\n    '.join([param.info for param in self.parameters.values()])
+        params = "\n    ".join([param.info for param in self.parameters.values()])
 
         info = f"""### {self.name} ###
 type: {self.source_type}
@@ -70,7 +70,6 @@ paramters:
 
         return info
 
-    
     @property
     def name(self):
         return self._name

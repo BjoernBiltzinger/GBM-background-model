@@ -48,12 +48,16 @@ class ExternalProps(object):
         :param dates: [YYMMDD, YYMMDD,]
         """
 
-        assert cr_approximation in ["MCL", "BGO", "ACD"], "Please set the cosmic ray appoximation to"\
-            "MCL (McIlwain L-parameter), BGO (High energy BGO count rates) or ACD (LAT-ACD Data)!"\
+        assert cr_approximation in ["MCL", "BGO", "ACD"], (
+            "Please set the cosmic ray appoximation to"
+            "MCL (McIlwain L-parameter), BGO (High energy BGO count rates) or ACD (LAT-ACD Data)!"
             "You entered {}, which is not valid!".format(cr_approximation)
+        )
 
         if trig_data is not None:
-            assert bgo_cr_approximation, "Fitting trigdat data requires the bgo cr approximation"
+            assert (
+                bgo_cr_approximation
+            ), "Fitting trigdat data requires the bgo cr approximation"
 
         else:
             assert (
@@ -395,7 +399,11 @@ class ExternalProps(object):
         rates = np.concatenate((rates[:1], rates, rates[-1:]))
 
         times = np.concatenate(
-            (total_time_bins[:1, 0], np.mean(rebinned_time_bins, axis=1), total_time_bins[-1:, 1])
+            (
+                total_time_bins[:1, 0],
+                np.mean(rebinned_time_bins, axis=1),
+                total_time_bins[-1:, 1],
+            )
         )
 
         return times, rates
@@ -436,7 +444,9 @@ class ExternalProps(object):
 
             else:
 
-                self._bgo_0_times, self._bgo_0_rates = self._calc_bgo_rates_trigdata(trig_data, "b0")
+                self._bgo_0_times, self._bgo_0_rates = self._calc_bgo_rates_trigdata(
+                    trig_data, "b0"
+                )
 
             self._bgo_0_rate_interp = interpolate.UnivariateSpline(
                 self._bgo_0_times, self._bgo_0_rates, s=1000, k=3
@@ -459,11 +469,14 @@ class ExternalProps(object):
 
             else:
 
-                self._bgo_1_times, self._bgo_1_rates = self._calc_bgo_rates_trigdata(trig_data, "b1")
+                self._bgo_1_times, self._bgo_1_rates = self._calc_bgo_rates_trigdata(
+                    trig_data, "b1"
+                )
 
             self._bgo_1_rate_interp = interpolate.UnivariateSpline(
                 self._bgo_1_times, self._bgo_1_rates, s=1000, k=3
             )
+
     def _build_acd_cr_approximation(self, dates):
         """
         Function that gets the count rate of the 85-105th energy channel of the BGO
@@ -496,17 +509,27 @@ class ExternalProps(object):
             deltatD = f["delta_t"][()]
 
         # Get the needed time interval
-        maskA = np.argwhere(np.logical_and(timesA>met_start, timesA<met_stop)).flatten()
-        maskB = np.argwhere(np.logical_and(timesB>met_start, timesB<met_stop)).flatten()
-        maskC = np.argwhere(np.logical_and(timesC>met_start, timesC<met_stop)).flatten()
-        maskD = np.argwhere(np.logical_and(timesD>met_start, timesD<met_stop)).flatten()
-        assert len(timesA[maskA])>0, "No LAT ACD data available for the dates you want to use..."\
+        maskA = np.argwhere(
+            np.logical_and(timesA > met_start, timesA < met_stop)
+        ).flatten()
+        maskB = np.argwhere(
+            np.logical_and(timesB > met_start, timesB < met_stop)
+        ).flatten()
+        maskC = np.argwhere(
+            np.logical_and(timesC > met_start, timesC < met_stop)
+        ).flatten()
+        maskD = np.argwhere(
+            np.logical_and(timesD > met_start, timesD < met_stop)
+        ).flatten()
+        assert len(timesA[maskA]) > 0, (
+            "No LAT ACD data available for the dates you want to use..."
             "Please use either BGO or MCL for cosmic rays"
-        
-        #factA = len(timesA[maskA])/20000.
-        #factB = len(timesB[maskB])/20000.
-        #factC = len(timesC[maskC])/20000.
-        #factD = len(timesD[maskD])/20000.
+        )
+
+        # factA = len(timesA[maskA])/20000.
+        # factB = len(timesB[maskB])/20000.
+        # factC = len(timesC[maskC])/20000.
+        # factD = len(timesD[maskD])/20000.
 
         timesA_use = np.vstack((timesA[maskA][:-1], timesA[maskA][1:])).T
         timesB_use = np.vstack((timesB[maskB][:-1], timesB[maskB][1:])).T
@@ -546,30 +569,34 @@ class ExternalProps(object):
 
         print(timesA_use[0], timesA_use[-1])
         self._acd_A_rate_interp = interpolate.UnivariateSpline(
-                timesA_reb[:,0], rebinned_countsA/deltat_rebA, s=1000000, k=5
-            )
+            timesA_reb[:, 0], rebinned_countsA / deltat_rebA, s=1000000, k=5
+        )
         self._acd_B_rate_interp = interpolate.UnivariateSpline(
-                timesB_reb[:,0], rebinned_countsB/deltat_rebB, s=1000000, k=5
-            )
+            timesB_reb[:, 0], rebinned_countsB / deltat_rebB, s=1000000, k=5
+        )
         self._acd_C_rate_interp = interpolate.UnivariateSpline(
-                timesC_reb[:,0], rebinned_countsC/deltat_rebC, s=1000000, k=5
-            )
+            timesC_reb[:, 0], rebinned_countsC / deltat_rebC, s=1000000, k=5
+        )
         self._acd_D_rate_interp = interpolate.UnivariateSpline(
-                timesD_reb[:,0], rebinned_countsD/deltat_rebD, s=1000000, k=5
-            )
+            timesD_reb[:, 0], rebinned_countsD / deltat_rebD, s=1000000, k=5
+        )
 
     def _start_stop_time(self, dates):
         mets = np.array([])
 
         for date in dates:
-            t = astro_time.Time(f'20{date[:2]}-{date[2:4]}-{date[4:6]}T00:00:00', format='isot', scale='utc')
+            t = astro_time.Time(
+                f"20{date[:2]}-{date[2:4]}-{date[4:6]}T00:00:00",
+                format="isot",
+                scale="utc",
+            )
             mets = np.append(mets, GBMTime(t).met)
 
-        min_time = np.min(mets)-1000
-        max_time = np.max(mets)+24*3600+1000
+        min_time = np.min(mets) - 1000
+        max_time = np.max(mets) + 24 * 3600 + 1000
 
         return min_time, max_time
-    
+
     def lat_acd(self, time_bins, use_side):
 
         data_path = "/home/bbiltzing/output_acd.csv"
