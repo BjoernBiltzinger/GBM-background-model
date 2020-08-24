@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.interpolate import interp1d
-
+import arviz as av
+import matplotlib.pyplot as plt
 
 class StanDataConstructor(object):
     """
@@ -8,14 +9,26 @@ class StanDataConstructor(object):
     """
 
 
-    def __init__(self, data, model, response, geometry):
+    def __init__(self,
+                 data=None, model=None, response=None, geometry=None,
+                 model_generator=None,
+                 threads=1):
         """
-        Init with data, model and response object
+        Init with data, model, response and geometry object or model_generator object
         """
-        self._data = data
-        self._model = model
-        self._response = response
-        self._geometry = geometry
+
+        if model_generator is None:
+            self._data = data
+            self._model = model
+            self._response = response
+            self._geometry = geometry
+        else:
+            self._data = model_generator.data
+            self._model = model_generator.model
+            self._response = model_generator.response
+            self._geometry = model_generator.geometry
+
+        self._threads = threads
 
         self._dets = data.detectors
         self._echans = data.echans
@@ -210,5 +223,99 @@ class StanDataConstructor(object):
             data_dict["base_counts_array_cont"] = self._cont_counts
 
         # Stan grainsize for reduced_sum
-        data_dict["grainsize"] = 1
+        if self._threads==1:
+            data_dict["grainsize"] = 1
+        else:
+            data_dict["grainsize"] = int(self._ntimebins*self._ndets*self._nechans/self._threads)
         return data_dict
+
+class ReadStanArvizResult(object):
+
+    def __init__(self, nc_files):
+        for i, nc_file in enumerate(nc_files):
+            if i == 0:
+                self._arviz_result = av.from_netcdf(nc_file)
+            else:
+                self._arviz_result = av.concat(self._arviz_result, av.from_netcdf(nc_file), dim="chain")
+                
+        self._model_parts = self._arviz_result.predictions.keys()
+
+        self._dets = self._arviz_result.constant_data["dets"].values
+        self._echans = self._arviz_result.constant_data["echans"].values
+
+        self._ndets = len(self._dets)
+        self._nechans = len(self._echans)
+
+        self._time_bins = self._arviz_result.constant_data["time_bins"].values
+        self._time_bins -= self._time_bins[0,0]
+        self._bin_width = self._time_bins[:,1]-self._time_bins[:,0]
+
+        self._counts = self._arviz_result.observed_data["counts"].values
+
+        predictions = self._arviz_result.predictions.stack(sample=("chain", "draw"))
+        self._parts = {}
+        for key in self._model_parts:
+            self._parts[key] = predictions[key].values
+
+        self._ppc = self._arviz_result.posterior_predictive.stack(sample=("chain", "draw"))["ppc"].values
+
+    def ppc_plots(self, save_dir):
+
+        colors = {"f_fixed": "red","f_ps": "red", "f_saa": "navy", "f_cont": "magenta",
+                  "f_earth": "purple", "f_cgb": "cyan"}
+
+        for d_index, d in enumerate(self._dets):
+            for e_index, e in enumerate(self._echans):
+
+                mask = np.arange(len(self._counts), dtype=int)[e_index+d_index*self._ndets::self._ndets*self._nechans]
+                fig, ax = plt.subplots()
+
+                for i in np.linspace(0,self._ppc.shape[1]-1,30, dtype=int):
+                    if i==0:
+                        ax.scatter(np.mean(self._time_bins,axis=1),
+                                   self._ppc[mask][:,i]/self._bin_width, color="darkgreen", alpha=0.025,
+                                   edgecolor="green", facecolor='none',lw=.9, s=2, label="PPC")
+                    else:
+                        ax.scatter(np.mean(self._time_bins,axis=1),
+                                   self._ppc[mask][:,i]/self._bin_width, color="darkgreen", alpha=0.025,
+                                   edgecolor="darkgreen", facecolor='none',lw=.9, s=2)
+                    
+                    for key in self._parts.keys():
+                        # Check if there are several sources in this class
+                        if len(self._parts[key].shape)==3:
+                            for k in range(len(self._parts[key])):
+                                if k==0 and i==0:
+                                    ax.scatter(np.mean(self._time_bins,axis=1),
+                                               self._parts[key][k][mask][:,i]/self._bin_width,
+                                               alpha=0.025, edgecolor=colors[key],
+                                               facecolor='none',lw=.9, s=2,
+                                               label=key)
+                                else:
+                                    ax.scatter(np.mean(self._time_bins,axis=1),
+                                               self._parts[key][k][mask][:,i]/self._bin_width,
+                                               alpha=0.025, edgecolor=colors[key],
+                                               facecolor='none',lw=.9, s=2)
+                        else:
+                            if i==0:
+                                ax.scatter(np.mean(self._time_bins,axis=1),
+                                               self._parts[key][mask][:,i]/self._bin_width,
+                                               alpha=0.025, edgecolor=colors[key],
+                                               facecolor='none',lw=.9, s=2,
+                                               label=key)
+                            else:
+                                ax.scatter(np.mean(self._time_bins,axis=1),
+                                               self._parts[key][mask][:,i]/self._bin_width,
+                                               alpha=0.025, edgecolor=colors[key],
+                                               facecolor='none',lw=.9, s=2)
+
+                ax.scatter(np.mean(self._time_bins,axis=1),
+                           self._counts[mask]/self._bin_width,
+                           color="darkgreen", alpha=0.25,  edgecolor="black",
+                           facecolor='none', lw=.9, s=2, label="Data")
+                #box = ax.get_position()
+                #ax.set_position([box.x0, box.y0, box.width*0.7, box.height])
+                lgd = fig.legend(loc="center right")#, bbox_to_anchor=(1, 0.5))
+                for lh in lgd.legendHandles:
+                    lh.set_alpha(1)
+                t = fig.suptitle(f"Detector {d} - Echan {e}")
+                fig.savefig(f"ppc_result_det_{d}_echan_{e}.png")#, bbox_extra_artists=(lgd,t), dpi=450, bbox_inches='tight')
