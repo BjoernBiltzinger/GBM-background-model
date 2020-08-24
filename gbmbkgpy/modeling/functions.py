@@ -484,6 +484,7 @@ class GlobalFunctionSpectrumFit(Function):
         """
         self._E_norm = E_norm
         self._spec = spectrum
+        self._norm_time_variability = None
         if self._spec == "bpl":
             C = Parameter(
                 coefficient_name + "_norm",
@@ -646,6 +647,19 @@ class GlobalFunctionSpectrumFit(Function):
         self._detectors = detectors
         self._echans = echans
 
+    def set_norm_time_variability(self, norm_time_var):
+        """
+        Set temporal norm variiation
+        """
+        time_variation = np.tile(
+                norm_time_var,
+                (len(self._echans), len(self._detectors), 1)
+            )
+
+        time_variation = np.swapaxes(time_variation, 0, 2)
+
+        self._norm_time_variability = np.clip(time_variation, a_min=0, a_max=None)
+        
     def set_effective_responses(self, effective_responses):
         """
         effective response sum for all times for which the geometry was calculated (NO INTERPOLATION HERE)
@@ -732,6 +746,10 @@ class GlobalFunctionSpectrumFit(Function):
             self._source_counts = integrate.trapz(
                 folded_flux_all_dets, self._tiled_time_bins
             )
+
+        if self._norm_time_variability is not None:
+            self._source_counts *= self._norm_time_variability
+
         self._source_counts[~self._saa_mask] = 0.0
 
     def build_spec_integral(self):
