@@ -31,8 +31,9 @@ model_generator.from_config_dict(config)
 
 
 # Create Stan Model
-model = CmdStanModel(stan_file="stan_model_saa.stan",
-                     cpp_options={'STAN_THREADS': 'TRUE'})
+model = CmdStanModel(
+    stan_file="stan_model_saa.stan", cpp_options={"STAN_THREADS": "TRUE"}
+)
 
 
 # Number of threads per Chain
@@ -40,31 +41,38 @@ threads_per_chain = 64
 
 
 # StanDataConstructor
-stan_data = StanDataConstructor(model_generator=model_generator,
-                                threads_per_chain=threads_per_chain)
+stan_data = StanDataConstructor(
+    model_generator=model_generator, threads_per_chain=threads_per_chain
+)
 
-data_dict =  stan_data.construct_data_dict()
+data_dict = stan_data.construct_data_dict()
 
 # Sample
-fit = model.sample(data=data_dict,
-                   output_dir="./",
-                   chains=1,
-                   seed=int(np.random.rand()*10000),
-                   parallel_chains=1,
-                   threads_per_chain=threads_per_chain,
-                   iter_warmup=300,
-                   iter_sampling=300,
-                   show_progress=True)
+fit = model.sample(
+    data=data_dict,
+    output_dir="./",
+    chains=1,
+    seed=int(np.random.rand() * 10000),
+    parallel_chains=1,
+    threads_per_chain=threads_per_chain,
+    iter_warmup=300,
+    iter_sampling=300,
+    show_progress=True,
+)
 
 
 # Buiöd arviz object
-ar = av.from_cmdstanpy(fit,
-                       posterior_predictive="ppc",
-                       observed_data={"counts": data_dict["counts"]},
-                       constant_data={"time_bins": data_dict["time_bins"],
-                                     "dets": model_generator.data.detectors,
-                                     "echans": model_generator.data.echans},
-                       predictions=["f_fixed","f_saa","f_cont"])
+ar = av.from_cmdstanpy(
+    fit,
+    posterior_predictive="ppc",
+    observed_data={"counts": data_dict["counts"]},
+    constant_data={
+        "time_bins": data_dict["time_bins"],
+        "dets": model_generator.data.detectors,
+        "echans": model_generator.data.echans,
+    },
+    predictions=["f_fixed", "f_saa", "f_cont"],
+)
 
 
 # Save this object

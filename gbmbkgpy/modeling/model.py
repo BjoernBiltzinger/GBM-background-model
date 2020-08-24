@@ -123,6 +123,8 @@ class Model(object):
         :param priors_dict:
         :return:
         """
+        print(self.parameters)
+
         for param_name, prior_dict in priors_dict.items():
             self.parameters[param_name].bounds = prior_dict["bounds"]
             self.parameters[param_name].gaussian_parameter = prior_dict["gaussian"]

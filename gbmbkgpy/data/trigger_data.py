@@ -48,7 +48,9 @@ valid_det_names = [
 
 
 class TrigData(object):
-    def __init__(self, trigger, detectors, data_type, echans, trigdat_file=None, test=False):
+    def __init__(
+        self, trigger, detectors, data_type, echans, trigdat_file=None, test=False
+    ):
         """
         Initalize the TrigData Class, which contains the information about the time bins
         and counts of the data.

@@ -99,23 +99,23 @@ class Data(object):
                 if len(bounds) == 1:
                     # Only one echan given
                     index = int(bounds[0])
-                    assert (index <= 7 and index >= 0), (
-                        "Only Echan numbers between 0 and 7 are allowed"
-                    )
+                    assert (
+                        index <= 7 and index >= 0
+                    ), "Only Echan numbers between 0 and 7 are allowed"
                     mask[index] = True
                 else:
                     # Echan start and stop given
                     index_start = int(bounds[0])
                     index_stop = int(bounds[1])
-                    assert (index_start <= 7 and index_start >= 0), (
-                        "Only Echan numbers between 0 and 7 are allowed"
+                    assert (
+                        index_start <= 7 and index_start >= 0
+                    ), "Only Echan numbers between 0 and 7 are allowed"
+                    assert (
+                        index_stop <= 7 and index_stop >= 0
+                    ), "Only Echan numbers between 0 and 7 are allowed"
+                    mask[index_start : index_stop + 1] = np.ones(
+                        1 + index_stop - index_start, dtype=bool
                     )
-                    assert (index_stop <= 7 and index_stop >= 0), (
-                        "Only Echan numbers between 0 and 7 are allowed"
-                    )
-                    mask[index_start:index_stop+1] = np.ones(1+index_stop-
-                                                           index_start,
-                                                           dtype=bool)
                 echans_mask.append(mask)
 
         if self._data_type == "cspec":
@@ -126,26 +126,26 @@ class Data(object):
                 if len(bounds) == 1:
                     # Only one echan given
                     index = int(bounds[0])
-                    assert (index <= 127 and index >= 0), (
-                        "Only Echan numbers between 0 and 127 are allowed"
-                    )
+                    assert (
+                        index <= 127 and index >= 0
+                    ), "Only Echan numbers between 0 and 127 are allowed"
                     mask[index] = True
                 else:
                     # Echan start and stop given
                     index_start = int(bounds[0])
                     index_stop = int(bounds[1])
-                    assert (index_start <= 127 and index_start >= 0), (
-                        "Only Echan numbers between 0 and 127 are allowed"
+                    assert (
+                        index_start <= 127 and index_start >= 0
+                    ), "Only Echan numbers between 0 and 127 are allowed"
+                    assert (
+                        index_stop <= 127 and index_stop >= 0
+                    ), "Only Echan numbers between 0 and 127 are allowed"
+                    mask[index_start : index_stop + 1] = np.ones(
+                        1 + index_stop - index_start, dtype=bool
                     )
-                    assert (index_stop <= 127 and index_stop >= 0), (
-                        "Only Echan numbers between 0 and 127 are allowed"
-                    )
-                    mask[index_start:index_stop+1] = np.ones(1+index_stop-
-                                                           index_start,
-                                                           dtype=bool)
                 echans_mask.append(mask)
         self._echans_mask = echans_mask
-        
+
     def rebinn_data(self, min_bin_width, saa_mask, save_memory=False):
         """
         Rebins the time bins to a min bin width

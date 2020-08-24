@@ -19,6 +19,7 @@ def _global_except_hook(exctype, value, traceback):
 
     finally:
         import mpi4py.MPI
+
         rank = mpi4py.MPI.COMM_WORLD.Get_rank()
         sys.stderr.write("\n")
         sys.stderr.write("******************************************\n")
@@ -31,12 +32,12 @@ def _global_except_hook(exctype, value, traceback):
 
         try:
             import mpi4py.MPI
+
             mpi4py.MPI.COMM_WORLD.Abort(1)
         except Exception as e:
             # Something is completely broken...
             # There's nothing we can do any more
-            sys.stderr.write(
-                "Sorry, failed to stop MPI and the process may hang.\n")
+            sys.stderr.write("Sorry, failed to stop MPI and the process may hang.\n")
             sys.stderr.flush()
             raise e
 
@@ -51,7 +52,7 @@ def _add_hook_if_enabled():
     # to a non-empty value.
     # Note that you need to pass an argument to mpiexec (-x for Open MPI)
     # to activate the handler in all processes.
-    var = os.environ.get('GBMBKGPY_FORCE_ABORT_ON_EXCEPTION')
+    var = os.environ.get("GBMBKGPY_FORCE_ABORT_ON_EXCEPTION")
     if var is not None and len(var) > 0:
         add_hook()
 
@@ -65,9 +66,11 @@ def add_hook():
     global _orig_except_hook
 
     if _orig_except_hook is not None:
-        warnings.warn("gbmbkgpy.utils.global_except_hook.add_hook()"
-                      "seems to be called multiple times. Ignoring.",
-                      stacklevel=2)
+        warnings.warn(
+            "gbmbkgpy.utils.global_except_hook.add_hook()"
+            "seems to be called multiple times. Ignoring.",
+            stacklevel=2,
+        )
         return
 
     _orig_except_hook = sys.excepthook

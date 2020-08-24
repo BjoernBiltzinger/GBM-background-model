@@ -35,6 +35,7 @@ except:
     using_mpi = False
     pr = True
 
+
 class PointSrc_free(object):
     def __init__(self, name, ra, dec, det_responses, geometry, echans):
         """
@@ -68,17 +69,17 @@ class PointSrc_free(object):
             for e in echans:
                 bounds = e.split("-")
                 mask = np.zeros(8, dtype=bool)
-                if len(bounds)==1:
-                     # Only one echan given
+                if len(bounds) == 1:
+                    # Only one echan given
                     index = int(bounds[0])
                     mask[index] = True
                 else:
                     # Echan start and stop given
                     index_start = int(bounds[0])
                     index_stop = int(bounds[1])
-                    mask[index_start:index_stop+1] = np.ones(1+index_stop-
-                                                           index_start,
-                                                           dtype=bool)
+                    mask[index_start : index_stop + 1] = np.ones(
+                        1 + index_stop - index_start, dtype=bool
+                    )
                 echans_mask.append(mask)
 
         elif self._data_type == "cspec":
@@ -87,7 +88,7 @@ class PointSrc_free(object):
             for e in echans:
                 bounds = e.split("-")
                 mask = np.zeros(128, dtype=bool)
-                if len(bounds)==1:
+                if len(bounds) == 1:
                     # Only one echan given
                     index = int(bounds[0])
                     mask[index] = True
@@ -95,9 +96,9 @@ class PointSrc_free(object):
                     # Echan start and stop given
                     index_start = int(bounds[0])
                     index_stop = int(bounds[1])
-                    mask[index_start:index_stop+1] = np.ones(1+index_stop-
-                                                           index_start,
-                                                           dtype=bool)
+                    mask[index_start : index_stop + 1] = np.ones(
+                        1 + index_stop - index_start, dtype=bool
+                    )
                 echans_mask.append(mask)
 
         self._echans_mask = echans_mask
@@ -153,7 +154,9 @@ class PointSrc_free(object):
             )
 
             # sum the responses needed
-            response_step = np.zeros((len(self._echans_mask), len(all_response_step[0])))
+            response_step = np.zeros(
+                (len(self._echans_mask), len(all_response_step[0]))
+            )
             for i, echan_mask in enumerate(self._echans_mask):
                 for j, entry in enumerate(echan_mask):
                     if entry:
@@ -251,7 +254,7 @@ class PointSrc_fixed(PointSrc_free):
 
             time_variation = np.tile(
                 self._time_variation_interp(met),
-                (len(self._echans), len(self._detectors), 1, 1)
+                (len(self._echans), len(self._detectors), 1, 1),
             )
 
             time_variation = np.swapaxes(time_variation, 0, 2)

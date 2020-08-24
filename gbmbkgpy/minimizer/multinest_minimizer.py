@@ -356,9 +356,9 @@ class MultiNestFit(object):
 
         else:
             # Append '/' to output dir if not last char
-            if output_dir[-1] != '/':
+            if output_dir[-1] != "/":
 
-                output_dir = output_dir + '/'
+                output_dir = output_dir + "/"
 
         # If the output path is to long (MultiNest only supports 100 chars)
         # we will create a symbolic link with a random directory name

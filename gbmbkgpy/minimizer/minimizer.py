@@ -18,7 +18,9 @@ class Minimizer(object):
         self._day = self._likelihood._data.dates[0]
         self._det = self._likelihood._data.detectors[0]
 
-    def fit(self, n_interations=3, method_1="L-BFGS-B", method_2="Powell", use_saa=True):
+    def fit(
+        self, n_interations=3, method_1="L-BFGS-B", method_2="Powell", use_saa=True
+    ):
         """
         Fits the model stepwise by calling the scipy.minimize in the following steps:
         1. Fit linear/normalization paramters

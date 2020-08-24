@@ -193,10 +193,9 @@ class Parameter(object):
         return self._prior
 
     prior = property(
-        _get_prior,
-        _set_prior,
-        doc="Gets or sets the prior type" " for this parameter",
+        _get_prior, _set_prior, doc="Gets or sets the prior type" " for this parameter",
     )
+
     @property
     def normalization(self):
         return self._normalization
