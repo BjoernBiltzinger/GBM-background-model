@@ -12,7 +12,7 @@ class StanDataConstructor(object):
     def __init__(self,
                  data=None, model=None, response=None, geometry=None,
                  model_generator=None,
-                 threads=1):
+                 threads_per_chain=1):
         """
         Init with data, model, response and geometry object or model_generator object
         """
@@ -28,11 +28,11 @@ class StanDataConstructor(object):
             self._response = model_generator.response
             self._geometry = model_generator.geometry
 
-        self._threads = threads
+        self._threads = threads_per_chain
 
-        self._dets = data.detectors
-        self._echans = data.echans
-        self._time_bins = data.time_bins
+        self._dets = self._data.detectors
+        self._echans = self._data.echans
+        self._time_bins = self._data.time_bins
 
         self._time_bin_edges = np.append(self._time_bins[:,0],
                                          self._time_bins[-1:1])
@@ -56,7 +56,7 @@ class StanDataConstructor(object):
                                   self._ndets, self._nechans))
 
         for i, k in enumerate(s.keys()):
-            global_counts[i] = s[k].get_counts(self._data.time_bins)
+            global_counts[i] = s[k].get_counts(self._time_bins)
 
 
         # Flatten along time, detectors and echans
@@ -86,7 +86,7 @@ class StanDataConstructor(object):
                 index=0
             else:
                 index=1
-            continuum_counts[index,:,:,s.echan] = s.get_counts(self._data.time_bins)
+            continuum_counts[index,:,:,s.echan] = s.get_counts(self._time_bins)
 
         self._cont_counts = continuum_counts[:,2:-2].reshape(2, -1)
 
@@ -188,11 +188,11 @@ class StanDataConstructor(object):
 
         data_dict = {}
 
-        data_dict["num_time_bins"] = self._ntimebins
+        data_dict["num_time_bins"] = self._ntimebins-4
         data_dict["num_dets"] = self._ndets
         data_dict["num_echans"] = self._nechans
 
-        data_dict["time_bins"] = self._time_bins
+        data_dict["time_bins"] = self._time_bins[2:-2]
         data_dict["counts"] = np.array(self._data.counts[2:-2], dtype=int).flatten()
 
         data_dict["rsp_num_Ein"] = self._num_Ebins_in
@@ -205,10 +205,12 @@ class StanDataConstructor(object):
         else:
             raise NotImplementedError
 
-
-        data_dict["base_response_array_free_ps"] = self._base_response_array_ps
-        data_dict["base_response_array_earth"] = self._base_response_array_earth
-        data_dict["base_response_array_cgb"] = self._base_response_array_cgb
+        if self._base_response_array_ps is not None:
+            data_dict["base_response_array_free_ps"] = self._base_response_array_ps
+        if self._base_response_array_earth is not None:
+            data_dict["base_response_array_earth"] = self._base_response_array_earth
+        if self._base_response_array_cgb is not None:
+            data_dict["base_response_array_cgb"] = self._base_response_array_cgb
 
         if self._base_response_array_cgb is not None:
             data_dict["earth_cgb_free"] = 1
@@ -226,7 +228,7 @@ class StanDataConstructor(object):
         if self._threads==1:
             data_dict["grainsize"] = 1
         else:
-            data_dict["grainsize"] = int(self._ntimebins*self._ndets*self._nechans/self._threads)
+            data_dict["grainsize"] = int((self._ntimebins-4)*self._ndets*self._nechans/self._threads)
         return data_dict
 
 class ReadStanArvizResult(object):
