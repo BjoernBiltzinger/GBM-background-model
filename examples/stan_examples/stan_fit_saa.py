@@ -74,7 +74,7 @@ ar = av.from_cmdstanpy(
         "dets": model_generator.data.detectors,
         "echans": model_generator.data.echans,
     },
-    predictions=["f_fixed", "f_saa", "f_cont"],
+    predictions=stan_model_const.generated_quantities(),
 )
 
 
