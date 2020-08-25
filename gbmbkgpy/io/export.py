@@ -553,6 +553,111 @@ class PHAWriter(object):
         )
 
     @classmethod
+    def from_arviz_result_files(cls, result_file_list):
+        detectors = []
+        echans = []
+        det_echan_loaded = []
+
+        for i, nc_file in enumerate(result_file_list):
+
+            arviz_result = arviz.from_netcdf(nc_file)
+
+            dets_f = arviz_result.constant_data["dets"].values
+            echans_f = arviz_result.constant_data["echans"].values
+
+            time_bins_f = arviz_result.constant_data["time_bins"].values
+            time_bins_f -= time_bins_f[0, 0]
+            bin_width_f = time_bins_f[:, 1] - time_bins_f[:, 0]
+
+            ndets = len(dets_f)
+            nechans = len(echans_f)
+            ntime_bins = len(time_bins_f)
+
+            ppc_f = arviz_result.posterior_predictive.stack(sample=("chain", "draw"))[
+                "ppc"
+            ].values
+
+            nppc = ppc_f.shape[1]
+
+            ppc_f = ppc_f.reshape((ntime_bins, ndets, nechans, nppc))
+
+            observed_counts_f = arviz_result.observed_data["counts"].values
+            observed_counts_f = observed_counts_f.reshape((ntime_bins, ndets, nechans))
+
+            model_counts_f = arviz_result.predictions.stack(sample=("chain", "draw"))[
+                "tot"
+            ].values
+            model_counts_f = model_counts_f.reshape((ntime_bins, ndets, nechans, nppc))
+
+            if i == 0:
+                time_bins = time_bins_f
+                observed_counts = np.zeros((ntime_bins, 14, 8))
+                model_counts = np.zeros((ntime_bins, 14, 8, nppc))
+                ppc = np.zeros_like(model_counts)
+
+            else:
+                assert np.array_equal(time_bins, time_bins_f)
+
+            for det_tmp_idx, det in enumerate(dets_f):
+
+                if det not in detectors:
+                    detectors.append(det)
+
+                det_idx = valid_det_names.index(det)
+
+                for echan_idx, echan in enumerate(echans_f):
+
+                    det_echan = "{}_{}".format(det, echan)
+
+                    if echan not in echans:
+                        echans.append(echan)
+
+                    assert (
+                        det_echan not in det_echan_loaded
+                    ), "{}-{} already loaded, you have to resolve the conflict by hand".format(
+                        det, echan
+                    )
+
+                    echan = int(echan)
+
+                    # Combine the observed counts
+                    observed_counts[:, det_idx, echan] = observed_counts_f[
+                        :, det_tmp_idx, echan_idx
+                    ]
+
+                    # Combine the model counts
+                    model_counts[:, det_idx, echan] = model_counts_f[
+                        :, det_tmp_idx, echan_idx, :
+                    ]
+
+                    # Combine the statistical error of the fit
+                    ppc[:, det_idx, echan] = ppc_f[
+                        :, det_tmp_idx, echan_idx, :
+                    ]
+
+                    # Append the det_echan touple to avoid overloading
+                    det_echan_loaded.append(det_echan)
+
+        echans.sort()
+        detectors.sort()
+        det_echan_loaded.sort()
+
+        return cls(
+            dates,
+            trigger,
+            trigger_time,
+            data_type,
+            echans,
+            detectors,
+            time_bins,
+            saa_mask,
+            observed_counts,
+            model_counts,
+            stat_err,
+            det_echan_loaded,
+        )
+
+    @classmethod
     def from_combined_hdf5(cls, file_path):
 
         with h5py.File(file_path, "r") as f:

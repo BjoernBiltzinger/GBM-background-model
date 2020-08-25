@@ -374,9 +374,6 @@ class StanModelConstructor(object):
         if self._use_free_ps:
             text += "\tvector[num_data_points] f_free_ps[num_free_ps_comp];\n"
 
-
-
-
         if self._use_saa:
             text += "\tf_saa = saa_total(saa_norm_vec, saa_decay_vec, t_t0, num_data_points, num_saa_exits);\n"
             text += "\ttot += f_saa;\n"
@@ -407,9 +404,33 @@ class StanModelConstructor(object):
                 "\t\ttot+=f_free_ps[i];\n"\
                 "\t}\n"
 
-
         text = text + "}\n\n"
         return text
+
+    def generated_quantities(self):
+        keys = []
+
+        keys.append("tot")
+
+        if self._use_cont_sources:
+            keys.append("f_cont")
+
+        if self._use_fixed_global_sources:
+            keys.append("f_fixed_global")
+
+        if self._use_free_earth:
+            keys.append("f_earth")
+
+        if self._use_free_cgb:
+            keys.append("f_cgb")
+
+        if self._use_free_ps:
+            keys.append("free_ps")
+
+        if self._use_saa:
+            keys.append("f_saa")
+
+        return keys
 
 
 class StanDataConstructor(object):
@@ -690,8 +711,9 @@ class StanDataConstructor(object):
         else:
             data_dict["earth_gb_free"] = 0
 
-        data_dict["num_saa_exits"] = self._num_saa_exits
-        data_dict["saa_start_times"] = self._saa_start_times
+        if len(self._model.saa_sources) > 0:
+            data_dict["num_saa_exits"] = self._num_saa_exits
+            data_dict["saa_start_times"] = self._saa_start_times
 
         if self._cont_counts is not None:
             data_dict["num_cont_comp"] = 2
@@ -794,7 +816,7 @@ class ReadStanArvizResult(object):
                                         self._parts[key][k][mask][:, i]
                                         / self._bin_width,
                                         alpha=0.025,
-                                        edgecolor=colors[key],
+                                        edgecolor=colors.get(key, 'gray'),
                                         facecolor="none",
                                         lw=0.9,
                                         s=2,
@@ -806,7 +828,7 @@ class ReadStanArvizResult(object):
                                         self._parts[key][k][mask][:, i]
                                         / self._bin_width,
                                         alpha=0.025,
-                                        edgecolor=colors[key],
+                                        edgecolor=colors.get(key, 'gray'),
                                         facecolor="none",
                                         lw=0.9,
                                         s=2,
@@ -817,7 +839,7 @@ class ReadStanArvizResult(object):
                                     np.mean(self._time_bins, axis=1),
                                     self._parts[key][mask][:, i] / self._bin_width,
                                     alpha=0.025,
-                                    edgecolor=colors[key],
+                                    edgecolor=colors.get(key, 'gray'),
                                     facecolor="none",
                                     lw=0.9,
                                     s=2,
@@ -828,7 +850,7 @@ class ReadStanArvizResult(object):
                                     np.mean(self._time_bins, axis=1),
                                     self._parts[key][mask][:, i] / self._bin_width,
                                     alpha=0.025,
-                                    edgecolor=colors[key],
+                                    edgecolor=colors.get(key, 'gray'),
                                     facecolor="none",
                                     lw=0.9,
                                     s=2,
