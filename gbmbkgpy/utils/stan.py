@@ -3,6 +3,7 @@ from scipy.interpolate import interp1d
 import arviz as av
 import matplotlib.pyplot as plt
 
+
 class StanModelConstructor(object):
     """
     Object to construct the .stan model
@@ -21,24 +22,24 @@ class StanModelConstructor(object):
         # Global
         sources = model.global_sources
         self._num_fixed_global_sources = len(sources)
-        if self._num_fixed_global_sources>0:
+        if self._num_fixed_global_sources > 0:
             self._use_fixed_global_sources = True
         else:
             self._use_fixed_global_sources = False
 
         # Cont
         sources = model.continuum_sources
-        self._num_cont_sources = int(len(sources)/num_echans)
-        if self._num_cont_sources>0:
-            assert self._num_cont_sources==2, "Must be two cont sources!"
+        self._num_cont_sources = int(len(sources) / num_echans)
+        if self._num_cont_sources > 0:
+            assert self._num_cont_sources == 2, "Must be two cont sources!"
             self._use_cont_sources = True
         else:
             self._use_cont_sources = False
 
         # SAA
         sources = model.saa_sources
-        self._num_saa_exits = int(len(sources)/num_echans)
-        if self._num_saa_exits>0:
+        self._num_saa_exits = int(len(sources) / num_echans)
+        if self._num_saa_exits > 0:
             self._use_saa = True
         else:
             self._use_saa = False
@@ -62,22 +63,31 @@ class StanModelConstructor(object):
             self._use_free_ps = False
 
     def create_stan_file(self, save_path):
-        text = self.function_block() + self.data_block() + self.trans_data_block() + self.parameter_block() + self.trans_parameter_block() + self.model_block() + self.generated_block()
+        text = (
+            self.function_block()
+            + self.data_block()
+            + self.trans_data_block()
+            + self.parameter_block()
+            + self.trans_parameter_block()
+            + self.model_block()
+            + self.generated_block()
+        )
 
         with open(save_path, "w") as f:
             f.write(text)
-
 
     def function_block(self):
         text = "functions { \n"
 
         if self._use_saa:
-            text += "\tvector saa_total(vector[] saa_norm_vec, vector[] saa_decay_vec, matrix[] t_t0, int num_data_points,int num_saa_exits){\n"\
-                "\t\tvector[num_data_points] total_saa_counts = rep_vector(0.0, num_data_points);\n"\
-                "\t\tfor (i in 1:num_saa_exits){\n"\
-                "\t\t\ttotal_saa_counts += saa_norm_vec[i]./saa_decay_vec[i].*(exp(-t_t0[i,:,1].*saa_decay_vec[i]) - exp(-t_t0[i,:, 2].*saa_decay_vec[i, :]));\n"\
-                "\t\t}\n"\
+            text += (
+                "\tvector saa_total(vector[] saa_norm_vec, vector[] saa_decay_vec, matrix[] t_t0, int num_data_points,int num_saa_exits){\n"
+                "\t\tvector[num_data_points] total_saa_counts = rep_vector(0.0, num_data_points);\n"
+                "\t\tfor (i in 1:num_saa_exits){\n"
+                "\t\t\ttotal_saa_counts += saa_norm_vec[i]./saa_decay_vec[i].*(exp(-t_t0[i,:,1].*saa_decay_vec[i]) - exp(-t_t0[i,:, 2].*saa_decay_vec[i, :]));\n"
+                "\t\t}\n"
                 "\t\treturn total_saa_counts;\n\t}\n\n"
+            )
 
         # Main partial sum function
         main = "\treal partial_sum(int[] counts, int start, int stop\n"
@@ -104,13 +114,17 @@ class StanModelConstructor(object):
 
         if self._use_saa:
             for i in range(self._num_saa_exits):
-                main += f"\t\t\t+saa_norm_vec[{i+1}, start:stop]./saa_decay_vec[{i+1}, start:stop].*"\
-                        f"(exp(-t_t0[{i+1},start:stop,1].*saa_decay_vec[{i+1}, start:stop])-"\
-                        f"exp(-t_t0[{i+1},start:stop,2].*saa_decay_vec[{i+1}, start:stop]))\n"
+                main += (
+                    f"\t\t\t+saa_norm_vec[{i+1}, start:stop]./saa_decay_vec[{i+1}, start:stop].*"
+                    f"(exp(-t_t0[{i+1},start:stop,1].*saa_decay_vec[{i+1}, start:stop])-"
+                    f"exp(-t_t0[{i+1},start:stop,2].*saa_decay_vec[{i+1}, start:stop]))\n"
+                )
 
         if self._use_fixed_global_sources:
             for i in range(self._num_fixed_global_sources):
-                main += f"\t\t\t+norm_fixed[{i+1}]*base_counts_array[{i+1},start:stop]\n"
+                main += (
+                    f"\t\t\t+norm_fixed[{i+1}]*base_counts_array[{i+1},start:stop]\n"
+                )
 
         if self._use_cont_sources:
             for i in range(self._num_cont_sources):
@@ -150,11 +164,17 @@ class StanModelConstructor(object):
         # Optional input
         if self._use_fixed_global_sources:
             text = text + "\tint<lower=0> num_fixed_comp;\n"
-            text = text + "\tvector[num_time_bins*num_dets*num_echans] base_counts_array[num_fixed_comp];\n"
+            text = (
+                text
+                + "\tvector[num_time_bins*num_dets*num_echans] base_counts_array[num_fixed_comp];\n"
+            )
 
         if self._use_cont_sources:
             text = text + "\tint num_cont_comp;\n"
-            text = text + "\tvector[num_time_bins*num_dets*num_echans] base_counts_array_cont[num_cont_comp];\n"
+            text = (
+                text
+                + "\tvector[num_time_bins*num_dets*num_echans] base_counts_array_cont[num_cont_comp];\n"
+            )
 
         if self._use_saa:
             text = text + "\tint num_saa_exits;\n"
@@ -182,18 +202,19 @@ class StanModelConstructor(object):
         if self._use_saa:
             text += "\tmatrix[num_data_points,2] t_t0[num_saa_exits];\n"
 
-            text += "\tfor (j in 1:num_saa_exits){\n"\
-                "\t\tfor (i in 1:num_time_bins){\n"\
-                "\t\t\tif (time_bins[i,1]>saa_start_times[j]){\n"\
-                "\t\t\t\tt_t0[j,(i-1)*num_dets*num_echans+1:i*num_dets*num_echans] = rep_matrix(time_bins[i]-saa_start_times[j], num_dets*num_echans);\n"\
-                "\t\t\t}\n"\
-                "\t\t\telse {\n"\
-                "\t\t\t\tt_t0[j,(i-1)*num_dets*num_echans+1:i*num_dets*num_echans] = rep_matrix(0.0, num_dets*num_echans, 2);\n"\
+            text += (
+                "\tfor (j in 1:num_saa_exits){\n"
+                "\t\tfor (i in 1:num_time_bins){\n"
+                "\t\t\tif (time_bins[i,1]>saa_start_times[j]){\n"
+                "\t\t\t\tt_t0[j,(i-1)*num_dets*num_echans+1:i*num_dets*num_echans] = rep_matrix(time_bins[i]-saa_start_times[j], num_dets*num_echans);\n"
+                "\t\t\t}\n"
+                "\t\t\telse {\n"
+                "\t\t\t\tt_t0[j,(i-1)*num_dets*num_echans+1:i*num_dets*num_echans] = rep_matrix(0.0, num_dets*num_echans, 2);\n"
                 "\t\t\t}\n\t\t}\n\t}\n"
+            )
 
         text = text + "}\n\n"
         return text
-
 
     def parameter_block(self):
         text = "parameters { \n"
@@ -254,37 +275,47 @@ class StanModelConstructor(object):
             text += "\tvector[rsp_num_Ein] ps_spec[num_free_ps_comp];\n"
 
         if self._use_cont_sources:
-            text += "\tfor (l in 1:num_cont_comp){\n"\
-                "\t\tfor (i in 1:num_dets){\n"\
-                "\t\t\tfor (j in 1:num_echans){\n"\
-                "\t\t\t\tfor (k in 1:num_time_bins){\n"\
-                "\t\t\t\t\tnorm_cont_vec[l][(k-1)*(num_dets*num_echans)+(i-1)*num_echans+j] = norm_cont[l,i,j];\n"\
+            text += (
+                "\tfor (l in 1:num_cont_comp){\n"
+                "\t\tfor (i in 1:num_dets){\n"
+                "\t\t\tfor (j in 1:num_echans){\n"
+                "\t\t\t\tfor (k in 1:num_time_bins){\n"
+                "\t\t\t\t\tnorm_cont_vec[l][(k-1)*(num_dets*num_echans)+(i-1)*num_echans+j] = norm_cont[l,i,j];\n"
                 "\t\t\t\t}\n\t\t\t}\n\t\t}\n\t}\n"
+            )
 
         if self._use_saa:
-            text += "\tfor (l in 1:num_saa_exits){\n"\
-                "\t\tfor (i in 1:num_dets){\n"\
-                "\t\t\tfor (j in 1:num_echans){\n"\
-                "\t\t\t\tfor (k in 1:num_time_bins){\n"\
-                "\t\t\t\t\tsaa_decay_vec[l][(k-1)*(num_dets*num_echans)+(i-1)*num_echans+j] = 0.0001*decay_saa[l,i,j];\n"\
-                "\t\t\t\t\tsaa_norm_vec[l][(k-1)*(num_dets*num_echans)+(i-1)*num_echans+j] = norm_saa[l,i,j];\n"\
+            text += (
+                "\tfor (l in 1:num_saa_exits){\n"
+                "\t\tfor (i in 1:num_dets){\n"
+                "\t\t\tfor (j in 1:num_echans){\n"
+                "\t\t\t\tfor (k in 1:num_time_bins){\n"
+                "\t\t\t\t\tsaa_decay_vec[l][(k-1)*(num_dets*num_echans)+(i-1)*num_echans+j] = 0.0001*decay_saa[l,i,j];\n"
+                "\t\t\t\t\tsaa_norm_vec[l][(k-1)*(num_dets*num_echans)+(i-1)*num_echans+j] = norm_saa[l,i,j];\n"
                 "\t\t\t\t}\n\t\t\t}\n\t\t}\n\t}\n"
+            )
 
         if self._use_free_ps:
-            text += "\tfor (j in 1:num_free_ps_comp){\n"\
-                "\t\tfor (i in 1:rsp_num_Ein){\n"\
-                "\t\t\tps_spec[j][i] = (Ebins_in[2,i]-Ebins_in[1,i])*norm_free_ps[j]*(pow(0.1*Ebins_in[1,i], -index_free_ps[j])+pow(0.1*Ebins_in[2,i], -index_free_ps[j]))/2;\n"\
+            text += (
+                "\tfor (j in 1:num_free_ps_comp){\n"
+                "\t\tfor (i in 1:rsp_num_Ein){\n"
+                "\t\t\tps_spec[j][i] = (Ebins_in[2,i]-Ebins_in[1,i])*norm_free_ps[j]*(pow(0.1*Ebins_in[1,i], -index_free_ps[j])+pow(0.1*Ebins_in[2,i], -index_free_ps[j]))/2;\n"
                 "\t\t}\n\t}\n"
+            )
 
         if self._use_free_earth:
-            text += "\tfor (i in 1:rsp_num_Ein){\n"\
-                "\t\tearth_spec[i] = (Ebins_in[2,i]-Ebins_in[1,i])*0.5*norm_earth*(pow(Ebins_in[1,i], -alpha_earth)*exp(-Ec_earth/Ebins_in[1,i])+pow(Ebins_in[2,i], -alpha_earth)*exp(-Ec_earth/Ebins_in[2,i]));\n"\
+            text += (
+                "\tfor (i in 1:rsp_num_Ein){\n"
+                "\t\tearth_spec[i] = (Ebins_in[2,i]-Ebins_in[1,i])*0.5*norm_earth*(pow(Ebins_in[1,i], -alpha_earth)*exp(-Ec_earth/Ebins_in[1,i])+pow(Ebins_in[2,i], -alpha_earth)*exp(-Ec_earth/Ebins_in[2,i]));\n"
                 "\t}\n"
+            )
 
         if self._use_free_cgb:
-            text += "\tfor (i in 1:rsp_num_Ein){\n"\
-                "\t\tcgb_spec[i] = (Ebins_in[2,i]-Ebins_in[1,i])*0.5*(norm_cgb/(pow(Ebins_in[1,i]/Eb_cgb, indices_cgb[1])+pow(Ebins_in[1,i]/Eb_cgb, indices_cgb[2]))+norm_cgb/(pow(Ebins_in[2,i]/Eb_cgb, indices_cgb[1])+pow(Ebins_in[2,i]/Eb_cgb, indices_cgb[2])));\n"\
+            text += (
+                "\tfor (i in 1:rsp_num_Ein){\n"
+                "\t\tcgb_spec[i] = (Ebins_in[2,i]-Ebins_in[1,i])*0.5*(norm_cgb/(pow(Ebins_in[1,i]/Eb_cgb, indices_cgb[1])+pow(Ebins_in[1,i]/Eb_cgb, indices_cgb[2]))+norm_cgb/(pow(Ebins_in[2,i]/Eb_cgb, indices_cgb[1])+pow(Ebins_in[2,i]/Eb_cgb, indices_cgb[2])));\n"
                 "\t}\n"
+            )
 
         text = text + "}\n\n"
         return text
@@ -313,17 +344,21 @@ class StanModelConstructor(object):
             text += "\tlog_norm_free_ps ~ normal(0,1);\n"
 
         if self._use_cont_sources:
-            text += "\tfor (d in 1:num_dets){\n"\
-                "\t\tfor (g in 1:num_echans){\n"\
-                "\t\t\tlog_norm_cont[:,d,g] ~ normal(0,1);\n"\
+            text += (
+                "\tfor (d in 1:num_dets){\n"
+                "\t\tfor (g in 1:num_echans){\n"
+                "\t\t\tlog_norm_cont[:,d,g] ~ normal(0,1);\n"
                 "\t\t}\n\t}\n"
+            )
 
         if self._use_saa:
-            text += "\tfor (d in 1:num_dets){\n"\
-                "\t\tfor (e in 1:num_echans){\n"\
-                "\t\t\tlog_norm_saa[:,d,e] ~ normal(0,1);\n"\
-                "\t\t\tdecay_saa[:,d,e] ~ lognormal(0,1);\n"\
+            text += (
+                "\tfor (d in 1:num_dets){\n"
+                "\t\tfor (e in 1:num_echans){\n"
+                "\t\t\tlog_norm_saa[:,d,e] ~ normal(0,1);\n"
+                "\t\t\tdecay_saa[:,d,e] ~ lognormal(0,1);\n"
                 "\t\t}\n\t}\n"
+            )
 
         # Reduce sum call
         main = "\ttarget += reduce_sum(partial_sum, counts, grainsize\n"
@@ -354,7 +389,7 @@ class StanModelConstructor(object):
         text = "generated quantities { \n"
 
         text += "\tint ppc[num_data_points];\n"
-        text += "\tvector[num_data_points] tot;\n"
+        text += "\tvector[num_data_points] tot=rep_vector(0.0, num_data_points);\n"
 
         if self._use_saa:
             text += "\tvector[num_data_points] f_saa;\n"
@@ -379,16 +414,20 @@ class StanModelConstructor(object):
             text += "\ttot += f_saa;\n"
 
         if self._use_cont_sources:
-            text += "\tfor (i in 1:num_cont_comp){\n"\
-                "\t\tf_cont[i] = norm_cont_vec[i].*base_counts_array_cont[i];\n"\
-                "\t\ttot += f_cont[i];\n"\
+            text += (
+                "\tfor (i in 1:num_cont_comp){\n"
+                "\t\tf_cont[i] = norm_cont_vec[i].*base_counts_array_cont[i];\n"
+                "\t\ttot += f_cont[i];\n"
                 "\t}\n"
+            )
 
         if self._use_fixed_global_sources:
-            text += "\tfor (i in 1:num_fixed_comp){\n"\
-                "\t\tf_fixed_global[i]=norm_fixed[i]*base_counts_array[i];\n"\
-                "\t\ttot+=f_fixed_global[i];\n"\
+            text += (
+                "\tfor (i in 1:num_fixed_comp){\n"
+                "\t\tf_fixed_global[i]=norm_fixed[i]*base_counts_array[i];\n"
+                "\t\ttot+=f_fixed_global[i];\n"
                 "\t}\n"
+            )
 
         if self._use_free_earth:
             text += "\tf_earth = base_response_array_earth*earth_spec;\n"
@@ -399,10 +438,14 @@ class StanModelConstructor(object):
             text += "\ttot += f_cgb;\n"
 
         if self._use_free_ps:
-            text += "\tfor (i in 1:num_free_ps_comp){\n"\
-                "\t\tf_free_ps[i]=base_response_array_free_ps[i]*ps_spec[i];\n"\
-                "\t\ttot+=f_free_ps[i];\n"\
+            text += (
+                "\tfor (i in 1:num_free_ps_comp){\n"
+                "\t\tf_free_ps[i]=base_response_array_free_ps[i]*ps_spec[i];\n"
+                "\t\ttot+=f_free_ps[i];\n"
                 "\t}\n"
+            )
+
+        text += "\tppc = poisson_rng(tot);\n"
 
         text = text + "}\n\n"
         return text
@@ -468,7 +511,7 @@ class StanDataConstructor(object):
         self._echans = self._data.echans
         self._time_bins = self._data.time_bins
 
-        self._time_bin_edges = np.append(self._time_bins[:, 0], self._time_bins[-1,1])
+        self._time_bin_edges = np.append(self._time_bins[:, 0], self._time_bins[-1, 1])
 
         self._ndets = len(self._dets)
         self._nechans = len(self._echans)
@@ -566,7 +609,9 @@ class StanDataConstructor(object):
                 base_response_array_cgb = ar
             else:
                 if base_rsp_ps_free is not None:
-                    base_rsp_ps_free = np.append(base_rsp_ps_free, np.array([ar]), axis=0)
+                    base_rsp_ps_free = np.append(
+                        base_rsp_ps_free, np.array([ar]), axis=0
+                    )
                 else:
                     base_rsp_ps_free = np.array([ar])
 
@@ -682,29 +727,39 @@ class StanDataConstructor(object):
         data_dict["num_echans"] = self._nechans
 
         counts = np.array(self._data.counts[2:-2], dtype=int).flatten()
-        mask_zeros = np.array(self._data.counts[2:-2], dtype=int).flatten()!=0
+        mask_zeros = np.array(self._data.counts[2:-2], dtype=int).flatten() != 0
 
-        data_dict["counts"] = np.array(self._data.counts[2:-2], dtype=int).flatten()[mask_zeros]
-        data_dict["time_bins"] = self._data.time_bins[2:-2][mask_zeros[::self._ndets*self._nechans]]
+        data_dict["counts"] = np.array(self._data.counts[2:-2], dtype=int).flatten()[
+            mask_zeros
+        ]
+        data_dict["time_bins"] = self._data.time_bins[2:-2][
+            mask_zeros[:: self._ndets * self._nechans]
+        ]
         data_dict["num_time_bins"] = len(data_dict["time_bins"])
-        
+
         data_dict["rsp_num_Ein"] = self._num_Ebins_in
         data_dict["Ebins_in"] = self._Ebins_in
 
         # Global sources
         if self._global_counts is not None:
             data_dict["num_fixed_comp"] = len(self._global_counts)
-            data_dict["base_counts_array"] = self._global_counts[:,mask_zeros]
+            data_dict["base_counts_array"] = self._global_counts[:, mask_zeros]
         else:
             raise NotImplementedError
 
         if self._base_response_array_ps is not None:
             data_dict["num_free_ps_comp"] = len(self._base_response_array_ps)
-            data_dict["base_response_array_free_ps"] = self._base_response_array_ps[:,mask_zeros]
+            data_dict["base_response_array_free_ps"] = self._base_response_array_ps[
+                :, mask_zeros
+            ]
         if self._base_response_array_earth is not None:
-            data_dict["base_response_array_earth"] = self._base_response_array_earth[mask_zeros]
+            data_dict["base_response_array_earth"] = self._base_response_array_earth[
+                mask_zeros
+            ]
         if self._base_response_array_cgb is not None:
-            data_dict["base_response_array_cgb"] = self._base_response_array_cgb[mask_zeros]
+            data_dict["base_response_array_cgb"] = self._base_response_array_cgb[
+                mask_zeros
+            ]
 
         if self._base_response_array_cgb is not None:
             data_dict["earth_cgb_free"] = 1
@@ -717,7 +772,7 @@ class StanDataConstructor(object):
 
         if self._cont_counts is not None:
             data_dict["num_cont_comp"] = 2
-            data_dict["base_counts_array_cont"] = self._cont_counts[:,mask_zeros]
+            data_dict["base_counts_array_cont"] = self._cont_counts[:, mask_zeros]
 
         # Stan grainsize for reduced_sum
         if self._threads == 1:
@@ -771,6 +826,7 @@ class ReadStanArvizResult(object):
             "f_cont": "magenta",
             "f_earth": "purple",
             "f_cgb": "cyan",
+            "tot": "green",
         }
 
         for d_index, d in enumerate(self._dets):
@@ -816,7 +872,7 @@ class ReadStanArvizResult(object):
                                         self._parts[key][k][mask][:, i]
                                         / self._bin_width,
                                         alpha=0.025,
-                                        edgecolor=colors.get(key, 'gray'),
+                                        edgecolor=colors.get(key, "gray"),
                                         facecolor="none",
                                         lw=0.9,
                                         s=2,
@@ -828,7 +884,7 @@ class ReadStanArvizResult(object):
                                         self._parts[key][k][mask][:, i]
                                         / self._bin_width,
                                         alpha=0.025,
-                                        edgecolor=colors.get(key, 'gray'),
+                                        edgecolor=colors.get(key, "gray"),
                                         facecolor="none",
                                         lw=0.9,
                                         s=2,
@@ -839,7 +895,7 @@ class ReadStanArvizResult(object):
                                     np.mean(self._time_bins, axis=1),
                                     self._parts[key][mask][:, i] / self._bin_width,
                                     alpha=0.025,
-                                    edgecolor=colors.get(key, 'gray'),
+                                    edgecolor=colors.get(key, "gray"),
                                     facecolor="none",
                                     lw=0.9,
                                     s=2,
@@ -850,7 +906,7 @@ class ReadStanArvizResult(object):
                                     np.mean(self._time_bins, axis=1),
                                     self._parts[key][mask][:, i] / self._bin_width,
                                     alpha=0.025,
-                                    edgecolor=colors.get(key, 'gray'),
+                                    edgecolor=colors.get(key, "gray"),
                                     facecolor="none",
                                     lw=0.9,
                                     s=2,
