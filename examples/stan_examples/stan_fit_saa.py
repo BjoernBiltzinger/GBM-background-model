@@ -7,7 +7,7 @@ import os
 import yaml
 from datetime import datetime
 
-from gbmbkgpy.utils.stan import StanDataConstructor
+from gbmbkgpy.utils.stan import StanDataConstructor, StanModelConstructor
 from gbmbkgpy.utils.model_generator import BackgroundModelGenerator
 from gbmbkgpy.minimizer.multinest_minimizer import MultiNestFit
 from gbmbkgpy.io.plotting.plot import Plotter
@@ -29,10 +29,13 @@ model_generator = BackgroundModelGenerator()
 
 model_generator.from_config_dict(config)
 
+stan_model_const = StanModelConstructor(model_generator=model_generator)
+
+stan_model_const.create_stan_file("automatic_stan_model.stan")
 
 # Create Stan Model
 model = CmdStanModel(
-    stan_file="stan_model_saa.stan", cpp_options={"STAN_THREADS": "TRUE"}
+    stan_file="automatic_stan_model.stan", cpp_options={"STAN_THREADS": "TRUE"}
 )
 
 
