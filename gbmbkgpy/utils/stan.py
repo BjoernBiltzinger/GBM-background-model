@@ -48,7 +48,7 @@ class StanModelConstructor(object):
         self._num_free_ps = 0
         self._use_free_earth = False
         self._use_free_cgb = False
-        for key in sources.keys():
+        for k in sources.keys():
             if k == "Earth occultation":
                 self._use_free_earth = True
             if k == "CGB":
@@ -92,7 +92,7 @@ class StanModelConstructor(object):
             main += "\t, matrix base_response_array_cgb, vector cgb_spec\n"
 
         if self._use_free_ps:
-            main += "\t, matrix base_response_array_free_ps, vector[] ps_spec\n"
+            main += "\t, matrix[] base_response_array_free_ps, vector[] ps_spec\n"
 
         if self._use_cont_sources:
             main += "\t, vector[] norm_cont_vec, vector[] base_counts_array_cont\n"
@@ -124,7 +124,7 @@ class StanModelConstructor(object):
 
         if self._use_free_ps:
             for i in range(self._num_free_ps):
-                main += f"\t\t\t+base_response_array_ps[{i+1},start:stop]*ps_spec[{i+1}]\n"
+                main += f"\t\t\t+base_response_array_free_ps[{i+1},start:stop]*ps_spec[{i+1}]\n"
 
         main += "\t\t\t);\n\t}\n"
 
@@ -154,11 +154,21 @@ class StanModelConstructor(object):
 
         if self._use_cont_sources:
             text = text + "\tint num_cont_comp;\n"
-            text = text + "\tvector[num_time_bins*num_dets*num_echans] base_counts_array_cont[num_cont_comp];"
+            text = text + "\tvector[num_time_bins*num_dets*num_echans] base_counts_array_cont[num_cont_comp];\n"
 
         if self._use_saa:
             text = text + "\tint num_saa_exits;\n"
             text = text + "\tvector[num_saa_exits] saa_start_times;\n"
+
+        if self._use_free_ps:
+            text += "\tint num_free_ps_comp;\n"
+            text += "\tmatrix[num_echans*num_dets*num_time_bins, rsp_num_Ein] base_response_array_free_ps[num_free_ps_comp];\n"
+
+        if self._use_free_cgb:
+            text += "\tmatrix[num_echans*num_dets*num_time_bins, rsp_num_Ein] base_response_array_cgb;\n"
+
+        if self._use_free_earth:
+            text += "\tmatrix[num_echans*num_dets*num_time_bins, rsp_num_Ein] base_response_array_earth;\n"
 
         # Close
         text = text + "}\n\n"
@@ -172,14 +182,14 @@ class StanModelConstructor(object):
         if self._use_saa:
             text += "\tmatrix[num_data_points,2] t_t0[num_saa_exits];\n"
 
-        text += "\tfor (j in 1:num_saa_exits){\n"\
-            "\t\tfor (i in 1:num_time_bins){\n"\
-            "\t\t\tif (time_bins[i,1]>saa_start_times[j]){\n"\
-            "\t\t\t\tt_t0[j,(i-1)*num_dets*num_echans+1:i*num_dets*num_echans] = rep_matrix(time_bins[i]-saa_start_times[j], num_dets*num_echans);\n"\
-            "\t\t\t}\n"\
-            "\t\t\telse {\n"\
-            "\t\t\t\tt_t0[j,(i-1)*num_dets*num_echans+1:i*num_dets*num_echans] = rep_matrix(0.0, num_dets*num_echans, 2);\n"\
-            "\t\t\t}\n\t\t}\n\t}\n"
+            text += "\tfor (j in 1:num_saa_exits){\n"\
+                "\t\tfor (i in 1:num_time_bins){\n"\
+                "\t\t\tif (time_bins[i,1]>saa_start_times[j]){\n"\
+                "\t\t\t\tt_t0[j,(i-1)*num_dets*num_echans+1:i*num_dets*num_echans] = rep_matrix(time_bins[i]-saa_start_times[j], num_dets*num_echans);\n"\
+                "\t\t\t}\n"\
+                "\t\t\telse {\n"\
+                "\t\t\t\tt_t0[j,(i-1)*num_dets*num_echans+1:i*num_dets*num_echans] = rep_matrix(0.0, num_dets*num_echans, 2);\n"\
+                "\t\t\t}\n\t\t}\n\t}\n"
 
         text = text + "}\n\n"
         return text
@@ -240,7 +250,7 @@ class StanModelConstructor(object):
             text += "\tvector[rsp_num_Ein] cgb_spec;\n"
 
         if self._use_free_ps:
-            text += "\treal norm_free_ps[num_free_ps_comp = exp(log_norm_free_ps);\n"
+            text += "\treal norm_free_ps[num_free_ps_comp] = exp(log_norm_free_ps);\n"
             text += "\tvector[rsp_num_Ein] ps_spec[num_free_ps_comp];\n"
 
         if self._use_cont_sources:
@@ -285,7 +295,7 @@ class StanModelConstructor(object):
         # Priors - Fixed at the moment!:
         # TODO Use config file to get the priors!
         if self._use_fixed_global_sources:
-            text += "\tnorm_fixed ~ lognormal(0, 1);\n"
+            text += "\tlog_norm_fixed ~ normal(0, 1);\n"
 
         if self._use_free_earth:
             text += "\talpha_earth ~ normal(-5, 2);\n"
@@ -293,8 +303,8 @@ class StanModelConstructor(object):
             text += "\tlog_norm_earth ~ normal(-4.1,0.5);\n"
 
         if self._use_free_cgb:
-            text += "\talpha_cgb ~ normal(1.32, 0.2);\n"
-            text += "\tbeta_cgb ~ normal(2.88, 0.3);\n"
+            text += "\tindices_cgb[1] ~ normal(1.32, 0.2);\n"
+            text += "\tindices_cgb[2] ~ normal(2.88, 0.3);\n"
             text += "\tEb_cgb ~ normal(35,5);\n"
             text += "\tlog_norm_cgb ~ normal(-2.3,0.5);\n"
 
@@ -437,7 +447,7 @@ class StanDataConstructor(object):
         self._echans = self._data.echans
         self._time_bins = self._data.time_bins
 
-        self._time_bin_edges = np.append(self._time_bins[:, 0], self._time_bins[-1:1])
+        self._time_bin_edges = np.append(self._time_bins[:, 0], self._time_bins[-1,1])
 
         self._ndets = len(self._dets)
         self._nechans = len(self._echans)
@@ -535,7 +545,7 @@ class StanDataConstructor(object):
                 base_response_array_cgb = ar
             else:
                 if base_rsp_ps_free is not None:
-                    base_rsp_ps_free = np.append(base_rsp_ps_free, np.array([ar]))
+                    base_rsp_ps_free = np.append(base_rsp_ps_free, np.array([ar]), axis=0)
                 else:
                     base_rsp_ps_free = np.array([ar])
 
@@ -561,7 +571,7 @@ class StanDataConstructor(object):
                     self._time_bins[:, 1, np.newaxis, np.newaxis, np.newaxis]
                     - self._time_bins[:, 0, np.newaxis, np.newaxis, np.newaxis]
                 )
-                * (rsp_all_earth[:, :-1] + rsp_all_earth[:, 1:])
+                * (rsp_all_earth[:-1] + rsp_all_earth[1:])
             )
 
             self._base_response_array_earth = base_response_array_earth[2:-2].reshape(
@@ -598,7 +608,6 @@ class StanDataConstructor(object):
             )
 
         if base_rsp_ps_free is not None:
-
             eff_rsp_new_free_ps = interp1d(
                 self._geometry.geometry_times, base_rsp_ps_free, axis=2
             )
@@ -648,29 +657,33 @@ class StanDataConstructor(object):
 
         data_dict = {}
 
-        data_dict["num_time_bins"] = self._ntimebins - 4
         data_dict["num_dets"] = self._ndets
         data_dict["num_echans"] = self._nechans
 
-        data_dict["time_bins"] = self._time_bins[2:-2]
-        data_dict["counts"] = np.array(self._data.counts[2:-2], dtype=int).flatten()
+        counts = np.array(self._data.counts[2:-2], dtype=int).flatten()
+        mask_zeros = np.array(self._data.counts[2:-2], dtype=int).flatten()!=0
 
+        data_dict["counts"] = np.array(self._data.counts[2:-2], dtype=int).flatten()[mask_zeros]
+        data_dict["time_bins"] = self._data.time_bins[2:-2][mask_zeros[::self._ndets*self._nechans]]
+        data_dict["num_time_bins"] = len(data_dict["time_bins"])
+        
         data_dict["rsp_num_Ein"] = self._num_Ebins_in
         data_dict["Ebins_in"] = self._Ebins_in
 
         # Global sources
         if self._global_counts is not None:
             data_dict["num_fixed_comp"] = len(self._global_counts)
-            data_dict["base_counts_array"] = self._global_counts
+            data_dict["base_counts_array"] = self._global_counts[:,mask_zeros]
         else:
             raise NotImplementedError
 
         if self._base_response_array_ps is not None:
-            data_dict["base_response_array_free_ps"] = self._base_response_array_ps
+            data_dict["num_free_ps_comp"] = len(self._base_response_array_ps)
+            data_dict["base_response_array_free_ps"] = self._base_response_array_ps[:,mask_zeros]
         if self._base_response_array_earth is not None:
-            data_dict["base_response_array_earth"] = self._base_response_array_earth
+            data_dict["base_response_array_earth"] = self._base_response_array_earth[mask_zeros]
         if self._base_response_array_cgb is not None:
-            data_dict["base_response_array_cgb"] = self._base_response_array_cgb
+            data_dict["base_response_array_cgb"] = self._base_response_array_cgb[mask_zeros]
 
         if self._base_response_array_cgb is not None:
             data_dict["earth_cgb_free"] = 1
@@ -682,7 +695,7 @@ class StanDataConstructor(object):
 
         if self._cont_counts is not None:
             data_dict["num_cont_comp"] = 2
-            data_dict["base_counts_array_cont"] = self._cont_counts
+            data_dict["base_counts_array_cont"] = self._cont_counts[:,mask_zeros]
 
         # Stan grainsize for reduced_sum
         if self._threads == 1:
