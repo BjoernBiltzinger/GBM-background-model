@@ -354,7 +354,7 @@ class StanModelConstructor(object):
         text = "generated quantities { \n"
 
         text += "\tint ppc[num_data_points];\n"
-        text += "\tvector[num_data_points] tot;\n"
+        text += "\tvector[num_data_points] tot=rep_vector(0.0, num_data_points);\n"
 
         if self._use_saa:
             text += "\tvector[num_data_points] f_saa;\n"
@@ -407,6 +407,7 @@ class StanModelConstructor(object):
                 "\t\ttot+=f_free_ps[i];\n"\
                 "\t}\n"
 
+        text += "\tppc = poisson_rng(tot);\n"
 
         text = text + "}\n\n"
         return text
