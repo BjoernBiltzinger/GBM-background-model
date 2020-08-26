@@ -52,7 +52,7 @@ class StanModelConstructor(object):
         for k in sources.keys():
             if k == "Earth occultation":
                 self._use_free_earth = True
-            if k == "CGB":
+            elif k == "CGB":
                 self._use_free_cgb = True
             else:
                 self._num_free_ps += 1
@@ -605,7 +605,7 @@ class StanDataConstructor(object):
                 ar[i] = rsp_detectors[det]
             if k == "Earth occultation":
                 base_response_array_earth = ar
-            if k == "CGB":
+            elif k == "CGB":
                 base_response_array_cgb = ar
             else:
                 if base_rsp_ps_free is not None:

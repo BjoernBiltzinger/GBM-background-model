@@ -2,6 +2,7 @@ import astropy.io.fits as fits
 import astropy.time as astro_time
 import astropy.units as u
 import numpy as np
+import os
 import h5py
 import scipy.interpolate as interpolate
 from gbmgeometry import GBMTime
@@ -486,24 +487,30 @@ class ExternalProps(object):
         :param det: NaI detector
         """
 
+        assert "ACD_DATA" in os.environ, "To use the LAT ACD cosmic ray approximation you"\
+            " must specify the folder with the LAT ACD data hdf5"\
+            " files in your system environment variables as ACD_DATA."
+
+        dir_path = os.environ["ACD_DATA"]
+
         met_start, met_stop = self._start_stop_time(dates)
 
-        with h5py.File("/home/bjorn/Documents/2018_sideA_clean.h5", "r") as f:
+        with h5py.File(os.path.join(dir_path, "2018_sideA_clean.h5"), "r") as f:
             timesA = f["timestamps"][()]
             countsA = f["counts"][()]
             deltatA = f["delta_t"][()]
 
-        with h5py.File("/home/bjorn/Documents/2018_sideB_clean.h5", "r") as f:
+        with h5py.File(os.path.join(dir_path, "2018_sideB_clean.h5"), "r") as f:
             timesB = f["timestamps"][()]
             countsB = f["counts"][()]
             deltatB = f["delta_t"][()]
 
-        with h5py.File("/home/bjorn/Documents/2018_sideC_clean.h5", "r") as f:
+        with h5py.File(os.path.join(dir_path, "2018_sideC_clean.h5"), "r") as f:
             timesC = f["timestamps"][()]
             countsC = f["counts"][()]
             deltatC = f["delta_t"][()]
 
-        with h5py.File("/home/bjorn/Documents/2018_sideD_clean.h5", "r") as f:
+        with h5py.File(os.path.join(dir_path, "2018_sideD_clean.h5"), "r") as f:
             timesD = f["timestamps"][()]
             countsD = f["counts"][()]
             deltatD = f["delta_t"][()]
