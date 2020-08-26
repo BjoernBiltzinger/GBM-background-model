@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import copy
+import arviz
 
 from gbmbkgpy.utils.pha import SPECTRUM, PHAII
 import h5py
@@ -383,6 +384,129 @@ class PHAExporter(DataExporter):
         spectrum.hdu.dump(path)
 
 
+class StanDataExporter(object):
+    def __init__(self, model_generator, arviz_file):
+        self._data = model_generator.data
+        self._model = model_generator.model
+        self._saa_mask = model_generator.saa_calc.saa_mask[2:-2]
+
+        arviz_result = arviz.from_netcdf(arviz_file)
+
+        dets = arviz_result.constant_data["dets"].values
+        echans = arviz_result.constant_data["echans"].values
+
+        time_bins = arviz_result.constant_data["time_bins"].values
+        time_bins -= time_bins[0, 0]
+
+        ndets = len(dets)
+        nechans = len(echans)
+        ntime_bins = len(time_bins)
+        nsamples = len(arviz_result.predictions["chain"]) * len(
+            arviz_result.predictions["draw"]
+        )
+
+        observed_counts = arviz_result.observed_data["counts"].values
+        observed_counts = observed_counts.reshape((ntime_bins, ndets, nechans))
+
+        model_counts = arviz_result.predictions.stack(sample=("chain", "draw"))[
+            "tot"
+        ].values.T
+        model_counts = model_counts.reshape((nsamples, ntime_bins, ndets, nechans))
+
+        self._mean_model_counts = np.mean(model_counts, axis=0)
+        self._model_counts = model_counts
+
+        # Get the statistical error from the posterior samples
+        low = np.percentile(model_counts, 50 - 50 * 0.68, axis=0)
+        high = np.percentile(model_counts, 50 + 50 * 0.68, axis=0)
+        self._stat_err = high - low
+
+        # Get the individual sources
+        model_parts = arviz_result.predictions.keys()
+
+        predictions = arviz_result.predictions.stack(sample=("chain", "draw"))
+        sources = {}
+        for key in model_parts:
+            if key == "tot":
+                continue
+
+            model_group = predictions[key].values
+
+            if len(model_group.shape) == 3:
+                for k in range(len(model_group)):
+                    if key == 'f_fixed_global':
+                        name = list(self._model.global_sources.keys())[k]
+
+                    elif key == 'f_cont':
+                        name = list(self._model.continuum_sources.keys())[k]
+                    else:
+                        name = f"{key}_{k}"
+                    sources[name] = model_group[k].T.reshape((nsamples, ntime_bins, ndets, nechans))
+            else:
+                sources[key] = model_group.T.reshape((nsamples, ntime_bins, ndets, nechans))
+
+        self._sources = sources
+        self._time_bins = time_bins
+
+    def save_data(self, file_path, save_ppc=True):
+        """
+        Function to save the data needed to create the plots.
+        """
+        if rank == 0:
+            print("Save fit result to: {}".format(file_path))
+
+            with h5py.File(file_path, "w") as f:
+
+                f.attrs["dates"] = self._data.dates
+
+                if hasattr(self._data, "trigger"):
+                    f.attrs["trigger"] = self._data.trigger
+                    f.attrs["trigger_time"] = self._data.trigtime
+
+                f.attrs["data_type"] = self._data.data_type
+
+                f.attrs["detectors"] = self._data.detectors
+                f.attrs["echans"] = self._data.echans
+                f.attrs["param_names"] = self._model.parameter_names
+                f.attrs["best_fit_values"] = [] # TODO: Add best fit values
+
+                f.create_dataset("day_start_times", data=self._data.day_start_times)
+                f.create_dataset("day_stop_times", data=self._data.day_stop_times)
+                f.create_dataset(
+                    "saa_mask", data=self._saa_mask, compression="lzf",
+                )
+                f.create_dataset(
+                    "time_bins_start", data=self._time_bins[:, 0], compression="lzf",
+                )
+                f.create_dataset(
+                    "time_bins_stop", data=self._time_bins[:, 1], compression="lzf",
+                )
+                f.create_dataset(
+                    "observed_counts", data=self._data.counts[2:-2], compression="lzf",
+                )
+
+                f.create_dataset(
+                    "model_counts", data=self._mean_model_counts, compression="lzf",
+                )
+                f.create_dataset("stat_err", data=self._stat_err, compression="lzf")
+
+                group_sources = f.create_group("sources")
+                for source_name, source in self._sources.items():
+                    group_sources.create_dataset(
+                        source_name, data=np.mean(source, axis=0), compression="lzf",
+                    )
+
+                if save_ppc:
+                    f.create_dataset(
+                        "ppc_time_bins", data=self._time_bins, compression="lzf"
+                    )
+                    f.create_dataset(
+                        "ppc_counts", data=self._model_counts, compression="lzf"
+                    )
+
+            print("File sucessfully saved!")
+
+
 det_name_lookup = {
     "n0": "NAI_00",
     "n1": "NAI_01",
@@ -567,33 +691,28 @@ class PHAWriter(object):
 
             time_bins_f = arviz_result.constant_data["time_bins"].values
             time_bins_f -= time_bins_f[0, 0]
-            bin_width_f = time_bins_f[:, 1] - time_bins_f[:, 0]
 
             ndets = len(dets_f)
             nechans = len(echans_f)
             ntime_bins = len(time_bins_f)
-
-            ppc_f = arviz_result.posterior_predictive.stack(sample=("chain", "draw"))[
-                "ppc"
-            ].values
-
-            nppc = ppc_f.shape[1]
-
-            ppc_f = ppc_f.reshape((ntime_bins, ndets, nechans, nppc))
+            nsamples = len(arviz_result.predictions["chain"]) * len(
+                arviz_result.predictions["draw"]
+            )
 
             observed_counts_f = arviz_result.observed_data["counts"].values
             observed_counts_f = observed_counts_f.reshape((ntime_bins, ndets, nechans))
 
             model_counts_f = arviz_result.predictions.stack(sample=("chain", "draw"))[
                 "tot"
-            ].values
-            model_counts_f = model_counts_f.reshape((ntime_bins, ndets, nechans, nppc))
+            ].values.T
+            model_counts_f = model_counts_f.reshape(
+                (nsamples, ntime_bins, ndets, nechans)
+            )
 
             if i == 0:
                 time_bins = time_bins_f
                 observed_counts = np.zeros((ntime_bins, 14, 8))
-                model_counts = np.zeros((ntime_bins, 14, 8, nppc))
-                ppc = np.zeros_like(model_counts)
+                model_counts = np.zeros((nsamples, ntime_bins, 14, 8))
 
             else:
                 assert np.array_equal(time_bins, time_bins_f)
@@ -626,21 +745,29 @@ class PHAWriter(object):
                     ]
 
                     # Combine the model counts
-                    model_counts[:, det_idx, echan] = model_counts_f[
-                        :, det_tmp_idx, echan_idx, :
-                    ]
-
-                    # Combine the statistical error of the fit
-                    ppc[:, det_idx, echan] = ppc_f[
-                        :, det_tmp_idx, echan_idx, :
+                    model_counts[:, :, det_idx, echan] = model_counts_f[
+                        :, :, det_tmp_idx, echan_idx
                     ]
 
                     # Append the det_echan touple to avoid overloading
                     det_echan_loaded.append(det_echan)
 
+        # Get the statistical error from the posterior samples
+        low = np.percentile(model_counts, 50 - 50 * 0.68, axis=0)
+        high = np.percentile(model_counts, 50 + 50 * 0.68, axis=0)
+        stat_err = high - low
+
+        mean_model_counts = np.mean(model_counts, axis=0)
+
         echans.sort()
         detectors.sort()
         det_echan_loaded.sort()
+
+        dates = ["dummy"]
+        trigger = ["trigger"]
+        trigger_time = 0.0
+        data_type = "ctime"
+        saa_mask = np.ones(ntime_bins, dtype=bool)
 
         return cls(
             dates,
@@ -652,7 +779,7 @@ class PHAWriter(object):
             time_bins,
             saa_mask,
             observed_counts,
-            model_counts,
+            mean_model_counts,
             stat_err,
             det_echan_loaded,
         )
