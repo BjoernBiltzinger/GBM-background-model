@@ -57,7 +57,7 @@ class ExternalProps(object):
 
         if trig_data is not None:
             assert (
-                bgo_cr_approximation
+                cr_approximation == "BGO"
             ), "Fitting trigdat data requires the bgo cr approximation"
 
         else:

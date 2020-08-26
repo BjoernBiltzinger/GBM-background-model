@@ -385,10 +385,79 @@ class PHAExporter(DataExporter):
 
 
 class StanDataExporter(object):
-    def __init__(self, model_generator, arviz_file):
+    def __init__(self, model_generator, model_counts, ppc_counts, source_counts):
         self._data = model_generator.data
         self._model = model_generator.model
         self._saa_mask = model_generator.saa_calc.saa_mask[2:-2]
+
+        self._mean_model_counts = np.mean(model_counts, axis=0)
+        self._model_counts = model_counts
+
+        # Get the statistical error from the posterior samples
+        low = np.percentile(ppc_counts, 50 - 50 * 0.68, axis=0)
+        high = np.percentile(ppc_counts, 50 + 50 * 0.68, axis=0)
+        self._stat_err = high - low
+
+    @classmethod
+    def from_generated_quantities(cls, model_generator, generated_quantities):
+        ndets = len(model_generator.data.detectors)
+        nechans = len(model_generator.data.echans)
+        ntime_bins = len(model_generator.data.time_bins)
+        nsamples = generated_quantities.shape[0]
+
+        tot_column_idx = [
+            i
+            for i, name in enumerate(generated_quantities.column_names)
+            if name.startswith("tot")
+        ]
+        ppc_column_idx = [
+            i
+            for i, name in enumerate(generated_quantities.column_names)
+            if name.startswith("ppc")
+        ]
+
+        model_counts = generated_quantities.generated_quantities[
+            :, tot_column_idx
+        ].reshape((nsamples, ntime_bins, ndets, nechans))
+
+        ppc_counts = generated_quantities.generated_quantities[:, ppc_column_idx].reshape(
+            (nsamples, ntime_bins, ndets, nechans)
+        )
+
+        source_counts = {}
+
+        for source_idx, source_name in enumerate(
+            model_generator.model.global_sources.keys(), start=1
+        ):
+
+            column_idx = [
+                i
+                for i, name in enumerate(generated_quantities.column_names)
+                if name.startswith(f"f_fixed_global.{source_idx}")
+            ]
+
+            source_counts[source_name] = generated_quantities.generated_quantities[
+                :, column_idx
+            ].reshape((nsamples, ntime_bins, ndets, nechans))
+
+        for source_idx, source_name in enumerate(
+            model_generator.model.continuum_sources.keys(), start=1
+        ):
+
+            column_idx = [
+                i
+                for i, name in enumerate(generated_quantities.column_names)
+                if name.startswith(f"f_cont.{source_idx}")
+            ]
+
+            source_counts[source_name] = generated_quantities.generated_quantities[
+                :, column_idx
+            ].reshape((nsamples, ntime_bins, ndets, nechans))
+
+        return cls(model_generator, model_counts, ppc_counts, source_counts)
+
+    @classmethod
+    def from_arviz_file(cls, model_generator, arviz_file):
 
         arviz_result = arviz.from_netcdf(arviz_file)
 
@@ -408,23 +477,21 @@ class StanDataExporter(object):
         observed_counts = arviz_result.observed_data["counts"].values
         observed_counts = observed_counts.reshape((ntime_bins, ndets, nechans))
 
+        ppcs = arviz_result.posterior_predicive.stack(sample=("chain", "draw"))[
+            "ppc"
+        ].values.T
+        ppcs = ppcs.reshape((nsamples, ntime_bins, ndets, nechans))
+
         model_counts = arviz_result.predictions.stack(sample=("chain", "draw"))[
             "tot"
         ].values.T
         model_counts = model_counts.reshape((nsamples, ntime_bins, ndets, nechans))
 
-        self._mean_model_counts = np.mean(model_counts, axis=0)
-        self._model_counts = model_counts
-
-        # Get the statistical error from the posterior samples
-        low = np.percentile(model_counts, 50 - 50 * 0.68, axis=0)
-        high = np.percentile(model_counts, 50 + 50 * 0.68, axis=0)
-        self._stat_err = high - low
-
         # Get the individual sources
         model_parts = arviz_result.predictions.keys()
 
         predictions = arviz_result.predictions.stack(sample=("chain", "draw"))
+
         sources = {}
         for key in model_parts:
             if key == "tot":
@@ -434,19 +501,22 @@ class StanDataExporter(object):
 
             if len(model_group.shape) == 3:
                 for k in range(len(model_group)):
-                    if key == 'f_fixed_global':
-                        name = list(self._model.global_sources.keys())[k]
+                    if key == "f_fixed_global":
+                        name = list(model_generator.model.global_sources.keys())[k]
 
-                    elif key == 'f_cont':
-                        name = list(self._model.continuum_sources.keys())[k]
+                    elif key == "f_cont":
+                        name = list(model_generator.model.continuum_sources.keys())[k]
                     else:
                         name = f"{key}_{k}"
-                    sources[name] = model_group[k].T.reshape((nsamples, ntime_bins, ndets, nechans))
+                    sources[name] = model_group[k].T.reshape(
+                        (nsamples, ntime_bins, ndets, nechans)
+                    )
             else:
-                sources[key] = model_group.T.reshape((nsamples, ntime_bins, ndets, nechans))
+                sources[key] = model_group.T.reshape(
+                    (nsamples, ntime_bins, ndets, nechans)
+                )
 
-        self._sources = sources
-        self._time_bins = time_bins
+        return cls(model_generator, model_counts, ppcs, sources)
 
     def save_data(self, file_path, save_ppc=True):
         """
@@ -468,7 +538,7 @@ class StanDataExporter(object):
                 f.attrs["detectors"] = self._data.detectors
                 f.attrs["echans"] = self._data.echans
                 f.attrs["param_names"] = self._model.parameter_names
-                f.attrs["best_fit_values"] = [] # TODO: Add best fit values
+                f.attrs["best_fit_values"] = []  # TODO: Add best fit values
 
                 f.create_dataset("day_start_times", data=self._data.day_start_times)
                 f.create_dataset("day_stop_times", data=self._data.day_stop_times)
@@ -476,10 +546,12 @@ class StanDataExporter(object):
                     "saa_mask", data=self._saa_mask, compression="lzf",
                 )
                 f.create_dataset(
-                    "time_bins_start", data=self._time_bins[:, 0], compression="lzf",
+                    "time_bins_start",
+                    data=self.data.time_bins[:, 0],
+                    compression="lzf",
                 )
                 f.create_dataset(
-                    "time_bins_stop", data=self._time_bins[:, 1], compression="lzf",
+                    "time_bins_stop", data=self.data.time_bins[:, 1], compression="lzf",
                 )
                 f.create_dataset(
                     "observed_counts", data=self._data.counts[2:-2], compression="lzf",
@@ -498,10 +570,10 @@ class StanDataExporter(object):
 
                 if save_ppc:
                     f.create_dataset(
-                        "ppc_time_bins", data=self._time_bins, compression="lzf"
+                        "ppc_time_bins", data=self.data.time_bins, compression="lzf"
                     )
                     f.create_dataset(
-                        "ppc_counts", data=self._model_counts, compression="lzf"
+                        "ppc_counts", data=self._ppc_counts, compression="lzf"
                     )
 
             print("File sucessfully saved!")
