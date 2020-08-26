@@ -403,7 +403,7 @@ class StanDataExporter(object):
         ndets = len(model_generator.data.detectors)
         nechans = len(model_generator.data.echans)
         ntime_bins = len(model_generator.data.time_bins)
-        nsamples = generated_quantities.shape[0]
+        nsamples = generated_quantities.generated_quantities.shape[0]
 
         tot_column_idx = [
             i
