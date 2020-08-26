@@ -11,7 +11,6 @@ import astropy.io.fits as fits
 from gbmbkgpy.utils.progress_bar import progress_bar
 
 try:
-
     # see if we have mpi and/or are upalsing parallel
 
     from mpi4py import MPI
@@ -24,11 +23,18 @@ try:
         size = comm.Get_size()
 
     else:
-
         using_mpi = False
 except:
-
     using_mpi = False
+
+if using_mpi:
+    using_multiprocessing = False
+else:
+    try:
+        from pathos.pools import ProcessPool as Pool
+        using_multiprocessing = True
+    except:
+        using_multiprocessing = False
 
 valid_det_names = [
     "n0",
@@ -596,6 +602,33 @@ class Det_Response_Precalculation(object):
                 # of the points
 
                 responses = np.concatenate(responses_all_split)
+
+        elif using_multiprocessing:
+            print(f"Calculating detector response for {self.detector} with multiprocessing.")
+
+            def get_response(point):
+                x, y, z = point[0], point[1], point[2]
+
+                zen = np.arcsin(z) * 180 / np.pi
+                az = np.arctan2(y, x) * 180 / np.pi
+
+                drm = DRMGen(
+                    np.array([0.0745, -0.105, 0.0939, 0.987]),
+                    np.array([-5.88 * 10 ** 6, -2.08 * 10 ** 6, 2.97 * 10 ** 6]),
+                    self._det,
+                    self.Ebin_in_edge,
+                    mat_type=0,
+                    ebin_edge_out=self._Ebin_out_edge,
+                    occult=True,
+                )
+                matrix = drm.to_3ML_response_direct_sat_coord(az, zen).matrix
+
+                return matrix.T
+
+            with Pool() as pool:
+                responses = pool.map(get_response, self._points)
+
+            responses = self._add_response_echan(np.array(responses))
 
         else:
             with progress_bar(
