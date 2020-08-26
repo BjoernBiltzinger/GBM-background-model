@@ -28,6 +28,15 @@ except:
 
     using_mpi = False
 
+if using_mpi:
+    using_multiprocessing = False
+else:
+    try:
+        from pathos.pools import ProcessPool as Pool
+        using_multiprocessing = True
+    except:
+        using_multiprocessing = False
+
 
 class Geometry(object):
     def __init__(self, data, dates, n_bins_to_calculate_per_day):
@@ -505,28 +514,60 @@ class Geometry(object):
         earth_az_zen = []  # azimuth and zenith angle of earth in sat. frame
         earth_positions = []  # earth pos in icrs frame (skycoord)
 
-        # Give some output how much of the geometry is already calculated (progress_bar)
-        with progress_bar(
-            len(list_times_to_calculate), title="Calculating sun and earth position"
-        ) as p:
-            # Calculate the geometry for all times
-            for step_idx, mean_time in enumerate(list_times_to_calculate):
+        if using_multiprocessing:
+            print("Calculation sun and earth position with multiprocessing.")
 
-                # The detector used is only a dummy as we are not using
-                # any detector specific geometry calculations
+            def calc_geo_mp(step_idx):
                 det = gbm_detector_list["n0"](
                     quaternion=quaternions[step_idx],
                     sc_pos=sc_positions[step_idx],
-                    time=astro_time.Time(position_interpolator.utc(mean_time)),
+                    time=astro_time.Time(
+                        position_interpolator.utc(
+                            list_times_to_calculate[step_idx]
+                        )
+                    ),
                 )
 
-                sun_positions.append(det.sun_position)
-                sun_az_zen.append([det.sun_position.lon.deg, det.sun_position.lat.deg])
+                return (
+                    det.earth_position,
+                    det.earth_az_zen_sat,
+                    det.sun_position,
+                    [det.sun_position.lon.deg, det.sun_position.lat.deg]
+                )
 
-                earth_positions.append(det.earth_position)
-                earth_az_zen.append(det.earth_az_zen_sat)
+            with Pool() as pool:
+                geo_steps = pool.map(calc_geo_mp, range(len(list_times_to_calculate)))
 
-                p.increase()
+            for geo_step in geo_steps:
+                earth_positions.append(geo_step[0])
+                earth_az_zen.append(geo_step[1])
+                sun_positions.append(geo_step[2])
+                sun_az_zen.append(geo_step[3])
+
+        else:
+
+            # Give some output how much of the geometry is already calculated (progress_bar)
+            with progress_bar(
+                len(list_times_to_calculate), title="Calculating sun and earth position"
+            ) as p:
+                # Calculate the geometry for all times
+                for step_idx, mean_time in enumerate(list_times_to_calculate):
+
+                    # The detector used is only a dummy as we are not using
+                    # any detector specific geometry calculations
+                    det = gbm_detector_list["n0"](
+                        quaternion=quaternions[step_idx],
+                        sc_pos=sc_positions[step_idx],
+                        time=astro_time.Time(position_interpolator.utc(mean_time)),
+                    )
+
+                    sun_positions.append(det.sun_position)
+                    sun_az_zen.append([det.sun_position.lon.deg, det.sun_position.lat.deg])
+
+                    earth_positions.append(det.earth_position)
+                    earth_az_zen.append(det.earth_az_zen_sat)
+
+                    p.increase()
 
         # Make the list numpy arrays
         sun_positions = np.array(sun_positions)
