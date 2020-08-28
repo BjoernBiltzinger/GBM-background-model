@@ -36,8 +36,6 @@ else:
        
         using_multiprocessing = True
 
-        multiprocessing_n_cores = os.environ.get("gbm_bkg_multiprocessing_n_cores", cpu_count())
-
     except:
         using_multiprocessing = False
 
@@ -629,6 +627,10 @@ class Det_Response_Precalculation(object):
                 matrix = drm.to_3ML_response_direct_sat_coord(az, zen).matrix
 
                 return matrix.T
+
+            multiprocessing_n_cores = int(
+                os.environ.get("gbm_bkg_multiprocessing_n_cores", cpu_count())
+            )
 
             with Pool(multiprocessing_n_cores) as pool:
                 responses = pool.map(get_response, self._points)
