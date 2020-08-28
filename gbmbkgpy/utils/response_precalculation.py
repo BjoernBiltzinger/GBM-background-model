@@ -31,8 +31,13 @@ if using_mpi:
     using_multiprocessing = False
 else:
     try:
+        from pathos.multiprocessing import cpu_count
         from pathos.pools import ProcessPool as Pool
+       
         using_multiprocessing = True
+
+        multiprocessing_n_cores = os.environ.get("gbm_bkg_multiprocessing_n_cores", cpu_count())
+
     except:
         using_multiprocessing = False
 
@@ -625,7 +630,7 @@ class Det_Response_Precalculation(object):
 
                 return matrix.T
 
-            with Pool() as pool:
+            with Pool(multiprocessing_n_cores) as pool:
                 responses = pool.map(get_response, self._points)
 
             responses = self._add_response_echan(np.array(responses))
