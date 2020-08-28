@@ -62,16 +62,28 @@ class StanModelConstructor(object):
         else:
             self._use_free_ps = False
 
-    def create_stan_file(self, save_path):
-        text = (
-            self.function_block()
-            + self.data_block()
-            + self.trans_data_block()
-            + self.parameter_block()
-            + self.trans_parameter_block()
-            + self.model_block()
-            + self.generated_block()
-        )
+    def create_stan_file(self, save_path, total_only=False):
+
+        if not total_only:
+            text = (
+                self.function_block()
+                + self.data_block()
+                + self.trans_data_block()
+                + self.parameter_block()
+                + self.trans_parameter_block()
+                + self.model_block()
+                + self.generated_block()
+            )
+        else:
+            text = (
+                self.function_block()
+                + self.data_block()
+                + self.trans_data_block()
+                + self.parameter_block()
+                + self.trans_parameter_block()
+                + self.model_block()
+                + self.generated_block_total_only()
+            )
 
         with open(save_path, "w") as f:
             f.write(text)
@@ -474,6 +486,47 @@ class StanModelConstructor(object):
             keys.append("f_saa")
 
         return keys
+
+    def generated_block_total_only(self):
+        text = "generated quantities { \n"
+
+        text += "\tint ppc[num_data_points];\n"
+        text += "\tvector[num_data_points] tot=rep_vector(0.0, num_data_points);\n"
+
+        if self._use_saa:
+            text += "\ttot += saa_total(saa_norm_vec, saa_decay_vec, t_t0, num_data_points, num_saa_exits);\n"
+
+        if self._use_cont_sources:
+            text += (
+                "\tfor (i in 1:num_cont_comp){\n"
+                "\t\ttot += norm_cont_vec[i].*base_counts_array_cont[i];\n"
+                "\t}\n"
+            )
+
+        if self._use_fixed_global_sources:
+            text += (
+                "\tfor (i in 1:num_fixed_comp){\n"
+                "\t\ttot +=norm_fixed[i]*base_counts_array[i];\n"
+                "\t}\n"
+            )
+
+        if self._use_free_earth:
+            text += "\ttot += base_response_array_earth*earth_spec;\n"
+
+        if self._use_free_cgb:
+            text += "\t tot+= base_response_array_cgb*cgb_spec;\n"
+
+        if self._use_free_ps:
+            text += (
+                "\tfor (i in 1:num_free_ps_comp){\n"
+                "\t\ttot +=base_response_array_free_ps[i]*ps_spec[i];\n"
+                "\t}\n"
+            )
+
+        text += "\tppc = poisson_rng(tot);\n"
+
+        text = text + "}\n\n"
+        return text
 
 
 class StanDataConstructor(object):
