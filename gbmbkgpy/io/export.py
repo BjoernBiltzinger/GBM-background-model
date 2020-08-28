@@ -393,6 +393,10 @@ class StanDataExporter(object):
         self._mean_model_counts = np.mean(model_counts, axis=0)
         self._model_counts = model_counts
 
+        self._sources = source_counts
+
+        self._ppc_counts = ppc_counts
+
         # Get the statistical error from the posterior samples
         low = np.percentile(ppc_counts, 50 - 50 * 0.68, axis=0)
         high = np.percentile(ppc_counts, 50 + 50 * 0.68, axis=0)
@@ -402,7 +406,7 @@ class StanDataExporter(object):
     def from_generated_quantities(cls, model_generator, generated_quantities):
         ndets = len(model_generator.data.detectors)
         nechans = len(model_generator.data.echans)
-        ntime_bins = len(model_generator.data.time_bins)
+        ntime_bins = len(model_generator.data.time_bins[2:-2])
         nsamples = generated_quantities.generated_quantities.shape[0]
 
         tot_column_idx = [
@@ -436,9 +440,11 @@ class StanDataExporter(object):
                 if name.startswith(f"f_fixed_global.{source_idx}")
             ]
 
-            source_counts[source_name] = generated_quantities.generated_quantities[
-                :, column_idx
-            ].reshape((nsamples, ntime_bins, ndets, nechans))
+            if len(column_idx) > 0:
+
+                source_counts[source_name] = generated_quantities.generated_quantities[
+                    :, column_idx
+                ].reshape((nsamples, ntime_bins, ndets, nechans))
 
         for source_idx, source_name in enumerate(
             model_generator.model.continuum_sources.keys(), start=1
@@ -450,9 +456,10 @@ class StanDataExporter(object):
                 if name.startswith(f"f_cont.{source_idx}")
             ]
 
-            source_counts[source_name] = generated_quantities.generated_quantities[
-                :, column_idx
-            ].reshape((nsamples, ntime_bins, ndets, nechans))
+            if len(column_idx) > 0:
+                source_counts[source_name] = generated_quantities.generated_quantities[
+                    :, column_idx
+                ].reshape((nsamples, ntime_bins, ndets, nechans))
 
         return cls(model_generator, model_counts, ppc_counts, source_counts)
 
@@ -547,11 +554,11 @@ class StanDataExporter(object):
                 )
                 f.create_dataset(
                     "time_bins_start",
-                    data=self.data.time_bins[:, 0],
+                    data=self._data.time_bins[:, 0],
                     compression="lzf",
                 )
                 f.create_dataset(
-                    "time_bins_stop", data=self.data.time_bins[:, 1], compression="lzf",
+                    "time_bins_stop", data=self._data.time_bins[:, 1], compression="lzf",
                 )
                 f.create_dataset(
                     "observed_counts", data=self._data.counts[2:-2], compression="lzf",
@@ -570,7 +577,7 @@ class StanDataExporter(object):
 
                 if save_ppc:
                     f.create_dataset(
-                        "ppc_time_bins", data=self.data.time_bins, compression="lzf"
+                        "ppc_time_bins", data=self._data.time_bins, compression="lzf"
                     )
                     f.create_dataset(
                         "ppc_counts", data=self._ppc_counts, compression="lzf"
