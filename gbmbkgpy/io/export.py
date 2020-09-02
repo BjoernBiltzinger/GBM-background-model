@@ -385,12 +385,21 @@ class PHAExporter(DataExporter):
 
 
 class StanDataExporter(object):
-    def __init__(self, model_generator, model_counts, ppc_counts, source_counts):
+    def __init__(self, model_generator, mask_zero_counts, model_counts, ppc_counts, source_counts):
         self._data = model_generator.data
         self._model = model_generator.model
-        self._saa_mask = model_generator.saa_calc.saa_mask[2:-2]
+
+        ndets = len(model_generator.data.detectors)
+        nechans = len(model_generator.data.echans)
+
+        self._time_bins = model_generator.data.time_bins[2:-2][mask_zero_counts[:: ndets*nechans]]
+
+        self._observed_counts = model_generator.data.counts[2:-2][mask_zero_counts[:: ndets*nechans]]
+
+        self._saa_mask = model_generator.saa_calc.saa_mask[2:-2][mask_zero_counts[:: ndets*nechans]]
 
         self._mean_model_counts = np.mean(model_counts, axis=0)
+
         self._model_counts = model_counts
 
         self._sources = source_counts
@@ -404,9 +413,11 @@ class StanDataExporter(object):
 
     @classmethod
     def from_generated_quantities(cls, model_generator, generated_quantities):
+        mask_zero_counts = model_generator.data.counts[2:-2].flatten() != 0
+
         ndets = len(model_generator.data.detectors)
         nechans = len(model_generator.data.echans)
-        ntime_bins = len(model_generator.data.time_bins[2:-2])
+        ntime_bins = len(model_generator.data.time_bins[2:-2][mask_zero_counts[:: ndets * nechans]])
         nsamples = generated_quantities.generated_quantities.shape[0]
 
         tot_column_idx = [
@@ -461,7 +472,7 @@ class StanDataExporter(object):
                     :, column_idx
                 ].reshape((nsamples, ntime_bins, ndets, nechans))
 
-        return cls(model_generator, model_counts, ppc_counts, source_counts)
+        return cls(model_generator, mask_zero_counts, model_counts, ppc_counts, source_counts)
 
     @classmethod
     def from_arviz_file(cls, model_generator, arviz_file):
@@ -554,14 +565,14 @@ class StanDataExporter(object):
                 )
                 f.create_dataset(
                     "time_bins_start",
-                    data=self._data.time_bins[:, 0],
+                    data=self._time_bins[:, 0],
                     compression="lzf",
                 )
                 f.create_dataset(
-                    "time_bins_stop", data=self._data.time_bins[:, 1], compression="lzf",
+                    "time_bins_stop", data=self._time_bins[:, 1], compression="lzf",
                 )
                 f.create_dataset(
-                    "observed_counts", data=self._data.counts[2:-2], compression="lzf",
+                    "observed_counts", data=self._observed_counts, compression="lzf",
                 )
 
                 f.create_dataset(
@@ -577,7 +588,7 @@ class StanDataExporter(object):
 
                 if save_ppc:
                     f.create_dataset(
-                        "ppc_time_bins", data=self._data.time_bins, compression="lzf"
+                        "ppc_time_bins", data=self._time_bins, compression="lzf"
                     )
                     f.create_dataset(
                         "ppc_counts", data=self._ppc_counts, compression="lzf"
