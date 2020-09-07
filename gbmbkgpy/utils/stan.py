@@ -62,6 +62,17 @@ class StanModelConstructor(object):
         else:
             self._use_free_ps = False
 
+    def source_count(self):
+
+        return dict(
+            use_free_earth=self._use_free_earth,
+            use_free_cgb = self._use_free_cgb,
+            num_free_ps=self._num_free_ps,
+            num_saa_exits=self._num_saa_exits,
+            num_cont_sources=self._num_cont_sources,
+            num_fixed_global_sources=self._num_fixed_global_sources
+        )
+
     def create_stan_file(self, save_path, total_only=False):
 
         if not total_only:
