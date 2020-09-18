@@ -506,7 +506,7 @@ class StanDataExporter(object):
                 ].reshape((nsamples, ntime_bins, ndets, nechans))
 
         # Get the best fit values from the stan fit
-        best_fit_parameters = np.zeros(len(model_generator.model.param_names))
+        best_fit_parameters = np.zeros(len(model_generator.model.parameter_names))
 
         stan_summary = stan_fit.summary()
 
