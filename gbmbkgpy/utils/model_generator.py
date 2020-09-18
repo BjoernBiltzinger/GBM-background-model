@@ -288,13 +288,13 @@ class BackgroundModelGenerator(object):
             if config["setup"]["use_constant"]:
 
                 if f"cr_echan-{e}" in config["priors"]:
-                    parameter_bounds["constant_echan-{}".format(e)] = config["priors"][
-                        f"cr_echan-{e}"
-                    ]["const"]
+                    parameter_bounds["norm_constant_echan-{}".format(e)] = config[
+                        "priors"
+                    ][f"cr_echan-{e}"]["const"]
                 else:
-                    parameter_bounds["constant_echan-{}".format(e)] = config["priors"][
-                        "cr"
-                    ]["const"]
+                    parameter_bounds["norm_constant_echan-{}".format(e)] = config[
+                        "priors"
+                    ]["cr"]["const"]
 
             if config["setup"]["use_cr"]:
                 if f"cr_echan-{e}" in config["priors"]:
@@ -328,9 +328,9 @@ class BackgroundModelGenerator(object):
                 for row in ps_df_add.itertuples():
                     if row[1].upper() not in exclude:
                         if row[1].upper() not in free:
-                            parameter_bounds[f"norm_point_source-{row[1]}_pl"] = config[
-                                "priors"
-                            ]["ps"]["fixed"]["pl"]["norm"]
+                            parameter_bounds[f"norm_{row[1]}_pl"] = config["priors"][
+                                "ps"
+                            ]["fixed"]["pl"]["norm"]
                         else:
                             parameter_bounds[
                                 f"ps_{row[1]}_spectrum_fitted_norm_pl".format(ps)
@@ -344,14 +344,14 @@ class BackgroundModelGenerator(object):
                         for spectrum in config["setup"]["ps_list"][ps]["spectrum"]:
                             # Check if PS specific prior is passed
                             if ps.upper() in config["priors"]["ps"]:
-                                parameter_bounds[
-                                    f"norm_point_source-{ps}_{spectrum}"
-                                ] = config["priors"]["ps"][ps.upper()][spectrum]["norm"]
+                                parameter_bounds[f"norm-{ps}_{spectrum}"] = config[
+                                    "priors"
+                                ]["ps"][ps.upper()][spectrum]["norm"]
                             # use generic one
                             else:
-                                parameter_bounds[
-                                    f"norm_point_source-{ps}_{spectrum}"
-                                ] = config["priors"]["ps"]["fixed"][spectrum]["norm"]
+                                parameter_bounds[f"norm-{ps}_{spectrum}"] = config[
+                                    "priors"
+                                ]["ps"]["fixed"][spectrum]["norm"]
                     else:
                         ps_df_add = pd.read_table(
                             config["setup"]["ps_list"][ps]["path"],
@@ -359,9 +359,9 @@ class BackgroundModelGenerator(object):
                         )
                         for row in ps_df_add.itertuples():
                             for spectrum in config["setup"]["ps_list"][ps]["spectrum"]:
-                                parameter_bounds[
-                                    f"norm_point_source-{row[1]}_{spectrum}"
-                                ] = config["priors"]["ps"]["fixed"][spectrum]["norm"]
+                                parameter_bounds[f"norm-{row[1]}_{spectrum}"] = config[
+                                    "priors"
+                                ]["ps"]["fixed"][spectrum]["norm"]
 
                 else:
                     if ps[:4] != "list":
