@@ -240,7 +240,11 @@ def setup_SAA(
                 saa_dec.precalulate_time_bins_integral()
 
                 SAA_Decay_list.append(
-                    SAASource(f"saa_{saa_n} det_{det} echan_{echan}", saa_dec, index,)
+                    SAASource(
+                        f"saa_{saa_n} det_{det} echan_{echan}",
+                        saa_dec,
+                        index,
+                    )
                 )
 
             saa_n += 1
@@ -297,7 +301,7 @@ def setup_Constant(data, saa_object, echan, index):
     """
     Constant source
     """
-    Constant = ContinuumFunction(f"constant_echan-{echan}")
+    Constant = ContinuumFunction(f"norm_constant_echan-{echan}")
 
     Constant.set_function_array(np.ones((len(data.time_bins), len(data._detectors), 2)))
 
@@ -306,7 +310,7 @@ def setup_Constant(data, saa_object, echan, index):
     # precalculate the integration over the time bins
     Constant.integrate_array(data.time_bins)
 
-    Constant_Continuum = ContinuumSource(f"Constant_echan_{echan}", Constant, index)
+    Constant_Continuum = ContinuumSource(f"constant_echan-{echan}", Constant, index)
     return Constant_Continuum
 
 
@@ -332,7 +336,7 @@ def setup_CosmicRays(data, ep, saa_object, echan, index, cr_approximation):
         mag_con.integrate_array(data.time_bins)
 
         Source_Magnetic_Continuum = ContinuumSource(
-            f"BGO_CR_Approx_echan_{echan}", mag_con, index
+            f"BGO_CR_Approx_echan-{echan}", mag_con, index
         )
 
     elif cr_approximation == "MCL":
@@ -347,7 +351,7 @@ def setup_CosmicRays(data, ep, saa_object, echan, index, cr_approximation):
         mag_con.integrate_array(data.time_bins)
 
         Source_Magnetic_Continuum = ContinuumSource(
-            f"McIlwain_L-parameter_echan_{echan}", mag_con, index
+            f"McIlwain_L-parameter_echan-{echan}", mag_con, index
         )
 
     else:
@@ -362,7 +366,7 @@ def setup_CosmicRays(data, ep, saa_object, echan, index, cr_approximation):
         mag_con.integrate_array(data.time_bins)
 
         Source_Magnetic_Continuum = ContinuumSource(
-            f"LAT_ACD-parameter_echan_{echan}", mag_con, index
+            f"LAT_ACD-parameter_echan-{echan}", mag_con, index
         )
 
     return Source_Magnetic_Continuum
@@ -488,7 +492,7 @@ def setup_ps(
 
             spec_name = ps.spec_type
             PS_Continuum_dic[f"{ps.name}_{spec_name}"] = GlobalFunction(
-                f"norm_point_source-{ps.name}_{spec_name}"
+                f"norm_{ps.name}_{spec_name}"
             )
 
             PS_Continuum_dic[f"{ps.name}_{spec_name}"].set_function_array(
@@ -562,7 +566,7 @@ def setup_earth_fix(data, albedo_cgb_object, saa_object):
 
     earth_albedo.integrate_array(data.time_bins)
 
-    Source_Earth_Albedo_Continuum = GlobalSource("Earth Albedo", earth_albedo)
+    Source_Earth_Albedo_Continuum = GlobalSource("earth_albedo", earth_albedo)
 
     return Source_Earth_Albedo_Continuum
 
@@ -595,7 +599,7 @@ def setup_cgb_free(data, albedo_cgb_object, saa_object, use_numba=False):
 
     cgb.set_responses(responses=albedo_cgb_object.responses)
 
-    Source_CGB_Continuum = FitSpectrumSource(name="CGB", continuum_shape=cgb)
+    Source_CGB_Continuum = FitSpectrumSource(name="cgb", continuum_shape=cgb)
 
     return Source_CGB_Continuum
 
@@ -616,7 +620,7 @@ def setup_cgb_fix(data, albedo_cgb_object, saa_object):
 
     cgb.integrate_array(data.time_bins)
 
-    Source_CGB_Albedo_Continuum = GlobalSource("CGB", cgb)
+    Source_CGB_Albedo_Continuum = GlobalSource("cgb", cgb)
 
     return Source_CGB_Albedo_Continuum
 

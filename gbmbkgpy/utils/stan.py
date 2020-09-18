@@ -66,11 +66,11 @@ class StanModelConstructor(object):
 
         return dict(
             use_free_earth=self._use_free_earth,
-            use_free_cgb = self._use_free_cgb,
+            use_free_cgb=self._use_free_cgb,
             num_free_ps=self._num_free_ps,
             num_saa_exits=self._num_saa_exits,
             num_cont_sources=self._num_cont_sources,
-            num_fixed_global_sources=self._num_fixed_global_sources
+            num_fixed_global_sources=self._num_fixed_global_sources,
         )
 
     def create_stan_file(self, save_path, total_only=False):
@@ -151,7 +151,7 @@ class StanModelConstructor(object):
 
         if self._use_cont_sources:
             for i in range(self._num_cont_sources):
-                main += f"\t\t\t+norm_cont_vec[{i+1}][start:stop].*base_counts_array_cont[{i+1}][start:stop]\n"
+                main += f"\t\t\t+norm_cont_vec[{i+1}, start:stop].*base_counts_array_cont[{i+1}, start:stop]\n"
 
         if self._use_free_earth:
             main += "\t\t\t+base_response_array_earth[start:stop]*earth_spec\n"
@@ -161,7 +161,7 @@ class StanModelConstructor(object):
 
         if self._use_free_ps:
             for i in range(self._num_free_ps):
-                main += f"\t\t\t+base_response_array_free_ps[{i+1},start:stop]*ps_spec[{i+1}]\n"
+                main += f"\t\t\t+base_response_array_free_ps[{i+1}, start:stop]*ps_spec[{i+1}]\n"
 
         main += "\t\t\t);\n\t}\n"
 
@@ -172,36 +172,38 @@ class StanModelConstructor(object):
         # Start
         text = "data { \n"
         # This we need always:
-        text = text + "\tint<lower=1> num_time_bins;\n"
-        text = text + "\tint<lower=1> num_dets;\n"
-        text = text + "\tint<lower=1> num_echans;\n"
+        text += "\tint<lower=1> num_time_bins;\n"
+        text += "\tint<lower=1> num_dets;\n"
+        text += "\tint<lower=1> num_echans;\n"
 
-        text = text + "\tint<lower=1> rsp_num_Ein;\n"
-        text = text + "\tvector[rsp_num_Ein] Ebins_in[2];\n"
+        text += "\tint<lower=1> rsp_num_Ein;\n"
+        text += "\tvector[rsp_num_Ein] Ebins_in[2];\n"
 
-        text = text + "\tint<lower=1> grainsize;\n"
-        text = text + "\tmatrix[num_time_bins, 2] time_bins;\n"
+        text += "\tint<lower=1> grainsize;\n"
+        text += "\tmatrix[num_time_bins, 2] time_bins;\n"
 
-        text = text + "\tint counts[num_time_bins*num_dets*num_echans];\n"
+        text += "\tint counts[num_time_bins*num_dets*num_echans];\n"
 
         # Optional input
         if self._use_fixed_global_sources:
-            text = text + "\tint<lower=0> num_fixed_comp;\n"
-            text = (
-                text
-                + "\tvector[num_time_bins*num_dets*num_echans] base_counts_array[num_fixed_comp];\n"
-            )
+            text += "\tint<lower=0> num_fixed_comp;\n"
+            text += "\tvector[num_time_bins*num_dets*num_echans] base_counts_array[num_fixed_comp];\n"
+            text += "\tvector[num_fixed_comp] mu_norm_fixed;\n"
+            text += "\tvector[num_fixed_comp] sigma_norm_fixed;\n"
 
         if self._use_cont_sources:
-            text = text + "\tint num_cont_comp;\n"
-            text = (
-                text
-                + "\tvector[num_time_bins*num_dets*num_echans] base_counts_array_cont[num_cont_comp];\n"
-            )
+            text += "\tint num_cont_comp;\n"
+            text += "\tvector[num_time_bins*num_dets*num_echans] base_counts_array_cont[num_cont_comp];\n"
+            text += "\treal mu_norm_cont[num_cont_comp, num_dets, num_echans];\n"
+            text += "\treal sigma_norm_cont[num_cont_comp, num_dets, num_echans];\n"
 
         if self._use_saa:
-            text = text + "\tint num_saa_exits;\n"
-            text = text + "\tvector[num_saa_exits] saa_start_times;\n"
+            text += "\tint num_saa_exits;\n"
+            text += "\tvector[num_saa_exits] saa_start_times;\n"
+            text += "\treal mu_norm_saa[num_saa_exits, num_dets, num_echans];\n"
+            text += "\treal sigma_norm_saa[num_saa_exits, num_dets, num_echans];\n"
+            text += "\treal mu_decay_saa[num_saa_exits, num_dets, num_echans];\n"
+            text += "\treal sigma_decay_saa[num_saa_exits, num_dets, num_echans];\n"
 
         if self._use_free_ps:
             text += "\tint num_free_ps_comp;\n"
@@ -246,8 +248,8 @@ class StanModelConstructor(object):
             text += "\treal log_norm_fixed[num_fixed_comp];\n"
 
         if self._use_saa:
-            text += "\treal log_norm_saa[num_saa_exits,num_dets, num_echans];\n"
-            text += "\treal<lower=0.01,upper=10> decay_saa[num_saa_exits,num_dets, num_echans];\n"
+            text += "\treal log_norm_saa[num_saa_exits, num_dets, num_echans];\n"
+            text += "\treal<lower=0.01,upper=10> decay_saa[num_saa_exits, num_dets, num_echans];\n"
 
         if self._use_cont_sources:
             text += "\treal log_norm_cont[num_cont_comp, num_dets, num_echans];\n"
@@ -349,7 +351,7 @@ class StanModelConstructor(object):
         # Priors - Fixed at the moment!:
         # TODO Use config file to get the priors!
         if self._use_fixed_global_sources:
-            text += "\tlog_norm_fixed ~ normal(0, 1);\n"
+            text += "\tlog_norm_fixed ~ normal(mu_norm_fixed, sigma_norm_fixed);\n"
 
         if self._use_free_earth:
             text += "\talpha_earth ~ normal(-5, 2);\n"
@@ -370,7 +372,7 @@ class StanModelConstructor(object):
             text += (
                 "\tfor (d in 1:num_dets){\n"
                 "\t\tfor (g in 1:num_echans){\n"
-                "\t\t\tlog_norm_cont[:,d,g] ~ normal(0,1);\n"
+                "\t\t\tlog_norm_cont[:,d,g] ~ normal(mu_norm_cont[:,d,g], sigma_norm_cont[:,d,g]);\n"
                 "\t\t}\n\t}\n"
             )
 
@@ -378,8 +380,8 @@ class StanModelConstructor(object):
             text += (
                 "\tfor (d in 1:num_dets){\n"
                 "\t\tfor (e in 1:num_echans){\n"
-                "\t\t\tlog_norm_saa[:,d,e] ~ normal(0,1);\n"
-                "\t\t\tdecay_saa[:,d,e] ~ lognormal(0,1);\n"
+                "\t\t\tlog_norm_saa[:,d,e] ~ normal(mu_norm_saa[:, d, e],sigma_norm_saa[:, d, e]);\n"
+                "\t\t\tdecay_saa[:,d,e] ~ lognormal(mu_decay_saa[:, d, e],sigma_decay_saa[:, d, e]);\n"
                 "\t\t}\n\t}\n"
             )
 
@@ -581,6 +583,8 @@ class StanDataConstructor(object):
         self._nechans = len(self._echans)
         self._ntimebins = len(self._time_bins)
 
+        self._param_lookup = []
+
     def global_sources(self):
         """
         Fixed photon sources (e.g. point sources or CGB/Earth if spectrum not fitted)
@@ -592,15 +596,43 @@ class StanDataConstructor(object):
             self._global_counts = None
             return None
 
+        mu_norm_fixed = np.zeros(len(s))
+        sigma_norm_fixed = np.zeros(len(s))
         global_counts = np.zeros((len(s), self._ntimebins, self._ndets, self._nechans))
 
         for i, k in enumerate(s.keys()):
             global_counts[i] = s[k].get_counts(self._time_bins)
 
+            for p in s[k].parameters.values():
+
+                if "norm" in p.name:
+                    if p.gaussian_parameter[0] is not None:
+                        mu_norm_fixed[i] = np.log(p.gaussian_parameter[0])
+                    else:
+                        mu_norm_fixed[i] = 0
+
+                    if p.gaussian_parameter[1] is not None:
+                        sigma_norm_fixed[i] = np.log(p.gaussian_parameter[1])
+                    else:
+                        sigma_norm_fixed[i] = 1
+
+                    self._param_lookup.append(
+                        {
+                            "name": p.name,
+                            "idx_in_model": self._model.parameter_names.index(p.name),
+                            "stan_param_name": f"norm_fixed[{i+1}]",
+                            "scale": 1,
+                        }
+                    )
+                else:
+                    raise Exception("Unknown parameter name")
+
         # Flatten along time, detectors and echans
         global_counts = global_counts[:, 2:-2].reshape(len(s), -1)
 
         self._global_counts = global_counts
+        self._mu_norm_fixed = mu_norm_fixed
+        self._sigma_norm_fixed = sigma_norm_fixed
 
     def continuum_sources(self):
         """
@@ -618,15 +650,43 @@ class StanDataConstructor(object):
         continuum_counts = np.zeros(
             (num_cont_sources, self._ntimebins, self._ndets, self._nechans)
         )
+        mu_norm_cont = np.zeros((num_cont_sources, self._ndets, self._nechans))
+        sigma_norm_cont = np.zeros((num_cont_sources, self._ndets, self._nechans))
 
         for i, s in enumerate(list(self._model.continuum_sources.values())):
-            if "Constant" in s.name:
+            if "constant" in s.name.lower():
                 index = 0
             else:
                 index = 1
             continuum_counts[index, :, :, s.echan] = s.get_counts(self._time_bins)
 
+            for p in s.parameters.values():
+
+                if "norm" in p.name:
+                    if p.gaussian_parameter[0] is not None:
+                        mu_norm_cont[:, :, s.echan] = np.log(p.gaussian_parameter[0])
+                    else:
+                        mu_norm_cont[:, :, s.echan] = 0
+
+                    if p.gaussian_parameter[1] is not None:
+                        sigma_norm_cont[:, :, s.echan] = np.log(p.gaussian_parameter[1])
+                    else:
+                        sigma_norm_cont[:, :, s.echan] = 1
+
+                    self._param_lookup.append(
+                        {
+                            "name": p.name,
+                            "idx_in_model": self._model.parameter_names.index(p.name),
+                            "stan_param_name": f"norm_cont[{i+1},1,1]",
+                            "scale": 1,
+                        }
+                    )
+                else:
+                    raise Exception("Unknown parameter name")
+
         self._cont_counts = continuum_counts[:, 2:-2].reshape(2, -1)
+        self._mu_norm_cont = mu_norm_cont
+        self._sigma_norm_cont = sigma_norm_cont
 
     def free_spectrum_sources(self):
         """
@@ -771,13 +831,85 @@ class StanDataConstructor(object):
         """
         # One source per exit (not per exit and echan like in the python code)
         self._num_saa_exits = int(len(self._model.saa_sources) / self._nechans)
+
+        mu_norm_saa = np.zeros((self._num_saa_exits, self._ndets, self._nechans))
+        sigma_norm_saa = np.zeros((self._num_saa_exits, self._ndets, self._nechans))
+        mu_decay_saa = np.zeros((self._num_saa_exits, self._ndets, self._nechans))
+        sigma_decay_saa = np.zeros((self._num_saa_exits, self._ndets, self._nechans))
+
         saa_start_times = np.zeros(self._num_saa_exits)
+
         for i, s in enumerate(
             list(self._model.saa_sources.values())[: self._num_saa_exits]
         ):
             saa_start_times[i] = s._shape._saa_exit_time[0]
 
+        for i, s in enumerate(list(self._model.saa_sources.values())):
+
+            if s._shape._det_idx is None:
+                det_idx = np.arange(0, self._ndets)
+                det_idx_stan = 1
+            else:
+                det_idx = s._shape._det_idx
+                det_idx_stan = det_idx + 1
+
+            for p in s.parameters.values():
+
+                if "norm" in p.name:
+                    if p.gaussian_parameter[0] is not None:
+                        mu_norm_saa[:, det_idx, s.echan] = np.log(
+                            p.gaussian_parameter[0]
+                        )
+                    else:
+                        mu_norm_saa[:, det_idx, s.echan] = 0
+
+                    if p.gaussian_parameter[1] is not None:
+                        sigma_norm_saa[:, det_idx, s.echan] = np.log(
+                            p.gaussian_parameter[1]
+                        )
+                    else:
+                        sigma_norm_saa[:, det_idx, s.echan] = 1
+
+                    self._param_lookup.append(
+                        {
+                            "name": p.name,
+                            "idx_in_model": self._model.parameter_names.index(p.name),
+                            "stan_param_name": f"norm_saa[{i+1},{det_idx_stan},{s.echan+1}]",
+                            "scale": 1,
+                        }
+                    )
+                elif "decay" in p.name:
+                    if p.gaussian_parameter[0] is not None:
+                        # The value is scaled to be roughly mean 0 to improve convergence in stan
+                        mu_decay_saa[:, det_idx, s.echan] = np.log(
+                            p.gaussian_parameter[0] / 0.0001
+                        )
+                    else:
+                        mu_decay_saa[:, det_idx, s.echan] = 0
+
+                    if p.gaussian_parameter[1] is not None:
+                        sigma_decay_saa[:, det_idx, s.echan] = np.log(
+                            p.gaussian_parameter[1]
+                        )
+                    else:
+                        sigma_decay_saa[:, det_idx, s.echan] = 1
+
+                    self._param_lookup.append(
+                        {
+                            "name": p.name,
+                            "idx_in_model": self._model.parameter_names.index(p.name),
+                            "stan_param_name": f"decay_saa[{i+1},{det_idx_stan},{s.echan+1}]",
+                            "scale": 0.0001,
+                        }
+                    )
+                else:
+                    raise Exception("Unknown parameter name")
+
         self._saa_start_times = saa_start_times
+        self._mu_norm_saa = mu_norm_saa
+        self._sigma_norm_saa = sigma_norm_saa
+        self._mu_decay_saa = mu_decay_saa
+        self._sigma_decay_saa = sigma_decay_saa
 
     def construct_data_dict(self):
         self.global_sources()
@@ -808,6 +940,8 @@ class StanDataConstructor(object):
         if self._global_counts is not None:
             data_dict["num_fixed_comp"] = len(self._global_counts)
             data_dict["base_counts_array"] = self._global_counts[:, mask_zeros]
+            data_dict["mu_norm_fixed"] = self._mu_norm_fixed
+            data_dict["sigma_norm_fixed"] = self._sigma_norm_fixed
         else:
             raise NotImplementedError
 
@@ -833,10 +967,16 @@ class StanDataConstructor(object):
         if len(self._model.saa_sources) > 0:
             data_dict["num_saa_exits"] = self._num_saa_exits
             data_dict["saa_start_times"] = self._saa_start_times
+            data_dict["mu_norm_saa"] = self._mu_norm_saa
+            data_dict["sigma_norm_saa"] = self._sigma_norm_saa
+            data_dict["mu_decay_saa"] = self._mu_decay_saa
+            data_dict["sigma_decay_saa"] = self._sigma_decay_saa
 
         if self._cont_counts is not None:
             data_dict["num_cont_comp"] = 2
             data_dict["base_counts_array_cont"] = self._cont_counts[:, mask_zeros]
+            data_dict["mu_norm_cont"] = self._mu_norm_cont
+            data_dict["sigma_norm_cont"] = self._sigma_norm_cont
 
         # Stan grainsize for reduced_sum
         if self._threads == 1:
@@ -846,6 +986,10 @@ class StanDataConstructor(object):
                 (self._ntimebins - 4) * self._ndets * self._nechans / self._threads
             )
         return data_dict
+
+    @property
+    def param_lookup(self):
+        return self._param_lookup
 
 
 class ReadStanArvizResult(object):

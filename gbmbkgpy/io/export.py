@@ -120,27 +120,39 @@ class DataExporter(object):
                 f.create_dataset("day_start_times", data=self._data.day_start_times)
                 f.create_dataset("day_stop_times", data=self._data.day_stop_times)
                 f.create_dataset(
-                    "saa_mask", data=self._saa_mask, compression="lzf",
+                    "saa_mask",
+                    data=self._saa_mask,
+                    compression="lzf",
                 )
                 f.create_dataset(
-                    "time_bins_start", data=self._time_bins[:, 0], compression="lzf",
+                    "time_bins_start",
+                    data=self._time_bins[:, 0],
+                    compression="lzf",
                 )
                 f.create_dataset(
-                    "time_bins_stop", data=self._time_bins[:, 1], compression="lzf",
+                    "time_bins_stop",
+                    data=self._time_bins[:, 1],
+                    compression="lzf",
                 )
                 f.create_dataset(
-                    "observed_counts", data=self._data.counts, compression="lzf",
+                    "observed_counts",
+                    data=self._data.counts,
+                    compression="lzf",
                 )
 
                 f.create_dataset(
-                    "model_counts", data=model_counts, compression="lzf",
+                    "model_counts",
+                    data=model_counts,
+                    compression="lzf",
                 )
                 f.create_dataset("stat_err", data=stat_err, compression="lzf")
 
                 group_sources = f.create_group("sources")
                 for source in source_list:
                     group_sources.create_dataset(
-                        source["label"], data=source["data"], compression="lzf",
+                        source["label"],
+                        data=source["data"],
+                        compression="lzf",
                     )
 
                 if save_ppc:
@@ -298,7 +310,8 @@ class DataExporter(object):
 
         else:
             with progress_bar(
-                len(mn_posteriour_samples[random_mask]), title="Calculation PPC",
+                len(mn_posteriour_samples[random_mask]),
+                title="Calculation PPC",
             ) as p:
 
                 for i, sample in enumerate(mn_posteriour_samples[random_mask]):
@@ -385,18 +398,32 @@ class PHAExporter(DataExporter):
 
 
 class StanDataExporter(object):
-    def __init__(self, model_generator, mask_zero_counts, model_counts, ppc_counts, source_counts):
+    def __init__(
+        self,
+        model_generator,
+        mask_zero_counts,
+        model_counts,
+        ppc_counts,
+        source_counts,
+        best_fit_parameters,
+    ):
         self._data = model_generator.data
         self._model = model_generator.model
 
         ndets = len(model_generator.data.detectors)
         nechans = len(model_generator.data.echans)
 
-        self._time_bins = model_generator.data.time_bins[2:-2][mask_zero_counts[:: ndets*nechans]]
+        self._time_bins = model_generator.data.time_bins[2:-2][
+            mask_zero_counts[:: ndets * nechans]
+        ]
 
-        self._observed_counts = model_generator.data.counts[2:-2][mask_zero_counts[:: ndets*nechans]]
+        self._observed_counts = model_generator.data.counts[2:-2][
+            mask_zero_counts[:: ndets * nechans]
+        ]
 
-        self._saa_mask = model_generator.saa_calc.saa_mask[2:-2][mask_zero_counts[:: ndets*nechans]]
+        self._saa_mask = model_generator.saa_calc.saa_mask[2:-2][
+            mask_zero_counts[:: ndets * nechans]
+        ]
 
         self._mean_model_counts = np.mean(model_counts, axis=0)
 
@@ -411,13 +438,19 @@ class StanDataExporter(object):
         high = np.percentile(ppc_counts, 50 + 50 * 0.68, axis=0)
         self._stat_err = high - low
 
+        self._best_fit_parameters = best_fit_parameters
+
     @classmethod
-    def from_generated_quantities(cls, model_generator, generated_quantities):
+    def from_generated_quantities(
+        cls, model_generator, generated_quantities, stan_fit, param_lookup
+    ):
         mask_zero_counts = model_generator.data.counts[2:-2].flatten() != 0
 
         ndets = len(model_generator.data.detectors)
         nechans = len(model_generator.data.echans)
-        ntime_bins = len(model_generator.data.time_bins[2:-2][mask_zero_counts[:: ndets * nechans]])
+        ntime_bins = len(
+            model_generator.data.time_bins[2:-2][mask_zero_counts[:: ndets * nechans]]
+        )
         nsamples = generated_quantities.generated_quantities.shape[0]
 
         tot_column_idx = [
@@ -435,9 +468,9 @@ class StanDataExporter(object):
             :, tot_column_idx
         ].reshape((nsamples, ntime_bins, ndets, nechans))
 
-        ppc_counts = generated_quantities.generated_quantities[:, ppc_column_idx].reshape(
-            (nsamples, ntime_bins, ndets, nechans)
-        )
+        ppc_counts = generated_quantities.generated_quantities[
+            :, ppc_column_idx
+        ].reshape((nsamples, ntime_bins, ndets, nechans))
 
         source_counts = {}
 
@@ -472,7 +505,26 @@ class StanDataExporter(object):
                     :, column_idx
                 ].reshape((nsamples, ntime_bins, ndets, nechans))
 
-        return cls(model_generator, mask_zero_counts, model_counts, ppc_counts, source_counts)
+        # Get the best fit values from the stan fit
+        best_fit_parameters = np.zeros(len(model_generator.model.param_names))
+
+        stan_summary = stan_fit.summary()
+
+        for param_info in param_lookup:
+
+            best_fit_parameters[param_info["idx_in_model"]] = (
+                stan_summary["Mean"][param_info["stan_param_name"]]
+                * param_info["scale"]
+            )
+
+        return cls(
+            model_generator,
+            mask_zero_counts,
+            model_counts,
+            ppc_counts,
+            source_counts,
+            best_fit_parameters,
+        )
 
     @classmethod
     def from_arviz_file(cls, model_generator, arviz_file):
@@ -534,7 +586,14 @@ class StanDataExporter(object):
                     (nsamples, ntime_bins, ndets, nechans)
                 )
 
-        return cls(model_generator, model_counts, ppcs, sources)
+        return cls(
+            model_generator=model_generator,
+            mask_zero_counts=[],
+            model_counts=model_counts,
+            ppcs=ppcs,
+            sources=sources,
+            best_fit_parameters=[],
+        )
 
     def save_data(self, file_path, save_ppc=True):
         """
@@ -556,12 +615,14 @@ class StanDataExporter(object):
                 f.attrs["detectors"] = self._data.detectors
                 f.attrs["echans"] = self._data.echans
                 f.attrs["param_names"] = self._model.parameter_names
-                f.attrs["best_fit_values"] = []  # TODO: Add best fit values
+                f.attrs["best_fit_values"] = self._best_fit_parameters
 
                 f.create_dataset("day_start_times", data=self._data.day_start_times)
                 f.create_dataset("day_stop_times", data=self._data.day_stop_times)
                 f.create_dataset(
-                    "saa_mask", data=self._saa_mask, compression="lzf",
+                    "saa_mask",
+                    data=self._saa_mask,
+                    compression="lzf",
                 )
                 f.create_dataset(
                     "time_bins_start",
@@ -569,21 +630,29 @@ class StanDataExporter(object):
                     compression="lzf",
                 )
                 f.create_dataset(
-                    "time_bins_stop", data=self._time_bins[:, 1], compression="lzf",
+                    "time_bins_stop",
+                    data=self._time_bins[:, 1],
+                    compression="lzf",
                 )
                 f.create_dataset(
-                    "observed_counts", data=self._observed_counts, compression="lzf",
+                    "observed_counts",
+                    data=self._observed_counts,
+                    compression="lzf",
                 )
 
                 f.create_dataset(
-                    "model_counts", data=self._mean_model_counts, compression="lzf",
+                    "model_counts",
+                    data=self._mean_model_counts,
+                    compression="lzf",
                 )
                 f.create_dataset("stat_err", data=self._stat_err, compression="lzf")
 
                 group_sources = f.create_group("sources")
                 for source_name, source in self._sources.items():
                     group_sources.create_dataset(
-                        source_name, data=np.mean(source, axis=0), compression="lzf",
+                        source_name,
+                        data=np.mean(source, axis=0),
+                        compression="lzf",
                     )
 
                 if save_ppc:
@@ -935,19 +1004,27 @@ class PHAWriter(object):
             f.attrs["detectors"] = self._detectors
 
             f.create_dataset(
-                "time_bins", data=self._time_bins, compression="lzf",
+                "time_bins",
+                data=self._time_bins,
+                compression="lzf",
             )
 
             f.create_dataset(
-                "saa_mask", data=self._saa_mask, compression="lzf",
+                "saa_mask",
+                data=self._saa_mask,
+                compression="lzf",
             )
 
             f.create_dataset(
-                "observed_counts", data=self._observed_counts, compression="lzf",
+                "observed_counts",
+                data=self._observed_counts,
+                compression="lzf",
             )
 
             f.create_dataset(
-                "model_counts", data=self._model_counts, compression="lzf",
+                "model_counts",
+                data=self._model_counts,
+                compression="lzf",
             )
 
             f.create_dataset("stat_err", data=self._stat_err, compression="lzf")
