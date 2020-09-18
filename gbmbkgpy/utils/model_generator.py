@@ -344,12 +344,12 @@ class BackgroundModelGenerator(object):
                         for spectrum in config["setup"]["ps_list"][ps]["spectrum"]:
                             # Check if PS specific prior is passed
                             if ps.upper() in config["priors"]["ps"]:
-                                parameter_bounds[f"norm-{ps}_{spectrum}"] = config[
+                                parameter_bounds[f"norm_{ps}_{spectrum}"] = config[
                                     "priors"
                                 ]["ps"][ps.upper()][spectrum]["norm"]
                             # use generic one
                             else:
-                                parameter_bounds[f"norm-{ps}_{spectrum}"] = config[
+                                parameter_bounds[f"norm_{ps}_{spectrum}"] = config[
                                     "priors"
                                 ]["ps"]["fixed"][spectrum]["norm"]
                     else:
@@ -359,7 +359,7 @@ class BackgroundModelGenerator(object):
                         )
                         for row in ps_df_add.itertuples():
                             for spectrum in config["setup"]["ps_list"][ps]["spectrum"]:
-                                parameter_bounds[f"norm-{row[1]}_{spectrum}"] = config[
+                                parameter_bounds[f"norm_{row[1]}_{spectrum}"] = config[
                                     "priors"
                                 ]["ps"]["fixed"][spectrum]["norm"]
 
