@@ -4,6 +4,7 @@ prior_parameter_needed = {
     "gaussian": ["mu", "sigma"],
     "truncated_gaussian": ["mu", "sigma", "min_value", "max_value"],
     "log_normal": ["mu", "sigma"],
+    "normal_on_log": ["mu", "sigma"],
 }
 
 
@@ -28,9 +29,10 @@ class Parameter(object):
         self._sigma = sigma
         self._delta = delta
         self._prior = prior
-        assert prior in prior_parameter_needed, (
-            "Unknown prior please use one of these: "
-            "{}".format(prior_parameter_needed.keys())
+        assert (
+            prior in prior_parameter_needed
+        ), "Unknown prior please use one of these: " "{}".format(
+            prior_parameter_needed.keys()
         )
 
         self._free = True
@@ -193,7 +195,9 @@ class Parameter(object):
         return self._prior
 
     prior = property(
-        _get_prior, _set_prior, doc="Gets or sets the prior type" " for this parameter",
+        _get_prior,
+        _set_prior,
+        doc="Gets or sets the prior type" " for this parameter",
     )
 
     @property
