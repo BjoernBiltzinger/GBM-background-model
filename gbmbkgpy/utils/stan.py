@@ -607,12 +607,12 @@ class StanDataConstructor(object):
 
                 if "norm" in p.name:
                     if p.gaussian_parameter[0] is not None:
-                        mu_norm_fixed[i] = np.log(p.gaussian_parameter[0])
+                        mu_norm_fixed[i] = p.gaussian_parameter[0]
                     else:
                         mu_norm_fixed[i] = 0
 
                     if p.gaussian_parameter[1] is not None:
-                        sigma_norm_fixed[i] = np.log(p.gaussian_parameter[1])
+                        sigma_norm_fixed[i] = p.gaussian_parameter[1]
                     else:
                         sigma_norm_fixed[i] = 1
 
@@ -664,12 +664,12 @@ class StanDataConstructor(object):
 
                 if "norm" in p.name:
                     if p.gaussian_parameter[0] is not None:
-                        mu_norm_cont[:, :, s.echan] = np.log(p.gaussian_parameter[0])
+                        mu_norm_cont[:, :, s.echan] = p.gaussian_parameter[0]
                     else:
                         mu_norm_cont[:, :, s.echan] = 0
 
                     if p.gaussian_parameter[1] is not None:
-                        sigma_norm_cont[:, :, s.echan] = np.log(p.gaussian_parameter[1])
+                        sigma_norm_cont[:, :, s.echan] = p.gaussian_parameter[1]
                     else:
                         sigma_norm_cont[:, :, s.echan] = 1
 
@@ -857,16 +857,12 @@ class StanDataConstructor(object):
 
                 if "norm" in p.name:
                     if p.gaussian_parameter[0] is not None:
-                        mu_norm_saa[:, det_idx, s.echan] = np.log(
-                            p.gaussian_parameter[0]
-                        )
+                        mu_norm_saa[:, det_idx, s.echan] = p.gaussian_parameter[0]
                     else:
                         mu_norm_saa[:, det_idx, s.echan] = 0
 
                     if p.gaussian_parameter[1] is not None:
-                        sigma_norm_saa[:, det_idx, s.echan] = np.log(
-                            p.gaussian_parameter[1]
-                        )
+                        sigma_norm_saa[:, det_idx, s.echan] = p.gaussian_parameter[1]
                     else:
                         sigma_norm_saa[:, det_idx, s.echan] = 1
 
@@ -880,17 +876,13 @@ class StanDataConstructor(object):
                     )
                 elif "decay" in p.name:
                     if p.gaussian_parameter[0] is not None:
-                        # The value is scaled to be roughly mean 0 to improve convergence in stan
-                        mu_decay_saa[:, det_idx, s.echan] = np.log(
-                            p.gaussian_parameter[0] / 0.0001
-                        )
+                        mu_decay_saa[:, det_idx, s.echan] = p.gaussian_parameter[0]
                     else:
                         mu_decay_saa[:, det_idx, s.echan] = 0
 
                     if p.gaussian_parameter[1] is not None:
-                        sigma_decay_saa[:, det_idx, s.echan] = np.log(
-                            p.gaussian_parameter[1]
-                        )
+                        sigma_decay_saa[:, det_idx, s.echan] = p.gaussian_parameter[1]
+
                     else:
                         sigma_decay_saa[:, det_idx, s.echan] = 1
 
