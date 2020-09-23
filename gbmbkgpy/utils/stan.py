@@ -673,14 +673,17 @@ class StanDataConstructor(object):
                     else:
                         sigma_norm_cont[:, :, s.echan] = 1
 
-                    self._param_lookup.append(
-                        {
-                            "name": p.name,
-                            "idx_in_model": self._model.parameter_names.index(p.name),
-                            "stan_param_name": f"norm_cont[{index+1},1,{s.echan + 1}]",
-                            "scale": 1,
-                        }
-                    )
+                    for det_idx, det in enumerate(self._dets):
+                        self._param_lookup.append(
+                            {
+                                "name": f"{p.name}_{det}",
+                                "idx_in_model": self._model.parameter_names.index(
+                                    p.name
+                                ),
+                                "stan_param_name": f"norm_cont[{index+1},{det_idx + 1},{s.echan + 1}]",
+                                "scale": 1,
+                            }
+                        )
                 else:
                     raise Exception("Unknown parameter name")
 
