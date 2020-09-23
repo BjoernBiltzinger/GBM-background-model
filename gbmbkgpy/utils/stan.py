@@ -677,7 +677,7 @@ class StanDataConstructor(object):
                         {
                             "name": p.name,
                             "idx_in_model": self._model.parameter_names.index(p.name),
-                            "stan_param_name": f"norm_cont[{i+1},1,1]",
+                            "stan_param_name": f"norm_cont[{i+1},1,{s.echan + 1}]",
                             "scale": 1,
                         }
                     )
