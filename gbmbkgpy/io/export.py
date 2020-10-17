@@ -405,6 +405,7 @@ class StanDataExporter(object):
         model_counts,
         ppc_counts,
         source_counts,
+        parameter_names,
         best_fit_parameters,
     ):
         self._data = model_generator.data
@@ -438,6 +439,7 @@ class StanDataExporter(object):
         high = np.percentile(ppc_counts, 50 + 50 * 0.68, axis=0)
         self._stat_err = high - low
 
+        self._parameter_names = parameter_names
         self._best_fit_parameters = best_fit_parameters
 
     @classmethod
@@ -506,13 +508,14 @@ class StanDataExporter(object):
                 ].reshape((nsamples, ntime_bins, ndets, nechans))
 
         # Get the best fit values from the stan fit
-        best_fit_parameters = np.zeros(len(model_generator.model.parameter_names))
+        best_fit_parameters = np.zeros(len(param_lookup))
+        parameter_names = [param_info["name"] for param_info in param_lookup]
 
         stan_summary = stan_fit.summary()
 
-        for param_info in param_lookup:
+        for i, param_info in enumerate(param_lookup):
 
-            best_fit_parameters[param_info["idx_in_model"]] = (
+            best_fit_parameters[i] = (
                 stan_summary["Mean"][param_info["stan_param_name"]]
                 * param_info["scale"]
             )
@@ -523,6 +526,7 @@ class StanDataExporter(object):
             model_counts,
             ppc_counts,
             source_counts,
+            parameter_names,
             best_fit_parameters,
         )
 
@@ -592,6 +596,7 @@ class StanDataExporter(object):
             model_counts=model_counts,
             ppcs=ppcs,
             sources=sources,
+            parameter_names=[],
             best_fit_parameters=[],
         )
 
@@ -614,7 +619,7 @@ class StanDataExporter(object):
 
                 f.attrs["detectors"] = self._data.detectors
                 f.attrs["echans"] = self._data.echans
-                f.attrs["param_names"] = self._model.parameter_names
+                f.attrs["param_names"] = self._parameter_names
                 f.attrs["best_fit_values"] = self._best_fit_parameters
 
                 f.create_dataset("day_start_times", data=self._data.day_start_times)
