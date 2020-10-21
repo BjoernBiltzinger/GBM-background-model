@@ -849,10 +849,17 @@ class StanDataConstructor(object):
 
         for i, s in enumerate(list(self._model.saa_sources.values())):
 
+            source_index = i % self._num_saa_exits
+
             if s._shape._det_idx is None:
                 det_idx = np.arange(0, self._ndets)
                 det_idx_stan = 1
             else:
+                # TODO: Fix me.
+                raise Exception(
+                    "You selected decay per detector in the config which causes"
+                    "problems in the stan instantiation instantiation"
+                )
                 det_idx = s._shape._det_idx
                 det_idx_stan = det_idx + 1
 
@@ -873,7 +880,7 @@ class StanDataConstructor(object):
                         {
                             "name": p.name,
                             "idx_in_model": self._model.parameter_names.index(p.name),
-                            "stan_param_name": f"norm_saa[{i+1},{det_idx_stan},{s.echan+1}]",
+                            "stan_param_name": f"norm_saa[{source_index+1},{det_idx_stan},{s.echan+1}]",
                             "scale": 1,
                         }
                     )
@@ -893,7 +900,7 @@ class StanDataConstructor(object):
                         {
                             "name": p.name,
                             "idx_in_model": self._model.parameter_names.index(p.name),
-                            "stan_param_name": f"decay_saa[{i+1},{det_idx_stan},{s.echan+1}]",
+                            "stan_param_name": f"decay_saa[{source_index+1},{det_idx_stan},{s.echan+1}]",
                             "scale": 0.0001,
                         }
                     )

@@ -514,11 +514,24 @@ class StanDataExporter(object):
         stan_summary = stan_fit.summary()
 
         for i, param_info in enumerate(param_lookup):
+            try:
+                best_fit_parameters[i] = (
+                    stan_summary["Mean"][param_info["stan_param_name"]]
+                    * param_info["scale"]
+                )
+            except:
+                # change name from param[i,d,e]
+                # to param.i.d.e
+                stan_param_name = (
+                    param_info["stan_param_name"]
+                    .replace["[", ""]
+                    .replace("]", "")
+                    .replace(",", ".")
+                )
 
-            best_fit_parameters[i] = (
-                stan_summary["Mean"][param_info["stan_param_name"]]
-                * param_info["scale"]
-            )
+                best_fit_parameters[i] = (
+                    stan_summary["Mean"][stan_param_name] * param_info["scale"]
+                )
 
         return cls(
             model_generator,
