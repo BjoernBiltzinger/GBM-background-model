@@ -1090,8 +1090,11 @@ class PHAWriter(object):
 
             model_rate = model_counts / telapse
 
-            stat_err = np.sqrt(
-                np.sum(np.square(self._stat_err[idx_valid_bin, det_idx, :]), axis=0)
+            stat_err = (
+                np.sqrt(
+                    np.sum(np.square(self._stat_err[idx_valid_bin, det_idx, :]), axis=0)
+                )
+                / telapse
             )
 
             # Calculate the dead time of the detector:
