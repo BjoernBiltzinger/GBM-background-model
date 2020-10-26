@@ -246,13 +246,13 @@ class ResultPlotGenerator(object):
                     )
 
                     if time_stamp is None:
-                        time_stamp = datetime.now().strftime("%y%m%d_%H%M")
+                        time_stamp = f'__{datetime.now().strftime("%y%m%d_%H%M")}'
 
                     plot_path = (
                         f"{output_dir}/"
-                        f"plot_date_{day}_"
+                        f"{day}_"
                         f"det_{det}_"
-                        f"echan_{echan}__"
+                        f"echan_{echan}"
                         f"{time_stamp}.pdf"
                     )
 
