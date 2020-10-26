@@ -228,7 +228,7 @@ class ResultPlotGenerator(object):
 
         return cls(config_file=config_file, result_dict=result_dict)
 
-    def create_plots(self, output_dir, time_stamp=None):
+    def create_plots(self, output_dir, plot_name="plot_date_", time_stamp=None):
 
         for day_idx, day in enumerate(self._result_dict["dates"]):
 
@@ -250,7 +250,7 @@ class ResultPlotGenerator(object):
 
                     plot_path = (
                         f"{output_dir}/"
-                        f"{day}_"
+                        f"{plot_name}{day}_"
                         f"det_{det}_"
                         f"echan_{echan}"
                         f"{time_stamp}.pdf"
