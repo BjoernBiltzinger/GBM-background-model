@@ -65,6 +65,7 @@ class ResultPlotGenerator(object):
         self.show_title = config["plot"].get("show_title", True)
         self.axis_title = config["plot"].get("axis_title", None)
         self.legend_outside = config["plot"].get("legend_outside", True)
+        self.file_format = config["plot"].get("file_format", "pdf")
 
         # Import component settings
         self.show_data = config["component"].get("show_data", True)
@@ -253,7 +254,7 @@ class ResultPlotGenerator(object):
                         f"{plot_name}{day}_"
                         f"det_{det}_"
                         f"echan_{echan}"
-                        f"{time_stamp}.pdf"
+                        f"{time_stamp}.{self.file_format}"
                     )
 
                     self._plot_path_list.append(plot_path)
