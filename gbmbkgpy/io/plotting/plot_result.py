@@ -644,7 +644,7 @@ class ResultPlotGenerator(object):
         p_bar.increase()
 
         if rank == 0:
-            final_plot.savefig(savepath, dpi=self.dpi)
+            final_plot.savefig(savepath, dpi=self.dpi, transparent=True)
 
         p_bar.increase()
 
