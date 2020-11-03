@@ -87,6 +87,8 @@ class BackgroundModelGenerator(object):
 
         self._mask_valid_time_bins()
 
+        self._mask_source_intervals(config)
+
         self._setup_sources(config)
 
         self._instantiate_model(config)
@@ -187,6 +189,17 @@ class BackgroundModelGenerator(object):
             valid_time_mask=self._data.valid_time_mask,
             valid_rebinned_time_mask=self._data.valid_rebinned_time_mask,
         )
+
+    def _mask_source_intervals(self, config):
+
+        if "mask_intervals" in config:
+
+            self._data.mask_source_intervals(config["mask_intervals"])
+
+            self._saa_calc.mask_invalid_bins(
+                valid_time_mask=self._data.valid_time_mask,
+                valid_rebinned_time_mask=self._data.valid_rebinned_time_mask,
+            )
 
     def _setup_sources(self, config):
         # Create all individual sources and add them to a list

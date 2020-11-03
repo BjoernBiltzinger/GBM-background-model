@@ -33,7 +33,7 @@ class SAA_calc(object):
     ):
         """
         Initalize the SAA calculation that calculates the start and stop times of the SAAs and builds
-        masks. 
+        masks.
         :params time_bins: the time bins of the day
         :params bins_to_add: number of bins to add before and after the SAA always
         :params time_after_SAA: time after the SAA to ignore if the SAA is not included in the model
