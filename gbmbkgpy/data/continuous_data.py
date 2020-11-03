@@ -53,7 +53,7 @@ valid_det_names = [
 class Data(object):
     def __init__(self, dates, detectors, data_type, echans, simulation=False):
         """
-        Initalize the ContinousData Class, which contains the information about the time bins 
+        Initalize the ContinousData Class, which contains the information about the time bins
         and counts of the data.
         """
 
@@ -486,18 +486,45 @@ class Data(object):
 
     def mask_invalid_bins(self, geometry_times):
         """
-       This function mask the bins that are out of range for the interpolations
-       """
+        This function mask the bins that are out of range for the interpolations
+        """
 
-        self._valid_time_mask = np.logical_and(
+        valid_bins = np.logical_and(
             (self._time_bins[:, 0] >= geometry_times[0]),
             (self._time_bins[:, 1]) <= geometry_times[-1],
         )
 
+        self._valid_time_mask[~valid_bins] = False
+
         if self._rebinned:
-            self._valid_rebinned_time_mask = np.logical_and(
+            valid_rebinned_bins = np.logical_and(
                 (self._rebinned_time_bins[:, 0] >= geometry_times[0]),
                 (self._rebinned_time_bins[:, 1]) <= geometry_times[-1],
             )
+
+            self._valid_rebinned_time_mask[~valid_rebinned_bins] = False
+
         else:
             self._valid_rebinned_time_mask = None
+
+    def mask_source_intervals(self, intervals):
+        """
+        This function mask the time intervals that contain a non-background source
+        """
+
+        for interval in intervals:
+
+            bin_exclude = np.logical_and(
+                self._time_bins[:, 0] > interval["start"],
+                self._time_bins[:, 1] < interval["stop"],
+            )
+
+            self._valid_time_mask[bin_exclude] = False
+
+            if self._rebinned:
+                rebinned_exclude = np.logical_and(
+                    self._rebinned_time_bins[:, 0] > interval["start"],
+                    self._rebinned_time_bins[:, 1] < interval["stop"],
+                )
+
+                self._valid_rebinned_time_mask[rebinned_exclude] = False
