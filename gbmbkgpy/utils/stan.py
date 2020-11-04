@@ -959,7 +959,7 @@ class StanDataConstructor(object):
         data_dict["counts"] = np.array(
             self._data.counts[self._source_mask][2:-2], dtype=int
         ).flatten()[mask_zeros]
-        data_dict["time_bins"] = self._data.time_bins[2:-2][
+        data_dict["time_bins"] = self._time_bins[2:-2][
             mask_zeros[:: self._ndets * self._nechans]
         ]
         data_dict["num_time_bins"] = len(data_dict["time_bins"])
