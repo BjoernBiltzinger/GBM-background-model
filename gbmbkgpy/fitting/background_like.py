@@ -52,8 +52,8 @@ class BackgroundLike(object):
     def set_free_parameters(self, new_parameters):
         """
         Set the free parameters to the new values
-        :param new_parameters: 
-        :return: 
+        :param new_parameters:
+        :return:
         """
 
         self._model.set_free_parameters(new_parameters)
@@ -188,8 +188,8 @@ class BackgroundLike(object):
 
     def __call__(self, parameters):
         """
-                :return: the poisson log likelihood
-                """
+        :return: the poisson log likelihood
+        """
         self.set_free_parameters(parameters)
 
         ######### Calculate rates for new spectral parameter
@@ -298,6 +298,30 @@ class BackgroundLike(object):
             v[zero_mask] = np.sign(v[zero_mask]) * tiny
 
         return v, tiny
+
+    def mask_source_intervals(self, intervals):
+        """
+        This function mask the time intervals that contain a non-background source
+        """
+
+        for interval in intervals:
+
+            bin_exclude = np.logical_and(
+                self._total_time_bins[:, 0] > interval["start"],
+                self._total_time_bins[:, 1] < interval["stop"],
+            )
+
+            self._grb_mask[bin_exclude] = False
+
+        # An entry in the total mask is False when one of the two masks is False
+        self._total_mask = ~np.logical_xor(self._saa_mask, self._grb_mask)
+
+        # Get the valid time bins by including the total_mask
+        self._time_bins = self._total_time_bins[self._total_mask]
+
+        # Extract the counts from the data object. should be same size as time bins.
+        self._masked_counts = self._data.counts[self._total_mask]
+        self._total_counts = self._data.counts
 
     def set_grb_mask(self, *intervals):
         """

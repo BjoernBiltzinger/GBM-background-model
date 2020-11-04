@@ -180,9 +180,9 @@ class Data(object):
         :return:
         """
         if self._rebinned:
-            return self._rebinned_counts[self._valid_rebinned_time_mask]
+            return self._rebinned_counts[self.valid_rebinned_time_mask]
         else:
-            return self._counts[self._valid_time_mask]
+            return self._counts[self.valid_time_mask]
 
     @property
     def time_bins(self):
@@ -191,9 +191,9 @@ class Data(object):
         :return:
         """
         if self._rebinned:
-            return self._rebinned_time_bins[self._valid_rebinned_time_mask]
+            return self._rebinned_time_bins[self.valid_rebinned_time_mask]
         else:
-            return self._time_bins[self._valid_time_mask]
+            return self._time_bins[self.valid_time_mask]
 
     @property
     def rebinned_saa_mask(self):
@@ -285,10 +285,10 @@ class Data(object):
         """
         if self._rebinned:
             return np.diff(
-                self._rebinned_time_bins[self._valid_rebinned_time_mask], axis=1
+                self._rebinned_time_bins[self.valid_rebinned_time_mask], axis=1
             )[:, 0]
         else:
-            return np.diff(self._time_bins[self._valid_time_mask], axis=1)[:, 0]
+            return np.diff(self._time_bins[self.valid_time_mask], axis=1)[:, 0]
 
     @property
     def mean_time(self):
@@ -298,10 +298,10 @@ class Data(object):
         """
         if self._rebinned:
             return np.mean(
-                self._rebinned_time_bins[self._valid_rebinned_time_mask], axis=1
+                self._rebinned_time_bins[self.valid_rebinned_time_mask], axis=1
             )
         else:
-            return np.mean(self._time_bins[self._valid_time_mask], axis=1)
+            return np.mean(self._time_bins[self.valid_time_mask], axis=1)
 
     def _build_arrays(self):
         """
