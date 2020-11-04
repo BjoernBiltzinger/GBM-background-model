@@ -190,17 +190,6 @@ class BackgroundModelGenerator(object):
             valid_rebinned_time_mask=self._data.valid_rebinned_time_mask,
         )
 
-    def _mask_source_intervals(self, config):
-
-        if "mask_intervals" in config:
-
-            self._data.mask_source_intervals(config["mask_intervals"])
-
-            self._saa_calc.mask_invalid_bins(
-                valid_time_mask=self._data.valid_time_mask,
-                valid_rebinned_time_mask=self._data.valid_rebinned_time_mask,
-            )
-
     def _setup_sources(self, config):
         # Create all individual sources and add them to a list
         assert (config["setup"]["fix_earth"] and config["setup"]["fix_cgb"]) or (
@@ -492,6 +481,12 @@ class BackgroundModelGenerator(object):
             use_numba=config["fit"].get("use_numba", False),
         )
         print_progress("Done")
+
+    def _mask_source_intervals(self, config):
+
+        if "mask_intervals" in config:
+
+            self._background_like.mask_source_intervals(config["mask_intervals"])
 
     @property
     def data(self):

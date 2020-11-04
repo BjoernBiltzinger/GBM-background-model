@@ -575,7 +575,13 @@ class StanDataConstructor(object):
 
         self._dets = self._data.detectors
         self._echans = self._data.echans
-        self._time_bins = self._data.time_bins
+        self._total_time_bins = self._data.time_bins
+
+        self._source_mask = np.ones(len(self._total_time_bins), dtype=bool)
+
+        self.mask_source_intervals(model_generator.config.get("mask_intervals", []))
+
+        self._time_bins = self._total_time_bins[self._source_mask]
 
         self._time_bin_edges = np.append(self._time_bins[:, 0], self._time_bins[-1, 1])
 
@@ -584,6 +590,20 @@ class StanDataConstructor(object):
         self._ntimebins = len(self._time_bins)
 
         self._param_lookup = []
+
+    def mask_source_intervals(self, intervals):
+        """
+        This function mask the time intervals that contain a non-background source
+        """
+
+        for interval in intervals:
+
+            bin_exclude = np.logical_and(
+                self._total_time_bins[:, 0] > interval["start"],
+                self._total_time_bins[:, 1] < interval["stop"],
+            )
+
+            self._source_mask[bin_exclude] = False
 
     def global_sources(self):
         """
@@ -601,7 +621,9 @@ class StanDataConstructor(object):
         global_counts = np.zeros((len(s), self._ntimebins, self._ndets, self._nechans))
 
         for i, k in enumerate(s.keys()):
-            global_counts[i] = s[k].get_counts(self._time_bins)
+            global_counts[i] = s[k].get_counts(
+                self._time_bins, bin_mask=self._source_mask
+            )
 
             for p in s[k].parameters.values():
 
@@ -658,7 +680,9 @@ class StanDataConstructor(object):
                 index = 0
             else:
                 index = 1
-            continuum_counts[index, :, :, s.echan] = s.get_counts(self._time_bins)
+            continuum_counts[index, :, :, s.echan] = s.get_counts(
+                self._time_bins, bin_mask=self._source_mask
+            )
 
             for p in s.parameters.values():
 
@@ -924,12 +948,17 @@ class StanDataConstructor(object):
         data_dict["num_dets"] = self._ndets
         data_dict["num_echans"] = self._nechans
 
-        counts = np.array(self._data.counts[2:-2], dtype=int).flatten()
-        mask_zeros = np.array(self._data.counts[2:-2], dtype=int).flatten() != 0
+        counts = np.array(
+            self._data.counts[self._source_mask][2:-2], dtype=int
+        ).flatten()
+        mask_zeros = (
+            np.array(self._data.counts[self._source_mask][2:-2], dtype=int).flatten()
+            != 0
+        )
 
-        data_dict["counts"] = np.array(self._data.counts[2:-2], dtype=int).flatten()[
-            mask_zeros
-        ]
+        data_dict["counts"] = np.array(
+            self._data.counts[self._source_mask][2:-2], dtype=int
+        ).flatten()[mask_zeros]
         data_dict["time_bins"] = self._data.time_bins[2:-2][
             mask_zeros[:: self._ndets * self._nechans]
         ]
