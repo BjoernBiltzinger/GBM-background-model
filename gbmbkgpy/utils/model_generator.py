@@ -87,8 +87,6 @@ class BackgroundModelGenerator(object):
 
         self._mask_valid_time_bins()
 
-        self._mask_source_intervals(config)
-
         self._setup_sources(config)
 
         self._instantiate_model(config)
@@ -96,6 +94,8 @@ class BackgroundModelGenerator(object):
         self._build_parameter_bounds(config)
 
         self._instantiate_likelihood(config)
+
+        self._mask_source_intervals(config)
 
     def _instantiate_data_class(self, config):
         print_progress("Prepare data...")
