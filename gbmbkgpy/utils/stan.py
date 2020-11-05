@@ -624,7 +624,7 @@ class StanDataConstructor(object):
         sigma_norm_fixed = np.zeros(len(s))
         global_counts = np.zeros((len(s), self._ntimebins, self._ndets, self._nechans))
 
-        global_param_names = np.zeros(len(s), dtype=str)
+        global_param_names = np.empty(len(s), dtype=object)
 
         for i, k in enumerate(s.keys()):
             global_counts[i] = s[k].get_counts(
@@ -682,8 +682,8 @@ class StanDataConstructor(object):
             (num_cont_sources, self._ntimebins, self._ndets, self._nechans)
         )
 
-        cont_param_names = np.zeros(
-            (num_cont_sources, self._ndets, self._nechans), dtype=str
+        cont_param_names = np.empty(
+            (num_cont_sources, self._ndets, self._nechans), dtype=object
         )
 
         mu_norm_cont = np.zeros((num_cont_sources, self._ndets, self._nechans))
@@ -883,8 +883,8 @@ class StanDataConstructor(object):
 
         saa_start_times = np.zeros(self._num_saa_exits)
 
-        saa_param_names = np.zeros(
-            (self._num_saa_exits, self._ndets, self._nechans), dtype=str
+        saa_param_names = np.empty(
+            (self._num_saa_exits, self._ndets, self._nechans), dtype=object
         )
 
         for i, s in enumerate(
