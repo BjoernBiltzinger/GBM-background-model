@@ -620,6 +620,8 @@ class StanDataConstructor(object):
         sigma_norm_fixed = np.zeros(len(s))
         global_counts = np.zeros((len(s), self._ntimebins, self._ndets, self._nechans))
 
+        global_param_names = np.zeros(len(s), dtype=str)
+
         for i, k in enumerate(s.keys()):
             global_counts[i] = s[k].get_counts(
                 self._time_bins, bin_mask=self._source_mask
@@ -638,6 +640,8 @@ class StanDataConstructor(object):
                     else:
                         sigma_norm_fixed[i] = 1
 
+                    global_param_names[i] = p.name
+
                     self._param_lookup.append(
                         {
                             "name": p.name,
@@ -652,6 +656,7 @@ class StanDataConstructor(object):
         # Flatten along time, detectors and echans
         global_counts = global_counts[:, 2:-2].reshape(len(s), -1)
 
+        self._global_param_names = global_param_names
         self._global_counts = global_counts
         self._mu_norm_fixed = mu_norm_fixed
         self._sigma_norm_fixed = sigma_norm_fixed
@@ -672,6 +677,11 @@ class StanDataConstructor(object):
         continuum_counts = np.zeros(
             (num_cont_sources, self._ntimebins, self._ndets, self._nechans)
         )
+
+        cont_param_names = np.zeros(
+            (num_cont_sources, self._ndets, self._nechans), dtype=str
+        )
+
         mu_norm_cont = np.zeros((num_cont_sources, self._ndets, self._nechans))
         sigma_norm_cont = np.zeros((num_cont_sources, self._ndets, self._nechans))
 
@@ -708,6 +718,8 @@ class StanDataConstructor(object):
                                 "scale": 1,
                             }
                         )
+
+                        cont_param_names[index, det_idx, s.echan] = f"{p.name}_{det}"
                 else:
                     raise Exception("Unknown parameter name")
 
@@ -866,6 +878,10 @@ class StanDataConstructor(object):
 
         saa_start_times = np.zeros(self._num_saa_exits)
 
+        saa_param_names = np.zeros(
+            (self._num_saa_exits, self._ndets, self._nechans), dtype=str
+        )
+
         for i, s in enumerate(
             list(self._model.saa_sources.values())[: self._num_saa_exits]
         ):
@@ -886,6 +902,9 @@ class StanDataConstructor(object):
                 )
                 det_idx = s._shape._det_idx
                 det_idx_stan = det_idx + 1
+
+            for d_idx, d in enumerate(self._dets):
+                saa_param_names[source_index, d_idx, s.echan] = f"{p.name}_{d}"
 
             for p in s.parameters.values():
 
@@ -908,6 +927,7 @@ class StanDataConstructor(object):
                             "scale": 1,
                         }
                     )
+
                 elif "decay" in p.name:
                     if p.gaussian_parameter[0] is not None:
                         mu_decay_saa[:, det_idx, s.echan] = p.gaussian_parameter[0]
@@ -931,6 +951,7 @@ class StanDataConstructor(object):
                 else:
                     raise Exception("Unknown parameter name")
 
+        self._saa_param_names = saa_param_names
         self._saa_start_times = saa_start_times
         self._mu_norm_saa = mu_norm_saa
         self._sigma_norm_saa = sigma_norm_saa
@@ -1021,6 +1042,18 @@ class StanDataConstructor(object):
     @property
     def param_lookup(self):
         return self._param_lookup
+
+    @property
+    def global_param_names(self):
+        return self._global_param_names
+
+    @property
+    def cont_param_names(self):
+        return self._cont_param_names
+
+    @property
+    def saa_param_names(self):
+        return self._saa_param_names
 
 
 class ReadStanArvizResult(object):
