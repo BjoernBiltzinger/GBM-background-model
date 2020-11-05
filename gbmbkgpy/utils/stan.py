@@ -591,6 +591,10 @@ class StanDataConstructor(object):
 
         self._param_lookup = []
 
+        self._global_param_names = None
+        self._cont_param_names = None
+        self._saa_param_names = None
+
     def mask_source_intervals(self, intervals):
         """
         This function mask the time intervals that contain a non-background source
@@ -723,6 +727,7 @@ class StanDataConstructor(object):
                 else:
                     raise Exception("Unknown parameter name")
 
+        self._cont_param_names = cont_param_names
         self._cont_counts = continuum_counts[:, 2:-2].reshape(2, -1)
         self._mu_norm_cont = mu_norm_cont
         self._sigma_norm_cont = sigma_norm_cont
