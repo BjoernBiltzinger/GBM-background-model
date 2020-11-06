@@ -562,7 +562,9 @@ class ResultPlotGenerator(object):
             ppc_time_bin_widths = np.diff(self._result_dict["ppc_time_bins"], axis=1)[
                 :, 0
             ]
-            ppc_time_bin_means = np.mean(self._result_dict["ppc_time_bins"], axis=1)
+            ppc_time_bin_means = (
+                np.mean(self._result_dict["ppc_time_bins"], axis=1) - self._time_ref
+            )
 
             ppc_rates = (
                 self._result_dict["ppc_counts"][:, :, det_idx, echan_idx]
