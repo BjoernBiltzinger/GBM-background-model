@@ -153,7 +153,7 @@ class ResultPlotGenerator(object):
             for source_name in f["sources"].keys():
                 result_dict["sources"][source_name] = f["sources"][source_name][()]
 
-            if hasattr(f, "ppc_counts"):
+            if "ppc_counts" in f.keys():
 
                 result_dict["ppc_counts"] = f["ppc_counts"][()]
                 result_dict["ppc_time_bins"] = f["ppc_time_bins"][()]
