@@ -433,6 +433,8 @@ class StanDataExporter(object):
         self._saa_mask[idx] = False
         self._saa_mask[idx + 1] = False
 
+        ppc_counts[:, ~self._saa_mask, :, :] = 0.0
+
         self._mean_model_counts = np.mean(model_counts, axis=0)
 
         self._model_counts = model_counts
