@@ -422,49 +422,53 @@ class ResultPlotGenerator(object):
 
         src_list = []
         for i, (key, value) in enumerate(self._result_dict["sources"].items()):
-            if "L-parameter" in key or "BGO_CR_Approx" in key:
+            if (
+                "l-parameter" in key.lower()
+                or "bgo_cr_approx" in key.lower()
+                or "cr_approx" in key.lower()
+            ):
                 label = "Cosmic Rays"
                 style_key = "cr"
                 sort_idx = 0
                 if not self.show_all_sources and not self.show_cr:
                     continue
 
-            elif "Earth" in key:
+            elif "earth" in key.lower():
                 label = "Earth Albedo"
                 style_key = "earth"
                 sort_idx = 1
                 if not self.show_all_sources and not self.show_earth:
                     continue
 
-            elif "CGB" in key:
+            elif "cgb" in key.lower():
                 label = "CGB"
                 style_key = "cgb"
                 sort_idx = 2
                 if not self.show_all_sources and not self.show_cgb:
                     continue
 
-            elif "Constant" in key:
+            elif "constant" in key.lower():
                 label = "Constant"
                 style_key = "constant"
                 sort_idx = 3
                 if not self.show_all_sources and not self.show_constant:
                     continue
 
-            elif "SAA_decays" in key:
+            elif "saa_decays" in key.lower():
                 label = "SAA Exits"
                 style_key = "saa"
                 sort_idx = 4
                 if not self.show_all_sources and not self.show_saa:
                     continue
 
-            elif "CRAB" in key:
+            elif "crab" in key.lower():
                 label = "Crab"
                 style_key = "crab"
                 sort_idx = 5
                 if not self.show_all_sources and not self.show_crab:
                     continue
 
-            elif "sun" in key:
+            elif "sun" in key.lower():
                 label = "Sun"
                 style_key = "sun"
                 sort_idx = 6
