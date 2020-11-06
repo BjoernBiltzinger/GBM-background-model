@@ -33,7 +33,7 @@ else:
     try:
         from pathos.multiprocessing import cpu_count
         from pathos.pools import ProcessPool as Pool
-       
+
         using_multiprocessing = True
 
     except:
@@ -466,7 +466,7 @@ class Det_Response_Precalculation(object):
             self.Ebin_in_edge,
             mat_type=0,
             ebin_edge_out=self._Ebin_out_edge,
-            occult=True,
+            occult=False,
         )
 
         # If MPI is used split up the points among the used cores to speed up
@@ -607,7 +607,9 @@ class Det_Response_Precalculation(object):
                 responses = np.concatenate(responses_all_split)
 
         elif using_multiprocessing:
-            print(f"Calculating detector response for {self.detector} with multiprocessing.")
+            print(
+                f"Calculating detector response for {self.detector} with multiprocessing."
+            )
 
             def get_response(point):
                 x, y, z = point[0], point[1], point[2]
@@ -622,7 +624,7 @@ class Det_Response_Precalculation(object):
                     self.Ebin_in_edge,
                     mat_type=0,
                     ebin_edge_out=self._Ebin_out_edge,
-                    occult=True,
+                    occult=False,
                 )
                 matrix = drm.to_3ML_response_direct_sat_coord(az, zen).matrix
 
