@@ -73,6 +73,11 @@ class SelectPointsources(object):
             limit1550Crab * 0.000220 * 1000
         )  # 0.000220 cnts/s/cm^2 is 1 mCrab in 15-50 keV band for Swift
 
+        self._bat_catalog = pd.read_table(
+            get_path_of_data_file("background_point_sources/", "BAT_catalog_clean.dat"),
+            names=["name1", "name2", "pl_index"],
+        )
+
         self._ps_db_path = os.path.join(
             get_path_of_external_data_dir(),
             "background_point_sources",
@@ -144,7 +149,10 @@ class SelectPointsources(object):
         Return dict with the pointsources above a certain threshold on a given day in Swift
         :return: Dict with pointsources on this day above threshold
         """
-        with h5py.File(self._ps_db_path, "r",) as h:
+        with h5py.File(
+            self._ps_db_path,
+            "r",
+        ) as h:
             rates_all = np.zeros(len(h.keys()))
             errors_all = np.zeros(len(h.keys()))
             names = []
@@ -181,11 +189,23 @@ class SelectPointsources(object):
         )
         ps_dict = {}
         for i in range(len(names_s)):
+
+            # Add the spectral power law index from the bat catalog if existing
+            # if not use pl_index=3
+            res = self._bat_catalog.pl_index[
+                self._bat_catalog[self._bat_catalog.name2 == names_s[i]].index
+            ].values
+            if len(res) == 0:
+                pl_index = 3
+            else:
+                pl_index = float(res[0])
+
             ps_dict[names_s[i]] = {
                 "Rates": rates_all_s[i],
                 "Errors": errors_all_s[i],
                 "Ra": ra_s[i],
                 "Dec": dec_s[i],
+                "bat_pl_index": pl_index,
             }
 
         self._ps_dict = ps_dict
@@ -231,8 +251,14 @@ class SelectPointsources(object):
 
         ps_variation = {}
 
-        with h5py.File(self._ps_orbit_db_path, "r",) as ps_swift:
-            with h5py.File(self._ps_maxi_scans_db, "r",) as ps_maxi:
+        with h5py.File(
+            self._ps_orbit_db_path,
+            "r",
+        ) as ps_swift:
+            with h5py.File(
+                self._ps_maxi_scans_db,
+                "r",
+            ) as ps_maxi:
 
                 for ps_name, ps in self._ps_dict.items():
 
@@ -446,7 +472,10 @@ class SelectPointsources(object):
         ax.grid()
 
         # Read in the h5 file only once to save time;
-        with h5py.File(self._ps_db_path, "r",) as h:
+        with h5py.File(
+            self._ps_db_path,
+            "r",
+        ) as h:
             rates_all = np.zeros((len(h.keys()), 20000))
             errors_all = np.zeros((len(h.keys()), 20000))
             times_all = np.zeros((len(h.keys()), 20000))
