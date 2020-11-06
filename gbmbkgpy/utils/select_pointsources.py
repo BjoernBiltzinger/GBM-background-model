@@ -1,23 +1,27 @@
-import astropy.io.fits as fits
-import os
-from astropy.utils.data import download_file
-import shutil
-import urllib.request
 import csv
-import h5py
-import numpy as np
-from astropy.time import Time
-import matplotlib.pyplot as plt
-from matplotlib.animation import FuncAnimation
-import tempfile
-from multiprocessing import Pool
 import itertools
-from scipy import interpolate
-from gbmgeometry.utils.gbm_time import GBMTime
+import os
+import shutil
+import tempfile
+import urllib.request
+from multiprocessing import Pool
 
+import astropy.io.fits as fits
+import h5py
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from astropy.time import Time
+from astropy.utils.data import download_file
 from gbmbkgpy.io.file_utils import if_dir_containing_file_not_existing_then_make
-from gbmbkgpy.io.package_data import get_path_of_external_data_dir
+from gbmbkgpy.io.package_data import (
+    get_path_of_data_file,
+    get_path_of_external_data_dir,
+)
 from gbmbkgpy.utils.progress_bar import progress_bar
+from gbmgeometry.utils.gbm_time import GBMTime
+from matplotlib.animation import FuncAnimation
+from scipy import interpolate
 
 try:
 
