@@ -672,33 +672,72 @@ class BackgroundSimulator(object):
             # Initialize response list
             responses = []
 
-            # Create the DRM object (quaternions and sc_pos are dummy values, not important
-            # as we calculate everything in the sat frame
-            DRM = DRMGen(
-                np.array([0.0745, -0.105, 0.0939, 0.987]),
-                np.array([-5.88 * 10 ** 6, -2.08 * 10 ** 6, 2.97 * 10 ** 6]),
-                det_idx,
-                self._ebin_in_edge,
-                mat_type=0,
-                ebin_edge_out=self._ebin_out_edge,
-                occult=False,
-            )
+            try:
+                from pathos.multiprocessing import cpu_count
+                from pathos.pools import ProcessPool as Pool
 
-            with progress_bar(
-                len(resp_grid_points),
-                title=f"Calculating response on a grid around detector {self._valid_det_names[det_idx]}",
-            ) as p:
+                using_multiprocessing = True
 
-                for point in resp_grid_points:
+                multiprocessing_n_cores = int(
+                    os.environ.get("gbm_bkg_multiprocessing_n_cores", cpu_count())
+                )
 
-                    az = np.arctan2(point[1], point[0]) * 180 / np.pi
-                    zen = np.arcsin(point[2]) * 180 / np.pi
+            except:
+                using_multiprocessing = False
 
-                    matrix = DRM.to_3ML_response_direct_sat_coord(az, zen).matrix
+            if not using_multiprocessing:
 
-                    responses.append(matrix.T)
+                # Create the DRM object (quaternions and sc_pos are dummy values, not important
+                # as we calculate everything in the sat frame
+                DRM = DRMGen(
+                    np.array([0.0745, -0.105, 0.0939, 0.987]),
+                    np.array([-5.88 * 10 ** 6, -2.08 * 10 ** 6, 2.97 * 10 ** 6]),
+                    det_idx,
+                    self._ebin_in_edge,
+                    mat_type=0,
+                    ebin_edge_out=self._ebin_out_edge,
+                    occult=True,
+                )
 
-                    p.increase()
+                with progress_bar(
+                    len(resp_grid_points),
+                    title=f"Calculating response on a grid around detector {self._valid_det_names[det_idx]}",
+                ) as p:
+
+                    for point in resp_grid_points:
+
+                        az = np.arctan2(point[1], point[0]) * 180 / np.pi
+                        zen = np.arcsin(point[2]) * 180 / np.pi
+
+                        matrix = DRM.to_3ML_response_direct_sat_coord(az, zen).matrix
+
+                        responses.append(matrix.T)
+
+                        p.increase()
+
+            else:
+
+                def get_response(point):
+                    x, y, z = point[0], point[1], point[2]
+
+                    zen = np.arcsin(z) * 180 / np.pi
+                    az = np.arctan2(y, x) * 180 / np.pi
+
+                    drm = DRMGen(
+                        np.array([0.0745, -0.105, 0.0939, 0.987]),
+                        np.array([-5.88 * 10 ** 6, -2.08 * 10 ** 6, 2.97 * 10 ** 6]),
+                        det_idx,
+                        self._ebin_in_edge,
+                        mat_type=0,
+                        ebin_edge_out=self._ebin_out_edge,
+                        occult=True,
+                    )
+                    matrix = drm.to_3ML_response_direct_sat_coord(az, zen).matrix
+
+                    return matrix.T
+
+                with Pool(multiprocessing_n_cores) as pool:
+                    responses = pool.map(get_response, resp_grid_points)
 
             response_array = np.array(responses)
 
