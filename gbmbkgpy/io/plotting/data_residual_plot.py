@@ -24,7 +24,7 @@ try:
         rank = 0
         using_mpi = False
 except:
-
+    rank = 0
     using_mpi = False
 
 
@@ -215,14 +215,14 @@ class ResidualPlot(object):
 
     def add_list_of_sources(self, x, source_list):
         """
-         Add a list of model sources and interpolate them across the time span for the plotting.
-         :param source_list:
-         :param x: the evaluation energies
-         :param y: the model values
-         :param label: the label of the model
-         :param color: the color of the model
-         :return: None
-         """
+        Add a list of model sources and interpolate them across the time span for the plotting.
+        :param source_list:
+        :param x: the evaluation energies
+        :param y: the model values
+        :param label: the label of the model
+        :param color: the color of the model
+        :return: None
+        """
         for i, source in enumerate(source_list):
             alpha = source.get("alpha", 0.6)
             linewidth = source.get("linewidth", 2)
@@ -328,7 +328,7 @@ class ResidualPlot(object):
         :param model: Model object
         :param time_bin: Time bins where to compute ppc steps
         :param saa_mask: Mask which time bins are set to zero
-        :param echan: Which echan 
+        :param echan: Which echan
         :param q_levels: At which levels the ppc should be plotted
         :param colors: colors for the different q_level
         """
@@ -450,8 +450,8 @@ class ResidualPlot(object):
         else:
             if rank == 0:
                 for i, level in enumerate(q_levels):
-                    low = np.percentile(rebinned_ppc_rates, 50 - 50 * level, axis=0)[0]
-                    high = np.percentile(rebinned_ppc_rates, 50 + 50 * level, axis=0)[0]
+                    low = np.percentile(rebinned_ppc_rates, 50 - 50 * level, axis=0)
+                    high = np.percentile(rebinned_ppc_rates, 50 + 50 * level, axis=0)
                     self._data_axis.fill_between(
                         rebinned_time_bin_mean, low, high, color=colors[i], alpha=alpha
                     )
