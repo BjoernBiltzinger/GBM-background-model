@@ -10,16 +10,25 @@ import astropy.io.fits as fits
 import astropy.time as astro_time
 import astropy.units as u
 from gbm_drm_gen.drmgen import DRMGen
-from gbmbkgpy.io.downloading import (download_data_file, download_flares,
-                                     download_lat_spacecraft)
-from gbmbkgpy.io.file_utils import file_existing_and_readable, if_dir_containing_file_not_existing_then_make
-from gbmbkgpy.io.package_data import (get_path_of_data_file,
-                                      get_path_of_external_data_dir,
-                                      get_path_of_external_data_file)
+from gbmbkgpy.io.downloading import (
+    download_data_file,
+    download_flares,
+    download_lat_spacecraft,
+)
+from gbmbkgpy.io.file_utils import (
+    file_existing_and_readable,
+    if_dir_containing_file_not_existing_then_make,
+)
+from gbmbkgpy.io.package_data import (
+    get_path_of_data_file,
+    get_path_of_external_data_dir,
+    get_path_of_external_data_file,
+)
 from gbmbkgpy.utils.progress_bar import progress_bar
 from gbmgeometry import GBMTime, PositionInterpolator, gbm_detector_list
 
 from gbmbkgpy.utils.binner import Rebinner
+
 
 class BackgroundSimulator(object):
     """
@@ -27,20 +36,9 @@ class BackgroundSimulator(object):
     A real data file is used to get the ebounds and time bins as well as a real poshist file to
     get the spacecraft position and pointings.
 
-    Currently a constant source, point sources and the SAA Exits can be simulated
     The simulation output folder is created in the data dir set by the env var GBMDATA
 
-    General Input
-    :param day: For which day
-    :param data_type: CTIME or CSPEC?
-    :param steps: For how many times of the day should the count rates be calculated? Interpolation in between.
-    :param random_seed: Numpy random seed
-
-    Point source input
-    :param index_list: List of indices of all PowerLaws; length N
-    :param norm_list: List of norm of all PowerLaws; length N
-    :param ra_list: List of ra-pos of all PS in ICRS frame; unit deg; length N
-    :param dec_list: List of dec-pos of all PS in ICRS frame; unit deg; length N
+    The simulation parameters have to be passes as a config dictionary or as yaml file.
 
     :Example Usage:
     simulator = BackgroundSimulator.from_config_file("config.yml")
@@ -125,8 +123,7 @@ class BackgroundSimulator(object):
         ).astype(int)
 
         times_interp = np.append(
-            position_interp.time[::step_size],
-            position_interp.time[-1]
+            position_interp.time[::step_size], position_interp.time[-1]
         )
 
         quaternions = position_interp.quaternion(times_interp)
@@ -138,9 +135,7 @@ class BackgroundSimulator(object):
         earth_az_zen = []  # azimuth and zenith angle of earth in sat. frame
 
         # Give some output how much of the geometry is already calculated (progress_bar)
-        with progress_bar(
-            len(times_interp), title="Calculating earth position"
-        ) as p:
+        with progress_bar(len(times_interp), title="Calculating earth position") as p:
 
             # Calculate the geometry for all times
             for step_idx, mean_time in enumerate(times_interp):
@@ -166,7 +161,6 @@ class BackgroundSimulator(object):
         earth_cart[:, 0] = np.cos(earth_rad[:, 1]) * np.cos(earth_rad[:, 0])
         earth_cart[:, 1] = np.cos(earth_rad[:, 1]) * np.sin(earth_rad[:, 0])
         earth_cart[:, 2] = np.sin(earth_rad[:, 1])
-
 
         # Get the time bins and ebin edges of the data file
         ebin_in_edge = np.array(np.logspace(0.5, 3.7, 301), dtype=np.float32)
@@ -207,15 +201,13 @@ class BackgroundSimulator(object):
             for active_interval in fermi_active_intervals:
                 int_mask = np.logical_and(
                     time_bins[:, 0] > active_interval[0] + 10,
-                    time_bins[:, 1] < active_interval[1] - 10
+                    time_bins[:, 1] < active_interval[1] - 10,
                 )
 
                 saa_mask[int_mask] = True
 
             data_rebinner = Rebinner(
-                time_bins,
-                min_bin_width=self._config["min_bin_width"],
-                mask=saa_mask
+                time_bins, min_bin_width=self._config["min_bin_width"], mask=saa_mask
             )
 
             time_bins = data_rebinner.time_rebinned
@@ -258,13 +250,15 @@ class BackgroundSimulator(object):
                 counts_sum = np.zeros((len(self._time_bins), len(self._echans)))
 
                 # Simulate CGB and Albedo
-                if self._config.get("use_earth", False) or self._config.get("use_cgb", False):
+                if self._config.get("use_earth", False) or self._config.get(
+                    "use_cgb", False
+                ):
 
                     counts_earth, counts_cgb = self._simulate_albedo_cgb(
                         det_idx=det_idx,
                         spectrum_earth=self._config["sources"]["earth"]["spectrum"],
                         spectrum_cgb=self._config["sources"]["cgb"]["spectrum"],
-                        n_grid=self._config["response"]["n_grid"]
+                        n_grid=self._config["response"]["n_grid"],
                     )
 
                     if self._config.get("use_earth", False):
@@ -340,7 +334,7 @@ class BackgroundSimulator(object):
                 norm=spectrum_earth["norm"],
                 break_energy=spectrum_earth["break_energy"],
                 index1=spectrum_earth["index1"],
-                index2=spectrum_earth["index2"]
+                index2=spectrum_earth["index2"],
             )
 
         else:
@@ -366,7 +360,7 @@ class BackgroundSimulator(object):
                 norm=spectrum_cgb["norm"],
                 break_energy=spectrum_cgb["break_energy"],
                 index1=spectrum_cgb["index1"],
-                index2=spectrum_cgb["index2"]
+                index2=spectrum_cgb["index2"],
             )
 
         else:
@@ -374,20 +368,19 @@ class BackgroundSimulator(object):
                 "The selected spectral model for the CGB is not implemented"
             )
 
-        effective_response_earth, effective_response_cgb = self._get_effective_response_albedo_cgb(
-            det_idx=det_idx, n_grid=n_grid
-        )
+        (
+            effective_response_earth,
+            effective_response_cgb,
+        ) = self._get_effective_response_albedo_cgb(det_idx=det_idx, n_grid=n_grid)
 
-        folded_flux_earth = np.dot(
-            true_flux_earth, effective_response_earth
-        )
+        folded_flux_earth = np.dot(true_flux_earth, effective_response_earth)
 
-        folded_flux_cgb = np.dot(
-            true_flux_cgb, effective_response_cgb
-        )
+        folded_flux_cgb = np.dot(true_flux_cgb, effective_response_cgb)
 
         # Interpolate to time bins of real data file
-        earth_rates_interpolator = interp1d(self._times_interp, folded_flux_earth, axis=0)
+        earth_rates_interpolator = interp1d(
+            self._times_interp, folded_flux_earth, axis=0
+        )
         cgb_rates_interpolator = interp1d(self._times_interp, folded_flux_cgb, axis=0)
 
         earth_rates = earth_rates_interpolator(self._time_bins)
@@ -426,7 +419,7 @@ class BackgroundSimulator(object):
                 norm=spectrum["norm"],
                 break_energy=spectrum["break_energy"],
                 index1=spectrum["index1"],
-                index2=spectrum["index2"]
+                index2=spectrum["index2"],
             )
 
         else:
@@ -445,7 +438,7 @@ class BackgroundSimulator(object):
                     self._ebin_in_edge,
                     mat_type=0,
                     ebin_edge_out=self._ebin_out_edge,
-                    occult=True
+                    occult=True,
                 )
                 .to_3ML_response(ra, dec)
                 .matrix.T
@@ -510,15 +503,15 @@ class BackgroundSimulator(object):
         cr_count_rate = mc_l_interp(self._time_bins)
 
         # Remove vertical movement
-        cr_count_rate[ cr_count_rate > 0 ] = \
-            cr_count_rate[ cr_count_rate > 0 ] - np.min(cr_count_rate[ cr_count_rate > 0 ])
+        cr_count_rate[cr_count_rate > 0] = cr_count_rate[cr_count_rate > 0] - np.min(
+            cr_count_rate[cr_count_rate > 0]
+        )
 
         cr_counts = norm * trapz(cr_count_rate, self._time_bins).T
 
         counts_all_echans = np.tile(cr_counts, (len(self._echans), 1)).T
 
         return counts_all_echans
-
 
     def save_to_fits(self, overwrite=False):
 
@@ -608,9 +601,10 @@ class BackgroundSimulator(object):
         tmp = np.clip(
             np.dot(
                 self._earth_cartesian / earth_cart_norm,
-                resp_grid_points.T / resp_grid_points_norm.T
+                resp_grid_points.T / resp_grid_points_norm.T,
             ),
-            -1, 1
+            -1,
+            1,
         )
 
         # Calculate separation angle between
@@ -625,17 +619,13 @@ class BackgroundSimulator(object):
         # and the others in cgb_effective_response
         # then mulitiply by the sr_points factor which is the area
         # of the unit sphere covered by every point
-        effective_response_earth = np.tensordot(
-            earth_occultion_idx,
-            response_array,
-            [(1,), (0,)]
-        ) * sr_points
+        effective_response_earth = (
+            np.tensordot(earth_occultion_idx, response_array, [(1,), (0,)]) * sr_points
+        )
 
-        effective_response_cgb = np.tensordot(
-            ~earth_occultion_idx,
-            response_array,
-            [(1,), (0,)]
-        ) * sr_points
+        effective_response_cgb = (
+            np.tensordot(~earth_occultion_idx, response_array, [(1,), (0,)]) * sr_points
+        )
 
         return effective_response_earth, effective_response_cgb
 
@@ -691,12 +681,12 @@ class BackgroundSimulator(object):
                 self._ebin_in_edge,
                 mat_type=0,
                 ebin_edge_out=self._ebin_out_edge,
-                occult=False
+                occult=False,
             )
 
             with progress_bar(
                 len(resp_grid_points),
-                    title=f"Calculating response on a grid around detector {self._valid_det_names[det_idx]}",
+                title=f"Calculating response on a grid around detector {self._valid_det_names[det_idx]}",
             ) as p:
 
                 for point in resp_grid_points:
@@ -719,7 +709,9 @@ class BackgroundSimulator(object):
                 f.attrs["data_type"] = self._data_type
                 f.attrs["n_grid"] = n_grid
 
-                f.create_dataset("ebin_in_edge", data=self._ebin_in_edge, compression="lzf")
+                f.create_dataset(
+                    "ebin_in_edge", data=self._ebin_in_edge, compression="lzf"
+                )
 
                 f.create_dataset(
                     "ebin_out_edge", data=self._ebin_out_edge, compression="lzf"
@@ -732,7 +724,6 @@ class BackgroundSimulator(object):
                 )
 
         return resp_grid_points, response_array
-
 
     def _get_mcl_from_lat_file(self):
         # read the file
@@ -845,8 +836,9 @@ class BackgroundSimulator(object):
 
     def _spectrum_bpl(self, energy, norm, break_energy, index1, index2):
 
-        return norm / ((energy / break_energy) ** index1 + (energy / break_energy) ** index2)
-
+        return norm / (
+            (energy / break_energy) ** index1 + (energy / break_energy) ** index2
+        )
 
     def _spec_integral_bpl(self, e1, e2, norm, break_energy, index1, index2):
         """
@@ -860,11 +852,13 @@ class BackgroundSimulator(object):
             / 6.0
             * (
                 self._spectrum_bpl(e1, norm, break_energy, index1, index2)
-                + 4 * self._spectrum_bpl((e1 + e2) / 2.0, norm, break_energy, index1, index2)
+                + 4
+                * self._spectrum_bpl(
+                    (e1 + e2) / 2.0, norm, break_energy, index1, index2
+                )
                 + self._spectrum_bpl(e2, norm, break_energy, index1, index2)
             )
         )
-
 
     def _fibonacci_sphere(self, samples=1):
         """
