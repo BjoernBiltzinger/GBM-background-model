@@ -120,6 +120,7 @@ class ResultPlotGenerator(object):
                         alpha=occ_region.get("alpha", 0.1),
                     )
         self._plot_path_list = []
+        self._hide_sources = []
 
     @classmethod
     def from_result_file(cls, config_file, result_data_file):
@@ -495,26 +496,27 @@ class ResultPlotGenerator(object):
                 ]
 
             if np.sum(rebinned_source_counts) > 0.0:
-
-                src_list.append(
-                    {
-                        "data": rebinned_source_counts / self._rebinned_time_bin_widths,
-                        "label": label
-                        if self.source_styles[style_key].get("show_label", True)
-                        or self.source_styles["use_global"]
-                        else None,
-                        "color": self.source_styles[style_key]["color"]
-                        if not self.source_styles["use_global"]
-                        else None,
-                        "alpha": self.source_styles[style_key]["alpha"]
-                        if not self.source_styles["use_global"]
-                        else None,
-                        "linewidth": self.source_styles[style_key]["linewidth"]
-                        if not self.source_styles["use_global"]
-                        else None,
-                        "sort_idx": sort_idx,
-                    }
-                )
+                if key not in self._hide_sources:
+                    src_list.append(
+                        {
+                            "data": rebinned_source_counts
+                            / self._rebinned_time_bin_widths,
+                            "label": label
+                            if self.source_styles[style_key].get("show_label", True)
+                            or self.source_styles["use_global"]
+                            else None,
+                            "color": self.source_styles[style_key]["color"]
+                            if not self.source_styles["use_global"]
+                            else None,
+                            "alpha": self.source_styles[style_key]["alpha"]
+                            if not self.source_styles["use_global"]
+                            else None,
+                            "linewidth": self.source_styles[style_key]["linewidth"]
+                            if not self.source_styles["use_global"]
+                            else None,
+                            "sort_idx": sort_idx,
+                        }
+                    )
 
         self._source_list = sorted(src_list, key=lambda src: src["sort_idx"])
 
@@ -650,7 +652,9 @@ class ResultPlotGenerator(object):
         p_bar.increase()
 
         if rank == 0:
-            final_plot.savefig(savepath, dpi=self.dpi, transparent=True)
+            final_plot.savefig(
+                savepath, dpi=self.dpi, transparent=True, bbox_inches="tight"
+            )
 
         p_bar.increase()
 
