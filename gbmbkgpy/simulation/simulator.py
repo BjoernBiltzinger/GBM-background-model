@@ -470,7 +470,11 @@ class BackgroundSimulator(object):
 
         counts = trapz(count_rates, self._time_bins).T
 
-        return norm * counts
+        norm_array = np.array(norm)
+
+        assert norm_array.shape in [(), (len(self._echans),)]
+
+        return norm_array * counts
 
     def _simulate_saa(self, t0, norm, decay_constant):
 
@@ -507,11 +511,15 @@ class BackgroundSimulator(object):
             cr_count_rate[cr_count_rate > 0]
         )
 
-        cr_counts = norm * trapz(cr_count_rate, self._time_bins).T
+        cr_counts = trapz(cr_count_rate, self._time_bins).T
 
         counts_all_echans = np.tile(cr_counts, (len(self._echans), 1)).T
 
-        return counts_all_echans
+        norm_array = np.array(norm)
+
+        assert norm_array.shape in [(), (len(self._echans),)]
+
+        return norm_array * counts_all_echans
 
     def save_to_fits(self, overwrite=False):
 
