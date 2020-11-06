@@ -426,11 +426,12 @@ class StanDataExporter(object):
             mask_zero_counts[:: ndets * nechans]
         ]
 
-        # Set the first bin after the SAA passages to False to recover the
-        # zero bin mask.
+        # Mask the last bin before and the first bin after the SAA passages
+        # because the saa sections got cut out by the zero counts mask.
         jump_large = self._time_bins[1:, 0] - self._time_bins[0:-1, 1] > 10
-        idx = jump_large.nonzero()[0] + 1
+        idx = jump_large.nonzero()[0]
         self._saa_mask[idx] = False
+        self._saa_mask[idx + 1] = False
 
         self._mean_model_counts = np.mean(model_counts, axis=0)
 
