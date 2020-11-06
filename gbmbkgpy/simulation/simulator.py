@@ -704,7 +704,7 @@ class BackgroundSimulator(object):
                     self._ebin_in_edge,
                     mat_type=0,
                     ebin_edge_out=self._ebin_out_edge,
-                    occult=True,
+                    occult=False,
                 )
 
                 with progress_bar(
@@ -738,7 +738,7 @@ class BackgroundSimulator(object):
                         self._ebin_in_edge,
                         mat_type=0,
                         ebin_edge_out=self._ebin_out_edge,
-                        occult=True,
+                        occult=False,
                     )
                     matrix = drm.to_3ML_response_direct_sat_coord(az, zen).matrix
 
