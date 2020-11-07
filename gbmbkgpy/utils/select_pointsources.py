@@ -245,13 +245,13 @@ class SelectPointsources(object):
 
         return ps_dict
 
-    def filter_ps_by_separation(self, ra, dec, rates, min_separation):
+    def filter_ps_by_separation(self, ra, dec, ps_rates, min_separation):
         """
         Recursively filter point_sources by their separation to the other point sources.
         """
 
-        locations = np.column_stack((ra, dec))
-        orig_index = np.array(range(len(locations)))
+        ps_locations = np.column_stack((ra, dec))
+        original_index = np.array(range(len(locations)))
 
         def filter_recursive(orig_index, locations, rates, min_sep):
             # Get the index of the closesd neigbour and the separation
@@ -277,7 +277,7 @@ class SelectPointsources(object):
             # the brighter sources and their brighter neigbours
             keep_idx = np.concatenate(
                 (
-                    idx[~sep_small],
+                    orig_index[~sep_small],
                     has_close[~neigbour_brighter],
                     closest[neigbour_brighter],
                 )
@@ -294,7 +294,7 @@ class SelectPointsources(object):
             return filter_recursive(orig_index, locations, rates, min_sep)
 
         keep_index = filter_recursive(
-            orig_index, locations, rates, min_sep=min_separation
+            original_index, ps_locations, ps_rates, min_sep=min_separation
         )
 
         return keep_index
