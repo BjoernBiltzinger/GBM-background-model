@@ -291,9 +291,9 @@ class SelectPointsources(object):
             orig_index = orig_index[keep_index]
 
             # run recursivly to filter all sources
-            return filter_neigbours(orig_index, locations, rates, min_sep)
+            return filter_recursive(orig_index, locations, rates, min_sep)
 
-        keep_index = filter_neigbours(
+        keep_index = filter_recursive(
             orig_index, locations, rates, min_sep=min_separation
         )
 
