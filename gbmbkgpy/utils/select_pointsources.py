@@ -277,7 +277,7 @@ class SelectPointsources(object):
             # the brighter sources and their brighter neigbours
             keep_idx = np.concatenate(
                 (
-                    orig_index[~sep_small],
+                    np.where(~sep_small),
                     has_close[~neigbour_brighter],
                     closest[neigbour_brighter],
                 )
