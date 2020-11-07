@@ -207,15 +207,15 @@ class SelectPointsources(object):
 
         if self._min_separation_angle is not None:
             filtered_idx = self.filter_ps_by_separation(
-                ra, dec, rates, self._min_separation_angle
+                ra_s, dec_s, rates_s, self._min_separation_angle
             )
 
             names_s, rates_all_s, errors_all_s, ra_s, dec_s = (
-                names[filtered_idx],
-                rates_all[filtered_idx],
-                errors_all[filtered_idx],
-                ra[filtered_idx],
-                dec[filtered_idx],
+                names_s[filtered_idx],
+                rates_all_s[filtered_idx],
+                errors_all_s[filtered_idx],
+                ra_s[filtered_idx],
+                dec_s[filtered_idx],
             )
 
         ps_dict = {}
