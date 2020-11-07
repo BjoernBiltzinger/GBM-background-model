@@ -706,6 +706,9 @@ def build_point_sources(
 
         # Threshold flux which point sources should be added in units of Crab 15-50keV Flux
         limit = point_source_list["auto_swift"]["flux_limit"]
+        min_separation = point_source_list["auto_swift"].get(
+            "min_separation_angle", None
+        )
 
         # Use first day in data object to get the needed point sources
         day = data.dates[0]
@@ -727,6 +730,7 @@ def build_point_sources(
             limit,
             time_string=day,
             update=point_source_list["auto_swift"].get("update_catalog", None),
+            min_separation_angle=min_separation,
         )
 
         # Create temp file

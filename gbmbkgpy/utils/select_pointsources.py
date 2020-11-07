@@ -11,6 +11,8 @@ import h5py
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from astropy import units as u
+from astropy.coordinates import SkyCoord, match_coordinates_sky
 from astropy.time import Time
 from astropy.utils.data import download_file
 from gbmbkgpy.io.file_utils import if_dir_containing_file_not_existing_then_make
@@ -45,13 +47,22 @@ except:
 
 
 class SelectPointsources(object):
-    def __init__(self, limit1550Crab, time_string=None, mjd=None, update=None):
+    def __init__(
+        self,
+        limit1550Crab,
+        time_string=None,
+        mjd=None,
+        update=None,
+        min_separation_angle=None,
+    ):
         """
         :param limit1550Crab: Threshold in fractions of the Crab in the energy range 15-50 keV
         :param time_string: Day as string, e.g. 201201 fot 1st December 2020
         :param mjd: Day as mjd
         :param update: Update Catalog if selected time is outside file-range. \
         (True=force-update, False=no-update, None=ask)
+        :param min_distance: Minimal separation distance in degree between the individual point sources \
+        in case there are multiple ones keep the ps with higher rate
         """
         assert (time_string is None) or (
             mjd is None
@@ -76,6 +87,8 @@ class SelectPointsources(object):
         self._limit = (
             limit1550Crab * 0.000220 * 1000
         )  # 0.000220 cnts/s/cm^2 is 1 mCrab in 15-50 keV band for Swift
+
+        self._min_separation_angle = min_separation_angle
 
         self._bat_catalog = pd.read_table(
             get_path_of_data_file("background_point_sources/", "BAT_catalog_clean.dat"),
@@ -191,6 +204,20 @@ class SelectPointsources(object):
             ra[sign_indices],
             dec[sign_indices],
         )
+
+        if self._min_separation_angle is not None:
+            filtered_idx = self.filter_ps_by_separation(
+                ra, dec, rates, self._min_separation_angle
+            )
+
+            names_s, rates_all_s, errors_all_s, ra_s, dec_s = (
+                names[filtered_idx],
+                rates_all[filtered_idx],
+                errors_all[filtered_idx],
+                ra[filtered_idx],
+                dec[filtered_idx],
+            )
+
         ps_dict = {}
         for i in range(len(names_s)):
 
@@ -217,6 +244,60 @@ class SelectPointsources(object):
         self._ps_dict = ps_dict
 
         return ps_dict
+
+    def filter_ps_by_separation(self, ra, dec, rates, min_separation):
+        """
+        Recursively filter point_sources by their separation to the other point sources.
+        """
+
+        locations = np.dstack((ra, dec))
+        orig_index = np.array(range(len(locations)))
+
+        def filter_recursive(orig_index, locations, rates, min_sep):
+            # Get the index of the closesd neigbour and the separation
+            idx, sep, _ = match_coordinates_sky(
+                SkyCoord(locations, unit=(u.deg, u.deg)),
+                SkyCoord(locations, unit=(u.deg, u.deg)),
+                nthneighbor=2,
+            )
+            # Check where separation smaller than threshold
+            sep_small = sep.deg < min_sep
+
+            # If no neighbour "too close" return the idx of the sources to keep
+            if len(np.where(sep_small)[0]) == 0:
+                return orig_index
+
+            # sources with close neighbour and their close neigbours
+            (has_close,) = np.where(sep_small)
+            closest = idx[sep_small]
+
+            neigbour_brighter = rates[has_close] < rates[closest]
+
+            # keep the sources that don't have close neighbours,
+            # the brighter sources and their brighter neigbours
+            keep_idx = np.concatenate(
+                (
+                    idx[~sep_small],
+                    has_close[~neigbour_brighter],
+                    closest[neigbour_brighter],
+                )
+            )
+
+            # Only keep the unique ids, as some source could have the same brighter neighbour
+            keep_index = np.unique(keep_idx)
+
+            locations = locations[keep_index]
+            rates = rates[keep_index]
+            orig_index = orig_index[keep_index]
+
+            # run recursivly to filter all sources
+            return filter_neigbours(orig_index, locations, rates, min_sep)
+
+        keep_index = filter_neigbours(
+            orig_index, locations, rates, min_sep=min_separation
+        )
+
+        return keep_index
 
     def ps_time_variation(self):
         """
