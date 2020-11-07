@@ -268,7 +268,7 @@ class SelectPointsources(object):
                 return orig_index
 
             # sources with close neighbour and their close neigbours
-            (has_close,) = np.where(sep_small)
+            has_close = np.where(sep_small)[0]
             closest = idx[sep_small]
 
             neigbour_brighter = rates[has_close] < rates[closest]
@@ -277,7 +277,7 @@ class SelectPointsources(object):
             # the brighter sources and their brighter neigbours
             keep_idx = np.concatenate(
                 (
-                    np.where(~sep_small),
+                    np.where(~sep_small)[0],
                     has_close[~neigbour_brighter],
                     closest[neigbour_brighter],
                 )
