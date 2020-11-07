@@ -1,15 +1,10 @@
-import astropy.coordinates as coord
-import astropy.units as u
-from gbmgeometry.gbm_frame import GBMFrame
-from gbm_drm_gen.drmgen import DRMGen
-from scipy.interpolate import interpolate
-
-from gbmbkgpy.utils.progress_bar import progress_bar
-from gbmbkgpy.utils.spectrum import _spec_integral_pl, _spec_integral_bb
-from gbmbkgpy.io.package_data import get_path_of_data_file
-
 import numpy as np
 import pandas as pd
+from gbm_drm_gen.drmgen import DRMGen
+from gbmbkgpy.io.package_data import get_path_of_data_file
+from gbmbkgpy.utils.progress_bar import progress_bar
+from gbmbkgpy.utils.spectrum import _spec_integral_bb, _spec_integral_pl
+from scipy.interpolate import interpolate
 
 try:
 
