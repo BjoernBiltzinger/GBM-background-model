@@ -250,7 +250,7 @@ class SelectPointsources(object):
         Recursively filter point_sources by their separation to the other point sources.
         """
 
-        locations = np.dstack((ra, dec))
+        locations = np.column_stack((ra, dec))
         orig_index = np.array(range(len(locations)))
 
         def filter_recursive(orig_index, locations, rates, min_sep):
