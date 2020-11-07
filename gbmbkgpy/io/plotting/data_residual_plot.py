@@ -40,6 +40,7 @@ class ResidualPlot(object):
         self._ratio_residuals = False
         self._show_residuals = True
         self._ppc = False
+        self._nr_legend_elements = 0
 
         if "show_residuals" in kwargs:
             self._show_residuals = bool(kwargs.pop("show_residuals"))
@@ -170,6 +171,7 @@ class ResidualPlot(object):
                 alpha=value.get("alpha", 0.3),
                 label=key,
             )
+            self._nr_legend_elements += 1
 
     def add_occ_region(self, occ_region, time_ref):
         """
@@ -187,6 +189,7 @@ class ResidualPlot(object):
                 alpha=value.get("alpha", 0.1),
                 label=key,
             )
+            self._nr_legend_elements += 1
 
     def add_model(self, x, y, label, color, alpha=0.6, linewidth=2):
         """
@@ -201,6 +204,7 @@ class ResidualPlot(object):
         self._data_axis.plot(
             x, y, label=label, color=color, alpha=alpha, zorder=20, linewidth=linewidth
         )
+        self._nr_legend_elements += 1
 
     def add_posteriour(self, x, y, color="grey", alpha=0.002):
         """
@@ -235,6 +239,7 @@ class ResidualPlot(object):
                 zorder=18,
                 linewidth=linewidth,
             )
+            self._nr_legend_elements += 1
 
     def add_data(
         self,
@@ -280,6 +285,7 @@ class ResidualPlot(object):
                 zorder=15,
                 rasterized=rasterized,
             )
+            self._nr_legend_elements += 1
 
         # if we want to show the residuals
 
@@ -507,9 +513,17 @@ class ResidualPlot(object):
                 self._data_axis.legend(**legend_kwargs)
 
         elif show_legend and legend_outside:
-            box = self._data_axis.get_position()
-            self._data_axis.set_position([box.x0, box.y0, box.width * 0.8, box.height])
-            self._data_axis.legend(loc="center left", bbox_to_anchor=(1, 0.5))
+            ncol = 3
+            nr_rows = int(np.ceil(self._nr_legend_elements / ncol))
+            vertical_offset = -0.6 * nr_rows
+
+            self._data_axis.legend(
+                loc="lower center",
+                bbox_to_anchor=(0, vertical_offset, 1, 1),
+                bbox_transform=self._fig.transFigure,
+                ncol=ncol,
+                mode="expand",
+            )
 
         elif show_legend:
             self._data_axis.legend(fontsize="x-small", loc=0)
