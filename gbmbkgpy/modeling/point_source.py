@@ -122,7 +122,7 @@ class PointSrc_free(object):
     def set_time_variation_interp(self, interp):
         """
         Set an interpolator defining the time variation of the point source
-       """
+        """
         self._time_variation_interp = interp
 
     def _calc_det_responses(self):
@@ -271,7 +271,11 @@ class PointSrc_fixed(PointSrc_free):
         """
 
         folded_flux_ps = np.zeros(
-            (len(self._geom.geometry_times), len(self._detectors), len(self._echans),)
+            (
+                len(self._geom.geometry_times),
+                len(self._detectors),
+                len(self._echans),
+            )
         )
 
         for det_idx, det in enumerate(self._detectors):
@@ -316,7 +320,7 @@ class PointSrc_fixed(PointSrc_free):
             names=["name1", "name2", "pl_index"],
         )
 
-        res = bat.pl_index[bat[bat.name2 == self.name].index].values
+        res = bat.pl_index[bat[bat.name2.str.upper() == self.name.upper()].index].values
         if len(res) == 0:
             pl_index = 3
             if pr:
