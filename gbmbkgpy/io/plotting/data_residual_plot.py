@@ -492,8 +492,19 @@ class ResidualPlot(object):
             self._data_axis.set_title(axis_title)
 
         if show_legend and legend_kwargs is not None:
-            pass
-            # this is called after tight layout
+            if "bbox_transform" in legend_kwargs:
+                # Call with all legend kwargs except bbox_transform
+                # this has to be passed with the figure instance
+                self._data_axis.legend(
+                    bbox_transform=self._fig.transFigure,
+                    **{
+                        key: legend_kwargs[key]
+                        for key in legend_kwargs
+                        if key != "bbox_transform"
+                    }
+                )
+            else:
+                self._data_axis.legend(**legend_kwargs)
 
         elif show_legend and legend_outside:
             box = self._data_axis.get_position()
@@ -553,15 +564,6 @@ class ResidualPlot(object):
         # NOTE: this must be placed *after* tight_layout, otherwise it will be ineffective
 
         self._fig.subplots_adjust(hspace=0)
-
-        if show_legend and legend_kwargs is not None:
-            if "bbox_transform" in legend_kwargs:
-                legend_kwargs.pop("bbox_transform")
-                self._data_axis.legend(
-                    bbox_transform=self._fig.transFigure, **legend_kwargs
-                )
-            else:
-                self._data_axis.legend(**legend_kwargs)
 
         if invert_y:
             self._data_axis.set_ylim(self._data_axis.get_ylim()[::-1])
