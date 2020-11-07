@@ -492,7 +492,13 @@ class ResidualPlot(object):
             self._data_axis.set_title(axis_title)
 
         if show_legend and legend_kwargs is not None:
-            self._data_axis.legend(**legend_kwargs)
+            if "bbox_transform" in legend_kwargs:
+                legend_kwargs.pop("bbox_transform")
+                self._data_axis.legend(
+                    bbox_transform=self._fig.transFigure, **legend_kwargs
+                )
+            else:
+                self._data_axis.legend(**legend_kwargs)
 
         elif show_legend and legend_outside:
             box = self._data_axis.get_position()
