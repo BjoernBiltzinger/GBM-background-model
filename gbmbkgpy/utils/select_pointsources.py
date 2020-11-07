@@ -251,7 +251,7 @@ class SelectPointsources(object):
         """
 
         ps_locations = np.column_stack((ra, dec))
-        original_index = np.array(range(len(locations)))
+        original_index = np.array(range(len(ps_locations)))
 
         def filter_recursive(orig_index, locations, rates, min_sep):
             # Get the index of the closesd neigbour and the separation
