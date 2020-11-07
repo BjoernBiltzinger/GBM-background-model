@@ -197,7 +197,9 @@ class SelectPointsources(object):
             # Add the spectral power law index from the bat catalog if existing
             # if not use pl_index=3
             res = self._bat_catalog.pl_index[
-                self._bat_catalog[self._bat_catalog.name2 == names_s[i]].index
+                self._bat_catalog[
+                    self._bat_catalog.name2.str.upper() == names_s[i].upper()
+                ].index
             ].values
             if len(res) == 0:
                 pl_index = 3
