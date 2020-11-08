@@ -886,7 +886,7 @@ class BkgModelFunction(GlobalFunction):
             normalization=True,
         )
 
-        super(BgkModelFunction, self).__init__(K)
+        super(BkgModelFunction, self).__init__(K)
 
     def info(self):
         print("############### Class definition ###################")
