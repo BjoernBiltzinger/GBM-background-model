@@ -871,35 +871,6 @@ class BkgModelFunction(GlobalFunction):
     A function to import a previous bkg fit and only refit the normalization of the total model
     """
 
-    def __init__(self, coefficient_name):
-        """
-        Init one Parameter K
-        :param coefficient_name:
-        """
-
-        K = Parameter(
-            coefficient_name,
-            initial_value=1.0,
-            min_value=0,
-            max_value=None,
-            delta=0.1,
-            normalization=True,
-        )
-
-        super(BkgModelFunction, self).__init__(K)
-
-    def info(self):
-        print("############### Class definition ###################")
-        print("This is a global class with no spectral fitting")
-        print("Sources that use this class have a physical photon spectrum")
-        print("and we only fit the normalization of this photon spectrum")
-        print("to the data. This spectrum gets folded with the response to")
-        print("get the counts in the energy bins of GBM")
-        print("############### Paramerters ########################")
-        print("In this object these parameter are stored:")
-        for key, value in self._parameter_dict.items():
-            print(key)
-
     def set_detector_mask(self, det_mask):
         self._det_mask = det_mask
 
@@ -945,15 +916,3 @@ class BkgModelFunction(GlobalFunction):
         :return:
         """
         self._source_counts[~saa_mask] = 0.0
-
-    def _evaluate(self, K):
-        """
-        Evaulate this source, use numexpr to speed up.
-        :param K: the fitted parameter
-        :return:
-        """
-        source_counts = self._source_counts
-        return ne.evaluate("K*source_counts")
-
-    def __call__(self):
-        return self._evaluate(*self.parameter_value)
