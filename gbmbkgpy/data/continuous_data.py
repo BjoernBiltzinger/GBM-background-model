@@ -75,7 +75,7 @@ class Data(object):
 
         self._detectors = sorted(detectors)
 
-        self._detector_mask = np.zero(len(valid_det_names), dtype=bool)
+        self._detector_mask = np.zeros(len(valid_det_names), dtype=bool)
 
         for det in self._detectors:
             self._detector_mask[valid_det_names.index(det)] = True
