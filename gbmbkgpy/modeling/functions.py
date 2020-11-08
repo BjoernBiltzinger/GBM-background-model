@@ -821,7 +821,11 @@ class GlobalFunctionSpectrumFit(Function):
             self._temp = parameters[1]
 
         folded_flux = np.zeros(
-            (len(self._interpolation_times), len(self._detectors), len(self._echans),)
+            (
+                len(self._interpolation_times),
+                len(self._detectors),
+                len(self._echans),
+            )
         )
 
         for det_idx, det in enumerate(self._detectors):
@@ -859,4 +863,97 @@ class GlobalFunctionSpectrumFit(Function):
 
     def __call__(self):
 
+        return self._evaluate(*self.parameter_value)
+
+
+class BkgModelFunction(GlobalFunction):
+    """
+    A function to import a previous bkg fit and only refit the normalization of the total model
+    """
+
+    def __init__(self, coefficient_name):
+        """
+        Init one Parameter K
+        :param coefficient_name:
+        """
+
+        K = Parameter(
+            coefficient_name,
+            initial_value=1.0,
+            min_value=0,
+            max_value=None,
+            delta=0.1,
+            normalization=True,
+        )
+
+        super(BgkModelFunction, self).__init__(K)
+
+    def info(self):
+        print("############### Class definition ###################")
+        print("This is a global class with no spectral fitting")
+        print("Sources that use this class have a physical photon spectrum")
+        print("and we only fit the normalization of this photon spectrum")
+        print("to the data. This spectrum gets folded with the response to")
+        print("get the counts in the energy bins of GBM")
+        print("############### Paramerters ########################")
+        print("In this object these parameter are stored:")
+        for key, value in self._parameter_dict.items():
+            print(key)
+
+    def set_detector_mask(self, det_mask):
+        self._det_mask = det_mask
+
+    def set_echan_mask(self, echan_mask):
+        self._echan_mask = echan_mask
+
+    def set_time_bins(self, time_bins):
+        self._time_bins = time_bins
+        self._time_bin_means = np.mean(time_bins, axis=1)
+
+    def set_source_counts(self, source_counts):
+        self._source_counts_raw = source_counts
+
+    def set_source_time_bins(self, source_time_bins):
+        self._source_time_bins = source_time_bins
+        self._source_time_bin_means = np.mean(source_time_bins, axis=1)
+
+    def build_count_array(self):
+        source_counts_raw = self._source_counts_raw[:, self._det_mask, :]
+
+        if len(source_counts_raw.shape) == 3:
+            source_counts_raw = source_counts_raw[:, :, self._echan_mask]
+        else:
+            source_counts_raw = source_counts_raw[:, self._echan_mask]
+
+        if np.array_equal(self._time_bins, self._source_time_bins):
+
+            self._source_counts = source_counts_raw
+
+        else:
+            counts_interp = interpolate.interp1d(
+                self._source_time_bin_means, source_counts_raw, axis=0
+            )
+
+            source_counts = counts_interp(self._time_bin_means)
+
+            self._source_counts = source_counts
+
+    def set_saa_zero(self, saa_mask):
+        """
+        Set the SAA sections in the function array to zero
+        :param saa_mask:
+        :return:
+        """
+        self._source_counts[~saa_mask] = 0.0
+
+    def _evaluate(self, K):
+        """
+        Evaulate this source, use numexpr to speed up.
+        :param K: the fitted parameter
+        :return:
+        """
+        source_counts = self._source_counts
+        return ne.evaluate("K*source_counts")
+
+    def __call__(self):
         return self._evaluate(*self.parameter_value)

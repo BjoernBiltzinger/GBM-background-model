@@ -74,6 +74,12 @@ class Data(object):
         self._echan_mask_construction(echans)
 
         self._detectors = sorted(detectors)
+
+        self._detector_mask = np.zero(len(valid_det_names), dtype=bool)
+
+        for det in self._detectors:
+            self._detector_mask[valid_det_names.index(det)] = True
+
         self._dates = sorted(dates)
         self._echans = echans
         self._simulation = simulation
@@ -221,6 +227,14 @@ class Data(object):
         return self._detectors
 
     @property
+    def detector_mask(self):
+        """
+        Returns the used detector
+        :return:
+        """
+        return self._detector_mask
+
+    @property
     def day_start_times(self):
         """
         Returns the start time of the day
@@ -268,6 +282,14 @@ class Data(object):
         :return:
         """
         return self._echans
+
+    @property
+    def echan_mask(self):
+        """
+        Returns day_list
+        :return:
+        """
+        return self._echans_mask
 
     @property
     def data_type(self):
