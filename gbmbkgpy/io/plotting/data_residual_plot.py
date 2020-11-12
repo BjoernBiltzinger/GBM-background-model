@@ -515,7 +515,7 @@ class ResidualPlot(object):
         elif show_legend and legend_outside:
             ncol = 3
             nr_rows = int(np.ceil(self._nr_legend_elements / ncol))
-            vertical_offset = -0.6 * nr_rows
+            vertical_offset = -0.7 * nr_rows
 
             self._data_axis.legend(
                 loc="lower center",
