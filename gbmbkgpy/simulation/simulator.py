@@ -69,10 +69,6 @@ class BackgroundSimulator(object):
             "nb",
         ]
 
-        self._download_data()
-
-        self._setup_simulation()
-
     @classmethod
     def from_config_file(cls, config_yaml):
 
@@ -114,7 +110,8 @@ class BackgroundSimulator(object):
         self._poshist_file = poshistfile_path
 
     def _setup_simulation(self):
-
+        self._download_data()
+        
         # Setup geometry calculation
         position_interp = PositionInterpolator.from_poshist(self._poshist_file)
 
@@ -232,7 +229,8 @@ class BackgroundSimulator(object):
         self._fermi_active_intervals = fermi_active_intervals
 
     def run(self):
-
+        self._setup_simulation()
+        
         self._simulate_background()
 
         self._counts_detectors = self._counts_background
@@ -420,6 +418,26 @@ class BackgroundSimulator(object):
                 break_energy=spectrum["break_energy"],
                 index1=spectrum["index1"],
                 index2=spectrum["index2"],
+            )
+        
+        elif spectrum["model"] == "sum_broken_powerlaw":
+
+            flux = self._spec_integral_bpl(
+                e1=self._ebin_in_edge[:-1],
+                e2=self._ebin_in_edge[1:],
+                norm=spectrum["norm_1"],
+                break_energy=spectrum["break_energy_1"],
+                index1=spectrum["index1_1"],
+                index2=spectrum["index2_1"],
+            )
+
+            flux += self._spec_integral_bpl(
+                e1=self._ebin_in_edge[:-1],
+                e2=self._ebin_in_edge[1:],
+                norm=spectrum["norm_2"],
+                break_energy=spectrum["break_energy_2"],
+                index1=spectrum["index1_2"],
+                index2=spectrum["index2_2"],
             )
 
         else:
