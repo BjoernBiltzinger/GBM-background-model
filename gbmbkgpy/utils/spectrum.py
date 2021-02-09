@@ -16,7 +16,7 @@ if has_numba:
     ############### Spectra definitions ###########################
 
     # Numba Implementation
-    @njit(float64(float64, float64, float64, float64, float64), cache=True)
+    @njit(cache=True)
     def _spectrum_bpl(energy, c, break_energy, index1, index2):
         """
         Calculates the differential spectra
@@ -31,7 +31,7 @@ if has_numba:
             (energy / break_energy) ** index1 + (energy / break_energy) ** index2
         )
 
-    @njit(float64(float64, float64, float64, float64), cache=True)
+    @njit(cache=True)
     def _spectrum_pl(energy, c, e_norm, index):
         """
         Calculates the differential spectra
@@ -44,7 +44,7 @@ if has_numba:
 
         return c / (energy / e_norm) ** index
 
-    @njit(float64(float64, float64, float64), cache=True)
+    @njit(cache=True)
     def _spectrum_bb(energy, c, temp):
         """
         Calculates the differential spectra
@@ -59,7 +59,7 @@ if has_numba:
 
     ##################### Integration of spectra #############################
 
-    @njit(float64[:](float64[:], float64[:], float64, float64, float64), cache=True)
+    @njit(cache=True)
     def _spec_integral_pl(e1, e2, c, e_norm, index):
         """
         Calculates the flux of photons between two energies
@@ -81,7 +81,7 @@ if has_numba:
             )
         return res
 
-    @njit(float64[:](float64[:], float64[:], float64, float64), cache=True)
+    @njit(cache=True)
     def _spec_integral_bb(e1, e2, c, temp):
         """
         Calculates the flux of photons between two energies
@@ -104,7 +104,6 @@ if has_numba:
         return res
 
     @njit(
-        float64[:](float64[:], float64[:], float64, float64, float64, float64, float64),
         cache=True,
     )
     def _spec_integral_bb_pl(e1, e2, c_pl, e_norm, index, c_bb, temp):
@@ -139,7 +138,6 @@ if has_numba:
         return res
 
     @njit(
-        float64[:](float64[:], float64[:], float64, float64, float64, float64),
         cache=True,
     )
     def _spec_integral_bpl(e1, e2, c, break_energy, index1, index2):
