@@ -9,8 +9,10 @@ class StanModelConstructor(object):
     Object to construct the .stan model
     """
 
-    def __init__(self, model_generator):
+    def __init__(self, model_generator, profile=False):
 
+        self._profile = profile
+        
         data = model_generator.data
         model = model_generator.model
 
@@ -52,11 +54,11 @@ class StanModelConstructor(object):
         for k in sources.keys():
             if k == "Earth occultation":
                 self._use_free_earth = True
-            elif k == "CGB":
+            elif k == "cgb":
                 self._use_free_cgb = True
             else:
                 self._num_free_ps += 1
-
+        
         if self._num_free_ps > 0:
             self._use_free_ps = True
         else:
@@ -111,7 +113,6 @@ class StanModelConstructor(object):
                 "\t\t}\n"
                 "\t\treturn total_saa_counts;\n\t}\n\n"
             )
-
         # Main partial sum function
         main = "\treal partial_sum(int[] counts, int start, int stop\n"
 
@@ -133,7 +134,10 @@ class StanModelConstructor(object):
         if self._use_saa:
             main += "\t, matrix[] t_t0, vector[] saa_decay_vec, vector[] saa_norm_vec\n"
 
-        main += "\t){\n\t\treturn poisson_propto_lpmf(counts | 0\n"
+        main += "\t){\n"
+        #if self._profile:                                                                                
+        #    main += "\t\tprofile(\"loglike\"){\n"
+        main += "\t\treturn poisson_lpmf(counts | 0\n" # "\t\treturn poisson_propto_lpmf(counts | 0\n"
 
         if self._use_saa:
             for i in range(self._num_saa_exits):
@@ -163,7 +167,10 @@ class StanModelConstructor(object):
             for i in range(self._num_free_ps):
                 main += f"\t\t\t+base_response_array_free_ps[{i+1}, start:stop]*ps_spec[{i+1}]\n"
 
-        main += "\t\t\t);\n\t}\n"
+        main += "\t\t\t);\n"
+        #if self._profile:
+        #    main += "\t\t}\n"
+        main += "\t}\n"
 
         text = text + main + "}\n\n"
         return text
@@ -273,7 +280,8 @@ class StanModelConstructor(object):
 
     def trans_parameter_block(self):
         text = "transformed parameters { \n"
-
+        if self._profile:
+            text+="\tprofile(\"transform_parameter\"){\n"
         if self._use_fixed_global_sources:
             text += "\treal norm_fixed[num_fixed_comp] = exp(log_norm_fixed);\n"
 
@@ -324,7 +332,7 @@ class StanModelConstructor(object):
             text += (
                 "\tfor (j in 1:num_free_ps_comp){\n"
                 "\t\tfor (i in 1:rsp_num_Ein){\n"
-                "\t\t\tps_spec[j][i] = (Ebins_in[2,i]-Ebins_in[1,i])*norm_free_ps[j]*(pow(0.1*Ebins_in[1,i], -index_free_ps[j])+pow(0.1*Ebins_in[2,i], -index_free_ps[j]))/2;\n"
+                "\t\t\tps_spec[j][i] = (Ebins_in[2,i]-Ebins_in[1,i])*norm_free_ps[j]*(pow(Ebins_in[1,i], -index_free_ps[j])+pow(Ebins_in[2,i], -index_free_ps[j]))/2;\n"
                 "\t\t}\n\t}\n"
             )
 
@@ -341,27 +349,31 @@ class StanModelConstructor(object):
                 "\t\tcgb_spec[i] = (Ebins_in[2,i]-Ebins_in[1,i])*0.5*(norm_cgb/(pow(Ebins_in[1,i]/Eb_cgb, indices_cgb[1])+pow(Ebins_in[1,i]/Eb_cgb, indices_cgb[2]))+norm_cgb/(pow(Ebins_in[2,i]/Eb_cgb, indices_cgb[1])+pow(Ebins_in[2,i]/Eb_cgb, indices_cgb[2])));\n"
                 "\t}\n"
             )
-
+        if self._profile:
+            text += "\t}\n"
         text = text + "}\n\n"
         return text
 
     def model_block(self):
         text = "model { \n"
 
+        if self._profile:
+            text += "\tprofile(\"priors\"){\n"
+        
         # Priors - Fixed at the moment!:
         # TODO Use config file to get the priors!
         if self._use_fixed_global_sources:
             text += "\tlog_norm_fixed ~ normal(mu_norm_fixed, sigma_norm_fixed);\n"
 
         if self._use_free_earth:
-            text += "\talpha_earth ~ normal(-5, 2);\n"
-            text += "\tEc_earth ~ normal(30,4);\n"
+            text += "\talpha_earth ~ normal(1.72, 0.01);\n"
+            text += "\tEc_earth ~ normal(30,2);\n"
             text += "\tlog_norm_earth ~ normal(-4.1,0.5);\n"
 
         if self._use_free_cgb:
-            text += "\tindices_cgb[1] ~ normal(1.32, 0.2);\n"
-            text += "\tindices_cgb[2] ~ normal(2.88, 0.3);\n"
-            text += "\tEb_cgb ~ normal(35,5);\n"
+            text += "\tindices_cgb[1] ~ normal(1.32, 0.05);\n"
+            text += "\tindices_cgb[2] ~ normal(2.88, 0.05);\n"
+            text += "\tEb_cgb ~ normal(35,2);\n"
             text += "\tlog_norm_cgb ~ normal(-2.3,0.5);\n"
 
         if self._use_free_ps:
@@ -384,7 +396,9 @@ class StanModelConstructor(object):
                 "\t\t\tdecay_saa[:,d,e] ~ lognormal(mu_decay_saa[:, d, e],sigma_decay_saa[:, d, e]);\n"
                 "\t\t}\n\t}\n"
             )
-
+        if self._profile:
+            text += "\t}\n"
+            text += "\tprofile(\"reduce_sum\"){\n" 
         # Reduce sum call
         main = "\ttarget += reduce_sum(partial_sum, counts, grainsize\n"
         if self._use_fixed_global_sources:
@@ -406,7 +420,8 @@ class StanModelConstructor(object):
             main += "\t\t, t_t0, saa_decay_vec, saa_norm_vec\n"
 
         main += "\t);\n"
-
+        if self._profile:
+            main += "\t}\n" 
         text = text + main + "}\n\n"
         return text
 
@@ -493,7 +508,7 @@ class StanModelConstructor(object):
             keys.append("f_cgb")
 
         if self._use_free_ps:
-            keys.append("free_ps")
+            keys.append("f_free_ps")
 
         if self._use_saa:
             keys.append("f_saa")
@@ -688,7 +703,7 @@ class StanDataConstructor(object):
 
         mu_norm_cont = np.zeros((num_cont_sources, self._ndets, self._nechans))
         sigma_norm_cont = np.zeros((num_cont_sources, self._ndets, self._nechans))
-
+        
         for i, s in enumerate(list(self._model.continuum_sources.values())):
             if "constant" in s.name.lower():
                 index = 0
@@ -773,7 +788,7 @@ class StanDataConstructor(object):
                 ar[i] = rsp_detectors[det]
             if k == "Earth occultation":
                 base_response_array_earth = ar
-            elif k == "CGB":
+            elif k == "cgb":
                 base_response_array_cgb = ar
             else:
                 if base_rsp_ps_free is not None:
@@ -909,7 +924,7 @@ class StanDataConstructor(object):
                 det_idx_stan = det_idx + 1
 
             for d_idx, d in enumerate(self._dets):
-                saa_param_names[source_index, d_idx, s.echan] = f"{p.name}_{d}"
+                saa_param_names[source_index, d_idx, s.echan] = f"{s.name}_{d}"
 
             for p in s.parameters.values():
 
@@ -1028,13 +1043,13 @@ class StanDataConstructor(object):
             data_dict["sigma_norm_saa"] = self._sigma_norm_saa
             data_dict["mu_decay_saa"] = self._mu_decay_saa
             data_dict["sigma_decay_saa"] = self._sigma_decay_saa
-
+            
         if self._cont_counts is not None:
             data_dict["num_cont_comp"] = 2
             data_dict["base_counts_array_cont"] = self._cont_counts[:, mask_zeros]
             data_dict["mu_norm_cont"] = self._mu_norm_cont
             data_dict["sigma_norm_cont"] = self._sigma_norm_cont
-
+            
         # Stan grainsize for reduced_sum
         if self._threads == 1:
             data_dict["grainsize"] = 1
