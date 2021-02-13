@@ -55,9 +55,9 @@ class PointSrc_free(object):
         self._geom = geometry
 
         self._data_type = self._rsp[self._detectors[0]].data_type
-
+        
         self._echans = echans
-
+        
         if self._data_type == "ctime" or self._data_type == "trigdat":
             echans_mask = []
 
@@ -98,6 +98,20 @@ class PointSrc_free(object):
 
         self._echans_mask = echans_mask
 
+
+        Eout_edges = list(self._rsp.values())[0].Ebin_out_edge
+        Ebins = np.zeros((len(Eout_edges)-1,2))
+        Ebins[:,0] = Eout_edges[:-1]
+        Ebins[:,1] = Eout_edges[1:]
+        mi = np.zeros(len(self._echans_mask))
+        ma = np.zeros(len(self._echans_mask))
+        for i, mask in enumerate(self._echans_mask):
+            mi[i] = np.min(np.argwhere(mask))
+            ma[i] = np.max(np.argwhere(mask))
+        minindex = int(np.min(mi))
+        maxindex = int(np.max(ma)) 
+        self._piv = np.sqrt(Ebins[minindex,0]*Ebins[maxindex,1]) 
+                
         self._time_variation_interp = None
 
         self._calc_det_responses()
@@ -133,17 +147,20 @@ class PointSrc_free(object):
     def _response_one_det(self, det_response):
 
         response_matrix = []
-
+        d = DRMGen(
+            self._geom.quaternion[0],
+            self._geom.sc_pos[0],
+            det_response.det,
+            det_response.Ebin_in_edge,
+            mat_type=0,
+            ebin_edge_out=det_response.Ebin_out_edge,
+            )
         for j in range(len(self._geom.quaternion)):
-            all_response_step = (
-                DRMGen(
-                    self._geom.quaternion[j],
-                    self._geom.sc_pos[j],
-                    det_response.det,
-                    det_response.Ebin_in_edge,
-                    mat_type=0,
-                    ebin_edge_out=det_response.Ebin_out_edge,
-                )
+            d._quaternions = self._geom.quaternion[j]
+            d._sc_pos = self._geom.sc_pos[j]
+            d._compute_spacecraft_coordinates()
+            
+            all_response_step = (d
                 .to_3ML_response(self._ra, self._dec)
                 .matrix
             )
@@ -302,8 +319,7 @@ class PointSrc_fixed(PointSrc_free):
             return _spec_integral_bb(e1, e2, 1, self._bb_temp)
 
         if self._spec_type == "pl":
-            e_norm = 1.0
-            return _spec_integral_pl(e1, e2, 1, e_norm, self._pl_index)
+            return _spec_integral_pl(e1, e2, 1, self._piv, self._pl_index)
 
     def _get_swift_pl_index(self):
         """

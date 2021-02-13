@@ -393,6 +393,62 @@ def setup_ps(
     :param data:
     :return:
     """
+    #piv = np.mean(list(det_responses.responses.values())[0].Ebin_out_edge)
+
+    detectors = list(det_responses.responses.keys())
+    rsp = det_responses.responses
+    data_type = rsp[detectors[0]].data_type
+    if data_type == "ctime" or data_type == "trigdat":
+        echans_mask = []
+
+        for e in echans:
+            bounds = e.split("-")
+            mask = np.zeros(8, dtype=bool)
+            if len(bounds) == 1:
+                # Only one echan given
+                index = int(bounds[0])
+                mask[index] = True
+            else:
+                # Echan start and stop given
+                index_start = int(bounds[0])
+                index_stop = int(bounds[1])
+                mask[index_start : index_stop + 1] = np.ones(
+                    1 + index_stop - index_start, dtype=bool
+                )
+            echans_mask.append(mask)
+
+    elif data_type == "cspec":
+        echans_mask = []
+        
+        for e in echans:
+            bounds = e.split("-")
+            mask = np.zeros(128, dtype=bool)
+            if len(bounds) == 1:
+                # Only one echan given
+                index = int(bounds[0])
+                mask[index] = True
+            else:
+                # Echan start and stop given
+                index_start = int(bounds[0])
+                index_stop = int(bounds[1])
+                mask[index_start : index_stop + 1] = np.ones(
+                    1 + index_stop - index_start, dtype=bool
+                )
+            echans_mask.append(mask)
+
+    Eout_edges = rsp[detectors[0]].Ebin_out_edge
+    Ebins = np.zeros((len(Eout_edges)-1,2))
+    Ebins[:,0] = Eout_edges[:-1]
+    Ebins[:,1] = Eout_edges[1:]
+    mi = np.zeros(len(echans_mask))
+    ma = np.zeros(len(echans_mask))
+    for i, mask in enumerate(echans_mask):
+        mi[i] = np.min(np.argwhere(mask))
+        ma[i] = np.max(np.argwhere(mask))
+    minindex = int(np.min(mi))
+    maxindex = int(np.max(ma)) 
+    piv = np.sqrt(Ebins[minindex,0]*Ebins[maxindex,1])     
+    
     PS_Sources_list = []
 
     # Point-Source Sources
@@ -444,7 +500,7 @@ def setup_ps(
             PS_Continuum_dic["{}".format(ps.name)] = GlobalFunctionSpectrumFit(
                 "ps_{}_spectrum_fitted".format(ps.name),
                 spectrum=spec,
-                E_norm=1,
+                E_norm=piv,
                 use_numba=use_numba,
             )
 
@@ -747,7 +803,7 @@ def build_point_sources(
         else:
             if len(time_variable) > 0:
                 ps_time_var_interp = sp.ps_time_variation()
-        print(time_variable)
+        
         # Read it as pandas
         ps_df_add = pd.read_table(filepath, names=["name", "ra", "dec"])
         # Add all of them as fixed pl sources
