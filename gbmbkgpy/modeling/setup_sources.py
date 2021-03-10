@@ -67,6 +67,7 @@ def Setup(
     saa_decay_per_detector=False,
     saa_decay_at_day_start=True,
     saa_decay_model="exponential",
+    dets_saa="all",
     cr_approximation="MCL",
     use_numba=False,
 ):
@@ -124,9 +125,25 @@ def Setup(
                     saa_decay_at_day_start,
                     saa_decay_per_detector,
                     saa_decay_model,
+                    dets_saa,
                 )
             )
-
+            
+        elif saa_decay_at_day_start:
+            total_sources.extend(
+                setup_SAA_start_day(
+                    data,
+                    saa_object,
+                    echan,
+                    index,
+                    saa_decays_per_exit,
+                    saa_decay_at_day_start,
+                    saa_decay_per_detector,
+                    saa_decay_model,
+                    dets_saa,
+                )
+            )
+            
         if use_constant:
             total_sources.append(setup_Constant(data, saa_object, echan, index))
 
@@ -179,6 +196,113 @@ def Setup(
     return total_sources
 
 
+def setup_SAA_start_day(
+    data,
+    saa_object,
+    echan,
+    index,
+    decays_per_exit=1,
+    decay_at_day_start=True,
+    decay_per_detector=False,
+    decay_model="exponential",
+    dets_saa="all",
+):
+    """
+    Setup for SAA sources
+    :param decay_at_day_start:
+    :param decays_per_exit: Number of decays that should be fittet to each SAA Exit
+    :param decay_model: used model for decay: "exponential" or "linear"
+    :param index:
+    :param saa_object: SAA precalculation object
+    :param echan: energy channel
+    :param data: Data object
+    :return: List of all SAA decay sources
+    """
+
+    # SAA Decay Source
+    SAA_Decay_list = []
+    saa_n = 0
+    # Add 'SAA' decay at start of the day if fitting only one day to account for leftover excitation
+
+    day_start = []
+
+    if decay_at_day_start and len(data.day_met) <= 1:
+        for i in range(decays_per_exit):
+            day_start.append(data.day_met)
+
+    start_times = np.array(day_start).flatten()
+
+    for time in start_times:
+
+        if decay_per_detector:
+
+            if dets_saa=="all":
+                dets = data.detectors
+            else:
+                dets = []
+                for d in dets_saa:
+                    if d not in data.detectors:
+                        print(f"Detector {d} not in detector list. Can not add SAA decay.")
+                    else:
+                        dets.append(d)
+            print(dets_saa)            
+            for det_idx, det in enumerate(dets):
+
+                saa_dec = SAA_Decay(
+                    saa_number=str(saa_n),
+                    echan=str(echan),
+                    model=decay_model,
+                    detector=det,
+                    det_idx=det_idx,
+                )
+
+                saa_dec.set_saa_exit_time(np.array([time]))
+
+                saa_dec.set_time_bins(data.time_bins)
+
+                saa_dec.set_nr_detectors(len(data._detectors))
+
+                saa_dec.set_det_idx(det_idx)
+
+                # precalculation for later evaluation
+                saa_dec.precalulate_time_bins_integral()
+
+                SAA_Decay_list.append(
+                    SAASource(
+                        f"saa_{saa_n} det_{det} echan_{echan}",
+                        saa_dec,
+                        index,
+                    )
+                )
+
+            saa_n += 1
+
+        else:
+
+            saa_dec = SAA_Decay(
+                saa_number=str(saa_n),
+                echan=str(echan),
+                model=decay_model,
+                detector="all",
+                det_idx=None,
+            )
+
+            saa_dec.set_saa_exit_time(np.array([time]))
+
+            saa_dec.set_time_bins(data.time_bins)
+
+            saa_dec.set_nr_detectors(len(data._detectors))
+
+            # precalculation for later evaluation
+            saa_dec.precalulate_time_bins_integral()
+
+            SAA_Decay_list.append(
+                SAASource(f"saa_{saa_n} echan_{echan}", saa_dec, index)
+            )
+            saa_n += 1
+
+    return SAA_Decay_list
+
 def setup_SAA(
     data,
     saa_object,
@@ -218,7 +342,17 @@ def setup_SAA(
 
         if decay_per_detector:
 
-            for det_idx, det in enumerate(data.detectors):
+            if dets_saa=="all":
+                dets = data.detectors
+            else:
+                dets = []
+                for d in dets_saa:
+                    if d not in data.detectors:
+                        print(f"Detector {d} not in detector list. Can not add SAA decay.")
+                    else:
+                        dets.append(d)
+
+            for det_idx, det in enumerate(dets):
 
                 saa_dec = SAA_Decay(
                     saa_number=str(saa_n),

@@ -230,10 +230,22 @@ class BackgroundModelGenerator(object):
             saa_decay_at_day_start=config["saa"]["decay_at_day_start"],
             saa_decay_per_detector=config["saa"]["decay_per_detector"],
             saa_decay_model=config["saa"].get("decay_model", "exponential"),
+            dets_saa=config["saa"].get("dets_saa", "all"),
             cr_approximation=config["setup"]["cr_approximation"],
             use_numba=config["fit"].get("use_numba", False),
         )
 
+        # for stan later...
+        self._dets_saa=config["saa"].get("dets_saa", "all")
+        mask = []
+        for i, d in enumerate(self._dets_saa):
+            if d in config["general"]["detectors"]:
+                mask.append(i)
+        import numpy as np
+        self._dets_saa = np.array(self._dets_saa)[np.array(mask, dtype=int)]
+        print("########################")
+        print(self._dets_saa)
+        print("########################")
         print_progress("Done")
 
     def _instantiate_model(self, config):

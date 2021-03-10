@@ -211,7 +211,7 @@ class SAA_Decay(Function):
 
         self._t0 = self._saa_exit_time
         self._idx_start = self._time_bins[:, 0] < self._t0
-
+        
         self._tstart = self._time_bins[:, 0][~self._idx_start]
         self._tstop = self._time_bins[:, 1][~self._idx_start]
 
