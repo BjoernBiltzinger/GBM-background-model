@@ -5,7 +5,7 @@ import shutil
 import tempfile
 import urllib.request
 from multiprocessing import Pool
-
+import logging
 import astropy.io.fits as fits
 import h5py
 import matplotlib.pyplot as plt
@@ -659,9 +659,14 @@ def download_ps_file(save_swift_data_folder, remote_file_name, orbit_resolution=
         path_to_file = download_file(url)
         shutil.move(path_to_file, final_path)
     except:
-        url = f"https://swift.gsfc.nasa.gov/results/transients/{remote_file_name}{file_substring}.lc.fits"
-        path_to_file = download_file(url)
-        shutil.move(path_to_file, final_path)
+        try:
+            url = f"https://swift.gsfc.nasa.gov/results/transients/{remote_file_name}{file_substring}.lc.fits"
+            path_to_file = download_file(url)
+            shutil.move(path_to_file, final_path)
+        except Exception as e:
+            logging.exception(
+                f"Downloading the fits file for {remote_file_name} resulted in {e}"
+            )
 
 
 def build_swift_pointsource_database(
@@ -766,7 +771,7 @@ def build_swift_pointsource_database(
 
             if multiprocessing:
 
-                # this uses all available threds on the machine, this might not be save...
+                # this uses all available threads on the machine, this might not be safe...
                 with Pool() as pool:
 
                     if orbit_resolution:
