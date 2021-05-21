@@ -1,15 +1,10 @@
-import astropy.coordinates as coord
-import astropy.units as u
-from gbmgeometry.gbm_frame import GBMFrame
-from gbm_drm_gen.drmgen import DRMGen
-from scipy.interpolate import interpolate
-
-from gbmbkgpy.utils.progress_bar import progress_bar
-from gbmbkgpy.utils.spectrum import _spec_integral_pl, _spec_integral_bb
-from gbmbkgpy.io.package_data import get_path_of_data_file
-
 import numpy as np
 import pandas as pd
+from gbm_drm_gen.drmgen import DRMGen
+from gbmbkgpy.io.package_data import get_path_of_data_file
+from gbmbkgpy.utils.progress_bar import progress_bar
+from gbmbkgpy.utils.spectrum import _spec_integral_bb, _spec_integral_pl
+from scipy.interpolate import interpolate
 
 try:
 
@@ -23,13 +18,17 @@ try:
         comm = MPI.COMM_WORLD
         rank = comm.Get_rank()
         size = comm.Get_size()
-
+        if rank == 0:
+            pr = True
+        else:
+            pr = False
     else:
-
+        pr = True
         using_mpi = False
 except:
 
     using_mpi = False
+    pr = True
 
 
 class PointSrc_free(object):
@@ -47,8 +46,8 @@ class PointSrc_free(object):
         """
         self._name = name
 
-        self._ra = ra
-        self._dec = dec
+        self._ra = float(ra)
+        self._dec = float(dec)
 
         self._detectors = list(det_responses.responses.keys())
 
@@ -56,24 +55,64 @@ class PointSrc_free(object):
         self._geom = geometry
 
         self._data_type = self._rsp[self._detectors[0]].data_type
-
+        
         self._echans = echans
-
+        
         if self._data_type == "ctime" or self._data_type == "trigdat":
-
-            self._echan_mask = np.zeros(8, dtype=bool)
+            echans_mask = []
 
             for e in echans:
-
-                self._echan_mask[e] = True
+                bounds = e.split("-")
+                mask = np.zeros(8, dtype=bool)
+                if len(bounds) == 1:
+                    # Only one echan given
+                    index = int(bounds[0])
+                    mask[index] = True
+                else:
+                    # Echan start and stop given
+                    index_start = int(bounds[0])
+                    index_stop = int(bounds[1])
+                    mask[index_start : index_stop + 1] = np.ones(
+                        1 + index_stop - index_start, dtype=bool
+                    )
+                echans_mask.append(mask)
 
         elif self._data_type == "cspec":
-
-            self._echan_mask = np.zeros(128, dtype=bool)
+            echans_mask = []
 
             for e in echans:
+                bounds = e.split("-")
+                mask = np.zeros(128, dtype=bool)
+                if len(bounds) == 1:
+                    # Only one echan given
+                    index = int(bounds[0])
+                    mask[index] = True
+                else:
+                    # Echan start and stop given
+                    index_start = int(bounds[0])
+                    index_stop = int(bounds[1])
+                    mask[index_start : index_stop + 1] = np.ones(
+                        1 + index_stop - index_start, dtype=bool
+                    )
+                echans_mask.append(mask)
 
-                self._echan_mask[e] = True
+        self._echans_mask = echans_mask
+
+
+        Eout_edges = list(self._rsp.values())[0].Ebin_out_edge
+        Ebins = np.zeros((len(Eout_edges)-1,2))
+        Ebins[:,0] = Eout_edges[:-1]
+        Ebins[:,1] = Eout_edges[1:]
+        mi = np.zeros(len(self._echans_mask))
+        ma = np.zeros(len(self._echans_mask))
+        for i, mask in enumerate(self._echans_mask):
+            mi[i] = np.min(np.argwhere(mask))
+            ma[i] = np.max(np.argwhere(mask))
+        minindex = int(np.min(mi))
+        maxindex = int(np.max(ma)) 
+        self._piv = np.sqrt(Ebins[minindex,0]*Ebins[maxindex,1]) 
+                
+        self._time_variation_interp = None
 
         self._calc_det_responses()
 
@@ -89,6 +128,12 @@ class PointSrc_free(object):
         """
         return self._ps_response
 
+    def set_time_variation_interp(self, interp):
+        """
+        Set an interpolator defining the time variation of the point source
+        """
+        self._time_variation_interp = interp
+
     def _calc_det_responses(self):
 
         ps_response = {}
@@ -102,20 +147,32 @@ class PointSrc_free(object):
     def _response_one_det(self, det_response):
 
         response_matrix = []
-
-        for j in range(len(self._geom.quaternion)):
-            response_step = (
-                DRMGen(
-                    self._geom.quaternion[j],
-                    self._geom.sc_pos[j],
-                    det_response.det,
-                    det_response.Ebin_in_edge,
-                    mat_type=0,
-                    ebin_edge_out=det_response.Ebin_out_edge,
-                )
-                .to_3ML_response(self._ra, self._dec)
-                .matrix[self._echan_mask]
+        d = DRMGen(
+            self._geom.quaternion[0],
+            self._geom.sc_pos[0],
+            det_response.det,
+            det_response.Ebin_in_edge,
+            mat_type=0,
+            ebin_edge_out=det_response.Ebin_out_edge,
             )
+        for j in range(len(self._geom.quaternion)):
+            d._quaternions = self._geom.quaternion[j]
+            d._sc_pos = self._geom.sc_pos[j]
+            d._compute_spacecraft_coordinates()
+            
+            all_response_step = (d
+                .to_3ML_response(self._ra, self._dec)
+                .matrix
+            )
+
+            # sum the responses needed
+            response_step = np.zeros(
+                (len(self._echans_mask), len(all_response_step[0]))
+            )
+            for i, echan_mask in enumerate(self._echans_mask):
+                for j, entry in enumerate(echan_mask):
+                    if entry:
+                        response_step[i] += all_response_step[j]
 
             response_matrix.append(response_step.T)
 
@@ -205,6 +262,17 @@ class PointSrc_fixed(PointSrc_free):
         ps_rates = np.swapaxes(ps_rates, 1, 2)
         ps_rates = np.swapaxes(ps_rates, 2, 3)
 
+        if self._time_variation_interp is not None:
+
+            time_variation = np.tile(
+                self._time_variation_interp(met),
+                (len(self._echans), len(self._detectors), 1, 1),
+            )
+
+            time_variation = np.swapaxes(time_variation, 0, 2)
+
+            ps_rates = ps_rates * np.clip(time_variation, a_min=0, a_max=None)
+
         return ps_rates
 
     def _calc_ps_rates(self):
@@ -215,7 +283,11 @@ class PointSrc_fixed(PointSrc_free):
         """
 
         folded_flux_ps = np.zeros(
-            (len(self._geom.geometry_times), len(self._detectors), len(self._echans),)
+            (
+                len(self._geom.geometry_times),
+                len(self._detectors),
+                len(self._echans),
+            )
         )
 
         for det_idx, det in enumerate(self._detectors):
@@ -247,8 +319,7 @@ class PointSrc_fixed(PointSrc_free):
             return _spec_integral_bb(e1, e2, 1, self._bb_temp)
 
         if self._spec_type == "pl":
-            e_norm = 1.0
-            return _spec_integral_pl(e1, e2, 1, e_norm, self._pl_index)
+            return _spec_integral_pl(e1, e2, 1, self._piv, self._pl_index)
 
     def _get_swift_pl_index(self):
         """
@@ -260,20 +331,22 @@ class PointSrc_fixed(PointSrc_free):
             names=["name1", "name2", "pl_index"],
         )
 
-        res = bat.pl_index[bat[bat.name2 == self.name].index].values
+        res = bat.pl_index[bat[bat.name2.str.upper() == self.name.upper()].index].values
         if len(res) == 0:
             pl_index = 3
-            print(
-                f"No index found for {self.name} in the swift 105 month survey."
-                f" We will set the index to -{pl_index}"
-            )
+            if pr:
+                print(
+                    f"No index found for {self.name} in the swift 105 month survey."
+                    f" We will set the index to -{pl_index}"
+                )
 
         else:
             pl_index = float(res[0])
-            print(
-                f"Index for {self.name} is set to {-1*pl_index}"
-                " according to the Swift 105 month survey"
-            )
+            if pr:
+                print(
+                    f"Index for {self.name} is set to {-1*pl_index}"
+                    " according to the Swift 105 month survey"
+                )
 
         return pl_index
 

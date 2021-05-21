@@ -484,6 +484,7 @@ class GlobalFunctionSpectrumFit(Function):
         """
         self._E_norm = E_norm
         self._spec = spectrum
+        self._norm_time_variability = None
         if self._spec == "bpl":
             C = Parameter(
                 coefficient_name + "_norm",
@@ -646,6 +647,18 @@ class GlobalFunctionSpectrumFit(Function):
         self._detectors = detectors
         self._echans = echans
 
+    def set_norm_time_variability(self, norm_time_var):
+        """
+        Set temporal norm variiation
+        """
+        time_variation = np.tile(
+            norm_time_var, (len(self._echans), len(self._detectors), 1)
+        )
+
+        time_variation = np.swapaxes(time_variation, 0, 2)
+
+        self._norm_time_variability = np.clip(time_variation, a_min=0, a_max=None)
+
     def set_effective_responses(self, effective_responses):
         """
         effective response sum for all times for which the geometry was calculated (NO INTERPOLATION HERE)
@@ -732,6 +745,10 @@ class GlobalFunctionSpectrumFit(Function):
             self._source_counts = integrate.trapz(
                 folded_flux_all_dets, self._tiled_time_bins
             )
+
+        if self._norm_time_variability is not None:
+            self._source_counts *= self._norm_time_variability
+
         self._source_counts[~self._saa_mask] = 0.0
 
     def build_spec_integral(self):
@@ -804,7 +821,11 @@ class GlobalFunctionSpectrumFit(Function):
             self._temp = parameters[1]
 
         folded_flux = np.zeros(
-            (len(self._interpolation_times), len(self._detectors), len(self._echans),)
+            (
+                len(self._interpolation_times),
+                len(self._detectors),
+                len(self._echans),
+            )
         )
 
         for det_idx, det in enumerate(self._detectors):
@@ -843,3 +864,55 @@ class GlobalFunctionSpectrumFit(Function):
     def __call__(self):
 
         return self._evaluate(*self.parameter_value)
+
+
+class BkgModelFunction(GlobalFunction):
+    """
+    A function to import a previous bkg fit and only refit the normalization of the total model
+    """
+
+    def set_detector_mask(self, det_mask):
+        self._det_mask = det_mask
+
+    def set_echan_mask(self, echan_mask):
+        self._echan_mask = echan_mask
+
+    def set_time_bins(self, time_bins):
+        self._time_bins = time_bins
+        self._time_bin_means = np.mean(time_bins, axis=1)
+
+    def set_source_counts(self, source_counts):
+        self._source_counts_raw = source_counts
+
+    def set_source_time_bins(self, source_time_bins):
+        self._source_time_bins = source_time_bins
+        self._source_time_bin_means = np.mean(source_time_bins, axis=1)
+
+    def build_count_array(self):
+        source_counts_raw = self._source_counts_raw[:, self._det_mask, :]
+
+        if len(source_counts_raw.shape) == 3:
+            source_counts_raw = source_counts_raw[:, :, self._echan_mask]
+        else:
+            source_counts_raw = source_counts_raw[:, self._echan_mask]
+
+        if np.array_equal(self._time_bins, self._source_time_bins):
+
+            self._source_counts = source_counts_raw
+
+        else:
+            counts_interp = interpolate.interp1d(
+                self._source_time_bin_means, source_counts_raw, axis=0
+            )
+
+            source_counts = counts_interp(self._time_bin_means)
+
+            self._source_counts = source_counts
+
+    def set_saa_zero(self, saa_mask):
+        """
+        Set the SAA sections in the function array to zero
+        :param saa_mask:
+        :return:
+        """
+        self._source_counts[~saa_mask] = 0.0

@@ -95,6 +95,8 @@ class BackgroundModelGenerator(object):
 
         self._instantiate_likelihood(config)
 
+        self._mask_source_intervals(config)
+
     def _instantiate_data_class(self, config):
         print_progress("Prepare data...")
         self._data = Data(
@@ -139,7 +141,7 @@ class BackgroundModelGenerator(object):
         self._ep = ExternalProps(
             detectors=config["general"]["detectors"],
             dates=config["general"]["dates"],
-            bgo_cr_approximation=config["setup"]["bgo_cr_approximation"],
+            cr_approximation=config["setup"]["cr_approximation"],
         )
 
         print_progress("Done")
@@ -228,7 +230,7 @@ class BackgroundModelGenerator(object):
             saa_decay_at_day_start=config["saa"]["decay_at_day_start"],
             saa_decay_per_detector=config["saa"]["decay_per_detector"],
             saa_decay_model=config["saa"].get("decay_model", "exponential"),
-            bgo_cr_approximation=config["setup"]["bgo_cr_approximation"],
+            cr_approximation=config["setup"]["cr_approximation"],
             use_numba=config["fit"].get("use_numba", False),
         )
 
@@ -245,6 +247,7 @@ class BackgroundModelGenerator(object):
         print_progress("Done")
 
     def _build_parameter_bounds(self, config):
+
         parameter_bounds = {}
 
         # Echan individual sources
@@ -269,63 +272,45 @@ class BackgroundModelGenerator(object):
 
                             parameter_bounds[
                                 "norm_saa-{}_det-{}_echan-{}".format(saa_nr, det, e)
-                            ] = {
-                                "bounds": config["bounds"]["saa_bound"]["norm"],
-                                "gaussian_parameter": config["gaussian_bounds"][
-                                    "saa_bound"
-                                ]["norm"],
-                            }
+                            ] = config["priors"]["saa"]["norm"]
                             parameter_bounds[
                                 "decay_saa-{}_det-{}_echan-{}".format(saa_nr, det, e)
-                            ] = {
-                                "bounds": config["bounds"]["saa_bound"]["decay"],
-                                "gaussian_parameter": config["gaussian_bounds"][
-                                    "saa_bound"
-                                ]["decay"],
-                            }
+                            ] = config["priors"]["saa"]["decay"]
 
                     else:
 
                         parameter_bounds[
                             "norm_saa-{}_det-all_echan-{}".format(saa_nr, e)
-                        ] = {
-                            "bounds": config["bounds"]["saa_bound"]["norm"],
-                            "gaussian_parameter": config["gaussian_bounds"][
-                                "saa_bound"
-                            ]["norm"],
-                        }
+                        ] = config["priors"]["saa"]["norm"]
+
                         parameter_bounds[
                             "decay_saa-{}_det-all_echan-{}".format(saa_nr, e)
-                        ] = {
-                            "bounds": config["bounds"]["saa_bound"]["decay"],
-                            "gaussian_parameter": config["gaussian_bounds"][
-                                "saa_bound"
-                            ]["decay"],
-                        }
+                        ] = config["priors"]["saa"]["decay"]
 
             if config["setup"]["use_constant"]:
-                parameter_bounds["constant_echan-{}".format(e)] = {
-                    "bounds": config["bounds"]["cr_bound"]["const"],
-                    "gaussian_parameter": config["gaussian_bounds"]["cr_bound"][
-                        "const"
-                    ],
-                }
+
+                if f"cr_echan-{e}" in config["priors"]:
+                    parameter_bounds["norm_constant_echan-{}".format(e)] = config[
+                        "priors"
+                    ][f"cr_echan-{e}"]["const"]
+                else:
+                    parameter_bounds["norm_constant_echan-{}".format(e)] = config[
+                        "priors"
+                    ]["cr"]["const"]
 
             if config["setup"]["use_cr"]:
-                parameter_bounds["norm_magnetic_echan-{}".format(e)] = {
-                    "bounds": config["bounds"]["cr_bound"]["norm"],
-                    "gaussian_parameter": config["gaussian_bounds"]["cr_bound"]["norm"],
-                }
+                if f"cr_echan-{e}" in config["priors"]:
+                    parameter_bounds["norm_magnetic_echan-{}".format(e)] = config[
+                        "priors"
+                    ][f"cr_echan-{e}"]["norm"]
+                else:
+                    parameter_bounds["norm_magnetic_echan-{}".format(e)] = config[
+                        "priors"
+                    ]["cr"]["norm"]
 
         if config["setup"]["use_sun"]:
-            parameter_bounds["sun_norm"] = {
-                "bounds": config["bounds"]["sun_bound"]["norm"],
-                "gaussian_parameter": config["gaussian_bounds"]["sun_bound"]["norm"],
-            }
-            parameter_bounds["sun_index"] = {
-                "bounds": config["bounds"]["sun_bound"]["index"],
-                "gaussian_parameter": config["gaussian_bounds"]["sun_bound"]["index"],
-            }
+            parameter_bounds["sun_norm"] = config["priors"]["sun"]["norm"]
+            parameter_bounds["sun_index"] = config["priors"]["sun"]["index"]
         # Global sources for all echans
 
         # If PS spectrum is fixed only the normalization, otherwise C, index
@@ -339,224 +324,152 @@ class BackgroundModelGenerator(object):
                 exclude = [
                     entry.upper() for entry in config["setup"]["ps_list"][ps]["exclude"]
                 ]
+                free = [
+                    entry.upper() for entry in config["setup"]["ps_list"][ps]["free"]
+                ]
                 for row in ps_df_add.itertuples():
                     if row[1].upper() not in exclude:
-                        parameter_bounds[f"norm_point_source-{row[1]}_pl"] = {
-                            "bounds": config["bounds"]["ps_fixed_bound"]["pl"]["norm"],
-                            "gaussian_parameter": config["gaussian_bounds"][
-                                "ps_fixed_bound"
-                            ]["pl"]["norm"],
-                        }
+                        if row[1].upper() not in free:
+                            parameter_bounds[f"norm_{row[1]}_pl"] = config["priors"][
+                                "ps"
+                            ]["fixed"]["pl"]["norm"]
+                        else:
+                            parameter_bounds[
+                                f"ps_{row[1]}_spectrum_fitted_norm_pl".format(ps)
+                            ] = config["priors"]["ps"]["free"]["pl"]["norm"]
+                            parameter_bounds[
+                                f"ps_{row[1]}_spectrum_fitted_index".format(ps)
+                            ] = config["priors"]["ps"]["free"]["pl"]["index"]
             else:
                 if config["setup"]["ps_list"][ps]["fixed"]:
                     if ps[:4] != "list":
-                        for entry in config["setup"]["ps_list"][ps]["spectrum"]:
-                            parameter_bounds[f"norm_point_source-{ps}_{entry}"] = {
-                                "bounds": config["bounds"]["ps_fixed_bound"][entry][
-                                    "norm"
-                                ],
-                                "gaussian_parameter": config["gaussian_bounds"][
-                                    "ps_fixed_bound"
-                                ][entry]["norm"],
-                            }
+                        for spectrum in config["setup"]["ps_list"][ps]["spectrum"]:
+                            # Check if PS specific prior is passed
+                            if ps.upper() in config["priors"]["ps"]:
+                                parameter_bounds[f"norm_{ps}_{spectrum}"] = config[
+                                    "priors"
+                                ]["ps"][ps.upper()][spectrum]["norm"]
+                            # use generic one
+                            else:
+                                parameter_bounds[f"norm_{ps}_{spectrum}"] = config[
+                                    "priors"
+                                ]["ps"]["fixed"][spectrum]["norm"]
                     else:
                         ps_df_add = pd.read_table(
                             config["setup"]["ps_list"][ps]["path"],
                             names=["name", "ra", "dec"],
                         )
                         for row in ps_df_add.itertuples():
-                            for entry in config["setup"]["ps_list"][ps]["spectrum"]:
-                                parameter_bounds[
-                                    f"norm_point_source-{row[1]}_{entry}"
-                                ] = {
-                                    "bounds": config["bounds"]["ps_fixed_bound"][entry][
-                                        "norm"
-                                    ],
-                                    "gaussian_parameter": config["gaussian_bounds"][
-                                        "ps_fixed_bound"
-                                    ][entry]["norm"],
-                                }
+                            for spectrum in config["setup"]["ps_list"][ps]["spectrum"]:
+                                parameter_bounds[f"norm_{row[1]}_{spectrum}"] = config[
+                                    "priors"
+                                ]["ps"]["fixed"][spectrum]["norm"]
 
                 else:
                     if ps[:4] != "list":
-                        for entry in config["setup"]["ps_list"][ps]["spectrum"]:
-                            if entry == "pl":
+                        for spectrum in config["setup"]["ps_list"][ps]["spectrum"]:
+
+                            if spectrum == "pl":
                                 parameter_bounds[
                                     "ps_{}_spectrum_fitted_norm_pl".format(ps)
-                                ] = {
-                                    "bounds": config["bounds"]["ps_free_bound"][entry][
-                                        "norm"
-                                    ],
-                                    "gaussian_parameter": config["gaussian_bounds"][
-                                        "ps_free_bound"
-                                    ][entry]["norm"],
-                                }
+                                ] = config["priors"]["ps"]["free"][spectrum]["norm"]
                                 parameter_bounds[
                                     "ps_{}_spectrum_fitted_index".format(ps)
-                                ] = {
-                                    "bounds": config["bounds"]["ps_free_bound"][entry][
-                                        "index"
-                                    ],
-                                    "gaussian_parameter": config["gaussian_bounds"][
-                                        "ps_free_bound"
-                                    ][entry]["index"],
-                                }
-                            elif entry == "bb":
+                                ] = config["priors"]["ps"]["free"][spectrum]["index"]
+
+                            elif spectrum == "bb":
 
                                 parameter_bounds[
                                     "ps_{}_spectrum_fitted_norm_bb".format(ps)
-                                ] = {
-                                    "bounds": config["bounds"]["ps_free_bound"][entry][
-                                        "norm"
-                                    ],
-                                    "gaussian_parameter": config["gaussian_bounds"][
-                                        "ps_free_bound"
-                                    ][entry]["norm"],
-                                }
+                                ] = config["priors"]["ps"]["free"][spectrum]["norm"]
                                 parameter_bounds[
                                     "ps_{}_spectrum_fitted_temp".format(ps)
-                                ] = {
-                                    "bounds": config["bounds"]["ps_free_bound"][entry][
-                                        "temp"
-                                    ],
-                                    "gaussian_parameter": config["gaussian_bounds"][
-                                        "ps_free_bound"
-                                    ][entry]["temp"],
-                                }
+                                ] = config["priors"]["ps"]["free"][spectrum]["temp"]
+
                     else:
                         ps_df_add = pd.read_table(
                             config["setup"]["ps_list"][ps]["path"],
                             names=["name", "ra", "dec"],
                         )
                         for row in ps_df_add.itertuples():
-                            for entry in config["setup"]["ps_list"][ps]["spectrum"]:
-                                if entry == "pl":
+
+                            for spectrum in config["setup"]["ps_list"][ps]["spectrum"]:
+
+                                if spectrum == "pl":
+
                                     parameter_bounds[
                                         f"ps_{row[1]}_spectrum_fitted_norm_pl"
-                                    ] = {
-                                        "bounds": config["bounds"]["ps_free_bound"][
-                                            entry
-                                        ]["norm"],
-                                        "gaussian_parameter": config["gaussian_bounds"][
-                                            "ps_free_bound"
-                                        ][entry]["norm"],
-                                    }
+                                    ] = config["priors"]["ps"]["free"][spectrum]["norm"]
                                     parameter_bounds[
                                         f"ps_{row[1]}_spectrum_fitted_index"
-                                    ] = {
-                                        "bounds": config["bounds"]["ps_free_bound"][
-                                            entry
-                                        ]["index"],
-                                        "gaussian_parameter": config["gaussian_bounds"][
-                                            "ps_free_bound"
-                                        ][entry]["index"],
-                                    }
-                                elif entry == "bb":
+                                    ] = config["priors"]["ps"]["free"][spectrum][
+                                        "index"
+                                    ]
+
+                                elif spectrum == "bb":
 
                                     parameter_bounds[
                                         f"ps_{row[1]}_spectrum_fitted_norm_bb"
-                                    ] = {
-                                        "bounds": config["bounds"]["ps_free_bound"][
-                                            entry
-                                        ]["norm"],
-                                        "gaussian_parameter": config["gaussian_bounds"][
-                                            "ps_free_bound"
-                                        ][entry]["norm"],
-                                    }
+                                    ] = config["priors"]["ps"]["free"][spectrum]["norm"]
+
                                     parameter_bounds[
                                         f"ps_{row[1]}_spectrum_fitted_temp"
-                                    ] = {
-                                        "bounds": config["bounds"]["ps_free_bound"][
-                                            entry
-                                        ]["temp"],
-                                        "gaussian_parameter": config["gaussian_bounds"][
-                                            "ps_free_bound"
-                                        ][entry]["temp"],
-                                    }
+                                    ] = config["priors"]["ps"]["free"][spectrum]["temp"]
 
         if config["setup"]["use_earth"]:
             # If earth spectrum is fixed only the normalization, otherwise C, index1, index2 and E_break
             if config["setup"]["fix_earth"]:
-                parameter_bounds["norm_earth_albedo"] = {
-                    "bounds": config["bounds"]["earth_fixed_bound"]["norm"],
-                    "gaussian_parameter": config["gaussian_bounds"][
-                        "earth_fixed_bound"
-                    ]["norm"],
-                }
+                parameter_bounds["norm_earth_albedo"] = config["priors"]["earth"][
+                    "fixed"
+                ]["norm"]
             else:
-                parameter_bounds["earth_albedo_spectrum_fitted_norm"] = {
-                    "bounds": config["bounds"]["earth_free_bound"]["norm"],
-                    "gaussian_parameter": config["gaussian_bounds"]["earth_free_bound"][
-                        "norm"
-                    ],
-                }
-                parameter_bounds["earth_albedo_spectrum_fitted_index1"] = {
-                    "bounds": config["bounds"]["earth_free_bound"]["alpha"],
-                    "gaussian_parameter": config["gaussian_bounds"]["earth_free_bound"][
-                        "alpha"
-                    ],
-                }
-                parameter_bounds["earth_albedo_spectrum_fitted_index2"] = {
-                    "bounds": config["bounds"]["earth_free_bound"]["beta"],
-                    "gaussian_parameter": config["gaussian_bounds"]["earth_free_bound"][
-                        "beta"
-                    ],
-                }
-                parameter_bounds["earth_albedo_spectrum_fitted_break_energy"] = {
-                    "bounds": config["bounds"]["earth_free_bound"]["Eb"],
-                    "gaussian_parameter": config["gaussian_bounds"]["earth_free_bound"][
-                        "Eb"
-                    ],
-                }
+                parameter_bounds["earth_albedo_spectrum_fitted_norm"] = config[
+                    "priors"
+                ]["earth"]["free"]["norm"]
+                parameter_bounds["earth_albedo_spectrum_fitted_index1"] = config[
+                    "priors"
+                ]["earth"]["free"]["alpha"]
+                parameter_bounds["earth_albedo_spectrum_fitted_index2"] = config[
+                    "priors"
+                ]["earth"]["free"]["beta"]
+                parameter_bounds["earth_albedo_spectrum_fitted_break_energy"] = config[
+                    "priors"
+                ]["earth"]["free"]["Eb"]
 
         if config["setup"]["use_cgb"]:
             # If cgb spectrum is fixed only the normalization, otherwise C, index1, index2 and E_break
             if config["setup"]["fix_cgb"]:
-                parameter_bounds["norm_cgb"] = {
-                    "bounds": config["bounds"]["cgb_fixed_bound"]["norm"],
-                    "gaussian_parameter": config["gaussian_bounds"]["cgb_fixed_bound"][
-                        "norm"
-                    ],
-                }
+                parameter_bounds["norm_cgb"] = config["priors"]["cgb"]["fixed"]["norm"]
             else:
-                parameter_bounds["CGB_spectrum_fitted_norm"] = {
-                    "bounds": config["bounds"]["cgb_free_bound"]["norm"],
-                    "gaussian_parameter": config["gaussian_bounds"]["cgb_free_bound"][
-                        "norm"
-                    ],
-                }
-                parameter_bounds["CGB_spectrum_fitted_index1"] = {
-                    "bounds": config["bounds"]["cgb_free_bound"]["alpha"],
-                    "gaussian_parameter": config["gaussian_bounds"]["cgb_free_bound"][
-                        "alpha"
-                    ],
-                }
-                parameter_bounds["CGB_spectrum_fitted_index2"] = {
-                    "bounds": config["bounds"]["cgb_free_bound"]["beta"],
-                    "gaussian_parameter": config["gaussian_bounds"]["cgb_free_bound"][
-                        "beta"
-                    ],
-                }
-                parameter_bounds["CGB_spectrum_fitted_break_energy"] = {
-                    "bounds": config["bounds"]["cgb_free_bound"]["Eb"],
-                    "gaussian_parameter": config["gaussian_bounds"]["cgb_free_bound"][
-                        "Eb"
-                    ],
-                }
+                parameter_bounds["CGB_spectrum_fitted_norm"] = config["priors"]["cgb"][
+                    "free"
+                ]["norm"]
+                parameter_bounds["CGB_spectrum_fitted_index1"] = config["priors"][
+                    "cgb"
+                ]["free"]["alpha"]
+                parameter_bounds["CGB_spectrum_fitted_index2"] = config["priors"][
+                    "cgb"
+                ]["free"]["beta"]
+                parameter_bounds["CGB_spectrum_fitted_break_energy"] = config["priors"][
+                    "cgb"
+                ]["free"]["Eb"]
 
         if config["setup"]["use_eff_area_correction"]:
             for det in sorted(config["general"]["detectors"])[1:]:
-                parameter_bounds[f"eff_area_corr_{det}"] = {
-                    "bounds": config["bounds"]["eff_area_correction"],
-                    "gaussian_parameter": config["gaussian_bounds"][
+
+                if "eff_area_correction_{det}" in config["priors"]:
+                    parameter_bounds[f"eff_area_corr_{det}"] = config["priors"][
+                        f"eff_area_correction_{det}"
+                    ]
+                else:
+                    parameter_bounds[f"eff_area_corr_{det}"] = config["priors"][
                         "eff_area_correction"
-                    ],
-                }
+                    ]
 
         self._parameter_bounds = parameter_bounds
 
         # Add bounds to the parameters for multinest
-        self._model.set_parameter_bounds(self._parameter_bounds)
+        self._model.set_parameter_priors(self._parameter_bounds)
 
     def _instantiate_likelihood(self, config):
         # Class that calcualtes the likelihood
@@ -568,6 +481,12 @@ class BackgroundModelGenerator(object):
             use_numba=config["fit"].get("use_numba", False),
         )
         print_progress("Done")
+
+    def _mask_source_intervals(self, config):
+
+        if "mask_intervals" in config:
+
+            self._background_like.mask_source_intervals(config["mask_intervals"])
 
     @property
     def data(self):
@@ -634,8 +553,8 @@ class TrigdatBackgroundModelGenerator(BackgroundModelGenerator):
 
         self._ep = ExternalProps(
             detectors=config["general"]["detectors"],
-            bgo_cr_approximation=config["setup"]["bgo_cr_approximation"],
-            trig_data=self._data
+            cr_approximation=config["setup"]["cr_approximation"],
+            trig_data=self._data,
         )
 
         print_progress("Done")

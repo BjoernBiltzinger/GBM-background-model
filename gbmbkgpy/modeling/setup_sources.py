@@ -67,7 +67,7 @@ def Setup(
     saa_decay_per_detector=False,
     saa_decay_at_day_start=True,
     saa_decay_model="exponential",
-    bgo_cr_approximation=False,
+    cr_approximation="MCL",
     use_numba=False,
 ):
     """
@@ -132,9 +132,7 @@ def Setup(
 
         if use_cr:
             total_sources.append(
-                setup_CosmicRays(
-                    data, ep, saa_object, echan, index, bgo_cr_approximation
-                )
+                setup_CosmicRays(data, ep, saa_object, echan, index, cr_approximation)
             )
 
     if use_sun:
@@ -243,7 +241,7 @@ def setup_SAA(
 
                 SAA_Decay_list.append(
                     SAASource(
-                        "saa_{:d} det_{} echan_{}".format(saa_n, det, echan),
+                        f"saa_{saa_n} det_{det} echan_{echan}",
                         saa_dec,
                         index,
                     )
@@ -271,7 +269,7 @@ def setup_SAA(
             saa_dec.precalulate_time_bins_integral()
 
             SAA_Decay_list.append(
-                SAASource("saa_{:d} echan_{}".format(saa_n, echan), saa_dec, index)
+                SAASource(f"saa_{saa_n} echan_{echan}", saa_dec, index)
             )
             saa_n += 1
 
@@ -303,7 +301,7 @@ def setup_Constant(data, saa_object, echan, index):
     """
     Constant source
     """
-    Constant = ContinuumFunction(f"constant_echan-{echan}")
+    Constant = ContinuumFunction(f"norm_constant_echan-{echan}")
 
     Constant.set_function_array(np.ones((len(data.time_bins), len(data._detectors), 2)))
 
@@ -312,13 +310,11 @@ def setup_Constant(data, saa_object, echan, index):
     # precalculate the integration over the time bins
     Constant.integrate_array(data.time_bins)
 
-    Constant_Continuum = ContinuumSource(
-        "Constant_echan_{:d}".format(echan), Constant, index
-    )
+    Constant_Continuum = ContinuumSource(f"constant_echan-{echan}", Constant, index)
     return Constant_Continuum
 
 
-def setup_CosmicRays(data, ep, saa_object, echan, index, bgo_cr_approximation):
+def setup_CosmicRays(data, ep, saa_object, echan, index, cr_approximation):
     """
     Setup for CosmicRay source
     :param index:
@@ -329,7 +325,7 @@ def setup_CosmicRays(data, ep, saa_object, echan, index, bgo_cr_approximation):
     :return: Constant and magnetic continuum source
     """
     mag_con = ContinuumFunction(f"norm_magnetic_echan-{echan}")
-    if bgo_cr_approximation:
+    if cr_approximation == "BGO":
 
         mag_con.set_function_array(ep.bgo_cr_approximation((data.time_bins)))
 
@@ -340,10 +336,10 @@ def setup_CosmicRays(data, ep, saa_object, echan, index, bgo_cr_approximation):
         mag_con.integrate_array(data.time_bins)
 
         Source_Magnetic_Continuum = ContinuumSource(
-            "BGO_CR_Approx_echan_{:d}".format(echan), mag_con, index
+            f"BGO_CR_Approx_echan-{echan}", mag_con, index
         )
 
-    else:
+    elif cr_approximation == "MCL":
 
         mag_con.set_function_array(ep.mc_l_rates((data.time_bins)))
 
@@ -355,7 +351,22 @@ def setup_CosmicRays(data, ep, saa_object, echan, index, bgo_cr_approximation):
         mag_con.integrate_array(data.time_bins)
 
         Source_Magnetic_Continuum = ContinuumSource(
-            "McIlwain_L-parameter_echan_{:d}".format(echan), mag_con, index
+            f"McIlwain_L-parameter_echan-{echan}", mag_con, index
+        )
+
+    else:
+
+        mag_con.set_function_array(ep.acd_cr_approximation(data.time_bins))
+
+        mag_con.set_saa_zero(saa_object.saa_mask)
+
+        mag_con.remove_vertical_movement()
+
+        # precalculate the integration over the time bins
+        mag_con.integrate_array(data.time_bins)
+
+        Source_Magnetic_Continuum = ContinuumSource(
+            f"LAT_ACD-parameter_echan-{echan}", mag_con, index
         )
 
     return Source_Magnetic_Continuum
@@ -382,6 +393,62 @@ def setup_ps(
     :param data:
     :return:
     """
+    #piv = np.mean(list(det_responses.responses.values())[0].Ebin_out_edge)
+
+    detectors = list(det_responses.responses.keys())
+    rsp = det_responses.responses
+    data_type = rsp[detectors[0]].data_type
+    if data_type == "ctime" or data_type == "trigdat":
+        echans_mask = []
+
+        for e in echans:
+            bounds = e.split("-")
+            mask = np.zeros(8, dtype=bool)
+            if len(bounds) == 1:
+                # Only one echan given
+                index = int(bounds[0])
+                mask[index] = True
+            else:
+                # Echan start and stop given
+                index_start = int(bounds[0])
+                index_stop = int(bounds[1])
+                mask[index_start : index_stop + 1] = np.ones(
+                    1 + index_stop - index_start, dtype=bool
+                )
+            echans_mask.append(mask)
+
+    elif data_type == "cspec":
+        echans_mask = []
+        
+        for e in echans:
+            bounds = e.split("-")
+            mask = np.zeros(128, dtype=bool)
+            if len(bounds) == 1:
+                # Only one echan given
+                index = int(bounds[0])
+                mask[index] = True
+            else:
+                # Echan start and stop given
+                index_start = int(bounds[0])
+                index_stop = int(bounds[1])
+                mask[index_start : index_stop + 1] = np.ones(
+                    1 + index_stop - index_start, dtype=bool
+                )
+            echans_mask.append(mask)
+
+    Eout_edges = rsp[detectors[0]].Ebin_out_edge
+    Ebins = np.zeros((len(Eout_edges)-1,2))
+    Ebins[:,0] = Eout_edges[:-1]
+    Ebins[:,1] = Eout_edges[1:]
+    mi = np.zeros(len(echans_mask))
+    ma = np.zeros(len(echans_mask))
+    for i, mask in enumerate(echans_mask):
+        mi[i] = np.min(np.argwhere(mask))
+        ma[i] = np.max(np.argwhere(mask))
+    minindex = int(np.min(mi))
+    maxindex = int(np.max(ma)) 
+    piv = np.sqrt(Ebins[minindex,0]*Ebins[maxindex,1])     
+    
     PS_Sources_list = []
 
     # Point-Source Sources
@@ -390,10 +457,20 @@ def setup_ps(
         geometry=geometry,
         echans=echans,
         point_source_list=point_source_list,
-        data=data
+        data=data,
     )
 
     PS_Continuum_dic = {}
+    if "auto_swift" in point_source_list.keys():
+        filepath = os.path.join(
+            get_path_of_external_data_dir(), "tmp", "ps_auto_swift.dat"
+        )
+        ps_df_add = pd.read_table(filepath, names=["name", "ra", "dec"])
+
+        auto_swift_ps = [entry[1].upper() for entry in ps_df_add.itertuples()]
+        exclude = [
+            entry.upper() for entry in point_source_list["auto_swift"]["exclude"]
+        ]
 
     for i, (key, ps) in enumerate(point_sources.items()):
 
@@ -402,23 +479,28 @@ def setup_ps(
             identifier = "_".join(key.split("_")[:-1])
             if identifier == "":
                 identifier = key
-            print(identifier)
-            if "bb" in point_source_list[identifier]["spectrum"]:
-                if "pl" in point_source_list[identifier]["spectrum"]:
-                    spec = "bb+pl"
-                else:
-                    spec = "bb"
-            elif "pl" in point_source_list[identifier]["spectrum"]:
-                spec = "pl"
-            else:
-                raise NotImplementedError(
-                    "Only pl or bb or both spectra for point sources!"
-                )
 
+            if (identifier.upper() in auto_swift_ps) and (
+                identifier.upper() not in exclude
+            ):
+                spec = "pl"
+
+            else:
+                if "bb" in point_source_list[identifier]["spectrum"]:
+                    if "pl" in point_source_list[identifier]["spectrum"]:
+                        spec = "bb+pl"
+                    else:
+                        spec = "bb"
+                elif "pl" in point_source_list[identifier]["spectrum"]:
+                    spec = "pl"
+                else:
+                    raise NotImplementedError(
+                        "Only pl or bb or both spectra for point sources!"
+                    )
             PS_Continuum_dic["{}".format(ps.name)] = GlobalFunctionSpectrumFit(
                 "ps_{}_spectrum_fitted".format(ps.name),
                 spectrum=spec,
-                E_norm=1,
+                E_norm=piv,
                 use_numba=use_numba,
             )
 
@@ -446,6 +528,15 @@ def setup_ps(
 
             PS_Continuum_dic["{}".format(ps.name)].set_responses(responses=ps.responses)
 
+            if ps._time_variation_interp is None:
+                PS_Continuum_dic["{}".format(ps.name)].set_norm_time_variability(
+                    np.ones_like(np.mean(data.time_bins, axis=1))
+                )
+            else:
+                PS_Continuum_dic["{}".format(ps.name)].set_norm_time_variability(
+                    ps._time_variation_interp(np.mean(data.time_bins, axis=1))
+                )
+
             PS_Sources_list.append(
                 FitSpectrumSource(
                     name="{}".format(ps.name),
@@ -457,7 +548,7 @@ def setup_ps(
 
             spec_name = ps.spec_type
             PS_Continuum_dic[f"{ps.name}_{spec_name}"] = GlobalFunction(
-                f"norm_point_source-{ps.name}_{spec_name}"
+                f"norm_{ps.name}_{spec_name}"
             )
 
             PS_Continuum_dic[f"{ps.name}_{spec_name}"].set_function_array(
@@ -531,7 +622,7 @@ def setup_earth_fix(data, albedo_cgb_object, saa_object):
 
     earth_albedo.integrate_array(data.time_bins)
 
-    Source_Earth_Albedo_Continuum = GlobalSource("Earth Albedo", earth_albedo)
+    Source_Earth_Albedo_Continuum = GlobalSource("earth_albedo", earth_albedo)
 
     return Source_Earth_Albedo_Continuum
 
@@ -564,7 +655,7 @@ def setup_cgb_free(data, albedo_cgb_object, saa_object, use_numba=False):
 
     cgb.set_responses(responses=albedo_cgb_object.responses)
 
-    Source_CGB_Continuum = FitSpectrumSource(name="CGB", continuum_shape=cgb)
+    Source_CGB_Continuum = FitSpectrumSource(name="cgb", continuum_shape=cgb)
 
     return Source_CGB_Continuum
 
@@ -585,7 +676,7 @@ def setup_cgb_fix(data, albedo_cgb_object, saa_object):
 
     cgb.integrate_array(data.time_bins)
 
-    Source_CGB_Albedo_Continuum = GlobalSource("CGB", cgb)
+    Source_CGB_Albedo_Continuum = GlobalSource("cgb", cgb)
 
     return Source_CGB_Albedo_Continuum
 
@@ -600,16 +691,19 @@ def build_point_sources(
     :param source_list:
     :return:
     """
-    file_path = get_path_of_data_file("background_point_sources/", "point_sources.dat")
+    file_path = get_path_of_data_file(
+        "background_point_sources/", "point_sources_swift.dat"
+    )
     ps_df = pd.read_table(file_path, names=["name", "ra", "dec"])
 
     # instantiate dic of point source objects
     point_sources_dic = {}
 
     ### Single core calc ###
-    for row in ps_df.itertuples():
-        for i, ps in enumerate(point_source_list):
+    for i, ps in enumerate(point_source_list):
+        for row in ps_df.itertuples():
             if row[1] == ps:
+
                 if not point_source_list[ps]["fixed"]:
                     point_sources_dic[row[1]] = PointSrc_free(
                         name=row[1],
@@ -631,6 +725,7 @@ def build_point_sources(
                             echans=echans,
                             spec=point_source_list[ps]["spectrum"][entry],
                         )
+                break
 
     # Add the point sources that are given as file with list of point sources
     for i, ps in enumerate(point_source_list):
@@ -667,6 +762,9 @@ def build_point_sources(
 
         # Threshold flux which point sources should be added in units of Crab 15-50keV Flux
         limit = point_source_list["auto_swift"]["flux_limit"]
+        min_separation = point_source_list["auto_swift"].get(
+            "min_separation_angle", None
+        )
 
         # Use first day in data object to get the needed point sources
         day = data.dates[0]
@@ -674,19 +772,38 @@ def build_point_sources(
         # Exclude some of them?
         exclude = point_source_list["auto_swift"]["exclude"]
         exclude = [entry.upper() for entry in exclude]
+        free = point_source_list["auto_swift"].get("free", [])
+        free = [entry.upper() for entry in free]
+        time_variable = point_source_list["auto_swift"].get("time_variable", False)
+
+        all_time_variable_same = True
+        if type(time_variable) is not bool:
+            time_variable = [entry.upper() for entry in time_variable]
+            all_time_variable_same = False
+
         # Initalize Pointsource selection
         sp = SelectPointsources(
             limit,
             time_string=day,
-            update=point_source_list["auto_swift"].get("update_catalog", None)
+            update=point_source_list["auto_swift"].get("update_catalog", None),
+            min_separation_angle=min_separation,
         )
 
         # Create temp file
-        filepath = os.path.join(get_path_of_external_data_dir(), "tmp", "ps_auto_swift.dat")
+        filepath = os.path.join(
+            get_path_of_external_data_dir(), "tmp", "ps_auto_swift.dat"
+        )
 
         # Write information in temp
         sp.write_psfile(filepath)
 
+        if all_time_variable_same:
+            if time_variable:
+                ps_time_var_interp = sp.ps_time_variation()
+        else:
+            if len(time_variable) > 0:
+                ps_time_var_interp = sp.ps_time_variation()
+        
         # Read it as pandas
         ps_df_add = pd.read_table(filepath, names=["name", "ra", "dec"])
         # Add all of them as fixed pl sources
@@ -694,16 +811,43 @@ def build_point_sources(
 
         for row in ps_df_add.itertuples():
             if not row[1].upper() in exclude:
+                if row[1].upper() in free:
+                    point_sources_dic[f"{row[1]}_pl"] = PointSrc_free(
+                        name=row[1],
+                        ra=row[2],
+                        dec=row[3],
+                        det_responses=det_responses,
+                        geometry=geometry,
+                        echans=echans,
+                    )
 
-                point_sources_dic[f"{row[1]}_pl"] = PointSrc_fixed(
-                    name=row[1],
-                    ra=row[2],
-                    dec=row[3],
-                    det_responses=det_responses,
-                    geometry=geometry,
-                    echans=echans,
-                    spec=spec,
-                )
+                else:
+
+                    point_sources_dic[f"{row[1]}_pl"] = PointSrc_fixed(
+                        name=row[1],
+                        ra=row[2],
+                        dec=row[3],
+                        det_responses=det_responses,
+                        geometry=geometry,
+                        echans=echans,
+                        spec=spec,
+                    )
+
+                if all_time_variable_same:
+
+                    if time_variable:
+                        print(f"Point source {row[1]} is set to variate with time")
+
+                        point_sources_dic[f"{row[1]}_pl"].set_time_variation_interp(
+                            ps_time_var_interp[row[1]]
+                        )
+                else:
+                    if row[1].upper() in ",".join(time_variable):
+                        print(f"Point source {row[1]} is set to variate with time")
+
+                        point_sources_dic[f"{row[1]}_pl"].set_time_variation_interp(
+                            ps_time_var_interp[row[1]]
+                        )
         # temp.close()
 
     return point_sources_dic

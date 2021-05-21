@@ -11,7 +11,6 @@ import astropy.io.fits as fits
 from gbmbkgpy.utils.progress_bar import progress_bar
 
 try:
-
     # see if we have mpi and/or are upalsing parallel
 
     from mpi4py import MPI
@@ -24,11 +23,21 @@ try:
         size = comm.Get_size()
 
     else:
-
         using_mpi = False
 except:
-
     using_mpi = False
+
+if using_mpi:
+    using_multiprocessing = False
+else:
+    try:
+        from pathos.multiprocessing import cpu_count
+        from pathos.pools import ProcessPool as Pool
+
+        using_multiprocessing = True
+
+    except:
+        using_multiprocessing = False
 
 valid_det_names = [
     "n0",
@@ -44,7 +53,7 @@ valid_det_names = [
     "na",
     "nb",
     "b0",
-    "b1"
+    "b1",
 ]
 
 
@@ -70,7 +79,7 @@ class Response_Precalculation(object):
         for det in sorted(detectors):
             responses[det] = Det_Response_Precalculation(
                 det,
-                sorted(echans),
+                echans,
                 dates,
                 Ngrid,
                 Ebin_edge_incoming,
@@ -138,40 +147,19 @@ class Det_Response_Precalculation(object):
             )
 
         assert (
-            data_type == "ctime" or data_type == "cspec " or data_type == "trigdat"
+            data_type == "ctime" or data_type == "cspec" or data_type == "trigdat"
         ), "Please use a valid data_type (ctime, cspec or trigdat). Your input is {}.".format(
             data_type
         )
 
-        if data_type == "ctime":
-            assert (
-                type(echans)
-                and max(echans) <= 7
-                and min(echans) >= 0
-                and all(isinstance(x, int) for x in echans)
-            ), "Echan_list variable must be a list and can only have integer entries between 0 and 7"
-
-        if data_type == "cspec":
-            assert (
-                type(echans)
-                and max(echans) <= 127
-                and min(echans) >= 0
-                and all(isinstance(x, int) for x in echans)
-            ), "Echan_list variable must be a list and can only have integer entries between 0 and 7"
-
         if data_type == "trigdat":
-            assert (
-                type(echans)
-                and max(echans) <= 7
-                and min(echans) >= 0
-                and all(isinstance(x, int) for x in echans)
-            ), "Echan_list variable must be a list and can only have integer entries between 0 and 7"
-
             assert (
                 trigger is not None
             ), "If you use trigdat data you have to provide a trigger."
 
         self._data_type = data_type
+
+        self._echan_mask_construction(echans)
 
         self._echans = echans
 
@@ -182,14 +170,6 @@ class Det_Response_Precalculation(object):
         # Translate the n0-nb and b0,b1 notation to the detector 0-14 notation that is used
         # by the response generator
         self._det = valid_det_names.index(det)
-
-        if self._data_type == "ctime" or self._data_type == "trigdat":
-            self._echan_mask = np.zeros(8, dtype=bool)
-            self._echan_mask[self._echans] = True
-
-        elif self._data_type == "cspec":
-            self._echan_mask = np.zeros(128, dtype=bool)
-            self._echan_mask[self._echans] = True
 
         if Ebin_edge_incoming is None:
             # Incoming spectrum between ~3 and ~5000 keV in 300 bins
@@ -220,6 +200,8 @@ class Det_Response_Precalculation(object):
                 print(f"Load response cache for detector {det}")
 
                 self._load_response_cache(response_cache_file)
+
+                self._get_needed_responses()
 
             else:
 
@@ -274,8 +256,6 @@ class Det_Response_Precalculation(object):
             # Calculate the reponse for all points on the unit sphere
             self._calculate_responses()
 
-        self._get_needed_responses()
-
     @property
     def points(self):
         return self._points
@@ -311,6 +291,67 @@ class Det_Response_Precalculation(object):
     @property
     def data_type(self):
         return self._data_type
+
+    def _echan_mask_construction(self, echans):
+        """
+        Construct the echan masks for the reconstructed energy ranges
+        :param echans: list with echans
+        """
+        if self._data_type == "ctime" or self._data_type == "trigdat":
+            echans_mask = []
+            for e in echans:
+                bounds = e.split("-")
+                mask = np.zeros(8, dtype=bool)
+                if len(bounds) == 1:
+                    # Only one echan given
+                    index = int(bounds[0])
+                    assert (
+                        index <= 7 and index >= 0
+                    ), "Only Echan numbers between 0 and 7 are allowed"
+                    mask[index] = True
+                else:
+                    # Echan start and stop given
+                    index_start = int(bounds[0])
+                    index_stop = int(bounds[1])
+                    assert (
+                        index_start <= 7 and index_start >= 0
+                    ), "Only Echan numbers between 0 and 7 are allowed"
+                    assert (
+                        index_stop <= 7 and index_stop >= 0
+                    ), "Only Echan numbers between 0 and 7 are allowed"
+                    mask[index_start : index_stop + 1] = np.ones(
+                        1 + index_stop - index_start, dtype=bool
+                    )
+                echans_mask.append(mask)
+
+        if self._data_type == "cspec":
+            echans_mask = []
+            for e in echans:
+                bounds = e.split("-")
+                mask = np.zeros(128, dtype=bool)
+                if len(bounds) == 1:
+                    # Only one echan given
+                    index = int(bounds[0])
+                    assert (
+                        index <= 127 and index >= 0
+                    ), "Only Echan numbers between 0 and 127 are allowed"
+                    mask[index] = True
+                else:
+                    # Echan start and stop given
+                    index_start = int(bounds[0])
+                    index_stop = int(bounds[1])
+                    assert (
+                        index_start <= 127 and index_start >= 0
+                    ), "Only Echan numbers between 0 and 127 are allowed"
+                    assert (
+                        index_stop <= 127 and index_stop >= 0
+                    ), "Only Echan numbers between 0 and 127 are allowed"
+                    mask[index_start : index_stop + 1] = np.ones(
+                        1 + index_stop - index_start, dtype=bool
+                    )
+                echans_mask.append(mask)
+
+        self._echans_mask = echans_mask
 
     def set_Ebin_edge_incoming(self, Ebin_edge_incoming):
         """
@@ -376,9 +417,24 @@ class Det_Response_Precalculation(object):
         """
         Get the needed reponses for this run
         """
-        self._response_array = self.all_response_array[:, :, self._echan_mask]
+        self._response_array = self._add_response_echan(self._all_response_array)
         # We do not need this anymore
         del self._all_response_array
+
+    def _add_response_echan(self, response_array):
+        """
+        Add the responses of the needed echans and combined echans
+        :return:
+        """
+        sum_response = np.zeros(
+            (len(response_array), len(response_array[0]), len(self._echans_mask))
+        )
+        for i, echan_mask in enumerate(self._echans_mask):
+            for j, entry in enumerate(echan_mask):
+                if entry:
+                    sum_response[:, :, i] += response_array[:, :, j]
+
+        return sum_response
 
     def _response(self, x, y, z, DRM):
         """
@@ -410,7 +466,7 @@ class Det_Response_Precalculation(object):
             self.Ebin_in_edge,
             mat_type=0,
             ebin_edge_out=self._Ebin_out_edge,
-            occult=True
+            occult=False,
         )
 
         # If MPI is used split up the points among the used cores to speed up
@@ -467,20 +523,21 @@ class Det_Response_Precalculation(object):
                     responses_g = np.concatenate(responses_g)
 
                 # broadcast the resulting list to all ranks
-                responses = comm.bcast(responses_g, root=0)
+                responses = self._add_response_echan(comm.bcast(responses_g, root=0))
 
             else:
+                num_per_run = 4000.0
                 # Split the grid points in runs with 4000 points each
-                num_split = int(np.ceil(self._Ngrid / 4000.0))
+                num_split = int(np.ceil(self._Ngrid / num_per_run))
 
                 # Save start and stop index of every run
-                N_grid_start = np.arange(0, num_split * 4000, 4000)
+                N_grid_start = np.arange(0, num_split * num_per_run, num_per_run)
                 N_grid_stop = np.array([])
                 for i in range(num_split):
                     if i == num_split - 1:
                         N_grid_stop = np.append(N_grid_stop, self._Ngrid)
                     else:
-                        N_grid_stop = np.append(N_grid_stop, (i + 1) * 4000)
+                        N_grid_stop = np.append(N_grid_stop, (i + 1) * num_per_run)
 
                 # Calcualte the response for all runs and save them as separate arrays in one big array
                 responses_all_split = []
@@ -540,12 +597,47 @@ class Det_Response_Precalculation(object):
                     responses_split = comm.bcast(responses_split_g, root=0)
 
                     # Add results of this run to the big array
-                    responses_all_split.append(responses_split)
-
+                    responses_all_split.append(
+                        self._add_response_echan(responses_split)
+                    )
+                    del responses_split, responses_split_g
                 # Concatenate the big array to get one array with length Ngrid where the entries are the responses
                 # of the points
 
                 responses = np.concatenate(responses_all_split)
+
+        elif using_multiprocessing:
+            print(
+                f"Calculating detector response for {self.detector} with multiprocessing."
+            )
+
+            def get_response(point):
+                x, y, z = point[0], point[1], point[2]
+
+                zen = np.arcsin(z) * 180 / np.pi
+                az = np.arctan2(y, x) * 180 / np.pi
+
+                drm = DRMGen(
+                    np.array([0.0745, -0.105, 0.0939, 0.987]),
+                    np.array([-5.88 * 10 ** 6, -2.08 * 10 ** 6, 2.97 * 10 ** 6]),
+                    self._det,
+                    self.Ebin_in_edge,
+                    mat_type=0,
+                    ebin_edge_out=self._Ebin_out_edge,
+                    occult=False,
+                )
+                matrix = drm.to_3ML_response_direct_sat_coord(az, zen).matrix
+
+                return matrix.T
+
+            multiprocessing_n_cores = int(
+                os.environ.get("gbm_bkg_multiprocessing_n_cores", cpu_count())
+            )
+
+            with Pool(multiprocessing_n_cores) as pool:
+                responses = pool.map(get_response, self._points)
+
+            responses = self._add_response_echan(np.array(responses))
 
         else:
             with progress_bar(
@@ -560,8 +652,9 @@ class Det_Response_Precalculation(object):
                     matrix = self._response(point[0], point[1], point[2], DRM).matrix
                     responses.append(matrix.T)
                     p.increase()
+                responses = self._add_response_echan(np.array(responses))
 
-        self._all_response_array = np.array(responses)
+        self._response_array = np.array(responses)
 
     def _fibonacci_sphere(self, samples=1):
         """
