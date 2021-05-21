@@ -19,6 +19,8 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    result_plot_generator = ResultPlotGenerator.from_result_file(args.config, args.data_path)
+    result_plot_generator = ResultPlotGenerator.from_result_file(
+        args.config, args.data_path
+    )
 
     result_plot_generator.create_plots(args.output_dir)

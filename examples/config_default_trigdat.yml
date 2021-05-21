@@ -9,7 +9,7 @@ general:
   trigger:    'bn200412381'
   detectors:   ['n1']
   data_type:  'trigdat'
-  echans: [3]
+  echans: ["3"]
   min_bin_width: 1.0e-99
 
 ################# Input for response precalculation [how many grid poits?] ##########################
@@ -69,7 +69,7 @@ bounds:
     const:  [1.0e-1, 1.0e+2]
     norm:   [0.1, 1.0e+2]
   earth_fixed_bound:
-    norm:   [0.5e-2, 3e-2]
+    norm:   [0.5e-2, 3.0e-2]
   cgb_fixed_bound:
     norm:   [4.0e-2, 0.3]
   earth_free_bound:
@@ -84,12 +84,12 @@ bounds:
     Eb:     [27, 40]
   ps_fixed_bound:
     pl:
-      norm:   [1.0e-4, 1e9]
+      norm:   [1.0e-4, 1.0e+9]
     bb:
-      norm:   [1.0e-4, 1e9]
+      norm:   [1.0e-4, 1.0e+9]
   ps_free_bound:
     pl:
-      norm:   [1.0e-1, 1e5]
+      norm:   [1.0e-1, 1.0e+5]
       index:  [0,4]
     bb:
       norm:   [1.0e-4, 10000]
@@ -142,7 +142,7 @@ fit:
   method: 'multinest'
   multinest:
     num_live_points: 400
-    constant_efficiency_mode: false
+    constant_efficiency_mode: true
   use_numba: true
 
 ##################### Input for Result Export  ######################################################

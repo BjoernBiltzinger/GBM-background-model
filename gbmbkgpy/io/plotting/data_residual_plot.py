@@ -24,7 +24,7 @@ try:
         rank = 0
         using_mpi = False
 except:
-
+    rank = 0
     using_mpi = False
 
 
@@ -40,6 +40,7 @@ class ResidualPlot(object):
         self._ratio_residuals = False
         self._show_residuals = True
         self._ppc = False
+        self._nr_legend_elements = 0
 
         if "show_residuals" in kwargs:
             self._show_residuals = bool(kwargs.pop("show_residuals"))
@@ -170,6 +171,7 @@ class ResidualPlot(object):
                 alpha=value.get("alpha", 0.3),
                 label=key,
             )
+            self._nr_legend_elements += 1
 
     def add_occ_region(self, occ_region, time_ref):
         """
@@ -187,6 +189,7 @@ class ResidualPlot(object):
                 alpha=value.get("alpha", 0.1),
                 label=key,
             )
+            self._nr_legend_elements += 1
 
     def add_model(self, x, y, label, color, alpha=0.6, linewidth=2):
         """
@@ -201,6 +204,7 @@ class ResidualPlot(object):
         self._data_axis.plot(
             x, y, label=label, color=color, alpha=alpha, zorder=20, linewidth=linewidth
         )
+        self._nr_legend_elements += 1
 
     def add_posteriour(self, x, y, color="grey", alpha=0.002):
         """
@@ -215,14 +219,14 @@ class ResidualPlot(object):
 
     def add_list_of_sources(self, x, source_list):
         """
-         Add a list of model sources and interpolate them across the time span for the plotting.
-         :param source_list:
-         :param x: the evaluation energies
-         :param y: the model values
-         :param label: the label of the model
-         :param color: the color of the model
-         :return: None
-         """
+        Add a list of model sources and interpolate them across the time span for the plotting.
+        :param source_list:
+        :param x: the evaluation energies
+        :param y: the model values
+        :param label: the label of the model
+        :param color: the color of the model
+        :return: None
+        """
         for i, source in enumerate(source_list):
             alpha = source.get("alpha", 0.6)
             linewidth = source.get("linewidth", 2)
@@ -235,6 +239,7 @@ class ResidualPlot(object):
                 zorder=18,
                 linewidth=linewidth,
             )
+            self._nr_legend_elements += 1
 
     def add_data(
         self,
@@ -280,6 +285,7 @@ class ResidualPlot(object):
                 zorder=15,
                 rasterized=rasterized,
             )
+            self._nr_legend_elements += 1
 
         # if we want to show the residuals
 
@@ -328,7 +334,7 @@ class ResidualPlot(object):
         :param model: Model object
         :param time_bin: Time bins where to compute ppc steps
         :param saa_mask: Mask which time bins are set to zero
-        :param echan: Which echan 
+        :param echan: Which echan
         :param q_levels: At which levels the ppc should be plotted
         :param colors: colors for the different q_level
         """
@@ -450,8 +456,8 @@ class ResidualPlot(object):
         else:
             if rank == 0:
                 for i, level in enumerate(q_levels):
-                    low = np.percentile(rebinned_ppc_rates, 50 - 50 * level, axis=0)[0]
-                    high = np.percentile(rebinned_ppc_rates, 50 + 50 * level, axis=0)[0]
+                    low = np.percentile(rebinned_ppc_rates, 50 - 50 * level, axis=0)
+                    high = np.percentile(rebinned_ppc_rates, 50 + 50 * level, axis=0)
                     self._data_axis.fill_between(
                         rebinned_time_bin_mean, low, high, color=colors[i], alpha=alpha
                     )
@@ -492,12 +498,32 @@ class ResidualPlot(object):
             self._data_axis.set_title(axis_title)
 
         if show_legend and legend_kwargs is not None:
-            self._data_axis.legend(**legend_kwargs)
+            if "bbox_transform" in legend_kwargs:
+                # Call with all legend kwargs except bbox_transform
+                # this has to be passed with the figure instance
+                self._data_axis.legend(
+                    bbox_transform=self._fig.transFigure,
+                    **{
+                        key: legend_kwargs[key]
+                        for key in legend_kwargs
+                        if key != "bbox_transform"
+                    }
+                )
+            else:
+                self._data_axis.legend(**legend_kwargs)
 
         elif show_legend and legend_outside:
-            box = self._data_axis.get_position()
-            self._data_axis.set_position([box.x0, box.y0, box.width * 0.8, box.height])
-            self._data_axis.legend(loc="center left", bbox_to_anchor=(1, 0.5))
+            ncol = 3
+            nr_rows = int(np.ceil(self._nr_legend_elements / ncol))
+            vertical_offset = -0.7 * nr_rows
+
+            self._data_axis.legend(
+                loc="lower center",
+                bbox_to_anchor=(0, vertical_offset, 1, 1),
+                bbox_transform=self._fig.transFigure,
+                ncol=ncol,
+                mode="expand",
+            )
 
         elif show_legend:
             self._data_axis.legend(fontsize="x-small", loc=0)

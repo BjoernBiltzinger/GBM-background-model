@@ -30,6 +30,7 @@ try:
         using_mpi = False
         rank = 0
 except:
+
     using_mpi = False
     rank = 0
 
@@ -64,6 +65,7 @@ class ResultPlotGenerator(object):
         self.show_title = config["plot"].get("show_title", True)
         self.axis_title = config["plot"].get("axis_title", None)
         self.legend_outside = config["plot"].get("legend_outside", True)
+        self.file_format = config["plot"].get("file_format", "pdf")
 
         # Import component settings
         self.show_data = config["component"].get("show_data", True)
@@ -118,6 +120,7 @@ class ResultPlotGenerator(object):
                         alpha=occ_region.get("alpha", 0.1),
                     )
         self._plot_path_list = []
+        self._hide_sources = []
 
     @classmethod
     def from_result_file(cls, config_file, result_data_file):
@@ -151,7 +154,7 @@ class ResultPlotGenerator(object):
             for source_name in f["sources"].keys():
                 result_dict["sources"][source_name] = f["sources"][source_name][()]
 
-            if hasattr(f, "ppc_counts"):
+            if "ppc_counts" in f.keys():
 
                 result_dict["ppc_counts"] = f["ppc_counts"][()]
                 result_dict["ppc_time_bins"] = f["ppc_time_bins"][()]
@@ -227,7 +230,7 @@ class ResultPlotGenerator(object):
 
         return cls(config_file=config_file, result_dict=result_dict)
 
-    def create_plots(self, output_dir):
+    def create_plots(self, output_dir, plot_name="plot_date_", time_stamp=None):
 
         for day_idx, day in enumerate(self._result_dict["dates"]):
 
@@ -244,14 +247,15 @@ class ResultPlotGenerator(object):
                         else 12 + len(self._result_dict["ppc_counts"])
                     )
 
-                    time_stamp = datetime.now().strftime("%y%m%d_%H%M")
+                    if time_stamp is None:
+                        time_stamp = f'__{datetime.now().strftime("%y%m%d_%H%M")}'
 
                     plot_path = (
                         f"{output_dir}/"
-                        f"plot_date_{day}_"
+                        f"{plot_name}{day}_"
                         f"det_{det}_"
-                        f"echan_{echan}__"
-                        f"{time_stamp}.pdf"
+                        f"echan_{echan}"
+                        f"{time_stamp}.{self.file_format}"
                     )
 
                     self._plot_path_list.append(plot_path)
@@ -419,49 +423,53 @@ class ResultPlotGenerator(object):
 
         src_list = []
         for i, (key, value) in enumerate(self._result_dict["sources"].items()):
-            if "L-parameter" in key or "BGO_CR_Approx" in key:
+            if (
+                "l-parameter" in key.lower()
+                or "bgo_cr_approx" in key.lower()
+                or "cr_approx" in key.lower()
+            ):
                 label = "Cosmic Rays"
                 style_key = "cr"
                 sort_idx = 0
                 if not self.show_all_sources and not self.show_cr:
                     continue
 
-            elif "Earth" in key:
+            elif "earth" in key.lower():
                 label = "Earth Albedo"
                 style_key = "earth"
                 sort_idx = 1
                 if not self.show_all_sources and not self.show_earth:
                     continue
 
-            elif "CGB" in key:
+            elif "cgb" in key.lower():
                 label = "CGB"
                 style_key = "cgb"
                 sort_idx = 2
                 if not self.show_all_sources and not self.show_cgb:
                     continue
 
-            elif "Constant" in key:
+            elif "constant" in key.lower():
                 label = "Constant"
                 style_key = "constant"
                 sort_idx = 3
                 if not self.show_all_sources and not self.show_constant:
                     continue
 
-            elif "SAA_decays" in key:
+            elif "saa_decays" in key.lower():
                 label = "SAA Exits"
                 style_key = "saa"
                 sort_idx = 4
                 if not self.show_all_sources and not self.show_saa:
                     continue
 
-            elif "CRAB" in key:
+            elif "crab" in key.lower():
                 label = "Crab"
                 style_key = "crab"
                 sort_idx = 5
                 if not self.show_all_sources and not self.show_crab:
                     continue
 
-            elif "sun" in key:
+            elif "sun" in key.lower():
                 label = "Sun"
                 style_key = "sun"
                 sort_idx = 6
@@ -488,26 +496,27 @@ class ResultPlotGenerator(object):
                 ]
 
             if np.sum(rebinned_source_counts) > 0.0:
-
-                src_list.append(
-                    {
-                        "data": rebinned_source_counts / self._rebinned_time_bin_widths,
-                        "label": label
-                        if self.source_styles[style_key].get("show_label", True)
-                        or self.source_styles["use_global"]
-                        else None,
-                        "color": self.source_styles[style_key]["color"]
-                        if not self.source_styles["use_global"]
-                        else None,
-                        "alpha": self.source_styles[style_key]["alpha"]
-                        if not self.source_styles["use_global"]
-                        else None,
-                        "linewidth": self.source_styles[style_key]["linewidth"]
-                        if not self.source_styles["use_global"]
-                        else None,
-                        "sort_idx": sort_idx,
-                    }
-                )
+                if key not in self._hide_sources:
+                    src_list.append(
+                        {
+                            "data": rebinned_source_counts
+                            / self._rebinned_time_bin_widths,
+                            "label": label
+                            if self.source_styles[style_key].get("show_label", True)
+                            or self.source_styles["use_global"]
+                            else None,
+                            "color": self.source_styles[style_key]["color"]
+                            if not self.source_styles["use_global"]
+                            else None,
+                            "alpha": self.source_styles[style_key]["alpha"]
+                            if not self.source_styles["use_global"]
+                            else None,
+                            "linewidth": self.source_styles[style_key]["linewidth"]
+                            if not self.source_styles["use_global"]
+                            else None,
+                            "sort_idx": sort_idx,
+                        }
+                    )
 
         self._source_list = sorted(src_list, key=lambda src: src["sort_idx"])
 
@@ -559,7 +568,9 @@ class ResultPlotGenerator(object):
             ppc_time_bin_widths = np.diff(self._result_dict["ppc_time_bins"], axis=1)[
                 :, 0
             ]
-            ppc_time_bin_means = np.mean(self._result_dict["ppc_time_bins"], axis=1)
+            ppc_time_bin_means = (
+                np.mean(self._result_dict["ppc_time_bins"], axis=1) - self._time_ref
+            )
 
             ppc_rates = (
                 self._result_dict["ppc_counts"][:, :, det_idx, echan_idx]
@@ -641,7 +652,9 @@ class ResultPlotGenerator(object):
         p_bar.increase()
 
         if rank == 0:
-            final_plot.savefig(savepath, dpi=self.dpi)
+            final_plot.savefig(
+                savepath, dpi=self.dpi, transparent=True, bbox_inches="tight"
+            )
 
         p_bar.increase()
 
@@ -800,8 +813,10 @@ class ResultPlotGenerator(object):
             "6": "540 keV - 985 keV",
             "7": "985 keV - 2 MeV",
         }
-
-        return echan_dict[str(echan)]
+        if echan in echan_dict.keys():
+            return echan_dict[str(echan)]
+        else:
+            return f"Echan {echan}"
 
 
 def set_saa_zero(vector, saa_mask):
