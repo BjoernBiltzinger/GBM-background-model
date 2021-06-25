@@ -232,7 +232,7 @@ def setup_SAA(
                     saa_number=str(saa_n),
                     echan=str(echan),
                     model=decay_model,
-                    detector=det,GlobalFunction
+                    detector=det,
                     det_idx=det_idx,
                 )
 

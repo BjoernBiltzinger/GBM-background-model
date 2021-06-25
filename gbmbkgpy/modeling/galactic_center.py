@@ -135,10 +135,9 @@ class GC_fixed:
                                 sc_pos_X=scx,
                                 sc_pos_Y=scy,
                                 sc_pos_Z=scz,)
-from astropy.coordinates import SkyCoord
 
             # append transformed frame and Skycoord object to lists
-            gbm_frames.appen# Normalization when using radiansd(gbm_frame)
+            gbm_frames.append(gbm_frame)
         
         
         # get cartesian coordinates of gridpoints
@@ -216,7 +215,7 @@ from astropy.coordinates import SkyCoord
 
         # Calculate the normalization of the spacecraft position vectors
         earth_position_cart_norm = np.sqrt(
-            np.sum(self._geo# Normalization when using radiansm.earth_position_cart * self._geom.earth_position_cart, axis=1)
+            np.sum(self._geom.earth_position_cart * self._geom.earth_position_cart, axis=1)
         ).reshape((len(self._geom.earth_position_cart), 1))
 
         # Calculate the normalization of the grid points of the response precalculation
@@ -259,8 +258,6 @@ from astropy.coordinates import SkyCoord
         
         #scales whole spectrum, can be fitted later on
         return c_tot * (flux_ie + flux_mwd + flux_ps)
-        #return c_tot * (flux_ie + flux_mwd)
-        #return c_tot * (flux_ps)
         
     
     def _lorentzian(self, l, b):

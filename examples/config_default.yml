@@ -59,7 +59,7 @@ setup:
   fix_earth:    true
   fix_cgb:      true
   use_sun:      false
-  bgo_cr_approximation: true
+  cr_approximation: BGO
   use_eff_area_correction: true
 
 ################################ Bounds for the different sources ###################################
