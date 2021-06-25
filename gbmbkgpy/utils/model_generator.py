@@ -565,9 +565,6 @@ class TrigdatBackgroundModelGenerator(BackgroundModelGenerator):
             trig_data=self._data,
         )
 
-model_cr_asymmetrie.py
-Cleanup and pep8ify modeling-package
-
         print_progress("Done")
 
     def _precalc_repsonse(self, config):
