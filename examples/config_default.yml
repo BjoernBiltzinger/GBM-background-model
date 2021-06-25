@@ -35,6 +35,7 @@ setup:
   use_cr:       true
   use_earth:    true
   use_cgb:      true
+  use_gc:       true
 
   ps_list:
 

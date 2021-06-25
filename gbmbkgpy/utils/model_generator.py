@@ -13,6 +13,7 @@ from gbmbkgpy.utils.response_precalculation import Response_Precalculation
 from gbmbkgpy.modeling.setup_sources import Setup
 from gbmbkgpy.modeling.albedo_cgb import Albedo_CGB_fixed, Albedo_CGB_free
 from gbmbkgpy.modeling.sun import Sun
+from gbmbkgpy.modeling.galactic_center import GC_fixed
 from gbmbkgpy.io.package_data import get_path_of_external_data_dir
 
 try:
@@ -206,6 +207,11 @@ class BackgroundModelGenerator(object):
         else:
             self._sun_obj = None
 
+        if config["setup"]["use_gc"]:
+            self._gc_obj = GC_fixed(self._resp, self._geom)
+        else:
+            self._gc_obj = None
+
         print_progress("Create Source list...")
 
         self._source_list = Setup(
@@ -217,11 +223,13 @@ class BackgroundModelGenerator(object):
             echans=config["general"]["echans"],
             det_responses=self._resp,
             albedo_cgb_object=self._albedo_cgb_obj,
+            gc_object=self._gc_obj,
             use_saa=config["setup"]["use_saa"],
             use_constant=config["setup"]["use_constant"],
             use_cr=config["setup"]["use_cr"],
             use_earth=config["setup"]["use_earth"],
             use_cgb=config["setup"]["use_cgb"],
+            use_gc=config["setup"]["use_gc"],
             point_source_list=config["setup"]["ps_list"],
             fix_earth=config["setup"]["fix_earth"],
             fix_cgb=config["setup"]["fix_cgb"],
@@ -556,6 +564,9 @@ class TrigdatBackgroundModelGenerator(BackgroundModelGenerator):
             cr_approximation=config["setup"]["cr_approximation"],
             trig_data=self._data,
         )
+
+model_cr_asymmetrie.py
+Cleanup and pep8ify modeling-package
 
         print_progress("Done")
 
