@@ -76,6 +76,7 @@ class ResultPlotGenerator(object):
         self.show_earth = config["component"].get("show_earth", True)
         self.show_cgb = config["component"].get("show_cgb", True)
         self.show_sun = config["component"].get("show_sun", True)
+        self.show_gc = config["component"].get("show_gc", True)
         self.show_saa = config["component"].get("show_saa", True)
         self.show_cr = config["component"].get("show_cr", True)
         self.show_constant = config["component"].get("show_constant", True)
@@ -474,6 +475,13 @@ class ResultPlotGenerator(object):
                 style_key = "sun"
                 sort_idx = 6
                 if not self.show_all_sources and not self.show_sun:
+                    continue
+
+            elif "gc" in key.lower():
+                label = "Galactic Center"
+                style_key = "gc"
+                sort_idx = 7
+                if not self.show_all_sources and not self.show_gc:
                     continue
 
             else:

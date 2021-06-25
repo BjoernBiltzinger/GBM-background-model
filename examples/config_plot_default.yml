@@ -52,6 +52,7 @@ component:
   show_cr:              true
   show_constant:        true
   show_crab:            true
+  show_gc:              true
 
   show_occ_region:      false
   show_grb_trigger:     false
@@ -113,6 +114,12 @@ style:
           show_label: true
         sun:
           color: [0.993248, 0.906157, 0.143936]
+          alpha: .6
+          linewidth: 0.8
+          show_label: true
+
+        gc:
+          color: [1.0, 0.0, 0.0]
           alpha: .6
           linewidth: 0.8
           show_label: true
