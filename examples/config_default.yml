@@ -171,6 +171,11 @@ priors:
         prior: truncated_gaussian
         bounds: [0.5,4]
         gaussian: [2, 1]
+  gc:
+    norm:
+        prior: log_uniform
+        bounds: [1.0e-3, 10]
+        gaussian: [null, null]
   eff_area_correction:
       prior: truncated_gaussian
       bounds: [0.8,1.2]
