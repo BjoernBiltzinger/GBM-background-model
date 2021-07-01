@@ -462,6 +462,9 @@ class BackgroundModelGenerator(object):
                     "cgb"
                 ]["free"]["Eb"]
 
+        if config["setup"]["use_gc"]:
+            parameter_bounds["norm_gc"] = config["priors"]["gc"]["norm"]
+
         if config["setup"]["use_eff_area_correction"]:
             for det in sorted(config["general"]["detectors"])[1:]:
 
