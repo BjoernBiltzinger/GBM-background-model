@@ -65,7 +65,7 @@ class GC_fixed:
         """
         
         folded_flux_gc = np.zeros(
-            (len(self._geom.geometry_times), len(self._detectors), len(self._echans))
+            (self._Ntime, len(self._detectors), len(self._echans))
         )
         
         for det_idx, det in enumerate(self._detectors):
@@ -77,14 +77,13 @@ class GC_fixed:
         
     def _calc_gc_rates_one_det(self, det_response):
         """
-        Returns an array of shape (len(Ntime), len(detectors)) with the reconstructed count rates 
+        Returns an array of shape (len(Ntime), len(echans)) with the reconstructed count rates 
         (for the specified detector det) in all the reconstructed energy bins specified by the 
         response_precalculation object for all the Ntime times.
         :param det_response: response matrix for detector of interest
         """
         
-        N_reco_bins = len(det_response.Ebin_out_edge)-1
-        reconstr_counts = np.zeros((self._Ntime, N_reco_bins)) 
+        reconstr_counts = np.zeros((self._Ntime, len(self._echans))) 
         
         # implement progress bar to monitor progress
         with progress_bar(self._Ntime, 

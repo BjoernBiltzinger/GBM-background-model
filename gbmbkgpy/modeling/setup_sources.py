@@ -145,7 +145,7 @@ def Setup(
 
     if use_gc:
         total_sources.append(
-            setup_gc(data, gc_object, saa_object, use_numba=use_numba)
+            setup_gc(data, gc_object, saa_object)
         )
 
     if len(point_source_list) > 0:
