@@ -87,7 +87,7 @@ class GC_fixed:
         
         # implement progress bar to monitor progress
         with progress_bar(self._Ntime, 
-                          title=f"Calculating reconstructed count rates of detector {self._current_det}"
+                          title=f"Calculating reconstructed count rates of galactic center for detector {self._current_det}"
                          ) as p:
 
             occ_mask = self._calc_earth_occultation_mask(det_response)
