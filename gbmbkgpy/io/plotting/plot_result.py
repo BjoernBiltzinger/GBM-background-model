@@ -477,7 +477,7 @@ class ResultPlotGenerator(object):
                 if not self.show_all_sources and not self.show_sun:
                     continue
 
-            elif "gc" in key.lower():
+            elif "galactic_center" in key.lower():
                 label = "Galactic Center"
                 style_key = "gc"
                 sort_idx = 7

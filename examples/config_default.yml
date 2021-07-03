@@ -8,12 +8,12 @@ general:
   dates:      ['160310']
   detectors:   ['n1']
   data_type:  'ctime'
-  echans: ["2"]
+  echans: ["1"]
   min_bin_width: 30
 
 ################# Input for response precalculation [how many grid poits?] ##########################
 response:
-  Ngrid: 1600
+  Ngrid: 4000
 
 ####### Input for SAA mask precaluclation [time to exclude after SAA, delete short time intervals? ##
 saa:
@@ -51,10 +51,24 @@ setup:
     #      spectrum_type: pl
     #      powerlaw_index: 3
 
-    auto_swift:
-        flux_limit: 0.8
-        exclude: []
-        free: []
+    CRAB:
+      fixed: True
+      spectrum:
+        pl:
+          spectrum_type: pl
+          powerlaw_index: 2.1
+
+    SCOX-1:
+      fixed: True
+      spectrum:
+        pl:
+          spectrum_type: pl
+          powerlaw_index: 4
+
+    #auto_swift:
+     #   flux_limit: 0.8
+      #  exclude: []
+       # free: []
         #free: [Crab, SCOX-1]
 
   fix_earth:    true

@@ -119,7 +119,7 @@ style:
           show_label: true
 
         gc:
-          color: [1.0, 0.0, 0.0]
+          color: 'fuchsia'
           alpha: .6
           linewidth: 0.8
           show_label: true
