@@ -462,14 +462,19 @@ def setup_ps(
 
     PS_Continuum_dic = {}
     if "auto_swift" in point_source_list.keys():
+        limit = point_source_list["auto_swift"]["flux_limit"]
+        day = data.dates[0]
         filepath = os.path.join(
-            get_path_of_external_data_dir(), "tmp", "ps_auto_swift.dat"
+            get_path_of_external_data_dir(),
+            "point_sources",
+            f"ps_swift_{day}_limit_{limit}.dat"
         )
         ps_df_add = pd.read_table(filepath, names=["name", "ra", "dec"])
 
         auto_swift_ps = [entry[1].upper() for entry in ps_df_add.itertuples()]
         exclude = [
-            entry.upper() for entry in point_source_list["auto_swift"]["exclude"]
+            entry.upper() for
+            entry in point_source_list["auto_swift"]["exclude"]
         ]
 
     for i, (key, ps) in enumerate(point_sources.items()):
@@ -691,9 +696,17 @@ def build_point_sources(
     :param source_list:
     :return:
     """
-    file_path = get_path_of_data_file(
-        "background_point_sources/", "point_sources_swift.dat"
+    file_path = os.path.join(
+        get_path_of_external_data_dir(),
+        "point_sources",
+        "ps_all_swift.dat"
     )
+    if not os.path.exists(file_path):
+        # default file
+        file_path = get_path_of_data_file(
+            "background_point_sources/", "point_sources_swift.dat"
+        )
+
     ps_df = pd.read_table(file_path, names=["name", "ra", "dec"])
 
     # instantiate dic of point source objects
@@ -789,12 +802,21 @@ def build_point_sources(
             min_separation_angle=min_separation,
         )
 
-        # Create temp file
-        filepath = os.path.join(
-            get_path_of_external_data_dir(), "tmp", "ps_auto_swift.dat"
+        # Create ps file
+        filepath_all = os.path.join(
+            get_path_of_external_data_dir(),
+            "point_sources",
+            "ps_all_swift.dat"
         )
 
-        # Write information in temp
+        sp.write_all_psfile(filepath_all)
+
+
+        filepath = os.path.join(
+            get_path_of_external_data_dir(),
+            "point_sources",
+            f"ps_swift_{day}_limit_{limit}.dat"
+        )
         sp.write_psfile(filepath)
 
         if all_time_variable_same:
