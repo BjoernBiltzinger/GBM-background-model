@@ -497,6 +497,47 @@ class SelectPointsources(object):
         if using_mpi:
             comm.barrier()
 
+    def write_all_psfile(self, filename):
+        if using_mpi:
+            if rank == 0:
+                do_it = True
+            else:
+                do_it = False
+        else:
+            do_it = True
+
+        if do_it:
+
+            with h5py.File(
+                    self._ps_db_path,
+                    "r",
+            ) as h:
+                rates_all = np.zeros(len(h.keys()))
+                errors_all = np.zeros(len(h.keys()))
+                names = []
+                ra = []
+                dec = []
+                for i, key in enumerate(h.keys()):
+                    names.append(key.replace("p", "+"))
+                    ra.append(h[key].attrs["Ra"])
+                    dec.append(h[key].attrs["Dec"])
+
+                names = np.array(names)
+                ra = np.array(ra)
+                dec = np.array(dec)
+
+                if_dir_containing_file_not_existing_then_make(filename)
+
+                if os.path.exists(filename):
+                    os.remove(filename)
+
+                with open(filename, "w") as f:
+                    for i, _ in enumerate(names):
+                        f.write(f"{names[i]}\t{ra[i]}\t{dec[i]}\n")
+
+        if using_mpi:
+            comm.barrier()
+
     def plot_ps(self, save_path=None):
         """
         Plot point sources in mollweide projection.
