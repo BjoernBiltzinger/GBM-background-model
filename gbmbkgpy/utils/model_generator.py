@@ -316,8 +316,12 @@ class BackgroundModelGenerator(object):
         # If PS spectrum is fixed only the normalization, otherwise C, index
         for i, ps in enumerate(config["setup"]["ps_list"]):
             if ps == "auto_swift":
+                limit = config["setup"]["ps_list"][ps]["flux_limit"]
+                day = self.data.dates[0]
                 filepath = os.path.join(
-                    get_path_of_external_data_dir(), "tmp", "ps_auto_swift.dat"
+                    get_path_of_external_data_dir(),
+                    "point_sources",
+                    f"ps_swift_{day}_limit_{limit}.dat"
                 )
                 # Read it as pandas
                 ps_df_add = pd.read_table(filepath, names=["name", "ra", "dec"])
