@@ -202,7 +202,7 @@ class BackgroundModelGenerator(object):
             self._albedo_cgb_obj = Albedo_CGB_free(self._resp, self._geom)
 
         if config["setup"]["use_sun"]:
-            self._sun_obj = Sun(self._resp, self._geom, config["general"]["echan_list"])
+            self._sun_obj = Sun(self._resp, self._geom, config["general"]["echans"])
         else:
             self._sun_obj = None
 

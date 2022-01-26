@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from gbm_drm_gen.drmgen import DRMGen
+from gbmgeometry import PositionInterpolator
 from gbmbkgpy.io.package_data import get_path_of_data_file
 from gbmbkgpy.utils.progress_bar import progress_bar
 from gbmbkgpy.utils.spectrum import _spec_integral_bb, _spec_integral_pl
@@ -147,9 +148,13 @@ class PointSrc_free(object):
     def _response_one_det(self, det_response):
 
         response_matrix = []
+
+        pos_inter = PositionInterpolator(quats=np.array([self._geom.quaternion[0], self._geom.quaternion[0]]), 
+                                               sc_pos=np.array([self._geom.sc_pos[0],self._geom.sc_pos[0]]) ,
+                                               time=np.array([-1,1]), trigtime=0)
+
         d = DRMGen(
-            self._geom.quaternion[0],
-            self._geom.sc_pos[0],
+            pos_inter,
             det_response.det,
             det_response.Ebin_in_edge,
             mat_type=0,
