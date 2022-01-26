@@ -33,7 +33,7 @@ try:
     if MPI.COMM_WORLD.Get_size() > 1:  # need parallel capabilities
         using_mpi = True
 
-        comm = MPI.COMM_WORLD
+        comm = MPI.COMM_WORLDGlobalFunction
         rank = comm.Get_rank()
         size = comm.Get_size()
 
@@ -54,12 +54,14 @@ def Setup(
     sun_object=None,
     det_responses=None,
     albedo_cgb_object=None,
+    gc_object=None,
     use_saa=False,
     use_constant=True,
     use_cr=True,
     use_earth=True,
     use_cgb=True,
     use_sun=True,
+    use_gc=False,
     point_source_list=[],
     fix_earth=False,
     fix_cgb=False,
@@ -86,6 +88,7 @@ def Setup(
     :param use_earth: use earth?
     :param use_cgb: fix cgb spectrum?
     :param use_sun:
+    :param use_gc: use galactic center?
     :param point_source_list: PS to use
     :param fix_earth: fix earth spectrum?
     :param fix_cgb: use cgb?
@@ -138,6 +141,11 @@ def Setup(
     if use_sun:
         total_sources.append(
             setup_sun(data, sun_object, saa_object, use_numba=use_numba)
+        )
+
+    if use_gc:
+        total_sources.append(
+            setup_gc(data, gc_object, saa_object)
         )
 
     if len(point_source_list) > 0:
@@ -630,6 +638,26 @@ def setup_earth_fix(data, albedo_cgb_object, saa_object):
     Source_Earth_Albedo_Continuum = GlobalSource("earth_albedo", earth_albedo)
 
     return Source_Earth_Albedo_Continuum
+
+
+def setup_gc(data, gc_object, saa_object):
+    """
+    Setup galactic center source with fixed spectrum (for now only fixed spectrum available).
+    :param data:
+    :param gc_object:
+    :param saa_object:
+    :return:
+    """
+
+    gc = GlobalFunction("norm_gc")
+    gc.set_function_array(gc_object.get_gc_rates(data.time_bins))
+    gc.set_saa_zero(saa_object.saa_mask)
+
+    gc.integrate_array(data.time_bins)
+
+    Source_gc_Continuum = GlobalSource("galactic_center", gc)
+
+    return Source_gc_Continuum
 
 
 def setup_cgb_free(data, albedo_cgb_object, saa_object, use_numba=False):
