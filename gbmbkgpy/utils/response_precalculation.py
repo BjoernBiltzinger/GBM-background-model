@@ -1,5 +1,6 @@
 import numpy as np
 from gbm_drm_gen.drmgen import DRMGen
+from gbmgeometry import PositionInterpolator
 import os
 import h5py
 from gbmbkgpy.io.package_data import get_path_of_external_data_dir
@@ -458,10 +459,11 @@ class Det_Response_Precalculation(object):
         responses = []
         # Create the DRM object (quaternions and sc_pos are dummy values, not important
         # as we calculate everything in the sat frame
-
+        dummy_pos_inter = PositionInterpolator(quats=np.array([[0.0745, -0.105, 0.0939, 0.987],[0.0745, -0.105, 0.0939, 0.987]]), 
+                                               sc_pos=np.array([[-5.88 * 10 ** 6, -2.08 * 10 ** 6, 2.97 * 10 ** 6],[-5.88 * 10 ** 6, -2.08 * 10 ** 6, 2.97 * 10 ** 6]]) ,
+                                               time=np.array([-1,1]), trigtime=0)
         DRM = DRMGen(
-            np.array([0.0745, -0.105, 0.0939, 0.987]),
-            np.array([-5.88 * 10 ** 6, -2.08 * 10 ** 6, 2.97 * 10 ** 6]),
+            dummy_pos_inter,
             self._det,
             self.Ebin_in_edge,
             mat_type=0,
