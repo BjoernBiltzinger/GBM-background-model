@@ -41,8 +41,11 @@ if has_numba:
         :param index: index of pl
         :return: differential pl evaluation [1/kev*s]
         """
-
-        return c / (energy / e_norm) ** index
+        # norm to crab
+        one_crab = 15.0
+        dp2 = 2-index
+        inv_int_flux = 1.0/(195.0**dp2-14.0**dp2)*dp2
+        return c * one_crab * inv_int_flux *(energy)**-index
 
     @njit(cache=True)
     def _spectrum_bb(energy, c, temp):
@@ -54,7 +57,7 @@ if has_numba:
         :param index: index of pl
         :return: differential pl evaluation [1/kev*s]
         """
-
+        
         return c * energy ** 2 / (np.expm1(energy / temp))
 
     ##################### Integration of spectra #############################
