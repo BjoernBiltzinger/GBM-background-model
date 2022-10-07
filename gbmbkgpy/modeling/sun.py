@@ -1,4 +1,7 @@
 from gbmbkgpy.utils.progress_bar import progress_bar
+from gbmbkgpy.utils.spectrum import _spec_integral_bb, _spec_integral_pl
+from scipy.interpolate import interpolate
+from gbmgeometry import PositionInterpolator
 import astropy.coordinates as coord
 from gbm_drm_gen.drmgen import DRMGen
 import numpy as np
@@ -25,7 +28,7 @@ except:
 
 # TODO: Change Sun object for new layout with multi detectors
 class Sun(object):
-    def __init__(self, response_object, geometry_object, echan_list):
+    def __init__(self, det_responses, geometry_object, echans, spec):
         """
         Initalize the Sun as source with a free powerlaw and precalcule the response for all times
         for which the geometry was calculated.
@@ -34,18 +37,60 @@ class Sun(object):
         :params echan_list: which echan
         """
         self._geom = geometry_object
-        self._rsp = response_object
-        self._data_type = self._rsp.data_type
+        self._rsp = det_responses.responses
+        self._detectors = list(det_responses.responses.keys())
+        self._data_type = self._rsp[self._detectors[0]].data_type
+        self._echans = echans
 
         if self._data_type == "ctime" or self._data_type == "trigdat":
-            self._echan_mask = np.zeros(8, dtype=bool)
-            for e in echan_list:
-                self._echan_mask[e] = True
+            echans_mask = []
+
+            for e in echans:
+                bounds = e.split("-")
+                mask = np.zeros(8, dtype=bool)
+                if len(bounds) == 1:
+                    # Only one echan given
+                    index = int(bounds[0])
+                    mask[index] = True
+                else:
+                    # Echan start and stop given
+                    index_start = int(bounds[0])
+                    index_stop = int(bounds[1])
+                    mask[index_start : index_stop + 1] = np.ones(
+                        1 + index_stop - index_start, dtype=bool
+                    )
+                echans_mask.append(mask)
+
         elif self._data_type == "cspec":
-            self._echan_mask = np.zeros(128, dtype=bool)
-            for e in echan_list:
-                self._echan_mask[e] = True
-        self._response_array()
+            echans_mask = []
+
+            for e in echans:
+                bounds = e.split("-")
+                mask = np.zeros(128, dtype=bool)
+                if len(bounds) == 1:
+                    # Only one echan given
+                    index = int(bounds[0])
+                    mask[index] = True
+                else:
+                    # Echan start and stop given
+                    index_start = int(bounds[0])
+                    index_stop = int(bounds[1])
+                    mask[index_start : index_stop + 1] = np.ones(
+                        1 + index_stop - index_start, dtype=bool
+                    )
+                echans_mask.append(mask)
+
+        self._echans_mask = echans_mask
+        self._piv = 10
+        self._calc_det_responses()
+        # Read the spec dict to figure out which spec and the spectral params
+        self._read_spec(spec)
+
+        # Calculate the rates for the ps with the normalization set to 1
+        self._calc_sun_rates()
+
+        # Interpolate between the times, for which the geometry was calculated
+        self._interpolate_sun_rates()
 
     @property
     def sun_response_array(self):
@@ -67,195 +112,150 @@ class Sun(object):
         """
         return self._rsp.Ebin_in_edge
 
-    def _response_array(self):
+    def _calc_det_responses(self):
+
+        sun_response = {}
+
+        for det_idx, det in enumerate(self._detectors):
+
+            sun_response[det] = self._response_one_det(det_response=self._rsp[det])
+
+        self._sun_response = sun_response
+
+    
+    def _response_one_det(self, det_response):
         """
         Funtion that imports and precalculate everything that is needed to get the point source array
         for all echans
         :return:
         """
 
-        # Import the quaternion, sc_pos and earth_position (as SkyCoord object) from the geometry_object
+        response_matrix = []
+
         sun_positions = self._geom.sun_positions
-        earth_positions = self._geom.earth_position
+        
+        pos_inter = PositionInterpolator(quats=np.array([self._geom.quaternion[0], self._geom.quaternion[0]]), 
+                                               sc_pos=np.array([self._geom.sc_pos[0],self._geom.sc_pos[0]]) ,
+                                               time=np.array([-1,1]), trigtime=0)
 
-        # Import the points of the grid around the detector from the response_object
-        Ebin_in_edge = self._rsp.Ebin_in_edge
-        Ebin_out_edge = self._rsp.Ebin_out_edge
-        det = self._rsp.det
-
-        # Use Mpi when it is available
-        if using_mpi:
-            num_times = len(self._geom.earth_zen)
-            times_per_rank = float(num_times) / float(size)
-            times_lower_bound_index = int(np.floor(rank * times_per_rank))
-            times_upper_bound_index = int(np.floor((rank + 1) * times_per_rank))
-            sun_pos_sat_list = []
-            if rank == 0:
-                with progress_bar(
-                    times_upper_bound_index - times_lower_bound_index,
-                    title="Calculate sun azimuth and zenith angle in satelite frame.",
-                ) as p:
-                    for i in range(times_lower_bound_index, times_upper_bound_index):
-                        az = sun_positions[i].lon.deg
-                        zen = sun_positions[i].lat.deg
-                        sun_pos_sat_list.append(
-                            [
-                                np.cos(zen * (np.pi / 180))
-                                * np.cos(az * (np.pi / 180)),
-                                np.cos(zen * (np.pi / 180))
-                                * np.sin(az * (np.pi / 180)),
-                                np.sin(zen * (np.pi / 180)),
-                            ]
-                        )
-                        p.increase()
-
-            else:
-                for i in range(times_lower_bound_index, times_upper_bound_index):
-                    az = sun_positions[i].lon.deg
-                    zen = sun_positions[i].lat.deg
-                    sun_pos_sat_list.append(
-                        [
-                            np.cos(zen * (np.pi / 180)) * np.cos(az * (np.pi / 180)),
-                            np.cos(zen * (np.pi / 180)) * np.sin(az * (np.pi / 180)),
-                            np.sin(zen * (np.pi / 180)),
-                        ]
-                    )
-
-            sun_pos_sat_list = np.array(sun_pos_sat_list)
-
-            # Calcutate the response for the different ps locations
-
-            # DRM object with dummy quaternion and sc_pos values (all in sat frame,
-            # therefore not important)
-            DRM = DRMGen(
-                np.array([0.0745, -0.105, 0.0939, 0.987]),
-                np.array([-5.88 * 10 ** 6, -2.08 * 10 ** 6, 2.97 * 10 ** 6]),
-                det,
-                Ebin_in_edge,
-                mat_type=0,
-                ebin_edge_out=Ebin_out_edge,
+        d = DRMGen(
+            pos_inter,
+            det_response.det,
+            det_response.Ebin_in_edge,
+            mat_type=0,
+            ebin_edge_out=det_response.Ebin_out_edge,
             )
-            # Calcutate the response matrix for the different ps locations
-            sun_response = []
-            if rank == 0:
-                with progress_bar(
-                    len(sun_pos_sat_list),
-                    title="Calculating the response for all Sun positions in sat frame.This shows the progress of rank 0. All other should be about the same.",
-                ) as p:
-                    for point in sun_pos_sat_list:
-                        matrix = self._rsp._response(
-                            point[0], point[1], point[2], DRM
-                        ).matrix[self._echan_mask]
-                        sun_response.append(matrix.T)
-                    p.increase()
-            else:
-                for point in sun_pos_sat_list:
-                    matrix = self._rsp._response(
-                        point[0], point[1], point[2], DRM
-                    ).matrix[self._echan_mask]
-                    sun_response.append(matrix.T)
-
-            # Calculate the separation of the earth and the ps for every time step
-            separation = []
-            for i, earth_position in enumerate(earth_positions):
-                separation.append(
-                    coord.SkyCoord.separation(sun_positions[i], earth_position).value
-                )
-            separation = np.array(separation)
-
-            # define the earth opening angle
-            earth_opening_angle = 67
-
-            # Set response 0 when separation is <67 grad (than sun is behind earth)
-            if rank == 0:
-                with progress_bar(
-                    len(sun_pos_sat_list), title="Checking earth occultation for sun."
-                ) as p:
-                    for i in range(len(sun_response)):
-                        # Check if not occulted by earth
-                        if separation[i] < earth_opening_angle:
-                            # If occulted by earth set response to zero
-                            sun_response[i] = sun_response[i] * 0
-            else:
-                for i in range(len(sun_response)):
-                    # Check if not occulted by earth
-                    if separation[i] < earth_opening_angle:
-                        # If occulted by earth set response to zero
-                        sun_response[i] = sun_response[i] * 0
-
-            # Gather all results in rank=0 and broadcast the final result to all ranks
-            sun_response = np.array(sun_response)
-            sun_response_g = comm.gather(sun_response, root=0)
-
-            separation = np.array(separation)
-            separation_g = comm.gather(separation, root=0)
-
-            if rank == 0:
-                sun_response_g = np.concatenate(sun_response_g)
-                separation_g = np.concatenate(separation_g)
-            sun_response = comm.bcast(sun_response_g, root=0)
-            separation = comm.bcast(separation_g, root=0)
-
-        # Singlecore calculation
-        else:
-
-            # Get the postion of the PS in the sat frame for every timestep
-            sun_pos_sat_list = []
-            with progress_bar(
-                len(sun_positions), title="Calculating Sun azimuth and zenith angles"
-            ) as p:
-                for i in range(0, len(sun_positions)):
-                    az = sun_positions[i].lon.deg
-                    zen = sun_positions[i].lat.deg
-                    sun_pos_sat_list.append(
-                        [
-                            np.cos(zen * (np.pi / 180)) * np.cos(az * (np.pi / 180)),
-                            np.cos(zen * (np.pi / 180)) * np.sin(az * (np.pi / 180)),
-                            np.sin(zen * (np.pi / 180)),
-                        ]
-                    )
-                    p.increase()
-
-            sun_pos_sat_list = np.array(sun_pos_sat_list)
-            # DRM object with dummy quaternion and sc_pos values (all in sat frame,
-            # therefore not important)
-            DRM = DRMGen(
-                np.array([0.0745, -0.105, 0.0939, 0.987]),
-                np.array([-5.88 * 10 ** 6, -2.08 * 10 ** 6, 2.97 * 10 ** 6]),
-                det,
-                Ebin_in_edge,
-                mat_type=0,
-                ebin_edge_out=Ebin_out_edge,
+        for j in range(len(self._geom.quaternion)):
+            d._quaternions = self._geom.quaternion[j]
+            d._sc_pos = self._geom.sc_pos[j]
+            d._compute_spacecraft_coordinates()
+            
+            all_response_step = (d
+                .to_3ML_response_direct_sat_coord(sun_positions[j].lon.deg, sun_positions[j].lat.deg)
+                .matrix
             )
-            # Calcutate the response matrix for the different ps locations
-            sun_response = []
-            with progress_bar(
-                len(sun_pos_sat_list),
-                title="Calculating the response for all Sun positions in sat frame.This shows the progress of rank 0. All other should be about the same.",
-            ) as p:
-                for point in sun_pos_sat_list:
-                    matrix = self._rsp._response(
-                        point[0], point[1], point[2], DRM
-                    ).matrix[self._echan_mask]
-                    sun_response.append(matrix.T)
-                p.increase()
 
-            # Calculate the separation of the earth and the ps for every time step
-            separation = []
-            for i, earth_position in enumerate(earth_positions):
-                separation.append(
-                    coord.SkyCoord.separation(sun_positions[i], earth_position).value
-                )
-            separation = np.array(separation)
+            # sum the responses needed
+            response_step = np.zeros(
+                (len(self._echans_mask), len(all_response_step[0]))
+            )
+            for i, echan_mask in enumerate(self._echans_mask):
+                for j, entry in enumerate(echan_mask):
+                    if entry:
+                        response_step[i] += all_response_step[j]
 
-            # Define the earth opening angle
-            earth_opening_angle = 67
+            response_matrix.append(response_step.T)
 
-            # Set response 0 when separation is <67 grad (than ps is behind earth)
-            for i in range(len(sun_response)):
-                # Check if not occulted by earth
-                if separation[i] < earth_opening_angle:
-                    # If occulted by earth set response to zero
-                    sun_response[i] = sun_response[i] * 0
-        self._separation = separation
-        self._sun_response = np.array(sun_response)
+        response_matrix = np.array(response_matrix)
+
+        return response_matrix
+
+    def _read_spec(self, spec):
+        """
+        Read the spec dict to figure out which spectral type and which params should be used
+        :param spec: Dict with spectral type and parameters
+        """
+
+        # Read spectral type
+        self._spec_type = spec["spectrum_type"]
+
+        # Check if spectral type is valid
+        assert (
+            self._spec_type == "bb" or self._spec_type == "pl"
+        ), "Spectral Type must be bb (Blackbody) or pl (Powerlaw)"
+
+        # Read spectral params
+        if self._spec_type == "bb":
+            self._bb_temp = spec["blackbody_temp"]
+        if self._spec_type == "pl":
+            self._pl_index = spec["powerlaw_index"]
+
+    def get_sun_rates(self, met):
+        """
+        Returns an array with the predicted count rates for the times for which the geometry
+        was calculated for all energy channels. Assumed an normalization=1 (will be fitted later)
+        and the fixed spectral index defined in the init of the object.
+        :param met:
+        """
+
+        # Get the rates for all times
+        sun_rates = self._interp_rate_sun(met)
+
+        # The interpolated flux has the dimensions (len(time_bins), 2, len(detectors), len(echans))
+        # We want (len(time_bins), len(detectors), len(echans), 2) so we net to swap axes
+        # The 2 is the start stop in the time_bins
+
+        sun_rates = np.swapaxes(sun_rates, 1, 2)
+        sun_rates = np.swapaxes(sun_rates, 2, 3)
+
+        return sun_rates
+
+    def _calc_sun_rates(self):
+        """
+        Calaculates the rate in all energy channels for all times for which the geometry was calculated.
+        Uses the responses calculated in _response_array.
+        :param pl_index: Index of powerlaw
+        """
+
+        folded_flux_sun = np.zeros(
+            (
+                len(self._geom.geometry_times),
+                len(self._detectors),
+                len(self._echans),
+            )
+        )
+
+        for det_idx, det in enumerate(self._detectors):
+            true_flux_sun = self._integral_sun(
+                e1=self._rsp[det].Ebin_in_edge[:-1], e2=self._rsp[det].Ebin_in_edge[1:]
+            )
+
+            sun_response_det = self._sun_response[det]
+
+            folded_flux_sun[:, det_idx, :] = np.dot(true_flux_sun, sun_response_det)
+
+        self._folded_flux_sun = folded_flux_sun
+
+    def _interpolate_sun_rates(self):
+
+        self._interp_rate_sun = interpolate.interp1d(
+            self._geom.geometry_times, self._folded_flux_sun, axis=0
+        )
+
+    def _integral_sun(self, e1, e2):
+        """
+        Method to integrate the diff. flux over the Ebins of the incoming photons
+        :params e1: lower bound of Ebin_in
+        :params e2: upper bound of Ebin_in
+        :params index: Index of spectrum
+        :return: flux in the Ebin_in
+        """
+        if self._spec_type == "bb":
+            return _spec_integral_bb(e1, e2, 1, self._bb_temp)
+
+        if self._spec_type == "pl":
+            return _spec_integral_pl(e1, e2, 1, self._piv, self._pl_index)
+
+    @property
+    def spec_type(self):
+        return self._spec_type
