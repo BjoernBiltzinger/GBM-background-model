@@ -156,21 +156,35 @@ class Albedo_CGB_fixed(Albedo_CGB_free):
     is a free fit parameter.
     """
 
-    def __init__(self, det_responses, geometry):
+    def __init__(self, det_responses, geometry, earth_dict=None, cgb_dict=None):
         super(Albedo_CGB_fixed, self).__init__(det_responses, geometry)
 
         # Set spectral parameters to literature values (Earth and CGB from Ajello)
 
-        # cgb spectrum
-        self._index1_cgb = 1.32
-        self._index2_cgb = 2.88
-        self._break_energy_cgb = 29.99
+        if cgb_dict:
+            self._index1_cgb = cgb_dict["spectrum"]["alpha"]
+            self._index2_cgb = cgb_dict["spectrum"]["beta"]
+            self._break_energy_cgb = cgb_dict["spectrum"]["Eb"]
+            self._norm_cgb = cgb_dict["spectrum"]["norm"]
+        else:
+            # cgb spectrum
+            self._index1_cgb = 1.32
+            self._index2_cgb = 2.88
+            self._break_energy_cgb = 29.99
+            self._norm_cgb = 0.1
 
-        # earth spectrum
-        self._index1_earth = -5
-        self._index2_earth = 1.72
-        self._break_energy_earth = 33.7
-
+        if earth_dict:
+            # earth spectrum
+            self._index1_earth = earth_dict["spectrum"]["alpha"]
+            self._index2_earth = earth_dict["spectrum"]["beta"]
+            self._break_energy_earth = earth_dict["spectrum"]["Eb"]
+            self._norm_earth = earth_dict["spectrum"]["norm"]
+        else:
+            # earth spectrum
+            self._index1_earth = -5
+            self._index2_earth = 1.72
+            self._break_energy_earth = 33.7
+            self._norm_earth = 0.015
         self._calc_earth_cgb_rates()
 
         self._interpolate_earth_cgb_rates()
@@ -239,8 +253,8 @@ class Albedo_CGB_fixed(Albedo_CGB_free):
                 true_flux_earth, self._earth_response_sums[det]
             )
 
-        self._folded_flux_cgb = folded_flux_cgb
-        self._folded_flux_earth = folded_flux_earth
+        self._folded_flux_cgb = self._norm_cgb*folded_flux_cgb
+        self._folded_flux_earth = self._norm_earth*folded_flux_earth
 
     @property
     def responses(self):

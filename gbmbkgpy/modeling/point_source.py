@@ -127,6 +127,7 @@ class PointSrc_free(object):
         Returns an array with the poit source response for the times for which the geometry
         was calculated.
         """
+        
         return self._ps_response
 
     def set_time_variation_interp(self, interp):
@@ -138,9 +139,9 @@ class PointSrc_free(object):
     def _calc_det_responses(self):
 
         ps_response = {}
-
+        
         for det_idx, det in enumerate(self._detectors):
-
+        
             ps_response[det] = self._response_one_det(det_response=self._rsp[det])
 
         self._ps_response = ps_response
@@ -152,7 +153,8 @@ class PointSrc_free(object):
         pos_inter = PositionInterpolator(quats=np.array([self._geom.quaternion[0], self._geom.quaternion[0]]), 
                                                sc_pos=np.array([self._geom.sc_pos[0],self._geom.sc_pos[0]]) ,
                                                time=np.array([-1,1]), trigtime=0)
-
+        print("###############################")
+        print(self.name, self._ra, self._dec)
         d = DRMGen(
             pos_inter,
             det_response.det,
@@ -240,6 +242,7 @@ class PointSrc_fixed(PointSrc_free):
             self._spec_type == "bb" or self._spec_type == "pl"
         ), "Spectral Type must be bb (Blackbody) or pl (Powerlaw)"
 
+        self._norm = spec["norm"]
         # Read spectral params
         if self._spec_type == "bb":
             self._bb_temp = spec["blackbody_temp"]
@@ -304,7 +307,7 @@ class PointSrc_fixed(PointSrc_free):
 
             folded_flux_ps[:, det_idx, :] = np.dot(true_flux_ps, ps_response_det)
 
-        self._folded_flux_ps = folded_flux_ps
+        self._folded_flux_ps = self._norm*folded_flux_ps
 
     def _interpolate_ps_rates(self):
 
