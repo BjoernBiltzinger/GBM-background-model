@@ -53,7 +53,7 @@ class BackgroundModelGenerator(object):
 
     def from_config_file(self, config_yml):
         with open(config_yml) as f:
-            config = yaml.load(f)
+            config = yaml.safe_load(f)
 
         self.from_config_dict(config)
 
@@ -100,12 +100,20 @@ class BackgroundModelGenerator(object):
 
     def _instantiate_data_class(self, config):
         print_progress("Prepare data...")
+        min_time = config["general"].get("min_time", None)
+        max_time = config["general"].get("max_time", None)
+        if min_time:
+            min_time = int(min_time)
+        if max_time:
+            max_time = int(max_time)
         self._data = Data(
             dates=config["general"]["dates"],
             detectors=config["general"]["detectors"],
             data_type=config["general"]["data_type"],
             echans=config["general"]["echans"],
             simulation=config["general"].get("simulation", False),
+            min_time=min_time,
+            max_time=max_time,
         )
         print_progress("Done")
 
@@ -193,19 +201,26 @@ class BackgroundModelGenerator(object):
 
     def _setup_sources(self, config):
         # Create all individual sources and add them to a list
-        assert (config["setup"]["fix_earth"] and config["setup"]["fix_cgb"]) or (
-            not config["setup"]["fix_earth"] and not config["setup"]["fix_cgb"]
-        ), "At the moment albeod and cgb spectrum have to be either both fixed or both free"
+        #assert (config["setup"]["fix_earth"] and config["setup"]["fix_cgb"]) or (
+        #    not config["setup"]["fix_earth"] and not config["setup"]["fix_cgb"]
+        #), "At the moment albeod and cgb spectrum have to be either both fixed or both free"
 
-        if config["setup"]["fix_earth"]:
-            self._albedo_cgb_obj = Albedo_CGB_fixed(self._resp, self._geom)
+        if config["setup"]["fix_earth"] or config["setup"]["fix_cgb"]:
+            self._albedo_cgb_obj_fixed = Albedo_CGB_fixed(self._resp,
+                                                    self._geom,
+                                                    earth_dict=config["setup"]["Earth"],
+                                                    cgb_dict=config["setup"]["CGB"])
         else:
-            self._albedo_cgb_obj = Albedo_CGB_free(self._resp, self._geom)
-
-        if config["setup"]["use_sun"]:
-            self._sun_obj = Sun(self._resp, self._geom, config["general"]["echans"])
+            self._albedo_cgb_obj_fixed = None
+            
+        if not config["setup"]["fix_earth"] or not config["setup"]["fix_cgb"]:
+            self._albedo_cgb_obj_free = Albedo_CGB_free(self._resp, self._geom)
         else:
-            self._sun_obj = None
+            self._albedo_cgb_obj_free = None
+        #if config["setup"]["use_sun"]:
+        #    self._sun_obj = Sun(self._resp, self._geom, config["general"]["echans"])
+        #else:
+        #    self._sun_obj = None
 
         if config["setup"]["use_gc"]:
             self._gc_obj = GC_fixed(self._resp, self._geom)
@@ -219,14 +234,16 @@ class BackgroundModelGenerator(object):
             saa_object=self._saa_calc,
             ep=self._ep,
             geometry=self._geom,
-            sun_object=self._sun_obj,
             echans=config["general"]["echans"],
             det_responses=self._resp,
-            albedo_cgb_object=self._albedo_cgb_obj,
+            albedo_cgb_object_free=self._albedo_cgb_obj_free,
+            albedo_cgb_object_fixed=self._albedo_cgb_obj_fixed,
             gc_object=self._gc_obj,
             use_saa=config["setup"]["use_saa"],
             use_constant=config["setup"]["use_constant"],
+            norm_constant=config["setup"]["Constant"]["norm"],
             use_cr=config["setup"]["use_cr"],
+            norm_cr=config["setup"]["CR"]["norm"],
             use_earth=config["setup"]["use_earth"],
             use_cgb=config["setup"]["use_cgb"],
             use_gc=config["setup"]["use_gc"],
@@ -242,6 +259,8 @@ class BackgroundModelGenerator(object):
             use_numba=config["fit"].get("use_numba", False),
         )
 
+        import numpy as np
+        self._dets_saa = config["saa"]["dets_saa"] #np.array(["n0"])
         print_progress("Done")
 
     def _instantiate_model(self, config):
@@ -318,115 +337,116 @@ class BackgroundModelGenerator(object):
 
         if config["setup"]["use_sun"]:
             parameter_bounds["sun_norm"] = config["priors"]["sun"]["norm"]
-            parameter_bounds["sun_index"] = config["priors"]["sun"]["index"]
+            #parameter_bounds["sun_index"] = config["priors"]["sun"]["index"]
         # Global sources for all echans
 
         # If PS spectrum is fixed only the normalization, otherwise C, index
-        for i, ps in enumerate(config["setup"]["ps_list"]):
-            if ps == "auto_swift":
-                limit = config["setup"]["ps_list"][ps]["flux_limit"]
-                day = self.data.dates[0]
-                filepath = os.path.join(
-                    get_path_of_external_data_dir(),
-                    "point_sources",
-                    f"ps_swift_{day}_limit_{limit}.dat"
-                )
-                # Read it as pandas
-                ps_df_add = pd.read_table(filepath, names=["name", "ra", "dec"])
-                exclude = [
-                    entry.upper() for entry in config["setup"]["ps_list"][ps]["exclude"]
-                ]
-                free = [
-                    entry.upper() for entry in config["setup"]["ps_list"][ps]["free"]
-                ]
-                for row in ps_df_add.itertuples():
-                    if row[1].upper() not in exclude:
-                        if row[1].upper() not in free:
-                            parameter_bounds[f"norm_{row[1]}_pl"] = config["priors"][
-                                "ps"
-                            ]["fixed"]["pl"]["norm"]
-                        else:
-                            parameter_bounds[
-                                f"ps_{row[1]}_spectrum_fitted_norm_pl".format(ps)
-                            ] = config["priors"]["ps"]["free"]["pl"]["norm"]
-                            parameter_bounds[
-                                f"ps_{row[1]}_spectrum_fitted_index".format(ps)
-                            ] = config["priors"]["ps"]["free"]["pl"]["index"]
-            else:
-                if config["setup"]["ps_list"][ps]["fixed"]:
-                    if ps[:4] != "list":
-                        for spectrum in config["setup"]["ps_list"][ps]["spectrum"]:
-                            # Check if PS specific prior is passed
-                            if ps.upper() in config["priors"]["ps"]:
-                                parameter_bounds[f"norm_{ps}_{spectrum}"] = config[
-                                    "priors"
-                                ]["ps"][ps.upper()][spectrum]["norm"]
-                            # use generic one
+        if config["setup"]["ps_list"]:
+            for i, ps in enumerate(config["setup"]["ps_list"]):
+                if ps == "auto_swift":
+                    limit = config["setup"]["ps_list"][ps]["flux_limit"]
+                    day = self.data.dates[0]
+                    filepath = os.path.join(
+                        get_path_of_external_data_dir(),
+                        "point_sources",
+                        f"ps_swift_{day}_limit_{limit}.dat"
+                    )
+                    # Read it as pandas
+                    ps_df_add = pd.read_table(filepath, names=["name", "ra", "dec"])
+                    exclude = [
+                        entry.upper() for entry in config["setup"]["ps_list"][ps]["exclude"]
+                    ]
+                    free = [
+                        entry.upper() for entry in config["setup"]["ps_list"][ps]["free"]
+                    ]
+                    for row in ps_df_add.itertuples():
+                        if row[1].upper() not in exclude:
+                            if row[1].upper() not in free:
+                                parameter_bounds[f"norm_{row[1]}_pl"] = config["priors"][
+                                    "ps"
+                                ]["fixed"]["pl"]["norm"]
                             else:
-                                parameter_bounds[f"norm_{ps}_{spectrum}"] = config[
-                                    "priors"
-                                ]["ps"]["fixed"][spectrum]["norm"]
-                    else:
-                        ps_df_add = pd.read_table(
-                            config["setup"]["ps_list"][ps]["path"],
-                            names=["name", "ra", "dec"],
-                        )
-                        for row in ps_df_add.itertuples():
-                            for spectrum in config["setup"]["ps_list"][ps]["spectrum"]:
-                                parameter_bounds[f"norm_{row[1]}_{spectrum}"] = config[
-                                    "priors"
-                                ]["ps"]["fixed"][spectrum]["norm"]
-
+                                parameter_bounds[
+                                    f"ps_{row[1]}_spectrum_fitted_norm_pl".format(ps)
+                                ] = config["priors"]["ps"]["free"]["pl"]["norm"]
+                                parameter_bounds[
+                                    f"ps_{row[1]}_spectrum_fitted_index".format(ps)
+                                ] = config["priors"]["ps"]["free"]["pl"]["index"]
                 else:
-                    if ps[:4] != "list":
-                        for spectrum in config["setup"]["ps_list"][ps]["spectrum"]:
-
-                            if spectrum == "pl":
-                                parameter_bounds[
-                                    "ps_{}_spectrum_fitted_norm_pl".format(ps)
-                                ] = config["priors"]["ps"]["free"][spectrum]["norm"]
-                                parameter_bounds[
-                                    "ps_{}_spectrum_fitted_index".format(ps)
-                                ] = config["priors"]["ps"]["free"][spectrum]["index"]
-
-                            elif spectrum == "bb":
-
-                                parameter_bounds[
-                                    "ps_{}_spectrum_fitted_norm_bb".format(ps)
-                                ] = config["priors"]["ps"]["free"][spectrum]["norm"]
-                                parameter_bounds[
-                                    "ps_{}_spectrum_fitted_temp".format(ps)
-                                ] = config["priors"]["ps"]["free"][spectrum]["temp"]
+                    if config["setup"]["ps_list"][ps]["fixed"]:
+                        if ps[:4] != "list":
+                            for spectrum in config["setup"]["ps_list"][ps]["spectrum"]:
+                                # Check if PS specific prior is passed
+                                if ps.upper() in config["priors"]["ps"]:
+                                    parameter_bounds[f"norm_{ps}_{spectrum}"] = config[
+                                        "priors"
+                                    ]["ps"][ps.upper()][spectrum]["norm"]
+                                    # use generic one
+                                else:
+                                    parameter_bounds[f"norm_{ps}_{spectrum}"] = config[
+                                        "priors"
+                                    ]["ps"]["fixed"][spectrum]["norm"]
+                        else:
+                            ps_df_add = pd.read_table(
+                                config["setup"]["ps_list"][ps]["path"],
+                                names=["name", "ra", "dec"],
+                            )
+                            for row in ps_df_add.itertuples():
+                                for spectrum in config["setup"]["ps_list"][ps]["spectrum"]:
+                                    parameter_bounds[f"norm_{row[1]}_{spectrum}"] = config[
+                                        "priors"
+                                    ]["ps"]["fixed"][spectrum]["norm"]
 
                     else:
-                        ps_df_add = pd.read_table(
-                            config["setup"]["ps_list"][ps]["path"],
-                            names=["name", "ra", "dec"],
-                        )
-                        for row in ps_df_add.itertuples():
-
+                        if ps[:4] != "list":
                             for spectrum in config["setup"]["ps_list"][ps]["spectrum"]:
 
                                 if spectrum == "pl":
-
                                     parameter_bounds[
-                                        f"ps_{row[1]}_spectrum_fitted_norm_pl"
+                                        "ps_{}_spectrum_fitted_norm_pl".format(ps)
                                     ] = config["priors"]["ps"]["free"][spectrum]["norm"]
                                     parameter_bounds[
-                                        f"ps_{row[1]}_spectrum_fitted_index"
-                                    ] = config["priors"]["ps"]["free"][spectrum][
-                                        "index"
-                                    ]
+                                        "ps_{}_spectrum_fitted_index".format(ps)
+                                    ] = config["priors"]["ps"]["free"][spectrum]["index"]
 
                                 elif spectrum == "bb":
 
                                     parameter_bounds[
-                                        f"ps_{row[1]}_spectrum_fitted_norm_bb"
+                                        "ps_{}_spectrum_fitted_norm_bb".format(ps)
                                     ] = config["priors"]["ps"]["free"][spectrum]["norm"]
-
                                     parameter_bounds[
-                                        f"ps_{row[1]}_spectrum_fitted_temp"
+                                        "ps_{}_spectrum_fitted_temp".format(ps)
                                     ] = config["priors"]["ps"]["free"][spectrum]["temp"]
+
+                        else:
+                            ps_df_add = pd.read_table(
+                                config["setup"]["ps_list"][ps]["path"],
+                                names=["name", "ra", "dec"],
+                            )
+                            for row in ps_df_add.itertuples():
+
+                                for spectrum in config["setup"]["ps_list"][ps]["spectrum"]:
+
+                                    if spectrum == "pl":
+
+                                        parameter_bounds[
+                                            f"ps_{row[1]}_spectrum_fitted_norm_pl"
+                                        ] = config["priors"]["ps"]["free"][spectrum]["norm"]
+                                        parameter_bounds[
+                                            f"ps_{row[1]}_spectrum_fitted_index"
+                                        ] = config["priors"]["ps"]["free"][spectrum][
+                                            "index"
+                                        ]
+
+                                    elif spectrum == "bb":
+
+                                        parameter_bounds[
+                                            f"ps_{row[1]}_spectrum_fitted_norm_bb"
+                                        ] = config["priors"]["ps"]["free"][spectrum]["norm"]
+
+                                        parameter_bounds[
+                                            f"ps_{row[1]}_spectrum_fitted_temp"
+                                        ] = config["priors"]["ps"]["free"][spectrum]["temp"]
 
         if config["setup"]["use_earth"]:
             # If earth spectrum is fixed only the normalization, otherwise C, index1, index2 and E_break
@@ -482,7 +502,7 @@ class BackgroundModelGenerator(object):
                     ]
 
         self._parameter_bounds = parameter_bounds
-
+        
         # Add bounds to the parameters for multinest
         self._model.set_parameter_priors(self._parameter_bounds)
 
