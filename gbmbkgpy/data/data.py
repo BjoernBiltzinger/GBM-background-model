@@ -1,19 +1,6 @@
-import astropy.io.fits as fits
-
-from gbmbkgpy.io.file_utils import file_existing_and_readable
-from gbmbkgpy.io.downloading import download_gbm_file
-
-import astropy.time as astro_time
-
 import numpy as np
 
-import os
-from gbmbkgpy.io.package_data import get_path_of_external_data_dir
-from gbmgeometry import GBMTime
 from gbmbkgpy.utils.binner import Rebinner
-from gbmbkgpy.utils.mpi import check_mpi
-
-using_mpi, rank, size, comm = check_mpi()
 
 
 class Data:
