@@ -3,7 +3,8 @@ import numpy as np
 
 class Rebinner(object):
     """
-    A class to rebin vectors keeping a minimum bin_width. It supports array with a mask, so that elements excluded
+    A class to rebin vectors keeping a minimum bin_width. It supports array
+    with a mask, so that elements excluded
     through the mask will not be considered for the rebinning
     """
 
