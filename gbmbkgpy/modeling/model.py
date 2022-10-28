@@ -40,7 +40,6 @@ class ModelDet:
         for name in source_name_list:
             found = False
             for source in self._sources:
-                print(source.get_counts().shape)
                 if name == source.name:
                     counts += source.get_counts(bin_mask)
                     found = True
