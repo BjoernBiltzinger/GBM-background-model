@@ -110,9 +110,9 @@ class Rebinner(object):
         # Set stop time of last bin to correct value
         self._time_rebinned[-1][1] = vector_to_rebin_on[self._stops[-1]][1]
 
-        rebinned_saa_mask = np.ones_like(self._starts)
-        rebinned_saa_mask.put(self._saa_idx, 0)
-        self._rebinned_saa_mask = np.array(rebinned_saa_mask, bool)
+        rebinned_mask = np.ones_like(self._starts)
+        rebinned_mask.put(self._saa_idx, 0)
+        self._rebinned_mask = np.array(rebinned_mask, bool)
 
     @property
     def n_bins(self):
@@ -129,9 +129,9 @@ class Rebinner(object):
         return self._time_rebinned
 
     @property
-    def rebinned_saa_mask(self):
+    def rebinned_mask(self):
 
-        return self._rebinned_saa_mask
+        return self._rebinned_mask
 
     def rebin(self, *vectors):
         """
@@ -186,7 +186,7 @@ class Rebinner(object):
             rebinned_vector = np.array(rebinned_vector)
 
             # Set last bin before and first bin after SAA to zero for plotting (this gets rid of glitches when plotting count-rates)
-            rebinned_vector[np.where(~self._rebinned_saa_mask)] = 0.0
+            rebinned_vector[np.where(~self._rebinned_mask)] = 0.0
 
             rebinned_vectors.append(rebinned_vector)
 
