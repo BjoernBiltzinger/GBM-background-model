@@ -1,650 +1,101 @@
-import collections
-
-from gbmbkgpy.modeling.parameter import Parameter
-from gbmbkgpy.modeling.source import (
-    CONTINUUM_SOURCE,
-    POINT_SOURCE,
-    FLARE_SOURCE,
-    SAA_SOURCE,
-    GLOBAL_SOURCE,
-    FIT_SPECTRUM_SOURCE,
-    TRANSIENT_SOURCE,
-)
 import numpy as np
 
-
-try:
-    # see if we have mpi and/or are upalsing parallel
-
-    from mpi4py import MPI
-
-    if MPI.COMM_WORLD.Get_size() > 1:  # need parallel capabilities
-        using_mpi = True
-
-        comm = MPI.COMM_WORLD
-        rank = comm.Get_rank()
-        size = comm.Get_size()
-
-    else:
-        using_mpi = False
-
-except:
-    using_mpi = False
+from gbmbkgpy.utils.likelihood import cstat_numba
 
 
-class Model(object):
-    def __init__(self, *sources, echans, detectors, use_eff_area_correction=False):
-        """
-        Init model class with all wanted sources
-        :param sources: list of sources
+class ModelDet:
+
+    def __init__(self, data):
         """
 
-        self._use_eff_area_correction = use_eff_area_correction
-
-        self._nr_detectors = len(detectors)
-
-        if self._nr_detectors == 1 and self._use_eff_area_correction:
-            print(
-                "Effective area correction makes no sense when only one detector is used..."
-            )
-            self._use_eff_area_correction = False
-
-        if self._use_eff_area_correction:
-            self._eff_area_corr = np.ones((1, self._nr_detectors, 1))
-
-        self._nr_echans = len(echans)
-
-        self._detectors = sorted(detectors)
-
-        self._continuum_sources = collections.OrderedDict()
-
-        self._flare_sources = collections.OrderedDict()
-
-        self._point_sources = collections.OrderedDict()
-
-        self._saa_sources = collections.OrderedDict()
-
-        self._global_sources = collections.OrderedDict()
-
-        self._fit_spectrum_sources = collections.OrderedDict()
-
-        self._transient_sources = collections.OrderedDict()
-
-        for source in sources:
-            self._add_source(source)
-
-        self._update_parameters()
-
-        self._saa_regions = []
-
-    @property
-    def free_parameters(self):
         """
-        Get a dictionary with all the free parameters in this model
-        :return: dictionary of free parameters
-        """
-
-        # Refresh the list
-
-        self._update_parameters()
-
-        # Filter selecting only free parameters
-
-        free_parameters_dictionary = collections.OrderedDict()
-
-        for parameter_name, parameter in self._parameters.items():
-
-            if parameter.free:
-                free_parameters_dictionary[parameter_name] = parameter
-
-        return free_parameters_dictionary
-
-    def set_free_parameters(self, new_parameters):
-        """
-        Set the free parameters to the new values
-        :param new_parameters:
-        :return:
-        """
-        for i, parameter in enumerate(self.free_parameters.values()):
-            parameter.value = new_parameters[i]
-
-        if self._use_eff_area_correction:
-            self._eff_area_corr = np.ones((1, self._nr_detectors, 1))
-            # new eff_area_corr array
-            for i, det in enumerate(self._detectors[1:]):
-
-                self._eff_area_corr[0, i + 1, 0] = self.free_parameters[
-                    f"eff_area_corr_{det}"
-                ].value
-
-    def set_parameter_priors(self, priors_dict):
-        """
-        Set the parameter priors
-        :param priors_dict:
-        :return:
-        """
-        print(self.parameters)
-
-        for param_name, prior_dict in priors_dict.items():
-            self.parameters[param_name].bounds = prior_dict["bounds"]
-            self.parameters[param_name].gaussian_parameter = prior_dict["gaussian"]
-
-            if prior_dict.get("prior", None) is not None:
-                self.parameters[param_name].prior = prior_dict["prior"]
-
-    @property
-    def normalization_parameters(self):
-        """
-        Get a dictionary with all the normalization parameters in this model
-        :return: dictionary of normalization parameters
-        """
-
-        # Refresh the list
-
-        self._update_parameters()
-
-        # Filter selecting only normalization parameters
-
-        normalization_parameters_dictionary = collections.OrderedDict()
-
-        for parameter_name, parameter in self._parameters.items():
-
-            if parameter.normalization:
-                normalization_parameters_dictionary[parameter_name] = parameter
-
-        return normalization_parameters_dictionary
-
-    @property
-    def not_normalization_parameters(self):
-        """
-        Get a dictionary with all the parameters that are not normalization in this model
-        :return: dictionary of not normalization parameters
-        """
-
-        # Refresh the list
-
-        self._update_parameters()
-
-        # Filter selecting only normalization parameters
-
-        normalization_parameters_dictionary = collections.OrderedDict()
-
-        for parameter_name, parameter in self._parameters.items():
-
-            if not parameter.normalization:
-                normalization_parameters_dictionary[parameter_name] = parameter
-
-        return normalization_parameters_dictionary
-
-    @property
-    def parameters(self):
-        """
-        Return a dictionary with all parameters
-        :return: dictionary of parameters
-        """
-        self._update_parameters()
-
-        return self._parameters
-
-    @property
-    def parameter_names(self):
-        """
-        Return a list with all paramete names
-        :return: list of parameter names
-        """
-        param_names = [parameter.name for parameter in self.parameters.values()]
-
-        return param_names
-
-    def _update_parameters(self):
-        """
-        Updates the parameter values
-        :return:
-        """
-
-        parameters = collections.OrderedDict()
-
-        for sources in [
-            self._continuum_sources,
-            self._flare_sources,
-            self._point_sources,
-            self._saa_sources,
-            self._global_sources,
-            self._fit_spectrum_sources,
-            self._transient_sources,
-        ]:
-
-            for source in sources.values():
-
-                for parameter_name, parameter in source.parameters.items():
-                    parameters[parameter_name] = parameter
-
-        # the effective area corr parameters are stored in this model class
-        # check if there is already a self._parameters. If yes these parameters are
-        # already initaized and we will use them again. If no initalize them new.
-
-        if self._use_eff_area_correction:
-            for i in range(self._nr_detectors - 1):
-                try:
-                    parameters[
-                        f"eff_area_corr_{self._detectors[i+1]}"
-                    ] = self._parameters[f"eff_area_corr_{self._detectors[i+1]}"]
-                except AttributeError:
-                    parameters[f"eff_area_corr_{self._detectors[i+1]}"] = Parameter(
-                        f"eff_area_corr_{self._detectors[i+1]}",
-                        initial_value=1.0,
-                        min_value=0.8,
-                        max_value=1.2,
-                        delta=0.1,
-                        mu=1.0,
-                        sigma=0.1,
-                        normalization=True,
-                        prior="truncated_gaussian"
-                        # prior="uniform"
-                    )
-
-        self._parameters = parameters
-
-    def _add_source(self, source):
-        """
-        Add a source in the correct dictionary
-        :param source:
-        :return:
-        """
-
-        if source.source_type == POINT_SOURCE:
-            self._point_sources[source.name] = source
-
-        if source.source_type == FLARE_SOURCE:
-            self._flare_sources[source.name] = source
-
-        if source.source_type == CONTINUUM_SOURCE:
-            self._continuum_sources[source.name] = source
-
-        if source.source_type == SAA_SOURCE:
-            self._saa_sources[source.name] = source
-
-        if source.source_type == GLOBAL_SOURCE:
-            self._global_sources[source.name] = source
-
-        if source.source_type == FIT_SPECTRUM_SOURCE:
-            self._fit_spectrum_sources[source.name] = source
-
-        if source.source_type == TRANSIENT_SOURCE:
-            self._transient_sources[source.name] = source
-
-    def set_initial_SAA_amplitudes(self, norm_array):
-        """
-        Sets the initial normalization of the saa_sources
-        :param norm_array:
-        :return:
-        """
-        for i, saa_source in enumerate(self._saa_sources.values()):
-            saa_source.parameters["A-%s" % i].value = norm_array[i]
-
-    def set_initial_continuum_amplitudes(self, norm_array):
-        """
-        Sets the initial normalization of the continuum sources
-        :param norm_array:
-        :return:
-        """
-        for i, continuum_source in enumerate(self._continuum_sources.values()):
-
-            for j, parameter in enumerate(continuum_source.parameters.values()):
-                parameter.value = norm_array[i]
-
-    def set_initial_global_amplitudes(self, norm_array):
-        """
-        Sets the initial normalization of the global sources
-        :param norm_array:
-        :return:
-        """
-        for i, global_source in enumerate(self._global_sources.values()):
-
-            for j, parameter in enumerate(global_source.parameters.values()):
-                parameter.value = norm_array[i]
+        self._data = data
+        self._sources = []
 
     def add_source(self, source):
         """
-        Public method to add a source in the correct dictionary
-        :param source:
-        :return:
+        Add a photon source - shared between all dets and echans
         """
-        self._add_source(source)
+        self._check_valid_source_name(source, self._sources)
+
+        # set time bins for source
+        source.set_time_bins(self._data.time_bins)
+
+        # add to list
+        self._sources.append(source)
+
+        # update current parameters
+        self.update_current_parameters()
+
+    def _check_valid_source_name(self, source, source_list):
+        """
+        check if the source is already in the list
+        """
+        for s in source_list:
+            if s.name == source.name:
+                raise AssertionError("Two sources with the same names")
+
+    def get_counts_given_source(self, source_name_list: list, bin_mask=None):
+        counts = np.zeros_like(self._data.counts, dtype=float)
+        for name in source_name_list:
+            found = False
+            for source in self._sources:
+                print(source.get_counts().shape)
+                if name == source.name:
+                    counts += source.get_counts(bin_mask)
+                    found = True
+                    break
+            if not found:
+                source_names = self.get_source_names()
+                raise AssertionError(f"No source with the name {name}"
+                                     "Sources with the following names exist:"
+                                     f"{source_names}")
+        return counts
+
+    def get_source_names(self):
+        names = []
+        for source in self._sources:
+            names.append(source.name)
+        return names
+
+    def get_counts(self, bin_mask=None):
+        counts = np.zeros_like(self._data.counts, dtype=float)
+        for source in self._sources:
+            counts += source.get_counts(bin_mask)
+        return counts
+
+    def log_like(self):
+        return cstat_numba(self.get_counts(), self._data.counts)
+
+    def update_current_parameters(self):
+        # return all parameters
+        parameters = {}
+        if len(self._sources) > 0:
+            for source in self._sources:
+                for name, param in source.parameters.items():
+                    parameters[f"{source.name}_{name}"] = param
+        self._current_parameters = parameters
 
     @property
-    def point_sources(self):
+    def current_parameters(self):
+        return self._current_parameters
 
-        return self._point_sources
 
-    @property
-    def flare_sources(self):
+class ModelAll:
 
-        return self._flare_sources
+    def __init__(self, *model_dets):
+        self._model_dets: ModelDet = model_dets
 
-    @property
-    def continuum_sources(self):
-
-        return self._continuum_sources
-
-    @property
-    def global_sources(self):
-
-        return self._global_sources
+    def log_like(self):
+        log_like = 0
+        for model in self._model_dets:
+            log_like += model.log_like
+        return log_like
 
     @property
-    def fit_spectrum_sources(self):
-
-        return self._fit_spectrum_sources
-
-    @property
-    def transient_sources(self):
-
-        return self._transient_sources
-
-    @property
-    def saa_sources(self):
-
-        return self._saa_sources
-
-    @property
-    def n_point_sources(self):
-
-        return len(self._point_sources)
-
-    @property
-    def n_flare_sources(self):
-
-        return len(self._flare_sources)
-
-    @property
-    def n_continuum_sources(self):
-
-        return len(self._continuum_sources)
-
-    @property
-    def n_saa_sources(self):
-
-        return len(self._saa_sources)
-
-    @property
-    def n_transient(self):
-
-        return len(self._transient_sources)
-
-    def get_continuum_counts(self, id, time_bins, saa_mask):
-        """
-        Get the count of the sources in the self._continuum_sources dict
-        :param id: 
-        :param time_bins:
-        :return: 
-        """
-        continuum_counts = np.zeros(
-            (len(time_bins), self._nr_detectors, self._nr_echans)
-        )
-
-        continuum_source = list(self._continuum_sources.values())[id]
-
-        continuum_counts[:, :, continuum_source.echan] += continuum_source.get_counts(
-            time_bins=time_bins
-        )
-
-        # The SAA sections will be set to zero if a saa_mask is provided
-        if saa_mask is not None:
-            assert len(time_bins) == len(
-                saa_mask
-            ), "The time_bins and saa_mask should be of equal length"
-            continuum_counts[~saa_mask] = 0.0
-
-        return continuum_counts
-
-    def _sources_echan_number_parameter(self):
-        """
-        :return: sources, echan of sources, number so parameters per source
-        """
-
-        source_list = [
-            self._continuum_sources,
-            self._flare_sources,
-            self._point_sources,
-            self._saa_sources,
-            self._global_sources,
-            self._fit_spectrum_sources,
-            self._transient_sources,
-        ]
-        echan = np.array([])
-        num_params = np.array([])
-        for sources in source_list:
-
-            for source in sources.values():
-                echan = np.append(echan, source.echan)
-                num_para = 0
-                for parameter_name, parameter in source.parameters.items():
-                    num_para += 1
-                num_params = np.append(num_params, num_para)
-
-        return source_list, echan, num_params
-
-    def get_global_counts(self, id, time_bins, saa_mask):
-        """
-        Get the count of the source id in the self._global_sources dict
-        :param echan:
-        :param saa_mask:
-        :param id:
-        :param time_bins:
-        :return:
-        """
-        source_counts = list(self._global_sources.values())[id].get_counts(time_bins)
-
-        # The SAA sections will be set to zero if a saa_mask is provided
-        if saa_mask is not None:
-            assert len(time_bins) == len(
-                saa_mask
-            ), "The time_bins and saa_mask should be of equal length"
-            source_counts[np.where(~saa_mask)] = 0.0
-
-        if self._use_eff_area_correction:
-            return self._eff_area_corr * source_counts
-        else:
-            return source_counts
-
-    def get_fit_spectrum_counts(self, id, time_bins, saa_mask):
-        """
-        Get the count of the sources in the self._fit_spectrum_sources dict
-        :param echan:
-        :param saa_mask:
-        :param id:
-        :param time_bins:
-        :return:
-        """
-        source_counts = list(self._fit_spectrum_sources.values())[id].get_counts(
-            time_bins
-        )
-
-        # The SAA sections will be set to zero if a saa_mask is provided
-        if saa_mask is not None:
-            assert len(time_bins) == len(
-                saa_mask
-            ), "The time_bins and saa_mask should be of equal length"
-            source_counts[np.where(~saa_mask)] = 0.0
-
-        if self._use_eff_area_correction:
-            return self._eff_area_corr * source_counts
-        else:
-            return source_counts
-
-    def get_flare_counts(self, id, time_bins, saa_mask, echan):
-        """
-        
-        :param echan:
-        :param saa_mask:
-        :param time_bins:
-        :param id:
-        :return: 
-        """
-        source_counts = np.zeros(len(time_bins))
-        if list(self._flare_sources.values())[id].echan == echan:
-            source_counts = list(self._flare_sources).values()[id].get_counts(time_bins)
-
-        # The SAA sections will be set to zero if a saa_mask is provided
-        if saa_mask is not None:
-            assert len(time_bins) == len(
-                saa_mask
-            ), "The time_bins and saa_mask should be of equal length"
-            source_counts[np.where(~saa_mask)] = 0.0
-
-        return source_counts
-
-    def get_saa_counts(self, time_bins, saa_mask):
-        """
-
-        :param echan:
-        :param saa_mask:
-        :param time_bins:
-        :param id:
-        :return:
-        """
-        source_counts = np.zeros((len(time_bins), self._nr_detectors, self._nr_echans))
-
-        for saa_source in self._saa_sources.values():
-            source_counts[:, :, saa_source.echan] += saa_source.get_counts(
-                time_bins=time_bins,
-            )
-
-        # The SAA sections will be set to zero if a saa_mask is provided
-        if saa_mask is not None:
-            assert len(time_bins) == len(
-                saa_mask
-            ), "The time_bins and saa_mask should be of equal length"
-            source_counts[np.where(~saa_mask)] = 0.0
-
-        return source_counts
-
-    def get_transient_counts(self, time_bins, saa_mask, echan):
-        """
-
-        :param echan:
-        :param saa_mask:
-        :param time_bins:
-        :param id:
-        :return:
-        """
-        source_counts = np.zeros((len(time_bins), self._nr_detectors, self._nr_echans))
-
-        for i, transient in enumerate(self._transient_sources):
-            if list(self._transient_sources.values())[i].echan == echan:
-                source_counts += list(self._transient_sources.values())[i].get_counts(
-                    time_bins, echan
-                )
-
-        # The SAA sections will be set to zero if a saa_mask is provided
-        if saa_mask is not None:
-            assert len(time_bins) == len(
-                saa_mask
-            ), "The time_bins and saa_mask should be of equal length"
-            source_counts[np.where(~saa_mask)] = 0.0
-
-        return source_counts
-
-    def get_all_global_counts(self, time_bins, bin_mask=None, saa_mask=None):
-        """
-        Get all counts from the sources in the "global dict"
-        :param time_bins:
-        :param echan:
-        :param bin_mask:
-        :param saa_mask:
-        :return:
-        """
-
-        if bin_mask is not None:
-            assert (
-                saa_mask is None
-            ), "There should only be a bin mask or a saa_mask provided"
-
-        if bin_mask is None:
-            bin_mask = np.ones(
-                len(time_bins), dtype=bool
-            )  # np.full(len(time_bins), True)
-
-        total_counts = np.zeros((len(time_bins), self._nr_detectors, self._nr_echans))
-
-        for global_source in self._global_sources.values():
-            total_counts += global_source.get_counts(time_bins, bin_mask)
-
-        # The SAA sections will be set to zero if a saa_mask is provided
-        if saa_mask is not None:
-            assert len(time_bins) == len(
-                saa_mask
-            ), "The time_bins and saa_mask should be of equal length"
-            total_counts[np.where(~saa_mask)] = 0.0
-        if self._use_eff_area_correction:
-            return self._eff_area_corr * total_counts
-        else:
-            return total_counts
-
-    def get_counts(self, time_bins, bin_mask=None, saa_mask=None):
-        """
-        Calculates the counts for all sources in the model and returns the summed up array.
-        Only one of the following usecases can be used!
-        1) The bin_mask serves for masking the saa sections for faster fitting
-        2) The saa_mask sets the SAA sections to zero when the counts for all time bins are returned
-
-        :param saa_mask:
-        :param time_bins:
-        :param bin_mask:
-        :return:
-        """
-        if bin_mask is not None:
-            assert (
-                saa_mask is None
-            ), "There should only be a bin mask or a saa_mask provided"
-
-        if bin_mask is None:
-            bin_mask = np.ones(len(time_bins), dtype=bool)
-
-        total_counts = np.zeros((len(time_bins), self._nr_detectors, self._nr_echans))
-
-        for continuum_source in self._continuum_sources.values():
-
-            total_counts[:, :, continuum_source.echan] += continuum_source.get_counts(
-                time_bins=time_bins, bin_mask=bin_mask
-            )
-
-        # for flare_source in self._flare_sources.values():
-        #     if flare_source.echan == echan:
-        #         total_counts += flare_source.get_counts(time_bins, echan, bin_mask)
-        #
-
-        for saa_source in self._saa_sources.values():
-            total_counts[:, :, saa_source.echan] += saa_source.get_counts(
-                time_bins=time_bins, bin_mask=bin_mask
-            )
-
-        for global_source in self._global_sources.values():
-            if self._use_eff_area_correction:
-                total_counts += self._eff_area_corr * global_source.get_counts(
-                    time_bins=time_bins, bin_mask=bin_mask
-                )
-            else:
-                total_counts += global_source.get_counts(
-                    time_bins=time_bins, bin_mask=bin_mask
-                )
-
-        for fit_spectrum_source in self._fit_spectrum_sources.values():
-            if self._use_eff_area_correction:
-                total_counts += self._eff_area_corr * fit_spectrum_source.get_counts(
-                    time_bins=time_bins, bin_mask=bin_mask
-                )
-            else:
-                total_counts += fit_spectrum_source.get_counts(
-                    time_bins=time_bins, bin_mask=bin_mask
-                )
-
-        # The SAA sections will be set to zero if a saa_mask is provided
-        if saa_mask is not None:
-            assert len(time_bins) == len(
-                saa_mask
-            ), "The time_bins and saa_mask should be of equal length"
-            total_counts[np.where(~saa_mask)] = 0.0
-
-        return total_counts
+    def parameter(self):
+        parameters = {}
+        for model in self._model_dets:
+            for name, param in model.parameters.items():
+                parameters[name] = param
+        return parameters
