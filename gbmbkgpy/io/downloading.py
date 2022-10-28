@@ -39,7 +39,7 @@ def download_flares(year):
     shutil.move(path_to_file, file_path + file_name)
 
 
-def download_lat_spacecraft(week):
+def download_lat_spacecraftOLD(week):
     """This function downloads a weekly lat-data file and stores it in the appropriate folder\n
     Input:\n
     download.lat_spacecraft ( week = XXX )\n"""
@@ -74,6 +74,49 @@ def download_lat_spacecraft(week):
     file_name = "lat_spacecraft_weekly_w%d_p202_v001.fits" % week
 
     shutil.move(path_to_file, file_path + file_name)
+
+
+def download_lat_spacecraft(mission_week):
+    """
+    Download weekly lat-data file
+
+    :param mission_week:
+    :return:
+    """
+
+    mission_week = int(mission_week)
+
+    if rank == 0:
+
+        data_path = get_path_of_external_data_dir()
+
+        file_path = data_path / "lat"
+        file_path.mkdir(parents=True, exist_ok=True)
+
+        final_path = (file_path /
+                      f"lat_spacecraft_weekly_w{mission_week}_p310_v001.fits")
+
+        if not final_path.exists():
+            url = (f"https://heasarc.gsfc.nasa.gov/FTP/fermi/data/"
+                   f"lat/weekly/spacecraft/"
+                   f"lat_spacecraft_weekly_w{mission_week}_p310_v001.fits")
+
+            path_to_file = None
+
+            try:
+                path_to_file = download_file(url)
+            except HTTPError:
+                pass
+
+            if path_to_file is None:
+                print(f"No version found for the url {url}")
+
+            shutil.move(path_to_file, final_path)
+
+    if using_mpi:
+        comm.Barrier()
+
+    return final_path
 
 
 def download_gbm_file(date, data_type, detector="all"):
@@ -128,8 +171,10 @@ def download_gbm_file(date, data_type, detector="all"):
     if using_mpi:
         comm.Barrier()
 
+    return final_path
 
-def download_trigdata_file(trigger, type, detector="all"):
+
+def download_trigdata_file(trigger):
     """
     Download trigdata
 
@@ -139,64 +184,40 @@ def download_trigdata_file(trigger, type, detector="all"):
     :return:
     """
 
-    year = "20%s" % trigger[2:4]
-    month = trigger[4:6]
-    day = trigger[6:8]
+    if rank == 0:
+        year = "20%s" % trigger[2:4]
+        month = trigger[4:6]
+        day = trigger[6:8]
 
-    data_path = get_path_of_external_data_dir()
-    if not os.access(data_path, os.F_OK):
-        print("Making New Directory")
-        os.mkdir(data_path)
+        data_path = get_path_of_external_data_dir()
 
-    folder_path = os.path.join(data_path, type)
-    if not os.access(folder_path, os.F_OK):
-        print("Making New Directory")
-        os.mkdir(folder_path)
+        file_dir = data_path / "trigdat" / year
+        file_dir.mkdir(parents=True, exist_ok=True)
 
-    file_path = os.path.join(data_path, type, year)
-    file_type = "fit"
+        base_url = ("https://heasarc.gsfc.nasa.gov/FTP/fermi/data/gbm/triggers/"
+                    f"{year}/{trigger}/current/glg_trigdat_all_{trigger}_v0")
 
-    if not os.access(file_path, os.F_OK):
-        print("Making New Directory")
-        os.mkdir(file_path)
+        final_path = (file_dir / f"glg_trigdat_all_{trigger}_v00.fits")
 
-    try:
-        url = "https://heasarc.gsfc.nasa.gov/FTP/fermi/data/gbm/triggers/{0}/{1}/current/glg_{2}_{3}_{4}_v00.{5}".format(
-            year, trigger, type, detector, trigger, file_type
-        )
-        path_to_file = download_file(url)
-    except:
-        try:
-            url = "https://heasarc.gsfc.nasa.gov/FTP/fermi/data/gbm/triggers/{0}/{1}/current/glg_{2}_{3}_{4}_v01.{5}".format(
-                year, trigger, type, detector, trigger, file_type
-            )
-            path_to_file = download_file(url)
-        except:
-            try:
-                url = "https://heasarc.gsfc.nasa.gov/FTP/fermi/data/gbm/triggers/{0}/{1}/current/glg_{2}_{3}_{4}_v02.{5}".format(
-                    year, trigger, type, detector, trigger, file_type
-                )
-
-                path_to_file = download_file(url)
-            except:
+        if not final_path.exists():
+            path_to_file = None
+            for version in ["0", "1", "2", "3", "4"]:
                 try:
-                    url = "https://heasarc.gsfc.nasa.gov/FTP/fermi/data/gbm/triggers/{0}/{1}/current/glg_{2}_{3}_{4}_v03.{5}".format(
-                        year, trigger, type, detector, trigger, file_type
-                    )
+                    path_to_file = download_file(f"{base_url}{version}.fits")
+                except HTTPError:
+                    pass
+                if path_to_file is not None:
+                    break
 
-                    path_to_file = download_file(url)
-                except:
-                    try:
-                        url = "https://heasarc.gsfc.nasa.gov/FTP/fermi/data/gbm/triggers/{0}/{1}/current/glg_{2}_{3}_{4}_v04.{5}".format(
-                            year, trigger, type, detector, trigger, file_type
-                        )
-                        path_to_file = download_file(url)
-                    except:
-                        print("This url not found {}".format(url))
+            if path_to_file is None:
+                print(f"No version found for the url {base_url}?.fits")
 
-    file_name = "glg_{0}_{1}_{2}_v00.{3}".format(type, detector, trigger, file_type)
+            shutil.move(path_to_file, final_path)
 
-    shutil.move(path_to_file, os.path.join(file_path, file_name))
+    if using_mpi:
+        comm.Barrier()
+
+    return final_path
 
 
 def download_files(data_type, det, day):
