@@ -11,6 +11,7 @@ class SBPL(Function1D, metaclass=FunctionMeta):
         K :
             desc : Differential flux at the break energy
             initial value : 1e-4
+            min: 1e-50
             is_normalization : True
             transformation : log10
         alpha :
@@ -56,3 +57,12 @@ class SBPL(Function1D, metaclass=FunctionMeta):
             alpha_, beta_, K_, x_, xb__ = alpha, beta, K, x, xb
 
         return K/((x/xb)**alpha+(x/xb)**beta)
+
+
+def fix_all_params(astro_func):
+    """
+    Helper function to fix all the parameters of a astromodel function
+    """
+
+    for key, param in astro_func.free_parameters.items():
+        param.fix = True
