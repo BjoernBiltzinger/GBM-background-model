@@ -38,33 +38,33 @@ class AstromodelFunctionVector:
         self._base_function = base_function
         self._vec = np.empty(num_x, dtype=type(base_function))
 
-        # fill matrix
+        # fill vector
         for x in range(self._num_x):
             self._vec[x] = deepcopy(base_function)
 
         # set attributes to access param values
         for name in base_function.parameters.keys():
-            setattr(self, name, vec_getattr(self._mat, name))
+            setattr(self, name, vec_getattr(self._vec, name))
 
     def add_function(self, function, idx):
         """
-        add the function to a given matrix position
+        add the function to a given vector position
         """
         assert isinstance(function, self._base_function)
-        self._mat[idx] = function
+        self._vec[idx] = function
 
     def __call__(self, values):
         """
-        Evaluate all functions in matrix at the given value
+        Evaluate all functions in vector at the given value
         """
         if isinstance(values, Iterable):
             res = np.zeros((*values.shape,
-                            *self._mat.shape))
+                            *self._vec.shape))
             for x in range(self._num_x):
-                res[..., x] = self._mat[x](values)
+                res[..., x] = self._vec[x](values)
             return res
 
-        return vec_eval_func(self._mat, values)
+        return vec_eval_func(self._vec, values)
 
 
     @property
