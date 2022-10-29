@@ -1,5 +1,7 @@
 name: Docs
-on: [push, release]
+on:
+  push:
+    branches: [master]
 
 jobs:
   notebooks:
@@ -62,6 +64,7 @@ jobs:
           pip install --upgrade numpy ipython jupyter ipyvolume scipy h5py matplotlib numba
           pip install jupytext jupyterthemes pygraphviz
           pip install -r docs/requirements.txt
+
       - name: Install package
         run: |
           brew install c-blosc
@@ -73,17 +76,11 @@ jobs:
           pip3 install -U sphinx nbsphinx sphinx-gallery
           python3 setup.py develop
           rm -rf docs/md/*
+
       - uses: actions/download-artifact@master
         with:
           name: notebooks-for-${{ github.sha }}
           path: docs/notebooks
-
-
-      - uses: actions/download-artifact@master
-        with:
-          name: api-stubs-for-${{ github.sha }}
-          path: docs/notebooks/api
-
 
       - name: Build and Commit
         uses: sphinx-notes/pages@master
