@@ -3,6 +3,8 @@ import numpy as np
 
 from astromodels import Constant
 
+from gbmbkgpy.modeling.new_astromodels import fix_all_params
+
 
 class Source:
     def __init__(self, name, fit_model, spectral_model=None):
@@ -75,7 +77,7 @@ class SAASource(Source):
 
         if model.name != "AstromodelFunctionVector":
 
-            self._model_matrix = False
+            self._model_vec = False
             if model.name == "Line":
 
                 self._model_type = 1
@@ -84,11 +86,11 @@ class SAASource(Source):
                 self._model_type = 2
         else:
 
-            self._model_matrix = True
-            if model.matrix[0].name == "Line":
+            self._model_vec = True
+            if model.vector[0].name == "Line":
 
                 self._model_type = 1
-            elif model.matrix[0].name == "Exponential_cutoff":
+            elif model.vector[0].name == "Exponential_cutoff":
 
                 self._model_type = 2
             else:
@@ -109,10 +111,10 @@ class SAASource(Source):
         self._tstart = time_bins[:, 0][~self._idx_start]
         self._tstop = time_bins[:, 1][~self._idx_start]
 
-        if self._model_matrix:
+        if self._model_vec:
 
             self._out = np.zeros((len(time_bins),
-                                  self.model.num_x,
+                                  self.fit_model.num_x,
                                   ))
 
         else:
@@ -132,15 +134,15 @@ class SAASource(Source):
         if self._model_type == 2:
 
             # analyic integral solution
-            if self._model_matrix:
+            if self._model_vec:
 
-                xc = self.model.xc[np.newaxis, ...]
+                xc = self.fit_model.xc[np.newaxis, ...]
                 self._out[~self._idx_start] = xc*(self._fit_model(self._tstart-self._t0) -
                                                   self._fit_model(self._tstop-self._t0))
 
             else:
 
-                xc = self.model.xc.value
+                xc = self.fit_model.xc.value
                 self._out[~self._idx_start] = xc*(self._fit_model(self._tstart-self._t0) -
                                                   self._fit_model(self._tstop-self._t0))
 
@@ -183,13 +185,14 @@ class NormOnlySource(Source):
 
         if len(self._base_array.shape) == 1:
 
-            if self.model.name == "AstromodelFunctionVector":
+            if self.fit_model.name == "AstromodelFunctionVector":
 
-                self._base_array = np.tile(self._base_array, self.model.num_x)
+                self._base_array = np.tile(self._base_array,
+                                           (self.fit_model.num_x, 1)).T
 
             else:
 
-                self._base_array = np.tile(self._base_array, 1)
+                self._base_array = np.tile(self._base_array, (1, 1))
 
     def _evaluate(self):
         """
@@ -210,7 +213,9 @@ class PhotonSourceFixed(NormOnlySource):
         :param astro_model: Astromodel Function for spectrum
         :param response_array: Array with response for different times
         """
-        assert len(astro_model.free_parameters) == 0
+
+        # fix all the params
+        fix_all_params(astro_model)
 
         self._monte_carlo_energies = rsp_obj.Ebins_in_edge
         response_interpolation = rsp_obj.interp_effective_response
