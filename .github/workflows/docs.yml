@@ -19,6 +19,7 @@ jobs:
         uses: ts-graphviz/setup-graphviz@v1
       - name: Install dependencies
         run: |
+          mkdir /home/runner/GBMDATA
           pip install Tempita
           python -m pip install --upgrade pip wheel
           pip install black
@@ -33,6 +34,8 @@ jobs:
           jupytext --to ipynb --execute docs/md/*.md
           mv docs/md/*.ipynb docs/notebooks/
           ls docs/notebooks
+        env:
+          GBMDATA: /home/runner/GBMDATA
       - uses: actions/upload-artifact@v2
         with:
           name: notebooks-for-${{ github.sha }}
