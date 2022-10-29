@@ -19,6 +19,9 @@ class StanModelConstructor(object):
         num_dets = len(data.detectors)
         num_echans = len(data.echans)
 
+        # Eff area correction?
+        self._use_eff_area_correction = model._use_eff_area_correction
+        
         # How many of which sources?
 
         # Global
@@ -40,22 +43,38 @@ class StanModelConstructor(object):
 
         # SAA
         sources = model.saa_sources
-        self._num_saa_exits = int(len(sources) / num_echans)
-        if self._num_saa_exits > 0:
+        if len(sources)>0:
             self._use_saa = True
+            self._dets_saa = model_generator._dets_saa
+            if isinstance(self._dets_saa, str):
+                num_dets_saa = num_dets
+            else:
+                num_dets_saa = len(self._dets_saa)
         else:
             self._use_saa = False
+
+        if self._use_saa:
+            self._num_saa_exits = int(len(sources) / (num_echans*num_dets_saa))
+        else:
+            self._num_saa_exits = 0
+        #if self._num_saa_exits > 0:
+        #    self._use_saa = True
+        #else:
+        #    self._use_saa = False
 
         # Free spectrum
         sources = model.fit_spectrum_sources
         self._num_free_ps = 0
         self._use_free_earth = False
         self._use_free_cgb = False
+        self._use_sun = False
         for k in sources.keys():
             if k == "Earth occultation":
                 self._use_free_earth = True
             elif k == "cgb":
                 self._use_free_cgb = True
+            elif k == "sun":
+                self._use_sun = True
             else:
                 self._num_free_ps += 1
         
@@ -125,6 +144,9 @@ class StanModelConstructor(object):
         if self._use_free_cgb:
             main += "\t, matrix base_response_array_cgb, vector cgb_spec\n"
 
+        if self._use_sun:
+            main += "\t, matrix base_response_array_sun, vector sun_spec\n"
+            
         if self._use_free_ps:
             main += "\t, matrix[] base_response_array_free_ps, vector[] ps_spec\n"
 
@@ -134,6 +156,9 @@ class StanModelConstructor(object):
         if self._use_saa:
             main += "\t, matrix[] t_t0, vector[] saa_decay_vec, vector[] saa_norm_vec\n"
 
+        if self._use_eff_area_correction:
+            main += "\t, vector eff_area_array\n"
+            
         main += "\t){\n"
         #if self._profile:                                                                                
         #    main += "\t\tprofile(\"loglike\"){\n"
@@ -146,26 +171,47 @@ class StanModelConstructor(object):
                     f"(exp(-t_t0[{i+1},start:stop,1].*saa_decay_vec[{i+1}, start:stop])-"
                     f"exp(-t_t0[{i+1},start:stop,2].*saa_decay_vec[{i+1}, start:stop]))\n"
                 )
-
+                
         if self._use_fixed_global_sources:
             for i in range(self._num_fixed_global_sources):
-                main += (
-                    f"\t\t\t+norm_fixed[{i+1}]*base_counts_array[{i+1},start:stop]\n"
-                )
+                if self._use_eff_area_correction:
+                    main += (
+                        f"\t\t\t+eff_area_array[start:stop].*(norm_fixed[{i+1}]*base_counts_array[{i+1},start:stop])\n"
+                    )
+                else:
+                    main += (
+                        f"\t\t\t+norm_fixed[{i+1}]*base_counts_array[{i+1},start:stop]\n"
+                    )
 
         if self._use_cont_sources:
             for i in range(self._num_cont_sources):
                 main += f"\t\t\t+norm_cont_vec[{i+1}, start:stop].*base_counts_array_cont[{i+1}, start:stop]\n"
 
         if self._use_free_earth:
-            main += "\t\t\t+base_response_array_earth[start:stop]*earth_spec\n"
+            if self._use_eff_area_correction:
+                main += "\t\t\t+eff_area_array[start:stop].*(base_response_array_earth[start:stop]*earth_spec)\n"
+            else:
+                main += "\t\t\t+base_response_array_earth[start:stop]*earth_spec\n"
 
         if self._use_free_cgb:
-            main += "\t\t\t+base_response_array_cgb[start:stop]*cgb_spec\n"
+            if self._use_eff_area_correction:
+                main += "\t\t\t+eff_area_array[start:stop].*(base_response_array_cgb[start:stop]*cgb_spec)\n"
+            else:
+                main += "\t\t\t+base_response_array_cgb[start:stop]*cgb_spec\n"
+                
+        if self._use_sun:
+            if self._use_eff_area_correction:
+                main += "\t\t\t+eff_area_array[start:stop].*(base_response_array_sun[start:stop]*sun_spec)\n"
+            else:
+                main += "\t\t\t+base_response_array_sun[start:stop]*sun_spec\n"
 
         if self._use_free_ps:
             for i in range(self._num_free_ps):
-                main += f"\t\t\t+base_response_array_free_ps[{i+1}, start:stop]*ps_spec[{i+1}]\n"
+                if self._use_eff_area_correction:
+                    main += f"\t\t\t+eff_area_array[start:stop].*(base_response_array_free_ps[{i+1}, start:stop]*ps_spec[{i+1}])\n"
+                else:
+                    main += f"\t\t\t+base_response_array_free_ps[{i+1}, start:stop]*ps_spec[{i+1}]\n"
+
 
         main += "\t\t\t);\n"
         #if self._profile:
@@ -275,6 +321,9 @@ class StanModelConstructor(object):
             text += "\treal log_norm_free_ps[num_free_ps_comp];\n"
             text += "\treal index_free_ps[num_free_ps_comp];\n"
 
+        if self._use_eff_area_correction:
+            text += "\treal<lower=0.8, upper=1.2> eff_area_corr[num_dets-1];\n"
+            
         text = text + "}\n\n"
         return text
 
@@ -307,6 +356,15 @@ class StanModelConstructor(object):
             text += "\treal norm_free_ps[num_free_ps_comp] = exp(log_norm_free_ps);\n"
             text += "\tvector[rsp_num_Ein] ps_spec[num_free_ps_comp];\n"
 
+            
+        if self._use_sun:
+            text += "\treal norm_sun = exp(log_norm_sun);\n"
+            text += "\tvector[rsp_num_Ein] sun_spec;\n"
+
+        if self._use_eff_area_correction:
+            text += "\tvector[num_data_points] eff_area_array;\n"
+
+            
         if self._use_cont_sources:
             text += (
                 "\tfor (l in 1:num_cont_comp){\n"
