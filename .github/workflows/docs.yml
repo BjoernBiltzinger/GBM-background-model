@@ -47,7 +47,6 @@ jobs:
     needs: [notebooks]
     steps:
 
-
       - uses: actions/checkout@v2
         with:
           persist-credentials: false # otherwise, the token used is the GITHUB_TOKEN, instead of your personal token
@@ -58,16 +57,8 @@ jobs:
         with:
           python-version: 3.9
 
-
       - name: Setup Graphviz
         uses: ts-graphviz/setup-graphviz@v1
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip wheel
-          pip install black
-          pip install --upgrade numpy ipython jupyter ipyvolume scipy h5py matplotlib numba
-          pip install jupytext jupyterthemes pygraphviz
-          pip install -r docs/requirements.txt
 
       - name: Install package
         run: |
@@ -78,7 +69,7 @@ jobs:
           pip3 install mock recommonmark
           pip3 install furo
           pip3 install -U sphinx nbsphinx sphinx-gallery
-          python3 setup.py develop
+          #python3 setup.py develop
           rm -rf docs/md/*
 
       - uses: actions/download-artifact@master
