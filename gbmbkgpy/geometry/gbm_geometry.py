@@ -355,7 +355,7 @@ class GBMGeometry(Geometry):
 
         self._interp_mcl = interp1d(lat_time, mc_l)
 
-    def cr_trace_diff(self, time):
+    def cr_tracer(self, time):
         """
         Returns the McIlwain L-parameter difference for the satellite position
         for a given time and the minumum mcl value
