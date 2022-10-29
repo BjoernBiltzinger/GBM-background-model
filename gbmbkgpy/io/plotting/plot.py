@@ -1,34 +1,60 @@
 import numpy as np
 import copy
-from gbmbkgpy.utils.statistics.stats_tools import Significance
-from gbmbkgpy.io.plotting.data_residual_plot import ResidualPlot
-from gbmbkgpy.utils.binner import Rebinner
-import h5py
-from gbmbkgpy.utils.progress_bar import progress_bar
-from gbmgeometry import GBMTime
-import astropy.time as astro_time
+import matplotlib.pyplot as plt
+
+def plot_lightcurve(model, ax=None, rates=True, eff_echan=None,
+                    show_data=True, data_color="black",
+                    show_total_model=True, total_model_color="green",
+                    model_component_list=[], model_component_colors=[]):
+
+    if ax is None:
+        fig, ax = plt.subplots()
+
+    if rates:
+        width = model._data.time_bin_width
+        ax.set_ylabel("Count rates [cnts/s]")
+    else:
+        width = 1
+        ax.set_ylabel("Counts [cnts]")
+
+    if show_data:
+        ax.scatter(model._data.mean_time,
+                   model._data.counts[:, eff_echan]/width,
+                   s=3, facecolors="none",
+                   linewidths=1, edgecolors=data_color, alpha=0.9,
+                   label="data")
+
+    if show_total_model:
+        ax.plot(model._data.mean_time,
+                model.get_counts()[:, eff_echan]/width,
+                color=total_model_color, label="Total Model")
+
+    for comp, color in zip(model_component_list, model_component_colors):
+
+        ax.plot(model._data.mean_time,
+                model.get_counts_given_source([comp])[:, eff_echan]/width,
+                color=color, label=comp)
+
+    ax.set_xlabel("Time [s]")
+
+    return ax
+
+    
+
+
+
+
+
+
+#from gbmbkgpy.utils.statistics.stats_tools import Significance
+#from gbmbkgpy.io.plotting.data_residual_plot import ResidualPlot
+#from gbmbkgpy.utils.binner import Rebinner
+#import h5py
+#from gbmbkgpy.utils.progress_bar import progress_bar
+#from gbmgeometry import GBMTime
+#import astropy.time as astro_time
 
 NO_REBIN = 1e-99
-
-try:
-
-    # see if we have mpi and/or are upalsing parallel
-
-    from mpi4py import MPI
-
-    if MPI.COMM_WORLD.Get_size() > 1:  # need parallel capabilities
-        using_mpi = True
-
-        comm = MPI.COMM_WORLD
-        rank = comm.Get_rank()
-        size = comm.Get_size()
-
-    else:
-
-        using_mpi = False
-except:
-
-    using_mpi = False
 
 
 class Plotter(object):
