@@ -40,7 +40,7 @@ jobs:
   build_docs:
     name: "Build the Documentation"
     runs-on: macos-latest
-    needs: [notebooks, api_doc]
+    needs: [notebooks]
     steps:
 
 
