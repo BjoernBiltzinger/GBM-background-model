@@ -38,8 +38,7 @@ class Geometry:
 
         return l, b
 
-    @property
-    def cr_tracer_diff(self, time):
+    def cr_tracer(self, time):
         """
         Returns the McIlwain L-parameter difference for the satellite position
         for a given time and the minumum mcl value
@@ -52,7 +51,7 @@ class Geometry:
         """
         raise RuntimeError("Has to be implemented in sub-class")
 
-    def satellite_to_icrs(self, time, ra, dec):
+    def satellite_to_icrs(self, time, az, el):
         """
         Transform icrs coords to satellite coords
         """
