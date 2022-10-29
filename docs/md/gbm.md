@@ -7,9 +7,9 @@ jupyter:
       format_version: '1.3'
       jupytext_version: 1.13.0
   kernelspec:
-    display_name: p3_newtest
+    display_name: Python 3
     language: python
-    name: p3_newtest
+    name: python3
 ---
 
 # Setup for GBM
