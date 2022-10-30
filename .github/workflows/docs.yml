@@ -78,7 +78,7 @@ jobs:
           path: docs/notebooks
 
       - name: Build and Commit
-        uses: sphinx-notes/pages@master
+        uses: sphinx-notes/pages@v2
         with:
           documentation_path: docs
 
