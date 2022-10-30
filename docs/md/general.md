@@ -173,6 +173,9 @@ from gbmbkgpy.modeling.source import PhotonSourceFixed
 from astromodels import Powerlaw
 from gbmbkgpy.modeling.new_astromodels import SBPL
 
+from astromodels.utils.configuration import astromodels_config
+astromodels_config.modeling.ignore_parameter_bounds = True
+
 # A point source
 
 # Define spectrum

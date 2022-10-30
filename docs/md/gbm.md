@@ -25,8 +25,9 @@ from jupyterthemes import jtplot
 
 jtplot.style(context="notebook", fscale=1, grid=False)
 
-
 from astromodels import Powerlaw, Exponential_cutoff, Constant, Band
+from astromodels.utils.configuration import astromodels_config
+astromodels_config.modeling.ignore_parameter_bounds = True
 
 from gbmbkgpy.modeling.new_astromodels import SBPL
 
