@@ -84,7 +84,12 @@ jobs:
         run: |
           git config --global user.email "action@github.com"
           git config --global user.name "GitHub Action"
-          cat .git/config
+          git config --list
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git config --list
+
+
 
       - name: Build and Commit
         uses: sphinx-notes/pages@v2
