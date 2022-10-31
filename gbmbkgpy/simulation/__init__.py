@@ -1,1 +1,0 @@
-from gbmbkgpy.simulation.simulator import BackgroundSimulator
