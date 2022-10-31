@@ -80,17 +80,6 @@ jobs:
           name: notebooks-for-${{ github.sha }}
           path: docs/notebooks
 
-      - name: Setup git
-        run: |
-          git config --global user.email "action@github.com"
-          git config --global user.name "GitHub Action"
-          git config --list
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git config --list
-
-
-
       - name: Build and Commit
         uses: sphinx-notes/pages@v2
         with:
