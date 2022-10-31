@@ -43,7 +43,7 @@ jobs:
 
   build_docs:
     name: "Build the Documentation"
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     needs: [notebooks]
     steps:
 
@@ -80,7 +80,8 @@ jobs:
       - name: Build and Commit
         uses: sphinx-notes/pages@v2
         with:
-          documentation_path: docs
+          documentation_path: ./docs
+          requirements_path: ./docs/requirements.txt
 
       - name: Push changes
         if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
