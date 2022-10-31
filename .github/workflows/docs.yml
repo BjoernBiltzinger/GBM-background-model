@@ -65,8 +65,8 @@ jobs:
           #brew install c-blosc
           #brew install hdf5
           #brew install sphinx-doc pandoc
-          apt install pandoc
-          apt-get install python3-sphinx
+          sudo apt install pandoc
+          sudo apt-get install python3-sphinx
 
           pip3 install wheel
           pip3 install mock recommonmark
