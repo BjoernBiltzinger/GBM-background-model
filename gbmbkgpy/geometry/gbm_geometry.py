@@ -181,8 +181,9 @@ class GBMGeometry(Geometry):
         source_pos_sc[:, 1] = np.dot(source_pos, scy)
         source_pos_sc[:, 2] = np.dot(source_pos, scz)
 
-        dec = np.arccos(source_pos_sc[:, 2])
-        ra = np.arctan2(source_pos_sc[:, 1], source_pos_sc[:, 0])
+        dec = np.arccos(np.clip(source_pos_sc[:, 2], -1, 1))
+        ra = np.arctan2(np.clip(source_pos_sc[:, 1], -1, 1),
+                        np.clip(source_pos_sc[:, 0], -1, 1))
 
         ra_mask = ra < 0
 
