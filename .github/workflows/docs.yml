@@ -31,7 +31,7 @@ jobs:
       - name: move astromodels config
         run: |
           mkdir /home/runner/.config/astromodels
-          mv docs/astromodel_config.yml /home/runner/.config/astromodels/
+          mv docs/astromodels_config.yml /home/runner/.config/astromodels/
 
       - name: Execute the notebooks
         shell: bash -l {0}
