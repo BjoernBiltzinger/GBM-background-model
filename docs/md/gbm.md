@@ -208,7 +208,7 @@ ax.legend()
 Generate new data from our model
 
 ```python
-plt.scatter(gbmdata.mean_time, model.generate_counts())
+plt.scatter(gbmdata.mean_time, model.generate_counts()[:,0])
 plt.xlabel("Time [s]")
 plt.ylabel("Counts")
 ```
