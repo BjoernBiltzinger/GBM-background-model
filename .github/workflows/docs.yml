@@ -30,7 +30,6 @@ jobs:
 
       - name: move astromodels config
         run: |
-          mkdir /home/runner/.config
           mkdir /home/runner/.config/astromodels
           mv docs/astromodel_config.yml /home/runner/.config/astromodels/
 
