@@ -1,0 +1,6 @@
+logging:
+  startup_warnings: False
+
+modeling:
+  ignore_parameter_bounds: True
+  use_parameter_transforms: False
