@@ -82,7 +82,7 @@ class ModelDet:
         precicted model rates
         """
         model_counts = self.get_model_counts()
-        return np.random.poisson(model_counts))
+        return np.random.poisson(model_counts)
 
     @property
     def current_parameters(self):
