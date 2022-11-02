@@ -118,8 +118,9 @@ class GBMGeometry(Geometry):
         """
         Transform icrs coords to satellite coords
         Taken from: gbm_drm_gen
-        :param ra: ra in icrs (degree)
-        :param dec: dec in icrs (degree)
+        :param time: time of interest
+        :param ra: ra in icrs (degree) (array or float)
+        :param dec: dec in icrs (degree) (array or float)
         :returns: az, el in sat frame (degree)
         """
         quaternions = self._position_interpolator.quaternion(time)
@@ -152,10 +153,11 @@ class GBMGeometry(Geometry):
 
     def satellite_to_icrs(self, time, az, el):
         """
-        Transform icrs coords to satellite coords
+        Transform satellite coords to icrs coords
         Taken from: gbm_drm_gen
-        :param ra: ra in icrs (degree)
-        :param dec: dec in icrs (degree)
+        :param time: time of interest
+        :param az: ra in icrs (degree) (array or float)
+        :param el: dec in icrs (degree) (array or float)
         :returns: az, el in sat frame (degree)
         """
         quaternions = self._position_interpolator.quaternion(time)
@@ -193,6 +195,15 @@ class GBMGeometry(Geometry):
         return ra, dec
 
     def is_occulted(self, time, ra, dec):
+        """
+        Check if a position defined by ra and dec (in ICRS) is occulted at
+        the given time
+        :param time: time of interest (float)
+        :param ra: ra of source (array or float)
+        :param dec: dec of source (array or float)
+        :returns: bool
+        """
+
         # get sc pos at this time
         sc_pos = self._position_interpolator.sc_pos(time)
 
@@ -359,6 +370,7 @@ class GBMGeometry(Geometry):
         """
         Returns the McIlwain L-parameter difference for the satellite position
         for a given time and the minumum mcl value
+        :param time: times of interest (array or float)
         """
         return self._interp_mcl(time)
 

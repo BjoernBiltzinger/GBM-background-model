@@ -26,13 +26,13 @@ def plot_lightcurve(model, ax=None, rates=True, eff_echan=None,
 
     if show_total_model:
         ax.plot(model._data.mean_time,
-                model.get_counts()[:, eff_echan]/width,
+                model.get_model_counts()[:, eff_echan]/width,
                 color=total_model_color, label="Total Model")
 
     for comp, color in zip(model_component_list, model_component_colors):
 
         ax.plot(model._data.mean_time,
-                model.get_counts_given_source([comp])[:, eff_echan]/width,
+                model.get_model_counts_given_source([comp])[:, eff_echan]/width,
                 color=color, label=comp)
 
     ax.set_xlabel("Time [s]")

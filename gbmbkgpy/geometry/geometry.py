@@ -22,6 +22,10 @@ class Geometry:
                                       dec)
 
     def satellite_to_galactic(self, time, az, el):
+        """
+        sat to galactic coord transformation
+        """
+
         ra_icrs, dec_icrs = self.satellite_to_icrs(time,
                                                    az,
                                                    el)
@@ -40,20 +44,28 @@ class Geometry:
 
     def cr_tracer(self, time):
         """
-        Returns the McIlwain L-parameter difference for the satellite position
-        for a given time and the minumum mcl value
+        Returns CR tracer for given times
+        :param time: times of interest (array or float)
         """
         raise NotImplementedError("Must be implented in sub-class")
 
     def icrs_to_satellite(self, time, ra, dec):
         """
         Transform icrs coords to satellite coords
+        :param time: time of interest
+        :param ra: ra in icrs (degree) (array or float)
+        :param dec: dec in icrs (degree) (array or float)
+        :returns: az, el in sat frame (degree)
         """
         raise RuntimeError("Has to be implemented in sub-class")
 
     def satellite_to_icrs(self, time, az, el):
         """
-        Transform icrs coords to satellite coords
+        Transform satellite coords to icrs coords
+        :param time: time of interest
+        :param az: az in sat frame (degree) (array or float)
+        :param el: el in sat frame (degree) (array or float)
+        :returns: ra, dec in icrs frame (degree)
         """
         raise RuntimeError("Has to be implemented in sub-class")
 
@@ -61,5 +73,10 @@ class Geometry:
         """
         Check if a position defined by ra and dec (in ICRS) is occulted at
         the given time
+        :param time: time of interest (float)
+        :param ra: ra of source (array or float)
+        :param dec: dec of source (array or float)
+        :returns: bool
         """
+
         raise RuntimeError("Has to be implemented in sub-class")

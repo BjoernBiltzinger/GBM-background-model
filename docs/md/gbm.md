@@ -205,6 +205,10 @@ ax = plot_lightcurve(model, eff_echan=0, model_component_list=["GC", "SAA"], mod
 ax.legend()
 ```
 
-```python
+Generate new data from our model
 
+```python
+plt.scatter(gbmdata.mean_time, model.generate_counts())
+plt.xlabel("Time [s]")
+plt.ylabel("Counts")
 ```

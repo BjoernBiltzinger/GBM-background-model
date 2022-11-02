@@ -10,6 +10,11 @@ class ResponseGenerator:
         self._num_ebins_out = num_ebins_out
 
     def calc_response_az_zen(self, az, zen):
+        """
+        calc response matrix for a given position in detector frame
+        defined by az and zen
+        :returns: response matrix
+        """
         raise NotImplementedError("Has to be implenemented in subclass")
 
     def calc_response_ra_dec(self, ra, dec, time, occult):

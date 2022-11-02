@@ -3,6 +3,15 @@ import numpy as np
 from gbmbkgpy.utils.likelihood import cstat_numba
 
 
+def check_valid_source_name(source, source_list):
+    """
+    check if the source is already in the list
+    """
+    for s in source_list:
+        if s.name == source.name:
+            raise AssertionError("Two sources with the same names")
+
+
 class ModelDet:
 
     def __init__(self, data):
@@ -16,7 +25,7 @@ class ModelDet:
         """
         Add a photon source - shared between all dets and echans
         """
-        self._check_valid_source_name(source, self._sources)
+        check_valid_source_name(source, self._sources)
 
         # set time bins for source
         source.set_time_bins(self._data.time_bins)
@@ -27,15 +36,7 @@ class ModelDet:
         # update current parameters
         self.update_current_parameters()
 
-    def _check_valid_source_name(self, source, source_list):
-        """
-        check if the source is already in the list
-        """
-        for s in source_list:
-            if s.name == source.name:
-                raise AssertionError("Two sources with the same names")
-
-    def get_counts_given_source(self, source_name_list: list, bin_mask=None):
+    def get_model_counts_given_source(self, source_name_list: list, bin_mask=None):
         counts = np.zeros_like(self._data.counts, dtype=float)
         for name in source_name_list:
             found = False
@@ -57,14 +58,14 @@ class ModelDet:
             names.append(source.name)
         return names
 
-    def get_counts(self, bin_mask=None):
+    def get_model_counts(self, bin_mask=None):
         counts = np.zeros_like(self._data.counts, dtype=float)
         for source in self._sources:
             counts += source.get_counts(bin_mask)
         return counts
 
     def log_like(self):
-        return cstat_numba(self.get_counts(), self._data.counts)
+        return cstat_numba(self.get_model_counts(), self._data.counts)
 
     def update_current_parameters(self):
         # return all parameters
@@ -74,6 +75,14 @@ class ModelDet:
                 for name, param in source.parameters.items():
                     parameters[f"{source.name}_{name}"] = param
         self._current_parameters = parameters
+
+    def generate_counts(self):
+        """
+        Generate counts in time bins as poisson draw of the
+        precicted model rates
+        """
+        model_counts = self.get_model_counts()
+        return np.random.poisson(model_counts))
 
     @property
     def current_parameters(self):
