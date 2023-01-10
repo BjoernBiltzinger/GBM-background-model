@@ -5,7 +5,8 @@ import matplotlib.pyplot as plt
 def plot_lightcurve(model, ax=None, rates=True, eff_echan=None,
                     show_data=True, data_color="black",
                     show_total_model=True, total_model_color="green",
-                    model_component_list=[], model_component_colors=[]):
+                    model_component_list=[], model_component_colors=[],
+                    filename=None):
 
     if ax is None:
         fig, ax = plt.subplots()
@@ -36,6 +37,9 @@ def plot_lightcurve(model, ax=None, rates=True, eff_echan=None,
                 color=color, label=comp)
 
     ax.set_xlabel("Time [s]")
+
+    if filename is not None:
+        fig.savefig(filename)
 
     return ax
 
