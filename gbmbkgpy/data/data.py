@@ -33,20 +33,36 @@ class Data:
 
         self._rebinned_time_bins = self._data_rebinner.time_rebinned
 
-        self._rebinned_mask = self._data_rebinner.rebinned_mask
+        self._valid_rebinned_time_mask = self._data_rebinner.rebinned_mask
 
         self._rebinned_counts = self._data_rebinner.rebin(self._counts)[0].astype(
             np.int64
         )
 
-        # Initialize the valid bin mask to mask saa bins all True
-        self._valid_rebinned_time_mask = (self._rebinned_time_bins[:, 1] -
-                                          self._rebinned_time_bins[:, 0]) < 100
-
-
         if save_memory:
             self._time_bins = None
             self._counts = None
+
+    def mask_start_of_data(self, t):
+        """
+        Mask start of data
+        """
+        self.mask_data(self._time_bins[0, 0], t)
+
+    def mask_data(self, t_0, t):
+        """
+        Mask all the time bins starting between t0 and t0+t
+        """
+        mask = np.logical_and(self._time_bins[:, 0]-t_0 <= t,
+                              self._time_bins[:, 0] >= t_0)
+        self.valid_time_mask[mask] = False
+
+        if self._rebinned:
+            mask = np.logical_and(
+                self._rebinned_time_bins[:, 0]-t_0 <= t,
+                self._rebinned_time_bins[:, 0] >= t_0)
+
+            self._valid_rebinned_time_mask[mask] = False
 
     @property
     def time_bin_width(self):

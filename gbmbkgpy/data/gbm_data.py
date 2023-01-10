@@ -150,7 +150,7 @@ class GBMData(Data):
         echans_mask = []
         for e in self._echans:
             bounds = e.split("-")
-            mask = np.zeros(max_echan, dtype=bool)
+            mask = np.zeros(max_echan+1, dtype=bool)
             if len(bounds) == 1:
                 # Only one echan given
                 index = int(bounds[0])
@@ -188,6 +188,24 @@ class GBMData(Data):
 
         return sum_counts
 
+    def cut_out_saa(self, t):
+        """
+        Cut out a certain time t after every SAA exit
+        """
+
+        # times of saa
+        saa_times = self.saa_times
+
+        for t_0 in saa_times:
+            self.mask_data(t_0, t)
+
+    @property
+    def saa_times(self):
+        # find the time bins with a gap to the previous time bin => SAA
+        saa_idx = np.argwhere(self._time_bins[1:, 0] - self._time_bins[:-1, 1]
+                              > 10)
+        return self._time_bins[saa_idx+1, 0]
+
     @property
     def ebin_out_edges(self):
         return self._Ebin_out_edge
@@ -195,3 +213,7 @@ class GBMData(Data):
     @property
     def echans_mask(self):
         return self._echans_mask
+
+    @property
+    def det(self):
+        return self._detector
