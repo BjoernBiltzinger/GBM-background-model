@@ -86,15 +86,16 @@ def download_lat_spacecraft(mission_week):
 
     mission_week = int(mission_week)
 
+    data_path = get_path_of_external_data_dir()
+
+    file_path = data_path / "lat"
+
+    final_path = (file_path /
+                  f"lat_spacecraft_weekly_w{mission_week}_p310_v001.fits")
+
     if rank == 0:
 
-        data_path = get_path_of_external_data_dir()
-
-        file_path = data_path / "lat"
         file_path.mkdir(parents=True, exist_ok=True)
-
-        final_path = (file_path /
-                      f"lat_spacecraft_weekly_w{mission_week}_p310_v001.fits")
 
         if not final_path.exists():
             url = (f"https://heasarc.gsfc.nasa.gov/FTP/fermi/data/"
@@ -129,25 +130,27 @@ def download_gbm_file(date, data_type, detector="all"):
     :return:
     """
 
+    assert data_type in ['ctime', 'cspec', 'poshist'], "Wrong data_type..."
+
+    year = "20%s" % date[:2]
+    month = date[2:-2]
+    day = date[-2:]
+
+    data_path = get_path_of_external_data_dir()
+
+    file_path = data_path / data_type / date
+
+    # poshist files are not stored in a sub folder of the date
+    if data_type == "poshist":
+        file_type = "fit"
+    else:
+        file_type = "pha"
+
+    final_path = (file_path /
+                  f"glg_{data_type}_{detector}_{date}_v00.{file_type}")
+
     if rank == 0:
-        assert data_type in ['ctime', 'cspec', 'poshist'], "Wrong data_type..."
-
-        year = "20%s" % date[:2]
-        month = date[2:-2]
-        day = date[-2:]
-
-        data_path = get_path_of_external_data_dir()
-
-        file_path = data_path / data_type / date
         file_path.mkdir(parents=True, exist_ok=True)
-        # poshist files are not stored in a sub folder of the date
-        if data_type == "poshist":
-            file_type = "fit"
-        else:
-            file_type = "pha"
-
-        final_path = (file_path /
-                      f"glg_{data_type}_{detector}_{date}_v00.{file_type}")
 
         if not final_path.exists():
             base_url = (f"https://heasarc.gsfc.nasa.gov/FTP/fermi/data/"
@@ -184,20 +187,21 @@ def download_trigdata_file(trigger):
     :return:
     """
 
+    year = "20%s" % trigger[2:4]
+    month = trigger[4:6]
+    day = trigger[6:8]
+
+    data_path = get_path_of_external_data_dir()
+
+    file_dir = data_path / "trigdat" / year
+
+    base_url = ("https://heasarc.gsfc.nasa.gov/FTP/fermi/data/gbm/triggers/"
+                f"{year}/{trigger}/current/glg_trigdat_all_{trigger}_v0")
+
+    final_path = (file_dir / f"glg_trigdat_all_{trigger}_v00.fits")
+
     if rank == 0:
-        year = "20%s" % trigger[2:4]
-        month = trigger[4:6]
-        day = trigger[6:8]
-
-        data_path = get_path_of_external_data_dir()
-
-        file_dir = data_path / "trigdat" / year
         file_dir.mkdir(parents=True, exist_ok=True)
-
-        base_url = ("https://heasarc.gsfc.nasa.gov/FTP/fermi/data/gbm/triggers/"
-                    f"{year}/{trigger}/current/glg_trigdat_all_{trigger}_v0")
-
-        final_path = (file_dir / f"glg_trigdat_all_{trigger}_v00.fits")
 
         if not final_path.exists():
             path_to_file = None
