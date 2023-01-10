@@ -229,7 +229,7 @@ class PhotonSourceFixed(NormOnlySource):
         const.k.value = 1.0
 
         super().__init__(name, interp1d_rate_base_array,
-                         const, const*astro_model)
+                         const, astro_model) # const*astro_model
 
     def _construct_interp1d_rate_base_array(self, response_interpolation,
                                             model, norm_val):
