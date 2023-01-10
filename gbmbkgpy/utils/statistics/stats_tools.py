@@ -1,11 +1,11 @@
 from math import sqrt
-
+import numpy as np
 import scipy.interpolate
 import scipy.stats
 from past.utils import old_div
 from scipy.special import erfinv
 import warnings as custom_warnings
-from gbmbkgpy.utils.differentiation import *
+#from gbmbkgpy.utils.differentiation import *
 
 
 class CannotComputeCovariance(RuntimeWarning):

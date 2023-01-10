@@ -138,7 +138,7 @@ class ModelDet:
             len(self.parameter),
             len(self.parameter),
             n_live_points=n_live_points,
-            outputfiles_basename=str(tmp_output_dir.absolute()),
+            outputfiles_basename=str((tmp_output_dir / "fit_").absolute()),
             multimodal=True,  # True was default
             resume=True,
             verbose=True,  # False was default
@@ -159,7 +159,7 @@ class ModelDet:
             # analyse : taken from 3ML
             multinest_analyzer = pymultinest.analyse.Analyzer(
                 n_params=len(self.parameter),
-                outputfiles_basename=str(tmp_output_dir.absolute())
+                outputfiles_basename=str((tmp_output_dir / "fit_").absolute())
             )
 
             self._raw_samples =\
@@ -191,9 +191,12 @@ class ModelDet:
         here. Same sources & same order!
         """
         # analyse : taken from 3ML
+        if not isinstance(output_dir, str):
+            output_dir = str(output_dir.absolute())
+
         multinest_analyzer = pymultinest.analyse.Analyzer(
             n_params=len(self.parameter),
-            outputfiles_basename=str(output_dir.absolute())
+            outputfiles_basename=output_dir
         )
 
         self._raw_samples =\
@@ -207,6 +210,16 @@ class ModelDet:
             # Add the samples for this parameter for this source
 
             self._samples[parameter_name] = self._raw_samples[:, i]
+
+        # Get the log. likelihood values from the chain
+        log_like_values = multinest_analyzer.get_equal_weighted_posterior()[
+            :, -1
+        ]
+
+        # now get the log probability
+        self._log_probability_values = log_like_values + np.array(
+            [self.log_prior(samples) for samples in self._raw_samples]
+        )
 
     def get_model_counts_given_source(self, source_name_list: list,
                                       bin_mask=None):
@@ -288,7 +301,7 @@ class ModelDet:
 
     def set_parameter_median(self):
         idx = arg_median(self._log_probability_values)
-        self.set_parameters(self._raw_samples[:, idx])
+        self.set_parameters(self._raw_samples[idx, :])
 
     @property
     def source_names(self):
@@ -352,9 +365,9 @@ class ModelCombine(ModelDet):
                     samples[param_name] = self._samples[param_name]
                     num_samples = len(self._samples[param_name])
                 # summarize them in the raw_samples array
-                raw_samples = np.zeros((len(samples), num_samples))
+                raw_samples = np.zeros((num_samples, len(samples)))
                 for i, s in enumerate(samples.values()):
-                    raw_samples[i] = s
+                    raw_samples[:, i] = s
 
                 model.set_samples(samples)
                 model.set_raw_samples(raw_samples)
