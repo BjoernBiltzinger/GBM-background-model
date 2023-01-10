@@ -5,14 +5,12 @@ from gbmbkgpy.utils.statistics.stats_tools import Significance
 
 def plot_lightcurve(model, ax=None, rates=True, eff_echan=None,
                     show_data=True, data_color="black", data_alpha=0.9,
-                    model_alpha=1,
-                    show_total_model=True, total_model_color="green",
-                    model_component_list=[], model_component_colors=[],
-                    filename=None, norm_time=True,
-                    t0=None,
-                    time_ticks=None,
-                    y_ticks=None,
-                    time_format="h"):
+                    model_alpha=1, show_total_model=True, data_linewidth=1,
+                    marker_size=3,
+                    total_model_color="green", model_component_list=[],
+                    model_component_colors=[], filename=None, norm_time=True,
+                    t0=None, time_ticks=None, y_ticks=None, time_format="h",
+                    xlim=(None, None), ylim=(0, None)):
 
     if ax is None:
         fig, ax = plt.subplots()
@@ -37,8 +35,8 @@ def plot_lightcurve(model, ax=None, rates=True, eff_echan=None,
     if show_data:
         ax.scatter(times,
                    model._data.counts[:, eff_echan]/width,
-                   s=3,
-                   linewidths=1,
+                   s=marker_size,
+                   linewidths=data_linewidth,
                    facecolors="none",
                    edgecolors="black",
                    alpha=data_alpha,
@@ -61,7 +59,7 @@ def plot_lightcurve(model, ax=None, rates=True, eff_echan=None,
 
     ax.legend()
 
-    finalize_plot(ax, time_ticks, y_ticks, time_format)
+    finalize_plot(ax, time_ticks, y_ticks, time_format, xlim, ylim)
 
     if filename is not None:
         fig.savefig(filename)
@@ -79,7 +77,11 @@ def plot_residuals(model,
                    t0=None,
                    time_ticks=None,
                    y_ticks=None,
-                   time_format="h"):
+                   time_format="h",
+                   xlim=(None, None),
+                   ylim=(None, None),
+                   linewidth=1,
+                   marker_size=3,):
 
     if ax is None:
         fig, ax = plt.subplots()
@@ -113,14 +115,14 @@ def plot_residuals(model,
                 yerr=residual_yerr,
                 capsize=0,
                 fmt=".",
-                elinewidth=1,
-                markersize=3,
+                elinewidth=linewidth,
+                markersize=marker_size,
                 color=color,
                 alpha=alpha,
                 rasterized=False,
                 )
 
-    finalize_plot(ax, time_ticks, y_ticks, time_format)
+    finalize_plot(ax, time_ticks, y_ticks, time_format, xlim, ylim)
 
     ax.set_ylabel("Residuals [$\sigma $]")
     if filename is not None:
@@ -129,7 +131,7 @@ def plot_residuals(model,
     return ax
 
 
-def finalize_plot(ax, time_ticks, y_ticks, time_format):
+def finalize_plot(ax, time_ticks, y_ticks, time_format, xlim, ylim):
     if time_ticks is not None:
         ax.set_xticks(time_ticks)
 
@@ -143,6 +145,8 @@ def finalize_plot(ax, time_ticks, y_ticks, time_format):
     else:
         NotImplementedError("Only s and h as time format supported!")
 
+    ax.set_xlim(xlim)
+    ax.set_ylim(ylim)
 #from gbmbkgpy.utils.statistics.stats_tools import Significance
 #from gbmbkgpy.io.plotting.data_residual_plot import ResidualPlot
 #from gbmbkgpy.utils.binner import Rebinner

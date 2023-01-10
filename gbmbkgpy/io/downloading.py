@@ -84,7 +84,7 @@ def download_lat_spacecraft(mission_week):
     :return:
     """
 
-    mission_week = int(mission_week)
+    mission_week = str(int(mission_week)).zfill(3)
 
     data_path = get_path_of_external_data_dir()
 
