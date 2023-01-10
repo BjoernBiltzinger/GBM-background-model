@@ -32,6 +32,8 @@ def plot_lightcurve(model, ax=None, rates=True, eff_echan=None,
     if time_format == 'h':
         times /= (3600)
 
+    num_labels = 0
+
     if show_data:
         ax.scatter(times,
                    model._data.counts[:, eff_echan]/width,
@@ -44,20 +46,36 @@ def plot_lightcurve(model, ax=None, rates=True, eff_echan=None,
                    zorder=15,
                    rasterized=False,
                    )
+        num_labels += 1
 
     if show_total_model:
         ax.plot(times,
                 model.get_model_counts()[:, eff_echan]/width,
                 color=total_model_color, label="Total Model",
                 alpha=model_alpha,)
+        num_labels += 1
 
     for comp, color in zip(model_component_list, model_component_colors):
 
         ax.plot(times,
                 model.get_model_counts_given_source([comp])[:, eff_echan]/width,
                 color=color, label=comp, alpha=model_alpha)
+        num_labels += 1
 
-    ax.legend()
+    fig = ax.get_figure()
+    ncol = 3
+    nr_rows = int(np.ceil(num_labels / ncol))
+    vertical_offset = 0
+
+    ax.legend(
+        loc="upper left",
+        bbox_to_anchor=(0.15, -1, 0.7, 1),
+        bbox_transform=fig.transFigure,
+        ncol=ncol,
+        mode="expand",
+        fancybox=True
+    )
+
 
     finalize_plot(ax, time_ticks, y_ticks, time_format, xlim, ylim)
 
