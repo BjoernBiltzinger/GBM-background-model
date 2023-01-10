@@ -80,11 +80,11 @@ class NewSatGeometry(Geometry):
     def is_occulted(self, time, ra, dec):
         try:
             res = np.zeros(len(ra), dtype=bool)
-            res[dec<0] = True
+            res[dec<-30] = True
         
             return res
         except TypeError:
-            return dec<0
+            return dec<-30
     
 ```
 
