@@ -341,7 +341,8 @@ class ModelCombine(ModelDet):
         const_efficiency_mode=False
     ):
 
-        super().minimize_multinest()
+        super().minimize_multinest(n_live_points=n_live_points,
+                                   const_efficiency_mode=const_efficiency_mode)
 
         self.send_samples_to_submodels()
 
