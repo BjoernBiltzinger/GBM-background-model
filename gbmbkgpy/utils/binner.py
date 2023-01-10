@@ -29,13 +29,13 @@ class Rebinner(object):
         self._grouping = []
         self._saa_idx = []
 
+        ignore_width = 100
         sum_bin_width = 0.0
         bin_open = False
-
+        old_end = vector_to_rebin_on[0, 0]
         for index, bin in enumerate(vector_to_rebin_on):
-
-            if not mask[index]:
-                # This element is excluded by the mask
+            if (not mask[index]) or bin[0]-old_end > 1:
+                # This element is excluded by the mask or there is a gap
 
                 if not bin_open:
 
@@ -44,7 +44,6 @@ class Rebinner(object):
                 else:
 
                     # The bin needs to be closed here!
-
                     self._stops.append(index)
 
                     sum_bin_width = 0.0
@@ -88,6 +87,7 @@ class Rebinner(object):
                     if not mask[stop_index]:
                         self._saa_idx.append(len(self._stops) - 1)
 
+            old_end = bin[1]
         # At the end of the loop, see if we left a bin open, if we did, close it
         if bin_open:
             self._stops.append(len(vector_to_rebin_on) - 1)
