@@ -1,12 +1,18 @@
 import numpy as np
 import copy
 import matplotlib.pyplot as plt
+from gbmbkgpy.utils.statistics.stats_tools import Significance
 
 def plot_lightcurve(model, ax=None, rates=True, eff_echan=None,
-                    show_data=True, data_color="black",
+                    show_data=True, data_color="black", data_alpha=0.9,
+                    model_alpha=1,
                     show_total_model=True, total_model_color="green",
                     model_component_list=[], model_component_colors=[],
-                    filename=None):
+                    filename=None, norm_time=True,
+                    t0=None,
+                    time_ticks=None,
+                    y_ticks=None,
+                    time_format="h"):
 
     if ax is None:
         fig, ax = plt.subplots()
@@ -18,37 +24,124 @@ def plot_lightcurve(model, ax=None, rates=True, eff_echan=None,
         width = 1
         ax.set_ylabel("Counts [cnts]")
 
+    times = model._data.mean_time
+    if norm_time:
+        if t0 is None:
+            times -= times[0]
+        else:
+            times -= t0
+
+    if time_format == 'h':
+        times /= (3600)
+
     if show_data:
-        ax.scatter(model._data.mean_time,
+        ax.scatter(times,
                    model._data.counts[:, eff_echan]/width,
-                   s=3, facecolors="none",
-                   linewidths=1, edgecolors=data_color, alpha=0.9,
-                   label="data")
+                   s=3,
+                   linewidths=1,
+                   facecolors="none",
+                   edgecolors="black",
+                   alpha=data_alpha,
+                   label="Data",
+                   zorder=15,
+                   rasterized=False,
+                   )
 
     if show_total_model:
-        ax.plot(model._data.mean_time,
+        ax.plot(times,
                 model.get_model_counts()[:, eff_echan]/width,
-                color=total_model_color, label="Total Model")
+                color=total_model_color, label="Total Model",
+                alpha=model_alpha,)
 
     for comp, color in zip(model_component_list, model_component_colors):
 
-        ax.plot(model._data.mean_time,
+        ax.plot(times,
                 model.get_model_counts_given_source([comp])[:, eff_echan]/width,
-                color=color, label=comp)
+                color=color, label=comp, alpha=model_alpha)
 
-    ax.set_xlabel("Time [s]")
+    ax.legend()
+
+    finalize_plot(ax, time_ticks, y_ticks, time_format)
 
     if filename is not None:
         fig.savefig(filename)
 
     return ax
 
-    
+
+def plot_residuals(model,
+                   ax=None,
+                   eff_echan=None,
+                   alpha=1,
+                   color="black",
+                   filename=None,
+                   norm_time=True,
+                   t0=None,
+                   time_ticks=None,
+                   y_ticks=None,
+                   time_format="h"):
+
+    if ax is None:
+        fig, ax = plt.subplots()
+
+    # calc residuals
+    sign = Significance(model._data.counts[:, eff_echan],
+                        model.get_model_counts()[:, eff_echan],
+                        1
+                        )
+
+    residuals = sign.known_background()
+
+    # standard 1 sigma error bar
+    residual_yerr = np.ones_like(residuals)
+
+    # 0 line
+    ax.axhline(0, linestyle="--", color='k')
+
+    times = model._data.mean_time
+    if norm_time:
+        if t0 is None:
+            times -= times[0]
+        else:
+            times -= t0
+
+    if time_format == 'h':
+        times /= (3600)
+
+    ax.errorbar(times,
+                residuals,
+                yerr=residual_yerr,
+                capsize=0,
+                fmt=".",
+                elinewidth=1,
+                markersize=3,
+                color=color,
+                alpha=alpha,
+                rasterized=False,
+                )
+
+    finalize_plot(ax, time_ticks, y_ticks, time_format)
+
+    ax.set_ylabel("Residuals [$\sigma $]")
+    if filename is not None:
+        fig.savefig(filename)
+
+    return ax
 
 
+def finalize_plot(ax, time_ticks, y_ticks, time_format):
+    if time_ticks is not None:
+        ax.set_xticks(time_ticks)
 
+    if y_ticks is not None:
+        ax.set_yticks(y_ticks)
 
-
+    if time_format == 'h':
+        ax.set_xlabel("Time [h]")
+    elif time_format == 's':
+        ax.set_xlabel("Time [s]")
+    else:
+        NotImplementedError("Only s and h as time format supported!")
 
 #from gbmbkgpy.utils.statistics.stats_tools import Significance
 #from gbmbkgpy.io.plotting.data_residual_plot import ResidualPlot
