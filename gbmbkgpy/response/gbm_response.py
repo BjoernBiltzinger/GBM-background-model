@@ -22,7 +22,7 @@ valid_det_names = [
 
 class GBMResponseGenerator(ResponseGenerator):
 
-    def __init__(self, geometry, det, Ebins_in_edge, data):
+    def __init__(self, geometry, Ebins_in_edge, data):
 
         self._echans_mask = data.echans_mask
         Ebins_out_edge = data.ebin_out_edges
@@ -31,9 +31,9 @@ class GBMResponseGenerator(ResponseGenerator):
 
         # detector name <-> number convention for GBM
 
-        assert det in valid_det_names
+        # assert det in valid_det_names
 
-        det_num = np.argwhere(np.array(valid_det_names) == det)[0, 0]
+        det_num = np.argwhere(np.array(valid_det_names) == data.det)[0, 0]
 
         self._drm_gen_no_occult = DRMGen(
             self._geometry._position_interpolator,
