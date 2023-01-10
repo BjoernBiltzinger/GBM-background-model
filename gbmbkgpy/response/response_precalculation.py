@@ -45,17 +45,19 @@ class ResponsePrecalculation:
         Function to calculate the responses from all the points on the unit sphere.
         """
         # Initialize response list
-        responses = []
 
         if self._Ngrid > 5000:
             # we have to split the calc in several parts in case we are using mpi
             endpoint_per_run = np.arange(4000, self._Ngrid, 4000, dtype=int)
             endpoint_per_run = np.append(endpoint_per_run, self._Ngrid)
+            split = True
         else:
             endpoint_per_run = np.array([self._Ngrid])
 
+        responses_all_split = []
         num_calcs = len(endpoint_per_run)
         for i, endpoint in enumerate(endpoint_per_run):
+            responses = []
             if i == 0:
                 startpoint = 0
             else:
@@ -73,8 +75,8 @@ class ResponsePrecalculation:
 
             with progress_bar(
                     points_upper_index-points_lower_index,
-                    title=f"Calculating response calc {i} out of {num_calcs}."
-                    "This shows the progress of rank 0. "
+                    title=f"Calculating response calc {i+1} out of {num_calcs}."
+                    f"This shows the progress of rank {rank}. "
                     "All other should be about the same.",
                     hidden=hidden,
             ) as p:
@@ -90,17 +92,19 @@ class ResponsePrecalculation:
 
                     p.increase()
 
-        responses = np.array(responses)
-        if using_mpi:
-            responses_g = comm.gather(responses, root=0)
-            if rank == 0:
-                responses_g = np.concatenate(responses_g)
+            responses = np.array(responses)
+            if using_mpi:
+                responses_g = comm.gather(responses, root=0)
+                if rank == 0:
+                    responses_g = np.concatenate(responses_g)
 
-            # broadcast the resulting list to all ranks
-            responses = comm.bcast(responses_g, root=0)
+                # broadcast the resulting list to all ranks
+                responses = comm.bcast(responses_g, root=0)
+
+            responses_all_split.append(responses)
 
         # mult with area per point
-        self._response_array = np.array(responses)*(4*np.pi/self._Ngrid)
+        self._response_array = np.concatenate(responses_all_split)*(4*np.pi/self._Ngrid)
 
     @property
     def response_grid(self):
