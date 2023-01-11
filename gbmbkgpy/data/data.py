@@ -139,3 +139,7 @@ class Data:
     @property
     def min_bin_width(self):
         return self._min_bin_width
+
+    @property
+    def date(self):
+        return self._date
