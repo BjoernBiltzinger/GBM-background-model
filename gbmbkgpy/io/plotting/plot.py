@@ -10,7 +10,8 @@ def plot_lightcurve(model, ax=None, rates=True, eff_echan=None,
                     total_model_color="green", model_component_list=[],
                     model_component_colors=[], filename=None, norm_time=True,
                     t0=None, time_ticks=None, y_ticks=None, time_format="h",
-                    xlim=(None, None), ylim=(0, None)):
+                    xlim=(None, None), ylim=(0, None), plot_ppc=False, ppc_color="darkgreen",
+                    ppc_percentile=99, ppc_alpha=0.6):
 
     if ax is None:
         fig, ax = plt.subplots()
@@ -54,6 +55,37 @@ def plot_lightcurve(model, ax=None, rates=True, eff_echan=None,
                 color=total_model_color, label="Total Model",
                 alpha=model_alpha,)
         num_labels += 1
+
+    if plot_ppc:
+        # save current parameter values to reset it after the ppc generation
+        current_par_vals = []
+        for p in model.parameter.values():
+            current_par_vals.append(p.value)
+
+        # samples from fit run
+        samples = model.raw_samples
+        if len(samples) > 300:
+            mask = np.zeros(len(samples), dtype=bool)
+            mask[:300] = True
+            np.random.shuffle(mask)
+            samples = samples[mask]
+
+        # get the model counts for every sample
+        model_counts = np.zeros((len(samples), len(times)))
+        for i, s in enumerate(samples):
+            model.set_parameters(s)
+            model_counts[i] = model.get_model_counts()[:, eff_echan]
+
+        # poisson noise
+        model_counts = np.random.poisson(model_counts)
+
+        min_p = np.percentile(model_counts, 50-ppc_percentile/2, axis=0)
+        max_p = np.percentile(model_counts, 50+ppc_percentile/2, axis=0)
+
+        ax.fill_between(times, min_p/width, max_p/width, color=ppc_color,
+                        alpha=ppc_alpha, label="PPC", linewidth=0, zorder=-15)
+
+        model.set_parameters(current_par_vals)
 
     for comp, color in zip(model_component_list, model_component_colors):
 
