@@ -19,11 +19,11 @@ def check_valid_source_name(source, source_list):
         if s.name == source.name:
             raise AssertionError("Two sources with the same names")
 
-def create_output_dir():
+def create_output_dir(identifier):
 
     base = get_path_of_external_data_dir()
     output_dir = (base / "fits" / "mn_out" /
-                  datetime.now().strftime("%m-%d_%H-%M"))
+                  f"{identifier}_"+datetime.now().strftime("%m-%d_%H-%M"))
 
 
     # If the output path is to long (MultiNest only supports 100 chars)
@@ -110,9 +110,10 @@ class ModelDet:
         return log_prior
 
     def minimize_multinest(
-        self,
-        n_live_points=400,
-        const_efficiency_mode=False
+            self,
+            identifier="gbmbkgpy_fit",
+            n_live_points=400,
+            const_efficiency_mode=False
     ):
         """ Multinest Fit """
         #assert (
@@ -129,7 +130,7 @@ class ModelDet:
         prior = self._get_multinest_prior()
 
         # output dir
-        output_dir, tmp_output_dir = create_output_dir()
+        output_dir, tmp_output_dir = create_output_dir(identifier)
 
         # Run PyMultiNest
         sampler = pymultinest.run(
@@ -301,7 +302,7 @@ class ModelDet:
 
     def set_parameter_median(self):
         idx = arg_median(self._log_probability_values)
-        self.set_parameters(self._raw_samples[idx, :])
+        self.set_parameters(self._raw_samples[idx])
 
     @property
     def source_names(self):
@@ -314,6 +315,17 @@ class ModelDet:
     def parameter(self):
         return self._current_parameters
 
+    @property
+    def raw_samples(self):
+        return self._raw_samples
+
+    @property
+    def samlpes(self):
+        return self._samples
+
+    @property
+    def data(self):
+        return self._data
 
 class ModelCombine(ModelDet):
 
@@ -378,3 +390,7 @@ class ModelCombine(ModelDet):
     @property
     def model_dets(self):
         return self._model_dets
+
+    @property
+    def data(self):
+        return [d.data for d in self.model_dets]
