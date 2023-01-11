@@ -11,7 +11,7 @@ def plot_lightcurve(model, ax=None, rates=True, eff_echan=None, bin_width=None,
                     model_component_colors=[], filename=None, norm_time=True,
                     t0=None, time_ticks=None, y_ticks=None, time_format="h",
                     xlim=(None, None), ylim=(0, None), plot_ppc=False, ppc_color="darkgreen",
-                    plot_saa=True, ppc_percentile=99, ppc_alpha=0.6, saa_color="navy"):
+                    plot_saa=True, ppc_percentile=99, ppc_alpha=0.6, saa_color="navy", time_marks={}):
 
     # TODO: SAA only one legend label
     # Other time bins
@@ -148,18 +148,22 @@ def plot_lightcurve(model, ax=None, rates=True, eff_echan=None, bin_width=None,
             if "SAA" in source.name:
                 saa_sources.append(source.name)
 
-        for n, (start, stop) in enumerate(zip(idxs[:-1], idxs[1:])):
-            if n == 0:
-                label = "SAA"
-            else:
-                label = None
-                ax.plot(times[start:stop],
-                        model.get_model_counts_given_source(saa_sources,
-                                                            time_bins=time_bins[start:stop])[:, eff_echan]/width[start:stop],
-                        color=saa_color, label=label, alpha=model_alpha,
-                        zorder=9)
-            num_labels += 1
+        if len(saa_sources)>0:
+            for n, (start, stop) in enumerate(zip(idxs[:-1], idxs[1:])):
+                if n == 0:
+                    label = "SAA"
+                else:
+                    label = None
+                    ax.plot(times[start:stop],
+                            model.get_model_counts_given_source(saa_sources,
+                                                                time_bins=time_bins[start:stop])[:, eff_echan]/width[start:stop],
+                            color=saa_color, label=label, alpha=model_alpha,
+                            zorder=9)
+                num_labels += 1
 
+    for name, mark in time_marks.items():
+        ax.axvline(mark["time"], color=mark["color"], alpha=mark["alpha"], label=name)
+        num_labels += 1
 
     fig = ax.get_figure()
     ncol = 3
