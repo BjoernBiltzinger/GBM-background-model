@@ -223,13 +223,19 @@ class ModelDet:
         )
 
     def get_model_counts_given_source(self, source_name_list: list,
-                                      bin_mask=None):
-        counts = np.zeros_like(self._data.counts, dtype=float)
+                                      bin_mask=None, time_bins=None):
+
+        if time_bins is None:
+            counts = np.zeros_like(self._data.counts, dtype=float)
+        else:
+            counts = np.zeros((len(time_bins), self.data.num_echan),
+                              dtype=float)
+
         for name in source_name_list:
             found = False
             for source in self._sources:
                 if name == source.name:
-                    counts += source.get_counts(bin_mask)
+                    counts += source.get_counts(bin_mask, time_bins=time_bins)
                     found = True
                     break
             if not found:
@@ -269,10 +275,17 @@ class ModelDet:
 
         return prior
 
-    def get_model_counts(self, bin_mask=None):
-        counts = np.zeros_like(self._data.counts, dtype=float)
+    def get_model_counts(self, bin_mask=None, time_bins=None):
+
+        if time_bins is None:
+            counts = np.zeros_like(self.data.counts, dtype=float)
+        else:
+            counts = np.zeros((len(time_bins), self.data.num_echan),
+                              dtype=float)
+
         for source in self._sources:
-            counts += source.get_counts(bin_mask)
+            counts += source.get_counts(bin_mask, time_bins=time_bins)
+
         return counts
 
     def set_parameters(self, values):
@@ -326,6 +339,10 @@ class ModelDet:
     @property
     def data(self):
         return self._data
+
+    @property
+    def sources(self):
+        return self._sources
 
 class ModelCombine(ModelDet):
 
@@ -396,3 +413,7 @@ class ModelCombine(ModelDet):
     @property
     def data(self):
         return [d.data for d in self.model_dets]
+
+    @property
+    def sources(self):
+        return [d.sources for d in self.model_dets]

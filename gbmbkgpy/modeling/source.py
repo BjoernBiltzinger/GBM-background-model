@@ -23,7 +23,7 @@ class Source:
     def _precalculation(self, time_bins):
         self._time_bins = time_bins
 
-    def get_counts(self, bin_mask=None):
+    def get_counts(self, bin_mask=None, time_bins=None):
         """
         Calls the evaluation of the source to get the counts per bin. Uses a bin_mask to exclude some bins if needed.
         No need of integration here anymore! This is done in the function class of the sources!
@@ -32,12 +32,21 @@ class Source:
         :param bin_mask:
         :return:
         """
+        if time_bins is not None:
+            # special time bins input
+            return self._evaluate_at_time_bins(time_bins)
+
         if bin_mask is not None:
             return self._evaluate()[bin_mask]
-        else:
-            return self._evaluate()
+
+        return self._evaluate()
 
     def _evaluate(self):
+        # evaluate at the default time bins
+        raise NotImplementedError("Has to be implemented in sub-class")
+
+    def _evaluate_at_time_bins(self, time_bins):
+        # evaluate at given time bins
         raise NotImplementedError("Has to be implemented in sub-class")
 
     def __repr__(self):
@@ -148,6 +157,43 @@ class SAASource(Source):
 
         return self._out
 
+    def _evaluate_at_time_bins(self, time_bins):
+        # Stupid code duplication
+        idx_start = time_bins[:, 0] < self._t0
+
+        tstart = time_bins[:, 0][~idx_start]
+        tstop = time_bins[:, 1][~idx_start]
+
+        if self._model_vec:
+
+            out = np.zeros((len(time_bins),
+                            self.fit_model.num_x,
+                            ))
+
+        else:
+
+            out = np.zeros_like(time_bins[:, 0])
+
+        if self._model_type == 1:
+
+            raise NotImplementedError("Not yet")
+
+        if self._model_type == 2:
+
+            # analyic integral solution
+            if self._model_vec:
+
+                xc = self.fit_model.xc[np.newaxis, ...]
+                out[~idx_start] = xc*(self._fit_model(tstart-self._t0) -
+                                      self._fit_model(tstop-self._t0))
+
+            else:
+
+                xc = self.fit_model.xc.value
+                out[~idx_start] = xc*(self._fit_model(tstart-self._t0) -
+                                      self._fit_model(tstop-self._t0))
+
+        return out
 
 class NormOnlySource(Source):
 
@@ -168,7 +214,7 @@ class NormOnlySource(Source):
         super().__init__(name, const_model, spectral_model)
 
     def _precalculation(self, time_bins):
-        self._integrate_base_array(time_bins)
+        self._base_array = self._integrate_base_array(time_bins)
         super()._precalculation(time_bins)
 
     def _integrate_base_array(self, time_bins):
@@ -181,18 +227,20 @@ class NormOnlySource(Source):
             time_bins = np.tile(time_bins, (rates.shape[2], 1, 1)).T
             time_bins = np.swapaxes(time_bins, 0, 1)
 
-        self._base_array = np.trapz(rates, time_bins, axis=1)
+        base_array = np.trapz(rates, time_bins, axis=1)
 
-        if len(self._base_array.shape) == 1:
+        if len(base_array.shape) == 1:
 
             if self.fit_model.name == "AstromodelFunctionVector":
 
-                self._base_array = np.tile(self._base_array,
-                                           (self.fit_model.num_x, 1)).T
+                base_array = np.tile(base_array,
+                                     (self.fit_model.num_x, 1)).T
 
             else:
 
-                self._base_array = np.tile(self._base_array, (1, 1))
+                base_array = np.tile(base_array, (1, 1))
+
+        return base_array
 
     def _evaluate(self):
         """
@@ -200,6 +248,10 @@ class NormOnlySource(Source):
         """
         # eval model at dummy value (is a constant model)
         return self._fit_model(1)*self._base_array
+
+    def _evaluate_at_time_bins(self, time_bins):
+        base_array = self._integrate_base_array(time_bins)
+        return self._fit_model(1)*base_array
 
 
 class PhotonSourceFixed(NormOnlySource):
@@ -286,3 +338,21 @@ class PhotonSourceFree(Source):
         # integrate over the time bins
         return np.trapz(rates, self._tile_time_bins, axis=1)
 
+    def _evaluate_at_time_bins(self, time_bins):
+        response_array = self._response_interpolation(time_bins)
+        tile_time_bins = np.tile(time_bins,
+                                 (self._num_ebins_out, 1, 1)).T
+        tile_time_bins = np.swapaxes(tile_time_bins, 0, 1)
+
+        # get flux at input edges
+        spec = self._fit_model(self._monte_carlo_energies)
+
+        # trapz integrate
+        ee1 = self._monte_carlo_energies[:-1]
+        ee2 = self._monte_carlo_energies[1:]
+        binned_spec = np.trapz(np.array([spec[:-1], spec[1:]]).T,
+                               np.array([ee1, ee2]).T)
+        # fold with all the responses
+        rates = np.dot(binned_spec, response_array)
+        # integrate over the time bins
+        return np.trapz(rates, tile_time_bins, axis=1)

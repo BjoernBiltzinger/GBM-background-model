@@ -15,10 +15,11 @@ class Data:
         self._time_bins = time_bins
         self._counts = counts
         self._rebinned = False
+        self._min_bin_width = None
         # Initialize the valid_mask to all True
         self._valid_time_mask = np.ones(len(self._time_bins), dtype=bool)
 
-    def rebin_data(self, min_bin_width, save_memory=False):
+    def rebin_data(self, min_bin_width):
         """
         Rebins the time bins to a min bin width
         :param min_bin_width: min time of the new bins
@@ -26,6 +27,8 @@ class Data:
         :param save_memory:
         :return:
         """
+        self._min_bin_width = min_bin_width
+
         self._rebinned = True
 
         self._data_rebinner = Rebinner(self._time_bins, min_bin_width,
@@ -39,10 +42,6 @@ class Data:
             np.int64
         )
 
-        if save_memory:
-            self._time_bins = None
-            self._counts = None
-
     def mask_start_of_data(self, t):
         """
         Mask start of data
@@ -55,7 +54,7 @@ class Data:
         """
         mask = np.logical_and(self._time_bins[:, 0]-t_0 <= t,
                               self._time_bins[:, 0] >= t_0)
-        self.valid_time_mask[mask] = False
+        self._valid_time_mask[mask] = False
 
         if self._rebinned:
             mask = np.logical_and(
@@ -137,3 +136,6 @@ class Data:
     def num_echan(self):
         return self._counts.shape[1]
 
+    @property
+    def min_bin_width(self):
+        return self._min_bin_width

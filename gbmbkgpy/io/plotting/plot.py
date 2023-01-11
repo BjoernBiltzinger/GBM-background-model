@@ -3,7 +3,7 @@ import copy
 import matplotlib.pyplot as plt
 from gbmbkgpy.utils.statistics.stats_tools import Significance
 
-def plot_lightcurve(model, ax=None, rates=True, eff_echan=None,
+def plot_lightcurve(model, ax=None, rates=True, eff_echan=None, bin_width=None,
                     show_data=True, data_color="black", data_alpha=0.9,
                     model_alpha=1, show_total_model=True, data_linewidth=1,
                     marker_size=3,
@@ -13,8 +13,18 @@ def plot_lightcurve(model, ax=None, rates=True, eff_echan=None,
                     xlim=(None, None), ylim=(0, None), plot_ppc=False, ppc_color="darkgreen",
                     ppc_percentile=99, ppc_alpha=0.6):
 
+    # TODO: SAA only one legend label
+    # Other time bins
+
     if ax is None:
         fig, ax = plt.subplots()
+
+    # rebin the time bins
+    if bin_width is not None:
+        # save the old binning to restore it later
+        save_bin_width = model.data.min_bin_width
+
+        model.data.rebin_data(bin_width)
 
     if rates:
         width = model._data.time_bin_width
@@ -22,16 +32,15 @@ def plot_lightcurve(model, ax=None, rates=True, eff_echan=None,
     else:
         width = 1
         ax.set_ylabel("Counts [cnts]")
-
     # there are sometimes gaps in the time bins, we do not want to draw the
     # model in the gaps
-
+    time_bins = model.data.time_bins
     times = model.data.mean_time
     if norm_time:
         if t0 is None:
             times -= times[0]
         else:
-            times -= t0
+            times -= times[0] + t0
 
     if time_format == 'h':
         times /= (3600)
@@ -40,7 +49,7 @@ def plot_lightcurve(model, ax=None, rates=True, eff_echan=None,
 
     if show_data:
         ax.scatter(times,
-                   model._data.counts[:, eff_echan]/width,
+                   model.data.counts[:, eff_echan]/width,
                    s=marker_size,
                    linewidths=data_linewidth,
                    facecolors="none",
@@ -76,7 +85,7 @@ def plot_lightcurve(model, ax=None, rates=True, eff_echan=None,
                 label = None
 
             ax.plot(times[start:stop],
-                    model.get_model_counts()[start:stop, eff_echan]/width[start:stop],
+                    model.get_model_counts(time_bins=time_bins[start:stop])[:, eff_echan]/width[start:stop],
                     color=total_model_color, label=label,
                     alpha=model_alpha)
         num_labels += 1
@@ -99,7 +108,7 @@ def plot_lightcurve(model, ax=None, rates=True, eff_echan=None,
         model_counts = np.zeros((len(samples), len(times)))
         for i, s in enumerate(samples):
             model.set_parameters(s)
-            model_counts[i] = model.get_model_counts()[:, eff_echan]
+            model_counts[i] = model.get_model_counts(time_bins=time_bins)[:, eff_echan]
 
         # poisson noise
         model_counts = np.random.poisson(model_counts)
@@ -128,7 +137,7 @@ def plot_lightcurve(model, ax=None, rates=True, eff_echan=None,
             else:
                 label = None
             ax.plot(times[start:stop],
-                    model.get_model_counts_given_source([comp])[start:stop, eff_echan]/width[start:stop],
+                    model.get_model_counts_given_source([comp], time_bins=time_bins[start:stop])[:, eff_echan]/width[start:stop],
                     color=color, label=label, alpha=model_alpha)
         num_labels += 1
 
@@ -151,6 +160,10 @@ def plot_lightcurve(model, ax=None, rates=True, eff_echan=None,
 
     if filename is not None:
         fig.savefig(filename)
+
+    if bin_width is not None:
+        # reset time bin
+        model.data.rebin_data(save_bin_width)
 
     return ax
 
@@ -175,7 +188,7 @@ def plot_residuals(model,
         fig, ax = plt.subplots()
 
     # calc residuals
-    sign = Significance(model._data.counts[:, eff_echan],
+    sign = Significance(model.data.counts[:, eff_echan],
                         model.get_model_counts()[:, eff_echan],
                         1
                         )
