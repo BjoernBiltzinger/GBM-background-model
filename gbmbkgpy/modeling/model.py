@@ -23,7 +23,7 @@ def create_output_dir(identifier):
 
     base = get_path_of_external_data_dir()
     output_dir = (base / "fits" / "mn_out" /
-                  f"{identifier}_"+datetime.now().strftime("%m-%d_%H-%M"))
+                  (f"{identifier}_"+datetime.now().strftime("%m-%d_%H-%M")))
 
 
     # If the output path is to long (MultiNest only supports 100 chars)
