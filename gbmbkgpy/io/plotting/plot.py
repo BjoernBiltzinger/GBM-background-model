@@ -56,7 +56,7 @@ def plot_lightcurve(model, ax=None, rates=True, eff_echan=None, bin_width=None,
                    edgecolors="black",
                    alpha=data_alpha,
                    label="Data",
-                   zorder=15,
+                   zorder=5,
                    rasterized=False,
                    )
         num_labels += 1
@@ -87,7 +87,7 @@ def plot_lightcurve(model, ax=None, rates=True, eff_echan=None, bin_width=None,
             ax.plot(times[start:stop],
                     model.get_model_counts(time_bins=time_bins[start:stop])[:, eff_echan]/width[start:stop],
                     color=total_model_color, label=label,
-                    alpha=model_alpha)
+                    alpha=model_alpha, zorder=10)
         num_labels += 1
 
     if plot_ppc:
@@ -125,7 +125,7 @@ def plot_lightcurve(model, ax=None, rates=True, eff_echan=None, bin_width=None,
                             min_p[start:stop]/width[start:stop],
                             max_p[start:stop]/width[start:stop],
                             color=ppc_color,
-                            alpha=ppc_alpha, label=label, linewidth=0, zorder=-15)
+                            alpha=ppc_alpha, label=label, linewidth=0, zorder=-5)
 
         model.set_parameters(current_par_vals)
 
@@ -138,7 +138,7 @@ def plot_lightcurve(model, ax=None, rates=True, eff_echan=None, bin_width=None,
                 label = None
             ax.plot(times[start:stop],
                     model.get_model_counts_given_source([comp], time_bins=time_bins[start:stop])[:, eff_echan]/width[start:stop],
-                    color=color, label=label, alpha=model_alpha)
+                    color=color, label=label, alpha=model_alpha, zorder=9)
         num_labels += 1
 
     fig = ax.get_figure()
