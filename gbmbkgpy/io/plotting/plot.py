@@ -23,7 +23,10 @@ def plot_lightcurve(model, ax=None, rates=True, eff_echan=None,
         width = 1
         ax.set_ylabel("Counts [cnts]")
 
-    times = model._data.mean_time
+    # there are sometimes gaps in the time bins, we do not want to draw the
+    # model in the gaps
+
+    times = model.data.mean_time
     if norm_time:
         if t0 is None:
             times -= times[0]
@@ -49,11 +52,33 @@ def plot_lightcurve(model, ax=None, rates=True, eff_echan=None,
                    )
         num_labels += 1
 
+    # there are sometimes gaps in the time bins, we do not want to draw the
+    # model in the gaps
+    idxs = np.array([0])
+    idxs = np.append(idxs,
+                     np.argwhere(~np.isclose(model.data.time_bins[:-1, 1],
+                                             model.data.time_bins[1:, 0],
+                                             atol=10, rtol=0))+1)
+    idxs = np.append(idxs, len(model.data.time_bins))
+
+
+    #time_bins_split = []
+    #for idx in idxs:
+    #    time_bins_split.append()
+    
+
     if show_total_model:
-        ax.plot(times,
-                model.get_model_counts()[:, eff_echan]/width,
-                color=total_model_color, label="Total Model",
-                alpha=model_alpha,)
+
+        for n, (start, stop) in enumerate(zip(idxs[:-1], idxs[1:])):
+            if n == 0:
+                label = "Total Model"
+            else:
+                label = None
+
+            ax.plot(times[start:stop],
+                    model.get_model_counts()[start:stop, eff_echan]/width[start:stop],
+                    color=total_model_color, label=label,
+                    alpha=model_alpha)
         num_labels += 1
 
     if plot_ppc:
@@ -82,16 +107,29 @@ def plot_lightcurve(model, ax=None, rates=True, eff_echan=None,
         min_p = np.percentile(model_counts, 50-ppc_percentile/2, axis=0)
         max_p = np.percentile(model_counts, 50+ppc_percentile/2, axis=0)
 
-        ax.fill_between(times, min_p/width, max_p/width, color=ppc_color,
-                        alpha=ppc_alpha, label="PPC", linewidth=0, zorder=-15)
+        for n, (start, stop) in enumerate(zip(idxs[:-1], idxs[1:])):
+            if n == 0:
+                label = "PPC"
+            else:
+                label = None
+            ax.fill_between(times[start:stop],
+                            min_p[start:stop]/width[start:stop],
+                            max_p[start:stop]/width[start:stop],
+                            color=ppc_color,
+                            alpha=ppc_alpha, label=label, linewidth=0, zorder=-15)
 
         model.set_parameters(current_par_vals)
 
     for comp, color in zip(model_component_list, model_component_colors):
 
-        ax.plot(times,
-                model.get_model_counts_given_source([comp])[:, eff_echan]/width,
-                color=color, label=comp, alpha=model_alpha)
+        for n, (start, stop) in enumerate(zip(idxs[:-1], idxs[1:])):
+            if n == 0:
+                label = comp
+            else:
+                label = None
+            ax.plot(times[start:stop],
+                    model.get_model_counts_given_source([comp])[start:stop, eff_echan]/width[start:stop],
+                    color=color, label=label, alpha=model_alpha)
         num_labels += 1
 
     fig = ax.get_figure()
