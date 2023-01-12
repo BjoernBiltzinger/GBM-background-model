@@ -142,24 +142,23 @@ def plot_lightcurve(model, ax=None, rates=True, eff_echan=None, bin_width=None,
         num_labels += 1
 
     if plot_saa:
-        first = True
         saa_sources = []
         for source in model.sources:
             if "SAA" in source.name:
                 saa_sources.append(source.name)
 
-        if len(saa_sources)>0:
+        if len(saa_sources) > 0:
             for n, (start, stop) in enumerate(zip(idxs[:-1], idxs[1:])):
                 if n == 0:
                     label = "SAA"
                 else:
                     label = None
-                    ax.plot(times[start:stop],
-                            model.get_model_counts_given_source(saa_sources,
-                                                                time_bins=time_bins[start:stop])[:, eff_echan]/width[start:stop],
-                            color=saa_color, label=label, alpha=model_alpha,
-                            zorder=9)
-                num_labels += 1
+                ax.plot(times[start:stop],
+                        model.get_model_counts_given_source(saa_sources,
+                                                            time_bins=time_bins[start:stop])[:, eff_echan]/width[start:stop],
+                        color=saa_color, label=label, alpha=model_alpha,
+                        zorder=9)
+            num_labels += 1
 
     for name, mark in time_marks.items():
         time = mark["time"]
@@ -172,8 +171,6 @@ def plot_lightcurve(model, ax=None, rates=True, eff_echan=None, bin_width=None,
 
     fig = ax.get_figure()
     ncol = 3
-    nr_rows = int(np.ceil(num_labels / ncol))
-    vertical_offset = 0
 
     ax.legend(
         loc="upper left",
