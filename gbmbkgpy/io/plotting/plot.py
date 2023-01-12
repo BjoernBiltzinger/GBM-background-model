@@ -210,14 +210,25 @@ def plot_residuals(model,
                    ylim=(None, None),
                    linewidth=1,
                    marker_size=3,
-                   time_marks={}):
+                   time_marks={},
+                   bin_width=None):
 
     if ax is None:
         fig, ax = plt.subplots()
 
+    # rebin the time bins
+    if bin_width is not None:
+        # save the old binning to restore it later
+        save_bin_width = model.data.min_bin_width
+
+        model.data.rebin_data(bin_width)
+
+    time_bins = model.data.time_bins
+    times = model.data.mean_time
+
     # calc residuals
     sign = Significance(model.data.counts[:, eff_echan],
-                        model.get_model_counts()[:, eff_echan],
+                        model.get_model_counts(time_bins=time_bins)[:, eff_echan],
                         1
                         )
 
@@ -262,6 +273,10 @@ def plot_residuals(model,
         if time_format == 'h':
             time /= 3600
         ax.axvline(time, color=mark["color"], alpha=mark["alpha"])
+
+    if bin_width is not None:
+        # reset time bin
+        model.data.rebin_data(save_bin_width)
 
     return ax
 
