@@ -245,7 +245,7 @@ def plot_residuals(model,
         if t0 is None:
             times -= times[0]
         else:
-            times -= t0
+            times -= times[0] + t0
 
     if time_format == 'h':
         times /= (3600)
