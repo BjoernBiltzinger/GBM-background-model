@@ -163,6 +163,8 @@ def plot_lightcurve(model, ax=None, rates=True, eff_echan=None, bin_width=None,
 
     for name, mark in time_marks.items():
         time = mark["time"]
+        if t0 is not None:
+            time -= t0
         if time_format == 'h':
             time /= 3600
         ax.axvline(time, color=mark["color"], alpha=mark["alpha"], label=name)
@@ -270,6 +272,8 @@ def plot_residuals(model,
 
     for name, mark in time_marks.items():
         time = mark["time"]
+        if t0 is not None:
+            time -= t0
         if time_format == 'h':
             time /= 3600
         ax.axvline(time, color=mark["color"], alpha=mark["alpha"])
