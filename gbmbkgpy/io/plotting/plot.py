@@ -209,7 +209,8 @@ def plot_residuals(model,
                    xlim=(None, None),
                    ylim=(None, None),
                    linewidth=1,
-                   marker_size=3,):
+                   marker_size=3,
+                   time_marks={}):
 
     if ax is None:
         fig, ax = plt.subplots()
@@ -256,6 +257,12 @@ def plot_residuals(model,
     if filename is not None:
         fig.savefig(filename)
 
+    for name, mark in time_marks.items():
+        time = mark["time"]
+        if time_format == 'h':
+            time /= 3600
+        ax.axvline(time, color=mark["color"], alpha=mark["alpha"])
+
     return ax
 
 
@@ -275,6 +282,7 @@ def finalize_plot(ax, time_ticks, y_ticks, time_format, xlim, ylim):
 
     ax.set_xlim(xlim)
     ax.set_ylim(ylim)
+
 #from gbmbkgpy.utils.statistics.stats_tools import Significance
 #from gbmbkgpy.io.plotting.data_residual_plot import ResidualPlot
 #from gbmbkgpy.utils.binner import Rebinner
