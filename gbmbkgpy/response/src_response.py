@@ -49,7 +49,8 @@ class PointSourceResponse:
 
         self._effective_response_interp = interp1d(self._times,
                                                    responses,
-                                                   axis=0)
+                                                   axis=0,
+                                                   fill_value='extrapolate')
 
     def interp_effective_response(self, time):
         return self._effective_response_interp(time)
@@ -99,7 +100,8 @@ class ExtendedSourceResponse:
         # build interpolation
         self._effective_response_interp = interp1d(self._times,
                                                    self._effective_responses,
-                                                   axis=0)
+                                                   axis=0,
+                                                   fill_value='extrapolate')
 
     def _calc_effective_responses(self):
         eff_responses = np.zeros((self._num_times,
