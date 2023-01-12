@@ -165,7 +165,7 @@ def plot_lightcurve(model, ax=None, rates=True, eff_echan=None, bin_width=None,
         time = mark["time"]
         if time_format == 'h':
             time /= 3600
-        ax.axvline(mark["time"], color=mark["color"], alpha=mark["alpha"], label=name)
+        ax.axvline(time, color=mark["color"], alpha=mark["alpha"], label=name)
         num_labels += 1
 
     fig = ax.get_figure()
