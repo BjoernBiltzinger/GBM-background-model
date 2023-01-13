@@ -297,7 +297,7 @@ class ModelDet:
 
     def update_current_parameters(self):
         # update the dict with the parameters from all sources saved
-        parameters = {}
+        parameters = collections.OrderedDict()
         if len(self._sources) > 0:
             for source in self._sources:
                 for name, param in source.parameters.items():
@@ -333,7 +333,7 @@ class ModelDet:
         return self._raw_samples
 
     @property
-    def samlpes(self):
+    def samples(self):
         return self._samples
 
     @property
@@ -387,24 +387,24 @@ class ModelCombine(ModelDet):
         self.send_samples_to_submodels()
 
     def send_samples_to_submodels(self):
-        if rank == 0:
-            # send subsets of samples to the indiv. models of the different
-            # dets
-            for model in self._model_dets:
-                samples = collections.OrderedDict()
-                # loop over model det parameters and add them
-                for param_name in model.parameter.keys():
-                    samples[param_name] = self._samples[param_name]
-                    num_samples = len(self._samples[param_name])
-                # summarize them in the raw_samples array
-                raw_samples = np.zeros((num_samples, len(samples)))
-                for i, s in enumerate(samples.values()):
-                    raw_samples[:, i] = s
 
-                model.set_samples(samples)
-                model.set_raw_samples(raw_samples)
+        # send subsets of samples to the indiv. models of the different
+        # dets
+        for model in self._model_dets:
+            samples = collections.OrderedDict()
+            # loop over model det parameters and add them
+            for param_name in model.parameter.keys():
+                samples[param_name] = self._samples[param_name]
+                num_samples = len(self._samples[param_name])
+            # summarize them in the raw_samples array
+            raw_samples = np.zeros((num_samples, len(samples)))
+            for i, s in enumerate(samples.values()):
+                raw_samples[:, i] = s
 
-                model.set_log_probability_values(self._log_probability_values)
+            model.set_samples(samples)
+            model.set_raw_samples(raw_samples)
+
+            model.set_log_probability_values(self._log_probability_values)
 
     @property
     def model_dets(self):
