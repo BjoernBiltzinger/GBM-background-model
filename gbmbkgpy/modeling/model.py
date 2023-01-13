@@ -150,41 +150,39 @@ class ModelDet:
         # Store the sample for further use (if needed)
         self._sampler = sampler
 
-        if rank == 0:
-
-            # If we used a temporary output dir then remove the symbolic link
-            if tmp_output_dir != output_dir:
-                tmp_output_dir.unlink()
+        # If we used a temporary output dir then remove the symbolic link
+        if tmp_output_dir != output_dir:
+            tmp_output_dir.unlink()
 
 
-            # analyse : taken from 3ML
-            multinest_analyzer = pymultinest.analyse.Analyzer(
-                n_params=len(self.parameter),
-                outputfiles_basename=str((tmp_output_dir / "fit_").absolute())
-            )
+        # analyse : taken from 3ML
+        multinest_analyzer = pymultinest.analyse.Analyzer(
+            n_params=len(self.parameter),
+            outputfiles_basename=str((tmp_output_dir / "fit_").absolute())
+        )
 
-            self._raw_samples =\
-                multinest_analyzer.get_equal_weighted_posterior()[
-                    :, :-1
-                ]
-
-            self._samples = collections.OrderedDict()
-
-            for i, parameter_name in enumerate(self.parameter.keys()):
-                # Add the samples for this parameter for this source
-
-                self._samples[parameter_name] = self._raw_samples[:, i]
-
-
-            # Get the log. likelihood values from the chain
-            log_like_values = multinest_analyzer.get_equal_weighted_posterior()[
-                :, -1
+        self._raw_samples =\
+            multinest_analyzer.get_equal_weighted_posterior()[
+                :, :-1
             ]
 
-            # now get the log probability
-            self._log_probability_values = log_like_values + np.array(
-                [self.log_prior(samples) for samples in self._raw_samples]
-            )
+        self._samples = collections.OrderedDict()
+
+        for i, parameter_name in enumerate(self.parameter.keys()):
+            # Add the samples for this parameter for this source
+
+            self._samples[parameter_name] = self._raw_samples[:, i]
+
+
+        # Get the log. likelihood values from the chain
+        log_like_values = multinest_analyzer.get_equal_weighted_posterior()[
+            :, -1
+        ]
+
+        # now get the log probability
+        self._log_probability_values = log_like_values + np.array(
+            [self.log_prior(samples) for samples in self._raw_samples]
+        )
 
     def load_fit(self, output_dir):
         """
