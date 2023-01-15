@@ -256,11 +256,11 @@ class NormOnlySource(Source):
 
         base_array = np.trapz(rates, time_bins, axis=1)
 
-        if len(self._base_array.shape) == 1:
+        if len(base_array.shape) == 1:
 
             if self.fit_model.name == "AstromodelFunctionVector":
 
-                base_array = np.tile(self._base_array,
+                base_array = np.tile(base_array,
                                      (self.fit_model.num_x, 1)).T
 
             else:
