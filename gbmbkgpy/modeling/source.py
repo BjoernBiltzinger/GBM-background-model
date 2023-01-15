@@ -214,7 +214,8 @@ class NormOnlySource(Source):
         super().__init__(name, const_model, spectral_model)
 
     def _precalculation(self, time_bins):
-        self._base_array = self._integrate_base_array(time_bins)
+        #self._base_array = self._integrate_base_array(time_bins)
+        self._integrate_base_array(time_bins)
         super()._precalculation(time_bins)
 
     def _integrate_base_array(self, time_bins):
@@ -227,20 +228,18 @@ class NormOnlySource(Source):
             time_bins = np.tile(time_bins, (rates.shape[2], 1, 1)).T
             time_bins = np.swapaxes(time_bins, 0, 1)
 
-        base_array = np.trapz(rates, time_bins, axis=1)
+        self._base_array = np.trapz(rates, time_bins, axis=1)
 
-        if len(base_array.shape) == 1:
+        if len(self._base_array.shape) == 1:
 
             if self.fit_model.name == "AstromodelFunctionVector":
 
-                base_array = np.tile(base_array,
-                                     (self.fit_model.num_x, 1)).T
+                self._base_array = np.tile(self._base_array,
+                                           (self.fit_model.num_x, 1)).T
 
             else:
 
-                base_array = np.tile(base_array, (1, 1))
-
-        return base_array
+                self._base_array = np.tile(self._base_array, (1, 1))
 
     def _evaluate(self):
         """
@@ -250,7 +249,24 @@ class NormOnlySource(Source):
         return self._fit_model(1)*self._base_array
 
     def _evaluate_at_time_bins(self, time_bins):
-        base_array = self._integrate_base_array(time_bins)
+        rates = self._interp1d_rate_base_array(time_bins)
+        if len(rates.shape) == 3:
+            time_bins = np.tile(time_bins, (rates.shape[2], 1, 1)).T
+            time_bins = np.swapaxes(time_bins, 0, 1)
+
+        base_array = np.trapz(rates, time_bins, axis=1)
+
+        if len(self._base_array.shape) == 1:
+
+            if self.fit_model.name == "AstromodelFunctionVector":
+
+                base_array = np.tile(self._base_array,
+                                     (self.fit_model.num_x, 1)).T
+
+            else:
+
+                base_array = np.tile(base_array, (1, 1))
+        #base_array = self._integrate_base_array(time_bins)
         return self._fit_model(1)*base_array
 
 
