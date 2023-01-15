@@ -35,16 +35,9 @@ class Rebinner(object):
         old_end = vector_to_rebin_on[0, 0]
         for index, bin in enumerate(vector_to_rebin_on):
             if (not mask[index]) or bin[0]-old_end > 1:
-                #print(bin[0], old_end)
                 # This element is excluded by the mask or there is a gap
 
-                if not bin_open:
-
-                    old_end = bin[1]
-                    continue
-
-                else:
-
+                if bin_open:
                     # The bin needs to be closed here!
                     self._stops.append(index)
 
@@ -52,7 +45,7 @@ class Rebinner(object):
                     bin_open = False
 
                     # add the first bin including a SAA passage to the SAA index
-                    #self._saa_idx.append(len(self._stops) - 1)
+                    self._saa_idx.append(len(self._stops) - 1)
 
             else:
                 # This element is included by the mask
@@ -62,6 +55,7 @@ class Rebinner(object):
                 if not bin_open:
                     # Open a new bin
                     bin_open = True
+
                     self._starts.append(index)
                     sum_bin_width = 0.0
 
@@ -85,8 +79,8 @@ class Rebinner(object):
                     bin_open = False
 
                     # Add next bin to SAA idx if it is in SAA
-                    #if not mask[stop_index]:
-                    #    self._saa_idx.append(len(self._stops) - 1)
+                    if not mask[stop_index]:
+                        self._saa_idx.append(len(self._stops) - 1)
 
             old_end = bin[1]
         # At the end of the loop, see if we left a bin open, if we did, close it
@@ -100,6 +94,7 @@ class Rebinner(object):
         self._min_bin_width = min_bin_width
 
         self._rebinned_vector_idx = np.array(zip(self._starts, self._stops))
+
         self._time_rebinned = np.stack(
             (vector_to_rebin_on[self._starts, 0], vector_to_rebin_on[self._stops, 0]),
             axis=-1,
@@ -112,7 +107,7 @@ class Rebinner(object):
         self._time_rebinned[-1][1] = vector_to_rebin_on[self._stops[-1]][1]
 
         rebinned_mask = np.ones_like(self._starts)
-        #rebinned_mask.put(self._saa_idx, 0)
+        rebinned_mask.put(self._saa_idx, 0)
         self._rebinned_mask = np.array(rebinned_mask, bool)
 
     @property
