@@ -11,6 +11,7 @@ from gbmbkgpy.utils.likelihood import cstat_numba
 
 using_mpi, rank, size, comm = check_mpi()
 
+
 def check_valid_source_name(source, source_list):
     """
     check if the source is already in the list
@@ -18,6 +19,7 @@ def check_valid_source_name(source, source_list):
     for s in source_list:
         if s.name == source.name:
             raise AssertionError("Two sources with the same names")
+
 
 def create_output_dir(identifier):
 
@@ -49,6 +51,7 @@ def create_output_dir(identifier):
 
     return output_dir, tmp_output_dir
 
+
 def arg_median(a):
     if len(a) % 2 == 1:
         return np.where(a == np.median(a))[0][0]
@@ -57,6 +60,7 @@ def arg_median(a):
         left = np.partition(a, l)[l]
         right = np.partition(a, r)[r]
         return min([np.where(a == left)[0][0], np.where(a == right)[0][0]])
+
 
 class ModelDet:
 

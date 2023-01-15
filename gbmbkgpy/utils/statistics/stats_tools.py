@@ -8,10 +8,6 @@ import warnings as custom_warnings
 #from gbmbkgpy.utils.differentiation import *
 
 
-class CannotComputeCovariance(RuntimeWarning):
-    pass
-
-
 class PoissonResiduals(object):
     """
     This class implements a way to compute residuals for a Poisson distribution mapping them to residuals of a standard
@@ -234,51 +230,3 @@ class Significance(object):
         sign = np.where(o > b, 1, -1)
 
         return sign * S
-
-
-def compute_covariance_matrix(function, best_fit_parameters):
-    """
-    Compute the covariance matrix of this fit
-    :param function: the loglike for the fit
-    :param best_fit_parameters: the best fit parameters
-    :return:
-    """
-
-    minima = np.zeros_like(best_fit_parameters) - 100
-    maxima = np.zeros_like(best_fit_parameters) + 100
-
-    try:
-
-        hessian_matrix = get_hessian(function, best_fit_parameters, minima, maxima)
-
-    except ParameterOnBoundary:
-
-        custom_warnings.warn(
-            "One or more of the parameters are at their boundaries. Cannot compute covariance and"
-            " errors",
-            CannotComputeCovariance,
-        )
-
-        n_dim = len(best_fit_parameters)
-
-        cov_matrix = np.zeros((n_dim, n_dim)) * np.nan
-
-    # Invert it to get the covariance matrix
-
-    try:
-
-        covariance_matrix = np.linalg.inv(hessian_matrix)
-
-        cov_matrix = covariance_matrix
-
-    except:
-
-        custom_warnings.warn(
-            "Cannot invert Hessian matrix, looks like the matrix is singluar"
-        )
-
-        n_dim = len(best_fit_parameters)
-
-        cov_matrix = np.zeros((n_dim, n_dim)) * np.nan
-
-    return cov_matrix

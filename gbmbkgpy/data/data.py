@@ -15,9 +15,14 @@ class Data:
         self._time_bins = time_bins
         self._counts = counts
         self._rebinned = False
-        self._min_bin_width = None
+
+        self._min_bin_width = 0
+        self._rebinned_time_bins = time_bins
+        self._rebinned_counts = counts
+
         # Initialize the valid_mask to all True
         self._valid_time_mask = np.ones(len(self._time_bins), dtype=bool)
+        self._valid_rebinned_time_mask = np.ones(len(self._time_bins), dtype=bool)
 
     def rebin_data(self, min_bin_width):
         """
@@ -31,14 +36,14 @@ class Data:
 
         self._rebinned = True
 
-        self._data_rebinner = Rebinner(self._time_bins, min_bin_width,
-                                       mask=self._valid_time_mask)
+        data_rebinner = Rebinner(self._time_bins, min_bin_width,
+                                 mask=self._valid_time_mask)
 
-        self._rebinned_time_bins = self._data_rebinner.time_rebinned
+        self._rebinned_time_bins = data_rebinner.time_rebinned
 
-        self._valid_rebinned_time_mask = self._data_rebinner.rebinned_mask
+        self._valid_rebinned_time_mask = data_rebinner.rebinned_mask
 
-        self._rebinned_counts = self._data_rebinner.rebin(self._counts)[0].astype(
+        self._rebinned_counts = data_rebinner.rebin(self._counts)[0].astype(
             np.int64
         )
 
@@ -82,12 +87,10 @@ class Data:
         Returns mean time of the time bins
         :return: mean time of time bins
         """
-        if self._rebinned:
-            return np.mean(
-                self._rebinned_time_bins[self.valid_rebinned_time_mask], axis=1
-            )
 
-        return np.mean(self._time_bins[self.valid_time_mask], axis=1)
+        return np.mean(
+            self._rebinned_time_bins[self.valid_rebinned_time_mask], axis=1
+        )
 
     @property
     def counts(self):
@@ -95,10 +98,7 @@ class Data:
         Returns the count information of all time bins
         :return: counts
         """
-        if self._rebinned:
-            return self._rebinned_counts[self.valid_rebinned_time_mask]
-
-        return self._counts[self.valid_time_mask]
+        return self._rebinned_counts[self.valid_rebinned_time_mask]
 
     @property
     def time_bins(self):
@@ -106,19 +106,11 @@ class Data:
         Returns the time bin information of all time bins
         :return: time_bins
         """
-        if self._rebinned:
-            return self._rebinned_time_bins[self.valid_rebinned_time_mask]
-
-        return self._time_bins[self.valid_time_mask]
+        return self._rebinned_time_bins[self.valid_rebinned_time_mask]
 
     @property
     def rebinned_mask(self):
-        if self._rebinned:
-            return self._rebinned_mask
-
-        raise Exception(
-            "Data is unbinned"
-        )
+        return self._rebinned_mask
 
     @property
     def valid_time_mask(self):
@@ -139,7 +131,3 @@ class Data:
     @property
     def min_bin_width(self):
         return self._min_bin_width
-
-    @property
-    def date(self):
-        return self._date

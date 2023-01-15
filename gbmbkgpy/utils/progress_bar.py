@@ -72,10 +72,6 @@ except ImportError:
 from contextlib import contextmanager
 
 
-class CannotGenerateHTMLBar(RuntimeError):
-    pass
-
-
 @contextmanager
 def progress_bar(iterations, width=None, scale=1, units="", title=None, hidden=False):
     """
@@ -170,7 +166,7 @@ def multiple_progress_bars(iterations, n, width=None, force_html=False):
         except:
 
             if force_html:
-                raise CannotGenerateHTMLBar(
+                raise AssertionError(
                     "force_html was set to True, but I couldn't generate an HTML bar"
                 )
 
@@ -184,7 +180,7 @@ def multiple_progress_bars(iterations, n, width=None, force_html=False):
             width = 30
 
         if force_html:
-            raise CannotGenerateHTMLBar(
+            raise AssertionError(
                 "force_html was set to True, but I couldn't generate an HTML bar"
             )
 

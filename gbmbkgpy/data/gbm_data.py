@@ -217,3 +217,7 @@ class GBMData(Data):
     @property
     def det(self):
         return self._detector
+
+    @property
+    def date(self):
+        return self._date
