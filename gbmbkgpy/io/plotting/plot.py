@@ -182,7 +182,7 @@ def plot_lightcurve(model, ax=None, rates=True, eff_echan=None, bin_width=None,
         ncol = 3
         ax.legend(
             loc="upper center",
-            bbox_to_anchor=(0, -1.1, 1, 1),
+            bbox_to_anchor=(-0.05, -1.05, 1, 1),
             bbox_transform=fig.transFigure,
             ncol=ncol,
             #mode="expand",
