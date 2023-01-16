@@ -1,6 +1,10 @@
 import numpy as np
 import copy
 import matplotlib.pyplot as plt
+
+from gbmgeometry import GBMTime
+from astropy.time import Time
+
 from gbmbkgpy.utils.statistics.stats_tools import Significance
 
 def plot_lightcurve(model, ax=None, rates=True, eff_echan=None, bin_width=None,
@@ -36,11 +40,16 @@ def plot_lightcurve(model, ax=None, rates=True, eff_echan=None, bin_width=None,
     # model in the gaps
     time_bins = model.data.time_bins
     times = model.data.mean_time
+
+    # start time of this day
+    date = model.data.date
+    gbm_time = GBMTime(Time(f"20{date[:2]}-{date[2:4]}-{date[4:6]}T00:00:00", format="isot", scale='utc'))
+    start_time_day = gbm_time.met
     if norm_time:
         if t0 is None:
-            times -= times[0]
+            times -= start_time_day #times[0]
         else:
-            times -= times[0] + t0
+            times -= start_time_day + t0
 
     if time_format == 'h':
         times /= (3600)
@@ -247,12 +256,16 @@ def plot_residuals(model,
     # 0 line
     ax.axhline(0, linestyle="--", color='k')
 
+    date = model.data.date
+    gbm_time = GBMTime(Time(f"20{date[:2]}-{date[2:4]}-{date[4:6]}T00:00:00", format="isot", scale='utc'))
+    start_time_day = gbm_time.met
+
     times = model._data.mean_time
     if norm_time:
         if t0 is None:
-            times -= times[0]
+            times -= start_time_day #times[0]
         else:
-            times -= times[0] + t0
+            times -= start_time_day + t0
 
     if time_format == 'h':
         times /= (3600)
