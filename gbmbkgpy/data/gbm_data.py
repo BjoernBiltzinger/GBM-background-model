@@ -42,16 +42,17 @@ class GBMData(Data):
 
         self._echan_mask_construction()
 
-        counts, time_bins = self._read_in_data()
+        counts, time_bins, valid_time_mask = self._read_in_data()
 
-        super().__init__(name, time_bins, counts)
+        valid_time_mask = self._mask_saa(valid_time_mask, time_bins)
 
-        self._mask_saa()
+        super().__init__(name, time_bins, counts, valid_time_mask)
 
-    def _mask_saa(self):
+    def _mask_saa(self, valid_time_mask, time_bins):
         # find large gaps in time bins and mask these bins
-        self._valid_time_mask = (self._time_bins[:, 1] -
-                                 self._time_bins[:, 0]) < 50
+        valid_time_mask[(time_bins[:, 1] -
+                         time_bins[:, 0]) > 50] = False
+        return valid_time_mask
 
     def _read_in_data(self):
         """
@@ -97,13 +98,14 @@ class GBMData(Data):
         max_time_pos = pos_times[-1]
 
         # check for all time bins if they are outside of this interval
-        idx_outside_poshist = np.logical_or(bin_start < min_time_pos,
-                                            bin_start > max_time_pos)
+        idx_outside_poshist = np.logical_or(bin_start <= min_time_pos,
+                                            bin_stop >= max_time_pos)
 
         bin_start = bin_start[~idx_outside_poshist]
         bin_stop = bin_stop[~idx_outside_poshist]
         counts = counts[~idx_outside_poshist]
 
+        valid_time_mask = np.zeros(len(counts), dtype=bool)
         # remove time bins outside of the time between
         # min_time and max_time if they are given
         if self._min_time is not None:
@@ -115,9 +117,12 @@ class GBMData(Data):
         else:
             stop_idx = -1
 
-        bin_start = bin_start[start_idx:stop_idx]
-        bin_stop = bin_stop[start_idx:stop_idx]
-        counts = counts[start_idx:stop_idx]
+        valid_time_mask[start_idx:stop_idx] = True
+
+
+        #bin_start = bin_start[start_idx:stop_idx]
+        #bin_stop = bin_stop[start_idx:stop_idx]
+        #counts = counts[start_idx:stop_idx]
 
         # Get time bins
         time_bins = np.vstack((bin_start, bin_stop)).T
@@ -128,7 +133,7 @@ class GBMData(Data):
         # bin the counts with the echan mask
         counts = self._add_counts_echan(counts)
 
-        return counts, time_bins
+        return counts, time_bins, valid_time_mask
 
     def _download_data(self):
         # download the poshist files

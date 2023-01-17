@@ -78,7 +78,7 @@ class ModelDet:
         check_valid_source_name(source, self._sources)
 
         # set time bins for source
-        source.set_time_bins(self._data.time_bins)
+        source.set_time_bins(self._data.fit_time_bins)
 
         # add to list
         self._sources.append(source)
@@ -87,7 +87,7 @@ class ModelDet:
         self.update_current_parameters()
 
     def log_like(self):
-        return cstat_numba(self.get_model_counts(), self._data.counts)
+        return cstat_numba(self.get_model_counts(), self._data.fit_counts)
 
     def log_prior(self, trial_values) -> float:
         """Compute the sum of log-priors, used in the parallel tempering sampling"""
