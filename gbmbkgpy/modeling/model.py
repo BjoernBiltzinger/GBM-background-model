@@ -228,7 +228,7 @@ class ModelDet:
                                       bin_mask=None, time_bins=None):
 
         if time_bins is None:
-            counts = np.zeros_like(self._data.counts, dtype=float)
+            counts = np.zeros_like(self.data.fit_counts, dtype=float)
         else:
             counts = np.zeros((len(time_bins), self.data.num_echan),
                               dtype=float)
@@ -280,7 +280,7 @@ class ModelDet:
     def get_model_counts(self, bin_mask=None, time_bins=None):
 
         if time_bins is None:
-            counts = np.zeros_like(self.data.counts, dtype=float)
+            counts = np.zeros_like(self.data.fit_counts, dtype=float)
         else:
             counts = np.zeros((len(time_bins), self.data.num_echan),
                               dtype=float)
