@@ -173,13 +173,19 @@ def plot_lightcurve(model, ax=None, rates=True, eff_echan=None, bin_width=None,
             num_labels += 1
 
     for name, mark in time_marks.items():
-        time = mark["time"]
-        if t0 is not None:
-            time -= t0
-        if time_format == 'h':
-            time /= 3600
-        ax.axvline(time, color=mark["color"], alpha=mark["alpha"], label=name)
-        num_labels += 1
+        times = mark["time"]
+
+        for i in range(len(times)):
+            if t0 is not None:
+                times[i] -= t0
+            if time_format == 'h':
+                times[i] /= 3600
+        for j, time in enumerate(times):
+            label = None
+            if j == 0 and mark.get("show_label", True):
+                label = name
+                num_labels += 1
+            ax.axvline(time, color=mark["color"], alpha=mark["alpha"], label=label)
 
     fig = ax.get_figure()
     if num_labels < 4:
@@ -289,12 +295,18 @@ def plot_residuals(model,
         fig.savefig(filename)
 
     for name, mark in time_marks.items():
-        time = mark["time"]
-        if t0 is not None:
-            time -= t0
-        if time_format == 'h':
-            time /= 3600
-        ax.axvline(time, color=mark["color"], alpha=mark["alpha"])
+        times = mark["time"]
+
+        for i in range(len(times)):
+            if t0 is not None:
+                times[i] -= t0
+            if time_format == 'h':
+                times[i] /= 3600
+        for j, time in enumerate(times):
+            label = None
+            if j == 0 and mark.get("show_label", True):
+                label = name
+            ax.axvline(time, color=mark["color"], alpha=mark["alpha"], label=label)
 
     if bin_width is not None:
         # reset time bin
