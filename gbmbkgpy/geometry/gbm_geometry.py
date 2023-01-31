@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.interpolate import interp1d
+import scipy.interpolate as interpolate
 import astropy.time as astro_time
 import astropy.io.fits as fits
 import astropy.units as u
@@ -11,6 +12,7 @@ from gbmbkgpy.utils.progress_bar import progress_bar
 from gbmbkgpy.io.downloading import (download_gbm_file,
                                      download_trigdata_file,
                                      download_lat_spacecraft)
+from gbmbkgpy.utils.binner import Rebinner
 
 
 def ang2cart(ra, dec):
@@ -54,9 +56,17 @@ def get_ang(X1, X2):
 
 class GBMGeometry(Geometry):
 
-    def __init__(self, date):
+    def __init__(self, date, cr_tracer_type="MCL", bgo_side=None):
         self._date = date
-        self._create_cr_tracer_interp(date)
+
+        assert cr_tracer_type in ["MCL", "BGO"], "Invalid tracer type"
+
+
+        if cr_tracer_type=="MCL":
+            self._create_mcl_cr_tracer_interp(date)
+        else:
+            assert bgo_side is not None, "Please enter the needed BGO side"
+            self._create_bgo_cr_tracer_interp(date, bgo_side)
 
     def _compute_sc_coords(self, quaternions):
         """
@@ -277,7 +287,46 @@ class GBMGeometry(Geometry):
 
         return sun_cart
 
-    def _create_cr_tracer_interp(self, date):
+    def _create_bgo_cr_tracer_interp(self, date, side, echans=np.arange(85,105,1)):
+
+
+        # download bgo data
+        datafile_path = download_gbm_file(date, "cspec", f"b{side}")
+
+        # read in data
+        with fits.open(datafile_path) as f:
+            counts = f["SPECTRUM"].data["COUNTS"][:, echans[0]]
+            for echan in echans[1:]:
+                counts += f["SPECTRUM"].data["COUNTS"][:, echan]
+            bin_start = f["SPECTRUM"].data["TIME"]
+            bin_stop = f["SPECTRUM"].data["ENDTIME"]
+
+        # bin in 100 second bins
+        total_time_bins = np.vstack((bin_start, bin_stop)).T
+        min_bin_width = 100
+
+        this_rebinner = Rebinner(total_time_bins, min_bin_width)
+        rebinned_time_bins = this_rebinner.time_rebinned
+        (rebinned_counts,) = this_rebinner.rebin(counts)
+
+        rates = rebinned_counts / (rebinned_time_bins[:, 1] - rebinned_time_bins[:, 0])
+
+        # Add first time and last time with corresponding rate to rate_list
+        rates = np.concatenate((rates[:1], rates, rates[-1:]))
+
+        times = np.concatenate(
+            (bin_start[:1], np.mean(rebinned_time_bins, axis=1), bin_stop[-1:])
+        )
+        interp_tracer = interpolate.UnivariateSpline(
+                times, rates, s=1000, k=3
+            )
+
+        def final_tracer(x):
+            return interp_tracer(x)-interp_tracer(x).min()
+
+        self._interp_tracer = final_tracer
+    
+    def _create_mcl_cr_tracer_interp(self, date):
         """
         create mcl interpolation function
         """
@@ -365,7 +414,7 @@ class GBMGeometry(Geometry):
         # get mc_l diff
         mc_l -= np.min(mc_l)
 
-        self._interp_mcl = interp1d(lat_time, mc_l)
+        self._interp_tracer = interp1d(lat_time, mc_l)
 
     def cr_tracer(self, time):
         """
@@ -373,12 +422,12 @@ class GBMGeometry(Geometry):
         for a given time and the minumum mcl value
         :param time: times of interest (array or float)
         """
-        return self._interp_mcl(time)
+        return self._interp_tracer(time)
 
 
 class GBMGeometryPosHist(GBMGeometry):
 
-    def __init__(self, date):
+    def __init__(self, date,cr_tracer_type="MCL", bgo_side=None):
 
         # download data file and get file location
         poshist_path = download_gbm_file(date, "poshist")
@@ -388,12 +437,12 @@ class GBMGeometryPosHist(GBMGeometry):
             poshist_file=poshist_path
         )
 
-        super().__init__(date)
+        super().__init__(date,cr_tracer_type=cr_tracer_type,bgo_side=bgo_side)
 
 
 class GBMGeometryTrigdat(GBMGeometry):
 
-    def __init__(self, trigger):
+    def __init__(self, trigger,cr_tracer_type="MCL", bgo_side=None):
 
         # download trigdat file
         trigger_path = download_trigdata_file(trigger)
