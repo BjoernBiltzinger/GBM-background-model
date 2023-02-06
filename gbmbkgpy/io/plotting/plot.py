@@ -15,7 +15,7 @@ def plot_lightcurve(model, ax=None, rates=True, eff_echan=None, bin_width=None,
                     model_component_colors=[], filename=None, norm_time=True,
                     t0=None, time_ticks=None, y_ticks=None, time_format="h",
                     xlim=(None, None), ylim=(0, None), plot_ppc=False, ppc_color="darkgreen",
-                    plot_saa=True, ppc_percentile=99, ppc_alpha=0.6, saa_color="navy", time_marks={}):
+                    plot_saa=True, ppc_percentile=99, ppc_alpha=0.6, saa_color="navy", time_marks={}, show_legend=True):
 
     # TODO: SAA only one legend label
     # Other time bins
@@ -188,21 +188,23 @@ def plot_lightcurve(model, ax=None, rates=True, eff_echan=None, bin_width=None,
             ax.axvline(time, color=mark["color"], alpha=mark["alpha"], label=label)
 
     fig = ax.get_figure()
-    if num_labels < 4:
-        ax.legend(
-            loc="upper right",
-            fancybox=True
-        )
-    else:
-        ncol = 3
-        ax.legend(
-            loc="upper center",
-            bbox_to_anchor=(0, -1.05, 1, 1),
-            bbox_transform=fig.transFigure,
-            ncol=ncol,
-            #mode="expand",
-            fancybox=True
-        )
+
+    if show_legend:
+        if num_labels < 4:
+            ax.legend(
+                loc="upper right",
+                fancybox=True
+            )
+        else:
+            ncol = 3
+            ax.legend(
+                loc="upper center",
+                bbox_to_anchor=(0, -1.05, 1, 1),
+                bbox_transform=fig.transFigure,
+                ncol=ncol,
+                #mode="expand",
+                fancybox=True
+            )
 
 
     finalize_plot(ax, time_ticks, y_ticks, time_format, xlim, ylim)
