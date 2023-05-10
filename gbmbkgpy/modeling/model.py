@@ -117,7 +117,9 @@ class ModelDet:
             self,
             identifier="gbmbkgpy_fit",
             n_live_points=400,
-            const_efficiency_mode=False
+            const_efficiency_mode=False,
+            verbose=True,
+            resume=False
     ):
         """ Multinest Fit """
         #assert (
@@ -145,8 +147,8 @@ class ModelDet:
             n_live_points=n_live_points,
             outputfiles_basename=str((tmp_output_dir / "fit_").absolute()),
             multimodal=True,  # True was default
-            resume=True,
-            verbose=True,  # False was default
+            resume=resume,
+            verbose=verbose,  # False was default
             importance_nested_sampling=False,
             const_efficiency_mode=const_efficiency_mode,
         )

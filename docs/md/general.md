@@ -93,7 +93,7 @@ The response generator object can generate a response for any given position in 
 from gbmbkgpy.response.gbm_response import GBMResponseGenerator
 
 # General response Generator
-drm_gen = GBMResponseGenerator(geometry=geom, det="n6", Ebins_in_edge=np.geomspace(10,2000, 101), data=gbmdata)
+drm_gen = GBMResponseGenerator(geometry=geom, Ebins_in_edge=np.geomspace(10,2000, 101), data=gbmdata)
 ```
 
 Generate the response for some test positions
@@ -164,7 +164,7 @@ crab_rsp = PointSourceResponse(response_generator=drm_gen, interp_times=interp_t
 Here we first construct the different sources contributing to the background. The source can be split in two classes: PhotonSources that we can forward fold through the response (very good!) and particle sources that we can not forward fold due to the lack of a charged particle response or similar (not very good). The particle sources we therefore have to model directly in count space.
 
 
-Let's start with the photon sources. We have to different kind of photon sources: PhotonSourceFixed and PhotonSourceFree. The difference is only important if we want to fit the background, because for PhotonSourceFixed sources only the normalization is free but for PhotonSourceFree also the spectral parameters are free. We stick with PhotonSourceFixed for the moment, because the fitting is not working at the moment.
+Let's start with the photon sources. We have to different kind of photon sources: PhotonSourceFixed and PhotonSourceFree. The difference is only important if we want to fit the background, because for PhotonSourceFixed sources only the normalization is free but for PhotonSourceFree also the spectral parameters are free. Here the Crab and the CGB sources are defines and we use the PhotonSourceFixed to keep it simple for this example, as in this case only the normalization is free, while the spectral parameters are fixed.
 
 We use astromodels as the spectral modeling framework.
 
@@ -218,11 +218,14 @@ from gbmbkgpy.modeling.functions import AstromodelFunctionVector
 from gbmbkgpy.modeling.source import SAASource, NormOnlySource
 
 from astromodels import Exponential_cutoff, Constant
+from astromodels import Log_uniform_prior, Uniform_prior
 
 # SAA
 exp_decay = Exponential_cutoff()
 exp_decay.K.value = 1000
 exp_decay.xc.value = 1000
+exp_decay.K.prior = Log_uniform_prior(lower_bound=0.001, upper_bound=10000)
+exp_decay.xc.prior = Uniform_prior(lower_bound=0.001, upper_bound=10000)
 afv_saa = AstromodelFunctionVector(gbmdata.num_echan, base_function=exp_decay)
 
 # define the time when the satellite leaves the SAA
@@ -233,9 +236,21 @@ saa = SAASource("SAA", exit_time_saa, afv_saa)
 # CR
 c = Constant()
 c.k.value = 100
+c.k.prior = Log_uniform_prior(lower_bound=0.001, upper_bound=1000)
 afv_cr = AstromodelFunctionVector(gbmdata.num_echan, base_function=c)
 
 cr = NormOnlySource("CR", geom.cr_tracer, afv_cr)
+
+# Constant
+c = Constant()
+c.k.value = 100
+c.k.prior = Log_uniform_prior(lower_bound=0.001, upper_bound=1000)
+afv_cons = AstromodelFunctionVector(gbmdata.num_echan, base_function=c)
+  
+def f(x):
+  return np.ones_like(x)
+  
+cons = NormOnlySource(f"Constant", f, afv_cons)
 ```
 
 Again after we set the time bins we can plot what the sources would look like in our data space.
@@ -260,14 +275,32 @@ model.add_source(crab)
 
 model.add_source(saa)
 model.add_source(cr)
+model.add_source(cons)
+```
+
+# Fitting
+
+Fitting the model to the data is now very simple. The standard fitting algorithm in gbmbkgpy is [MultiNest](https://github.com/farhanferoz/MultiNest), via the Python interface [PyMultiNest](https://github.com/JohannesBuchner/PyMultiNest). As we are doing a Bayesian Analysis here, we first have to set the priors for all model parameters. For Cosmic Rays and SAA these were already set when the sources were created.
+
+```python
+cgb.fit_model.k.prior = Log_uniform_prior(lower_bound=0.001, upper_bound=100)
+crab.fit_model.k.prior = Log_uniform_prior(lower_bound=0.001, upper_bound=100)
+```
+
+Starting the fit now is only one line of code, in which we specify the name of the fit (for the resulting files from MultiNest) and the number of live points for MultiNest:
+
+```python
+model.minimize_multinest(identifier="test_fit", n_live_points=400, verbose=False)
 ```
 
 # Plotting
 
 
-Now plot the total model
+Now we can plot the fitted model with the data for a given effective energy channel:
 
 ```python
 from gbmbkgpy.io.plotting.plot import plot_lightcurve
-ax = plot_lightcurve(model, show_data=False, eff_echan=0)
+ax = plot_lightcurve(model, show_data=True, eff_echan=0, model_component_list=["CGB", "Crab", "SAA", "CR", "Constant"], model_component_colors=["navy", "purple", "red", "magenta", "green"])
 ```
+
+Not a good fit to the data, because for simplicity we did not use all important sources in this example, but still the fit got the overall level of the background. 
