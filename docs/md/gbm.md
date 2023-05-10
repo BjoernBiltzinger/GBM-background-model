@@ -72,7 +72,7 @@ geom = GBMGeometryPosHist(date="200510")
 
 ```python
 # General response Generator
-drm_gen1 = GBMResponseGenerator(geometry=geom, det="n6", Ebins_in_edge=np.geomspace(10,2000, 101), data=gbmdata)
+drm_gen1 = GBMResponseGenerator(geometry=geom, Ebins_in_edge=np.geomspace(10,2000, 101), data=gbmdata)
 
 # Response precalculation for extended sources
 rsp_pre1 = ResponsePrecalculation(drm_gen1, Ngrid=10000)
