@@ -1,0 +1,856 @@
+<!doctype html>
+<html class="no-js" lang="en">
+  <head><meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <meta name="color-scheme" content="light dark"><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Setup for GBM" href="gbm.html" /><link rel="prev" title="Welcome to gbmbkgpy’s documentation!" href="../index.html" />
+
+    <!-- Generated with Sphinx 7.0.0 and Furo 2023.03.27 -->
+        <title>Data - gbmbkgpy documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?digest=fad236701ea90a88636c2a8c73b44ae642ed2a53" />
+    <link rel="stylesheet" type="text/css" href="../_static/nbsphinx-code-cells.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?digest=30d1aed668e5c3a91c3e3bf6a60b675221979f0e" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f8f8f8;
+  --color-code-foreground: black;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-half" viewBox="0 0 24 24">
+    <title>Auto light/dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-shadow">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M13 12h5" />
+      <path d="M13 15h4" />
+      <path d="M13 18h1" />
+      <path d="M13 9h4" />
+      <path d="M13 6h1" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc">
+<label class="overlay sidebar-overlay" for="__navigation">
+  <div class="visually-hidden">Hide navigation sidebar</div>
+</label>
+<label class="overlay toc-overlay" for="__toc">
+  <div class="visually-hidden">Hide table of contents sidebar</div>
+</label>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <div class="visually-hidden">Toggle site navigation sidebar</div>
+        <i class="icon"><svg><use href="#svg-menu"></use></svg></i>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../index.html"><div class="brand">gbmbkgpy  documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle">
+          <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+          <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon no-toc" for="__toc">
+        <div class="visually-hidden">Toggle table of contents sidebar</div>
+        <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../index.html">
+  
+  
+  <span class="sidebar-brand-text">gbmbkgpy  documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <ul class="current">
+<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#Geometry">Geometry</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#Response">Response</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#Modelling">Modelling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#Fitting">Fitting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#Plotting">Plotting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="gbm.html">Setup for GBM</a></li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle">
+              <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+              <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon no-toc" for="__toc">
+            <div class="visually-hidden">Toggle table of contents sidebar</div>
+            <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+          </label>
+        </div>
+        <article role="main">
+          <div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="o">%</span><span class="k">matplotlib</span> inline
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">from</span> <span class="nn">jupyterthemes</span> <span class="kn">import</span> <span class="n">jtplot</span>
+
+<span class="n">jtplot</span><span class="o">.</span><span class="n">style</span><span class="p">(</span><span class="n">context</span><span class="o">=</span><span class="s2">&quot;notebook&quot;</span><span class="p">,</span> <span class="n">fscale</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">grid</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<section id="Data">
+<h1>Data<a class="headerlink" href="#Data" title="Permalink to this heading">#</a></h1>
+<p>The data object contains the time-bins and observed counts in the individual energy channels. It can also be used to rebin the data in new, longer, time bins.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">gbmbkgpy.data.gbm_data</span> <span class="kn">import</span> <span class="n">GBMData</span>
+<span class="c1"># get daily GBM data</span>
+<span class="n">gbmdata</span> <span class="o">=</span> <span class="n">GBMData</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;gbmn0&quot;</span><span class="p">,</span>
+                <span class="n">date</span><span class="o">=</span><span class="s2">&quot;200510&quot;</span><span class="p">,</span>
+                <span class="n">data_type</span><span class="o">=</span><span class="s2">&quot;ctime&quot;</span><span class="p">,</span>
+                <span class="n">detector</span><span class="o">=</span><span class="s2">&quot;n6&quot;</span><span class="p">,</span>
+                <span class="n">echans</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;1&quot;</span><span class="p">,</span><span class="s2">&quot;2&quot;</span><span class="p">,</span><span class="s2">&quot;3-5&quot;</span><span class="p">])</span>
+
+<span class="c1"># Rebin the data to 20 second bins</span>
+<span class="n">gbmdata</span><span class="o">.</span><span class="n">rebin_data</span><span class="p">(</span><span class="n">min_bin_width</span><span class="o">=</span><span class="mi">20</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<p>Plot counts in effective echan 0 as function of time</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plt</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">gbmdata</span><span class="o">.</span><span class="n">mean_time</span><span class="p">,</span> <span class="n">gbmdata</span><span class="o">.</span><span class="n">counts</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">s</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">&quot;counts&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">&quot;Time [s]&quot;</span><span class="p">);</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_general_5_0.png" src="../_images/notebooks_general_5_0.png" />
+</div>
+</div>
+</section>
+<section id="Geometry">
+<h1>Geometry<a class="headerlink" href="#Geometry" title="Permalink to this heading">#</a></h1>
+<p>The data object contains the information how to transform a position in icrs coords (ra and dec) to the satellite coordinate system (az and el) (and the opposite way) for any given time. It also needs a method that returns if a given position in icrs coordinates is occulted by the earth at a given time.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">gbmbkgpy.geometry.gbm_geometry</span> <span class="kn">import</span> <span class="n">GBMGeometryPosHist</span>
+
+<span class="c1"># init geometry object for Fermi/GBM at the given date</span>
+<span class="n">geom</span> <span class="o">=</span> <span class="n">GBMGeometryPosHist</span><span class="p">(</span><span class="n">date</span><span class="o">=</span><span class="s2">&quot;200510&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<p>Transform icrs to satellite frame</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">time</span> <span class="o">=</span> <span class="nb">round</span><span class="p">(</span><span class="n">gbmdata</span><span class="o">.</span><span class="n">mean_time</span><span class="p">[</span><span class="mi">100</span><span class="p">])</span>
+<span class="n">ra</span> <span class="o">=</span> <span class="p">[</span><span class="mi">50</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> <span class="mi">150</span><span class="p">,</span> <span class="mi">200</span><span class="p">,</span> <span class="mi">250</span><span class="p">]</span>
+<span class="n">dec</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+<span class="n">az</span><span class="p">,</span> <span class="n">el</span> <span class="o">=</span> <span class="n">geom</span><span class="o">.</span><span class="n">icrs_to_satellite</span><span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="n">ra</span><span class="p">,</span> <span class="n">dec</span><span class="p">)</span>
+<span class="k">for</span> <span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">e</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">d</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">az</span><span class="p">,</span> <span class="n">el</span><span class="p">,</span> <span class="n">ra</span><span class="p">,</span> <span class="n">dec</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;ICRS (</span><span class="si">{</span><span class="n">r</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">d</span><span class="si">}</span><span class="s2">) -&gt; Satellite (</span><span class="si">{</span><span class="n">a</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+ICRS (50, 0) -&gt; Satellite (356.87197857243024, 21.23785882753735)
+ICRS (100, 0) -&gt; Satellite (44.47341520675653, 2.3454518134180518)
+ICRS (150, 0) -&gt; Satellite (90.85021846482132, -18.03688027053613)
+ICRS (200, 0) -&gt; Satellite (144.45989469628742, -26.038559910551513)
+ICRS (250, 0) -&gt; Satellite (196.78964907441872, -14.756252285976089)
+</pre></div></div>
+</div>
+<p>Check if some points are occulted by the earth at a certain time</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">time</span> <span class="o">=</span> <span class="nb">round</span><span class="p">(</span><span class="n">gbmdata</span><span class="o">.</span><span class="n">mean_time</span><span class="p">[</span><span class="mi">100</span><span class="p">])</span>
+<span class="n">ra</span> <span class="o">=</span> <span class="p">[</span><span class="mi">50</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> <span class="mi">150</span><span class="p">,</span> <span class="mi">200</span><span class="p">,</span> <span class="mi">250</span><span class="p">]</span>
+<span class="n">dec</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+<span class="n">occ</span> <span class="o">=</span> <span class="n">geom</span><span class="o">.</span><span class="n">is_occulted</span><span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="n">ra</span><span class="p">,</span> <span class="n">dec</span><span class="p">)</span>
+<span class="k">for</span> <span class="p">(</span><span class="n">o</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">d</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">occ</span><span class="p">,</span> <span class="n">ra</span><span class="p">,</span> <span class="n">dec</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">o</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;ICRS (</span><span class="si">{</span><span class="n">r</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">d</span><span class="si">}</span><span class="s2">) is occulted by earth at time </span><span class="si">{</span><span class="n">time</span><span class="si">}</span><span class="s2"> s&quot;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;ICRS (</span><span class="si">{</span><span class="n">r</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">d</span><span class="si">}</span><span class="s2">) is not occulted by earth at time </span><span class="si">{</span><span class="n">time</span><span class="si">}</span><span class="s2"> s&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+ICRS (50, 0) is not occulted by earth at time 610763637 s
+ICRS (100, 0) is not occulted by earth at time 610763637 s
+ICRS (150, 0) is not occulted by earth at time 610763637 s
+ICRS (200, 0) is occulted by earth at time 610763637 s
+ICRS (250, 0) is occulted by earth at time 610763637 s
+</pre></div></div>
+</div>
+</section>
+<section id="Response">
+<h1>Response<a class="headerlink" href="#Response" title="Permalink to this heading">#</a></h1>
+<p>The response generator object can generate a response for any given position in icrs or satellite frame.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">gbmbkgpy.response.gbm_response</span> <span class="kn">import</span> <span class="n">GBMResponseGenerator</span>
+
+<span class="c1"># General response Generator</span>
+<span class="n">drm_gen</span> <span class="o">=</span> <span class="n">GBMResponseGenerator</span><span class="p">(</span><span class="n">geometry</span><span class="o">=</span><span class="n">geom</span><span class="p">,</span> <span class="n">Ebins_in_edge</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">geomspace</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span><span class="mi">2000</span><span class="p">,</span> <span class="mi">101</span><span class="p">),</span> <span class="n">data</span><span class="o">=</span><span class="n">gbmdata</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<p>Generate the response for some test positions</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">time</span> <span class="o">=</span> <span class="nb">round</span><span class="p">(</span><span class="n">gbmdata</span><span class="o">.</span><span class="n">mean_time</span><span class="p">[</span><span class="mi">100</span><span class="p">])</span>
+<span class="n">ra</span> <span class="o">=</span> <span class="mi">200</span>
+<span class="n">dec</span> <span class="o">=</span> <span class="mi">50</span>
+<span class="n">mat</span> <span class="o">=</span> <span class="n">drm_gen</span><span class="o">.</span><span class="n">calc_response_ra_dec</span><span class="p">(</span><span class="n">ra</span><span class="p">,</span> <span class="n">dec</span><span class="p">,</span> <span class="n">time</span><span class="p">,</span> <span class="n">occult</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+<span class="c1"># Eff. Area for different incoming energies to be detected in eff echan 0</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">drm_gen</span><span class="o">.</span><span class="n">Ebins_in_edge</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span> <span class="n">mat</span><span class="p">[:,</span><span class="mi">0</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xscale</span><span class="p">(</span><span class="s2">&quot;log&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">&quot;Energy [keV]&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">&quot;Effective Area [cm2]&quot;</span><span class="p">);</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+/opt/hostedtoolcache/Python/3.9.16/x64/lib/python3.9/site-packages/responsum-1.0.2-py3.9.egg/responsum/response.py:108: RuntimeWarning: Minimum MC energy (10.0) is larger than minimum EBOUNDS energy (5.307523250579834)
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_general_17_1.png" src="../_images/notebooks_general_17_1.png" />
+</div>
+</div>
+<p>For the extended sources we need to pre-calculate the response on a spherical grid around the detector. These responses get weighted later to account for the spatial extension of the source. In this case we use 10000 grid points. The more points we use the longer the pre-calculation takes.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">gbmbkgpy.response.response_precalculation</span> <span class="kn">import</span> <span class="n">ResponsePrecalculation</span>
+
+<span class="c1"># Response precalculation for extended sources.</span>
+<span class="n">rsp_pre</span> <span class="o">=</span> <span class="n">ResponsePrecalculation</span><span class="p">(</span><span class="n">drm_gen</span><span class="p">,</span> <span class="n">Ngrid</span><span class="o">=</span><span class="mi">10000</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<script type="application/vnd.jupyter.widget-view+json">{"model_id": "ba2eb02522a44a0cb9b230a7891380e8", "version_major": 2, "version_minor": 0}</script></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<script type="application/vnd.jupyter.widget-view+json">{"model_id": "bcfb04ae862947d186c6fe924db792ed", "version_major": 2, "version_minor": 0}</script></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<script type="application/vnd.jupyter.widget-view+json">{"model_id": "50cd38d61f4c41efa35919d5432212f3", "version_major": 2, "version_minor": 0}</script></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Eff. Area for different incoming energies to be detected in eff echan 0 for a few grid points</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">drm_gen</span><span class="o">.</span><span class="n">Ebins_in_edge</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span> <span class="n">rsp_pre</span><span class="o">.</span><span class="n">response_grid</span><span class="p">[</span><span class="mi">100</span><span class="p">,</span> <span class="p">:,</span><span class="mi">0</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">drm_gen</span><span class="o">.</span><span class="n">Ebins_in_edge</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span> <span class="n">rsp_pre</span><span class="o">.</span><span class="n">response_grid</span><span class="p">[</span><span class="mi">500</span><span class="p">,</span> <span class="p">:,</span><span class="mi">0</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">drm_gen</span><span class="o">.</span><span class="n">Ebins_in_edge</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span> <span class="n">rsp_pre</span><span class="o">.</span><span class="n">response_grid</span><span class="p">[</span><span class="mi">1000</span><span class="p">,</span> <span class="p">:,</span><span class="mi">0</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">drm_gen</span><span class="o">.</span><span class="n">Ebins_in_edge</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span> <span class="n">rsp_pre</span><span class="o">.</span><span class="n">response_grid</span><span class="p">[</span><span class="mi">5000</span><span class="p">,</span> <span class="p">:,</span><span class="mi">0</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xscale</span><span class="p">(</span><span class="s2">&quot;log&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">&quot;Energy [keV]&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">&quot;Effective Area [cm2]&quot;</span><span class="p">);</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_general_20_0.png" src="../_images/notebooks_general_20_0.png" />
+</div>
+</div>
+<p>Pre-calculate the effective responses for extended sources</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">gbmbkgpy.response.src_response</span> <span class="kn">import</span> <span class="n">EarthResponse</span><span class="p">,</span> <span class="n">CGBResponse</span><span class="p">,</span> <span class="n">GalacticCenterResponse</span>
+
+<span class="c1"># Time where to calculate the effective responses - linear interpolation in between</span>
+<span class="n">interp_time</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">gbmdata</span><span class="o">.</span><span class="n">time_bins</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">],</span> <span class="n">gbmdata</span><span class="o">.</span><span class="n">time_bins</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="mi">800</span><span class="p">)</span>
+
+<span class="c1"># Galactic Center</span>
+<span class="n">gc_rsp</span> <span class="o">=</span> <span class="n">GalacticCenterResponse</span><span class="p">(</span><span class="n">geometry</span><span class="o">=</span><span class="n">geom</span><span class="p">,</span> <span class="n">interp_times</span><span class="o">=</span><span class="n">interp_time</span><span class="p">,</span> <span class="n">resp_prec</span><span class="o">=</span><span class="n">rsp_pre</span><span class="p">)</span>
+
+<span class="c1"># Earth Albedo</span>
+<span class="n">earth_rsp</span> <span class="o">=</span> <span class="n">EarthResponse</span><span class="p">(</span><span class="n">geometry</span><span class="o">=</span><span class="n">geom</span><span class="p">,</span> <span class="n">interp_times</span><span class="o">=</span><span class="n">interp_time</span><span class="p">,</span> <span class="n">resp_prec</span><span class="o">=</span><span class="n">rsp_pre</span><span class="p">)</span>
+
+<span class="c1"># CGB</span>
+<span class="n">cgb_rsp</span> <span class="o">=</span> <span class="n">CGBResponse</span><span class="p">(</span><span class="n">geometry</span><span class="o">=</span><span class="n">geom</span><span class="p">,</span> <span class="n">interp_times</span><span class="o">=</span><span class="n">interp_time</span><span class="p">,</span> <span class="n">resp_prec</span><span class="o">=</span><span class="n">rsp_pre</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<p>Response for a point source</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">gbmbkgpy.response.src_response</span> <span class="kn">import</span> <span class="n">PointSourceResponse</span>
+
+<span class="c1"># Response for Crab</span>
+<span class="n">crab_rsp</span> <span class="o">=</span> <span class="n">PointSourceResponse</span><span class="p">(</span><span class="n">response_generator</span><span class="o">=</span><span class="n">drm_gen</span><span class="p">,</span> <span class="n">interp_times</span><span class="o">=</span><span class="n">interp_time</span><span class="p">,</span> <span class="n">ra</span><span class="o">=</span><span class="mf">83.633</span><span class="p">,</span> <span class="n">dec</span><span class="o">=</span><span class="mf">22.015</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</section>
+<section id="Modelling">
+<h1>Modelling<a class="headerlink" href="#Modelling" title="Permalink to this heading">#</a></h1>
+<p>Here we first construct the different sources contributing to the background. The source can be split in two classes: PhotonSources that we can forward fold through the response (very good!) and particle sources that we can not forward fold due to the lack of a charged particle response or similar (not very good). The particle sources we therefore have to model directly in count space.</p>
+<p>Let’s start with the photon sources. We have to different kind of photon sources: PhotonSourceFixed and PhotonSourceFree. The difference is only important if we want to fit the background, because for PhotonSourceFixed sources only the normalization is free but for PhotonSourceFree also the spectral parameters are free. Here the Crab and the CGB sources are defines and we use the PhotonSourceFixed to keep it simple for this example, as in this case only the normalization is free, while the
+spectral parameters are fixed.</p>
+<p>We use astromodels as the spectral modeling framework.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">gbmbkgpy.modeling.source</span> <span class="kn">import</span> <span class="n">PhotonSourceFixed</span>
+<span class="kn">from</span> <span class="nn">astromodels</span> <span class="kn">import</span> <span class="n">Powerlaw</span>
+<span class="kn">from</span> <span class="nn">gbmbkgpy.modeling.new_astromodels</span> <span class="kn">import</span> <span class="n">SBPL</span>
+
+<span class="kn">from</span> <span class="nn">astromodels.utils.configuration</span> <span class="kn">import</span> <span class="n">astromodels_config</span>
+<span class="n">astromodels_config</span><span class="o">.</span><span class="n">modeling</span><span class="o">.</span><span class="n">ignore_parameter_bounds</span> <span class="o">=</span> <span class="kc">True</span>
+
+<span class="c1"># A point source</span>
+
+<span class="c1"># Define spectrum</span>
+<span class="n">pl_crab</span> <span class="o">=</span> <span class="n">Powerlaw</span><span class="p">()</span>
+<span class="n">pl_crab</span><span class="o">.</span><span class="n">K</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="mf">9.7</span>
+<span class="n">pl_crab</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="o">-</span><span class="mf">2.1</span>
+
+<span class="c1"># define source</span>
+<span class="n">crab</span> <span class="o">=</span> <span class="n">PhotonSourceFixed</span><span class="p">(</span><span class="s2">&quot;Crab&quot;</span><span class="p">,</span> <span class="n">pl_crab</span><span class="p">,</span> <span class="n">crab_rsp</span><span class="p">)</span>
+
+
+<span class="c1"># extended source</span>
+
+<span class="c1">#CGB</span>
+<span class="c1"># values taken from Ajello et al. 2008</span>
+<span class="n">cgb_spec</span> <span class="o">=</span> <span class="n">SBPL</span><span class="p">()</span>
+<span class="n">cgb_spec</span><span class="o">.</span><span class="n">K</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="mf">0.11</span>
+<span class="n">cgb_spec</span><span class="o">.</span><span class="n">alpha</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="mf">1.32</span>
+<span class="n">cgb_spec</span><span class="o">.</span><span class="n">beta</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="mf">2.88</span>
+<span class="n">cgb_spec</span><span class="o">.</span><span class="n">xb</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="mf">30.0</span>
+
+<span class="c1"># define source</span>
+<span class="n">cgb</span> <span class="o">=</span> <span class="n">PhotonSourceFixed</span><span class="p">(</span><span class="s2">&quot;CGB&quot;</span><span class="p">,</span> <span class="n">cgb_spec</span><span class="p">,</span> <span class="n">cgb_rsp</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+/opt/hostedtoolcache/Python/3.9.16/x64/lib/python3.9/site-packages/numba/core/decorators.py:262: NumbaDeprecationWarning: <span class="ansi-bold">numba.generated_jit is deprecated. Please see the documentation at: https://numba.readthedocs.io/en/stable/reference/deprecation.html#deprecation-of-generated-jit for more information and advice on a suitable replacement.</span>
+  warnings.warn(msg, NumbaDeprecationWarning)
+/opt/hostedtoolcache/Python/3.9.16/x64/lib/python3.9/site-packages/numba/core/decorators.py:262: NumbaDeprecationWarning: <span class="ansi-bold">numba.generated_jit is deprecated. Please see the documentation at: https://numba.readthedocs.io/en/stable/reference/deprecation.html#deprecation-of-generated-jit for more information and advice on a suitable replacement.</span>
+  warnings.warn(msg, NumbaDeprecationWarning)
+</pre></div></div>
+</div>
+<p>After we set the time bins we can plot what the sources would look like in our data space.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">cgb</span><span class="o">.</span><span class="n">set_time_bins</span><span class="p">(</span><span class="n">gbmdata</span><span class="o">.</span><span class="n">time_bins</span><span class="p">)</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">gbmdata</span><span class="o">.</span><span class="n">mean_time</span><span class="p">,</span> <span class="n">cgb</span><span class="o">.</span><span class="n">get_counts</span><span class="p">()[:,</span><span class="mi">0</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">&quot;counts&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">&quot;Time [s]&quot;</span><span class="p">);</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_general_30_0.png" src="../_images/notebooks_general_30_0.png" />
+</div>
+</div>
+<p>Next the particle sources. For the cosmic rays we use a cosmic ray tracer from the geometry object (McIlwain L-parameter at the satellite position) and the SAAs are modelled as exponetial decay. These source are modelled directly in count data space and we have no information how to connect the individual energy channels. Therefore we model it independent in every energy channel with the use of the AstromodelFunctionVector wrapper, that just copies the base_function for every energy channel.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[15]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">gbmbkgpy.modeling.functions</span> <span class="kn">import</span> <span class="n">AstromodelFunctionVector</span>
+<span class="kn">from</span> <span class="nn">gbmbkgpy.modeling.source</span> <span class="kn">import</span> <span class="n">SAASource</span><span class="p">,</span> <span class="n">NormOnlySource</span>
+
+<span class="kn">from</span> <span class="nn">astromodels</span> <span class="kn">import</span> <span class="n">Exponential_cutoff</span><span class="p">,</span> <span class="n">Constant</span>
+<span class="kn">from</span> <span class="nn">astromodels</span> <span class="kn">import</span> <span class="n">Log_uniform_prior</span><span class="p">,</span> <span class="n">Uniform_prior</span>
+
+<span class="c1"># SAA</span>
+<span class="n">exp_decay</span> <span class="o">=</span> <span class="n">Exponential_cutoff</span><span class="p">()</span>
+<span class="n">exp_decay</span><span class="o">.</span><span class="n">K</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="mi">1000</span>
+<span class="n">exp_decay</span><span class="o">.</span><span class="n">xc</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="mi">1000</span>
+<span class="n">exp_decay</span><span class="o">.</span><span class="n">K</span><span class="o">.</span><span class="n">prior</span> <span class="o">=</span> <span class="n">Log_uniform_prior</span><span class="p">(</span><span class="n">lower_bound</span><span class="o">=</span><span class="mf">0.001</span><span class="p">,</span> <span class="n">upper_bound</span><span class="o">=</span><span class="mi">10000</span><span class="p">)</span>
+<span class="n">exp_decay</span><span class="o">.</span><span class="n">xc</span><span class="o">.</span><span class="n">prior</span> <span class="o">=</span> <span class="n">Uniform_prior</span><span class="p">(</span><span class="n">lower_bound</span><span class="o">=</span><span class="mf">0.001</span><span class="p">,</span> <span class="n">upper_bound</span><span class="o">=</span><span class="mi">10000</span><span class="p">)</span>
+<span class="n">afv_saa</span> <span class="o">=</span> <span class="n">AstromodelFunctionVector</span><span class="p">(</span><span class="n">gbmdata</span><span class="o">.</span><span class="n">num_echan</span><span class="p">,</span> <span class="n">base_function</span><span class="o">=</span><span class="n">exp_decay</span><span class="p">)</span>
+
+<span class="c1"># define the time when the satellite leaves the SAA</span>
+<span class="n">exit_time_saa</span> <span class="o">=</span> <span class="n">gbmdata</span><span class="o">.</span><span class="n">mean_time</span><span class="p">[</span><span class="mi">100</span><span class="p">]</span>
+
+<span class="n">saa</span> <span class="o">=</span> <span class="n">SAASource</span><span class="p">(</span><span class="s2">&quot;SAA&quot;</span><span class="p">,</span> <span class="n">exit_time_saa</span><span class="p">,</span> <span class="n">afv_saa</span><span class="p">)</span>
+
+<span class="c1"># CR</span>
+<span class="n">c</span> <span class="o">=</span> <span class="n">Constant</span><span class="p">()</span>
+<span class="n">c</span><span class="o">.</span><span class="n">k</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="mi">100</span>
+<span class="n">c</span><span class="o">.</span><span class="n">k</span><span class="o">.</span><span class="n">prior</span> <span class="o">=</span> <span class="n">Log_uniform_prior</span><span class="p">(</span><span class="n">lower_bound</span><span class="o">=</span><span class="mf">0.001</span><span class="p">,</span> <span class="n">upper_bound</span><span class="o">=</span><span class="mi">1000</span><span class="p">)</span>
+<span class="n">afv_cr</span> <span class="o">=</span> <span class="n">AstromodelFunctionVector</span><span class="p">(</span><span class="n">gbmdata</span><span class="o">.</span><span class="n">num_echan</span><span class="p">,</span> <span class="n">base_function</span><span class="o">=</span><span class="n">c</span><span class="p">)</span>
+
+<span class="n">cr</span> <span class="o">=</span> <span class="n">NormOnlySource</span><span class="p">(</span><span class="s2">&quot;CR&quot;</span><span class="p">,</span> <span class="n">geom</span><span class="o">.</span><span class="n">cr_tracer</span><span class="p">,</span> <span class="n">afv_cr</span><span class="p">)</span>
+
+<span class="c1"># Constant</span>
+<span class="n">c</span> <span class="o">=</span> <span class="n">Constant</span><span class="p">()</span>
+<span class="n">c</span><span class="o">.</span><span class="n">k</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="mi">100</span>
+<span class="n">c</span><span class="o">.</span><span class="n">k</span><span class="o">.</span><span class="n">prior</span> <span class="o">=</span> <span class="n">Log_uniform_prior</span><span class="p">(</span><span class="n">lower_bound</span><span class="o">=</span><span class="mf">0.001</span><span class="p">,</span> <span class="n">upper_bound</span><span class="o">=</span><span class="mi">1000</span><span class="p">)</span>
+<span class="n">afv_cons</span> <span class="o">=</span> <span class="n">AstromodelFunctionVector</span><span class="p">(</span><span class="n">gbmdata</span><span class="o">.</span><span class="n">num_echan</span><span class="p">,</span> <span class="n">base_function</span><span class="o">=</span><span class="n">c</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">f</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+  <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+
+<span class="n">cons</span> <span class="o">=</span> <span class="n">NormOnlySource</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Constant&quot;</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">afv_cons</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<p>Again after we set the time bins we can plot what the sources would look like in our data space.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">saa</span><span class="o">.</span><span class="n">set_time_bins</span><span class="p">(</span><span class="n">gbmdata</span><span class="o">.</span><span class="n">time_bins</span><span class="p">)</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">gbmdata</span><span class="o">.</span><span class="n">mean_time</span><span class="p">,</span> <span class="n">saa</span><span class="o">.</span><span class="n">get_counts</span><span class="p">()[:,</span><span class="mi">0</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">&quot;counts&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">&quot;Time [s]&quot;</span><span class="p">);</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_general_34_0.png" src="../_images/notebooks_general_34_0.png" />
+</div>
+</div>
+<p>Now we can create the model object that connects the sources with the data. This can be used to plot the total model against the data or also calculate the log_like of the current model configuration.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[17]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">gbmbkgpy.modeling.model</span> <span class="kn">import</span> <span class="n">ModelDet</span>
+
+<span class="n">model</span> <span class="o">=</span> <span class="n">ModelDet</span><span class="p">(</span><span class="n">gbmdata</span><span class="p">)</span>
+
+<span class="n">model</span><span class="o">.</span><span class="n">add_source</span><span class="p">(</span><span class="n">cgb</span><span class="p">)</span>
+<span class="n">model</span><span class="o">.</span><span class="n">add_source</span><span class="p">(</span><span class="n">crab</span><span class="p">)</span>
+
+<span class="n">model</span><span class="o">.</span><span class="n">add_source</span><span class="p">(</span><span class="n">saa</span><span class="p">)</span>
+<span class="n">model</span><span class="o">.</span><span class="n">add_source</span><span class="p">(</span><span class="n">cr</span><span class="p">)</span>
+<span class="n">model</span><span class="o">.</span><span class="n">add_source</span><span class="p">(</span><span class="n">cons</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</section>
+<section id="Fitting">
+<h1>Fitting<a class="headerlink" href="#Fitting" title="Permalink to this heading">#</a></h1>
+<p>Fitting the model to the data is now very simple. The standard fitting algorithm in gbmbkgpy is <a class="reference external" href="https://github.com/farhanferoz/MultiNest">MultiNest</a>, via the Python interface <a class="reference external" href="https://github.com/JohannesBuchner/PyMultiNest">PyMultiNest</a>. As we are doing a Bayesian Analysis here, we first have to set the priors for all model parameters. For Cosmic Rays and SAA these were already set when the sources were created.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[18]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">cgb</span><span class="o">.</span><span class="n">fit_model</span><span class="o">.</span><span class="n">k</span><span class="o">.</span><span class="n">prior</span> <span class="o">=</span> <span class="n">Log_uniform_prior</span><span class="p">(</span><span class="n">lower_bound</span><span class="o">=</span><span class="mf">0.001</span><span class="p">,</span> <span class="n">upper_bound</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+<span class="n">crab</span><span class="o">.</span><span class="n">fit_model</span><span class="o">.</span><span class="n">k</span><span class="o">.</span><span class="n">prior</span> <span class="o">=</span> <span class="n">Log_uniform_prior</span><span class="p">(</span><span class="n">lower_bound</span><span class="o">=</span><span class="mf">0.001</span><span class="p">,</span> <span class="n">upper_bound</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<p>Starting the fit now is only one line of code, in which we specify the name of the fit (for the resulting files from MultiNest) and the number of live points for MultiNest:</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[19]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">model</span><span class="o">.</span><span class="n">minimize_multinest</span><span class="p">(</span><span class="n">identifier</span><span class="o">=</span><span class="s2">&quot;test_fit&quot;</span><span class="p">,</span> <span class="n">n_live_points</span><span class="o">=</span><span class="mi">400</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+ *****************************************************
+ MultiNest v3.12
+ Copyright Farhan Feroz &amp; Mike Hobson
+ Release Nov 2019
+
+ no. of live points =  400
+ dimensionality =   14
+ *****************************************************
+
+ MultiNest Warning!
+ Parameter            2  of mode            1  is converging towards the edge of the prior.
+
+ MultiNest Warning!
+ Parameter            2  of mode            1  is converging towards the edge of the prior.
+
+ MultiNest Warning!
+ Parameter            2  of mode            1  is converging towards the edge of the prior.
+
+ MultiNest Warning!
+ Parameter            2  of mode            1  is converging towards the edge of the prior.
+
+ MultiNest Warning!
+ Parameter            2  of mode            1  is converging towards the edge of the prior.
+
+ MultiNest Warning!
+ Parameter            2  of mode            1  is converging towards the edge of the prior.
+
+ MultiNest Warning!
+ Parameter            2  of mode            1  is converging towards the edge of the prior.
+
+ MultiNest Warning!
+ Parameter            2  of mode            1  is converging towards the edge of the prior.
+
+ MultiNest Warning!
+ Parameter            2  of mode            1  is converging towards the edge of the prior.
+
+ MultiNest Warning!
+ Parameter            2  of mode            1  is converging towards the edge of the prior.
+
+ MultiNest Warning!
+ Parameter            2  of mode            1  is converging towards the edge of the prior.
+
+ MultiNest Warning!
+ Parameter            2  of mode            1  is converging towards the edge of the prior.
+
+ MultiNest Warning!
+ Parameter            2  of mode            1  is converging towards the edge of the prior.
+
+ MultiNest Warning!
+ Parameter            2  of mode            1  is converging towards the edge of the prior.
+
+ MultiNest Warning!
+ Parameter            2  of mode            1  is converging towards the edge of the prior.
+
+ MultiNest Warning!
+ Parameter            2  of mode            1  is converging towards the edge of the prior.
+
+ MultiNest Warning!
+ Parameter            2  of mode            1  is converging towards the edge of the prior.
+
+ MultiNest Warning!
+ Parameter            2  of mode            1  is converging towards the edge of the prior.
+
+ MultiNest Warning!
+ Parameter            2  of mode            1  is converging towards the edge of the prior.
+
+ MultiNest Warning!
+ Parameter            2  of mode            1  is converging towards the edge of the prior.
+
+ MultiNest Warning!
+ Parameter            2  of mode            1  is converging towards the edge of the prior.
+
+ MultiNest Warning!
+ Parameter            2  of mode            1  is converging towards the edge of the prior.
+
+ MultiNest Warning!
+ Parameter            2  of mode            1  is converging towards the edge of the prior.
+
+ MultiNest Warning!
+ Parameter            2  of mode            1  is converging towards the edge of the prior.
+
+ MultiNest Warning!
+ Parameter            2  of mode            1  is converging towards the edge of the prior.
+
+ MultiNest Warning!
+ Parameter            2  of mode            1  is converging towards the edge of the prior.
+
+ MultiNest Warning!
+ Parameter            2  of mode            1  is converging towards the edge of the prior.
+
+ MultiNest Warning!
+ Parameter            2  of mode            1  is converging towards the edge of the prior.
+
+ MultiNest Warning!
+ Parameter            2  of mode            1  is converging towards the edge of the prior.
+
+ MultiNest Warning!
+ Parameter            2  of mode            1  is converging towards the edge of the prior.
+
+ MultiNest Warning!
+ Parameter            2  of mode            1  is converging towards the edge of the prior.
+
+ MultiNest Warning!
+ Parameter            2  of mode            1  is converging towards the edge of the prior.
+
+ MultiNest Warning!
+ Parameter            2  of mode            1  is converging towards the edge of the prior.
+
+ MultiNest Warning!
+ Parameter            2  of mode            1  is converging towards the edge of the prior.
+
+ MultiNest Warning!
+ Parameter            2  of mode            1  is converging towards the edge of the prior.
+
+ MultiNest Warning!
+ Parameter            2  of mode            1  is converging towards the edge of the prior.
+
+ MultiNest Warning!
+ Parameter            2  of mode            1  is converging towards the edge of the prior.
+
+ MultiNest Warning!
+ Parameter            2  of mode            1  is converging towards the edge of the prior.
+
+ MultiNest Warning!
+ Parameter            2  of mode            1  is converging towards the edge of the prior.
+
+ MultiNest Warning!
+ Parameter            2  of mode            1  is converging towards the edge of the prior.
+  analysing data from /home/runner/GBMDATA/fits/mn_out/test_fit_05-10_13-51/fit_.txt ln(ev)=   530402730.64474267      +/-  0.80508913118704550
+ Total Likelihood Evaluations:       183723
+ Sampling finished. Exiting MultiNest
+
+</pre></div></div>
+</div>
+</section>
+<section id="Plotting">
+<h1>Plotting<a class="headerlink" href="#Plotting" title="Permalink to this heading">#</a></h1>
+<p>Now we can plot the fitted model with the data for a given effective energy channel:</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[20]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">gbmbkgpy.io.plotting.plot</span> <span class="kn">import</span> <span class="n">plot_lightcurve</span>
+<span class="n">ax</span> <span class="o">=</span> <span class="n">plot_lightcurve</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">show_data</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">eff_echan</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">model_component_list</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;CGB&quot;</span><span class="p">,</span> <span class="s2">&quot;Crab&quot;</span><span class="p">,</span> <span class="s2">&quot;SAA&quot;</span><span class="p">,</span> <span class="s2">&quot;CR&quot;</span><span class="p">,</span> <span class="s2">&quot;Constant&quot;</span><span class="p">],</span> <span class="n">model_component_colors</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;navy&quot;</span><span class="p">,</span> <span class="s2">&quot;purple&quot;</span><span class="p">,</span> <span class="s2">&quot;red&quot;</span><span class="p">,</span> <span class="s2">&quot;magenta&quot;</span><span class="p">,</span> <span class="s2">&quot;green&quot;</span><span class="p">])</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_general_43_0.png" src="../_images/notebooks_general_43_0.png" />
+</div>
+</div>
+<p>Not a good fit to the data, because for simplicity we did not use all important sources in this example, but still the fit got the overall level of the background.</p>
+<script type="application/vnd.jupyter.widget-state+json">
+{"state": {"0d15771c03184ed8a2926b2eea941f9c": {"model_module": "@jupyter-widgets/base", "model_module_version": "2.0.0", "model_name": "LayoutModel", "state": {"_model_module": "@jupyter-widgets/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "1fc4ba5f817945e684fe46421ccc4835": {"model_module": "@jupyter-widgets/controls", "model_module_version": "2.0.0", "model_name": "FloatProgressModel", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets/controls", "_model_module_version": "2.0.0", "_model_name": "FloatProgressModel", "_view_count": null, "_view_module": "@jupyter-widgets/controls", "_view_module_version": "2.0.0", "_view_name": "ProgressView", "bar_style": "", "description": "", "description_allow_html": false, "layout": "IPY_MODEL_a399e3aaf99e403a8b52a2e0fca76965", "max": 100.0, "min": 0.0, "orientation": "horizontal", "style": "IPY_MODEL_32d09e03d2794caba31799015c8a77cb", "tabbable": null, "tooltip": null, "value": 100.0}}, "2f261af33efe4a948326080144ce2ce9": {"model_module": "@jupyter-widgets/controls", "model_module_version": "2.0.0", "model_name": "HTMLModel", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets/controls", "_model_module_version": "2.0.0", "_model_name": "HTMLModel", "_view_count": null, "_view_module": "@jupyter-widgets/controls", "_view_module_version": "2.0.0", "_view_name": "HTMLView", "description": "", "description_allow_html": false, "layout": "IPY_MODEL_74d47e475e29420caf30b1a6d58f50ca", "placeholder": "\u200b", "style": "IPY_MODEL_d9b5baa9aca542f98c78ac0f5caa9950", "tabbable": null, "tooltip": null, "value": "Calculating response calc 1 out of 3.This shows the progress of rank 0. All other should be about the same. : "}}, "32d09e03d2794caba31799015c8a77cb": {"model_module": "@jupyter-widgets/controls", "model_module_version": "2.0.0", "model_name": "ProgressStyleModel", "state": {"_model_module": "@jupyter-widgets/controls", "_model_module_version": "2.0.0", "_model_name": "ProgressStyleModel", "_view_count": null, "_view_module": "@jupyter-widgets/base", "_view_module_version": "2.0.0", "_view_name": "StyleView", "bar_color": null, "description_width": ""}}, "3808e3212755408c89bd83fd45977750": {"model_module": "jupyter-vuetify", "model_module_version": "^1.8.10", "model_name": "ThemeColorsModel", "state": {"_model_module": "jupyter-vuetify", "_model_module_version": "^1.8.10", "_model_name": "ThemeColorsModel", "_theme_name": "light", "_view_count": null, "_view_module": null, "_view_module_version": "^1.8.10", "_view_name": null, "accent": "#82B1FF", "anchor": null, "error": "#FF5252", "info": "#2196F3", "primary": "#1976D2", "secondary": "#424242", "success": "#4CAF50", "warning": "#FB8C00"}}, "3aae031991e64e758927ae9da90f2fc1": {"model_module": "jupyter-vuetify", "model_module_version": "^1.8.10", "model_name": "ThemeColorsModel", "state": {"_model_module": "jupyter-vuetify", "_model_module_version": "^1.8.10", "_model_name": "ThemeColorsModel", "_theme_name": "dark", "_view_count": null, "_view_module": null, "_view_module_version": "^1.8.10", "_view_name": null, "accent": "#FF4081", "anchor": null, "error": "#FF5252", "info": "#2196F3", "primary": "#2196F3", "secondary": "#424242", "success": "#4CAF50", "warning": "#FB8C00"}}, "3f5c381d38c4428c98789c86b52db5e5": {"model_module": "@jupyter-widgets/base", "model_module_version": "2.0.0", "model_name": "LayoutModel", "state": {"_model_module": "@jupyter-widgets/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "3f76a36d37ba40e4abc5a3152385dbcf": {"model_module": "@jupyter-widgets/base", "model_module_version": "2.0.0", "model_name": "LayoutModel", "state": {"_model_module": "@jupyter-widgets/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "4b98472b268341e29289491572956d35": {"model_module": "@jupyter-widgets/base", "model_module_version": "2.0.0", "model_name": "LayoutModel", "state": {"_model_module": "@jupyter-widgets/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "4ea989a8aef246509322d0e21dbd73c9": {"model_module": "@jupyter-widgets/controls", "model_module_version": "2.0.0", "model_name": "HTMLModel", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets/controls", "_model_module_version": "2.0.0", "_model_name": "HTMLModel", "_view_count": null, "_view_module": "@jupyter-widgets/controls", "_view_module_version": "2.0.0", "_view_name": "HTMLView", "description": "", "description_allow_html": false, "layout": "IPY_MODEL_7a7a771815304e27ad513155a51a8c1f", "placeholder": "\u200b", "style": "IPY_MODEL_bf902ab470384995b551eccc01d80843", "tabbable": null, "tooltip": null, "value": "4000 / 4000  in 3.8 s (0:00:00 remaining)"}}, "50cd38d61f4c41efa35919d5432212f3": {"model_module": "@jupyter-widgets/controls", "model_module_version": "2.0.0", "model_name": "VBoxModel", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets/controls", "_model_module_version": "2.0.0", "_model_name": "VBoxModel", "_view_count": null, "_view_module": "@jupyter-widgets/controls", "_view_module_version": "2.0.0", "_view_name": "VBoxView", "box_style": "", "children": ["IPY_MODEL_d51d2b1851284613beb258da4b5bdd69", "IPY_MODEL_86c9427ea4ec4eb694b71ab307226e0a", "IPY_MODEL_1fc4ba5f817945e684fe46421ccc4835"], "layout": "IPY_MODEL_0d15771c03184ed8a2926b2eea941f9c", "tabbable": null, "tooltip": null}}, "53d9ab575bc64fda967835c726b0ec2d": {"model_module": "@jupyter-widgets/base", "model_module_version": "2.0.0", "model_name": "LayoutModel", "state": {"_model_module": "@jupyter-widgets/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "630d4d231adc4028ae5ddb7765897ae5": {"model_module": "@jupyter-widgets/base", "model_module_version": "2.0.0", "model_name": "LayoutModel", "state": {"_model_module": "@jupyter-widgets/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "64937c08e2b048ebb21f9038a0ca02f2": {"model_module": "@jupyter-widgets/controls", "model_module_version": "2.0.0", "model_name": "FloatProgressModel", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets/controls", "_model_module_version": "2.0.0", "_model_name": "FloatProgressModel", "_view_count": null, "_view_module": "@jupyter-widgets/controls", "_view_module_version": "2.0.0", "_view_name": "ProgressView", "bar_style": "", "description": "", "description_allow_html": false, "layout": "IPY_MODEL_3f5c381d38c4428c98789c86b52db5e5", "max": 100.0, "min": 0.0, "orientation": "horizontal", "style": "IPY_MODEL_c5bd5722493b48f5a30b7b97d69e9223", "tabbable": null, "tooltip": null, "value": 100.0}}, "67ad807a4bc04306a819e9309dafdd49": {"model_module": "jupyter-vuetify", "model_module_version": "^1.8.10", "model_name": "ThemeModel", "state": {"_model_module": "jupyter-vuetify", "_model_module_version": "^1.8.10", "_model_name": "ThemeModel", "_view_count": null, "_view_module": null, "_view_module_version": "^1.8.10", "_view_name": null, "dark": null}}, "74d47e475e29420caf30b1a6d58f50ca": {"model_module": "@jupyter-widgets/base", "model_module_version": "2.0.0", "model_name": "LayoutModel", "state": {"_model_module": "@jupyter-widgets/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "7a7a771815304e27ad513155a51a8c1f": {"model_module": "@jupyter-widgets/base", "model_module_version": "2.0.0", "model_name": "LayoutModel", "state": {"_model_module": "@jupyter-widgets/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "7c761011fb14487c8538d164f65834d7": {"model_module": "@jupyter-widgets/controls", "model_module_version": "2.0.0", "model_name": "HTMLStyleModel", "state": {"_model_module": "@jupyter-widgets/controls", "_model_module_version": "2.0.0", "_model_name": "HTMLStyleModel", "_view_count": null, "_view_module": "@jupyter-widgets/base", "_view_module_version": "2.0.0", "_view_name": "StyleView", "background": null, "description_width": "", "font_size": null, "text_color": null}}, "86c9427ea4ec4eb694b71ab307226e0a": {"model_module": "@jupyter-widgets/controls", "model_module_version": "2.0.0", "model_name": "HTMLModel", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets/controls", "_model_module_version": "2.0.0", "_model_name": "HTMLModel", "_view_count": null, "_view_module": "@jupyter-widgets/controls", "_view_module_version": "2.0.0", "_view_name": "HTMLView", "description": "", "description_allow_html": false, "layout": "IPY_MODEL_4b98472b268341e29289491572956d35", "placeholder": "\u200b", "style": "IPY_MODEL_a5aa9062821a421bb0f7529a154acba4", "tabbable": null, "tooltip": null, "value": "2000 / 2000  in 2.0 s (0:00:00 remaining)"}}, "8e79616bbbb44e3ba5d68a474883da1c": {"model_module": "@jupyter-widgets/controls", "model_module_version": "2.0.0", "model_name": "ProgressStyleModel", "state": {"_model_module": "@jupyter-widgets/controls", "_model_module_version": "2.0.0", "_model_name": "ProgressStyleModel", "_view_count": null, "_view_module": "@jupyter-widgets/base", "_view_module_version": "2.0.0", "_view_name": "StyleView", "bar_color": null, "description_width": ""}}, "91373e7e871a42c3baf550c07405cfeb": {"model_module": "@jupyter-widgets/base", "model_module_version": "2.0.0", "model_name": "LayoutModel", "state": {"_model_module": "@jupyter-widgets/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "96046cb269c0490b8afbf93632bc3858": {"model_module": "@jupyter-widgets/controls", "model_module_version": "2.0.0", "model_name": "HTMLStyleModel", "state": {"_model_module": "@jupyter-widgets/controls", "_model_module_version": "2.0.0", "_model_name": "HTMLStyleModel", "_view_count": null, "_view_module": "@jupyter-widgets/base", "_view_module_version": "2.0.0", "_view_name": "StyleView", "background": null, "description_width": "", "font_size": null, "text_color": null}}, "a1ce1680467340a69648f40fdab7b87e": {"model_module": "@jupyter-widgets/controls", "model_module_version": "2.0.0", "model_name": "FloatProgressModel", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets/controls", "_model_module_version": "2.0.0", "_model_name": "FloatProgressModel", "_view_count": null, "_view_module": "@jupyter-widgets/controls", "_view_module_version": "2.0.0", "_view_name": "ProgressView", "bar_style": "", "description": "", "description_allow_html": false, "layout": "IPY_MODEL_fee142f104714ddc97745bf619aeaa90", "max": 100.0, "min": 0.0, "orientation": "horizontal", "style": "IPY_MODEL_8e79616bbbb44e3ba5d68a474883da1c", "tabbable": null, "tooltip": null, "value": 100.0}}, "a2ace5d5015949039a5c8a050575ed12": {"model_module": "@jupyter-widgets/controls", "model_module_version": "2.0.0", "model_name": "HTMLModel", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets/controls", "_model_module_version": "2.0.0", "_model_name": "HTMLModel", "_view_count": null, "_view_module": "@jupyter-widgets/controls", "_view_module_version": "2.0.0", "_view_name": "HTMLView", "description": "", "description_allow_html": false, "layout": "IPY_MODEL_53d9ab575bc64fda967835c726b0ec2d", "placeholder": "\u200b", "style": "IPY_MODEL_96046cb269c0490b8afbf93632bc3858", "tabbable": null, "tooltip": null, "value": "4000 / 4000  in 3.8 s (0:00:00 remaining)"}}, "a399e3aaf99e403a8b52a2e0fca76965": {"model_module": "@jupyter-widgets/base", "model_module_version": "2.0.0", "model_name": "LayoutModel", "state": {"_model_module": "@jupyter-widgets/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "a4b8778b22c244978d87f7236fb54f15": {"model_module": "@jupyter-widgets/base", "model_module_version": "2.0.0", "model_name": "LayoutModel", "state": {"_model_module": "@jupyter-widgets/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "a5aa9062821a421bb0f7529a154acba4": {"model_module": "@jupyter-widgets/controls", "model_module_version": "2.0.0", "model_name": "HTMLStyleModel", "state": {"_model_module": "@jupyter-widgets/controls", "_model_module_version": "2.0.0", "_model_name": "HTMLStyleModel", "_view_count": null, "_view_module": "@jupyter-widgets/base", "_view_module_version": "2.0.0", "_view_name": "StyleView", "background": null, "description_width": "", "font_size": null, "text_color": null}}, "b9a90143326f4153b2f1841809b2fbea": {"model_module": "@jupyter-widgets/controls", "model_module_version": "2.0.0", "model_name": "HTMLStyleModel", "state": {"_model_module": "@jupyter-widgets/controls", "_model_module_version": "2.0.0", "_model_name": "HTMLStyleModel", "_view_count": null, "_view_module": "@jupyter-widgets/base", "_view_module_version": "2.0.0", "_view_name": "StyleView", "background": null, "description_width": "", "font_size": null, "text_color": null}}, "ba2eb02522a44a0cb9b230a7891380e8": {"model_module": "@jupyter-widgets/controls", "model_module_version": "2.0.0", "model_name": "VBoxModel", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets/controls", "_model_module_version": "2.0.0", "_model_name": "VBoxModel", "_view_count": null, "_view_module": "@jupyter-widgets/controls", "_view_module_version": "2.0.0", "_view_name": "VBoxView", "box_style": "", "children": ["IPY_MODEL_2f261af33efe4a948326080144ce2ce9", "IPY_MODEL_4ea989a8aef246509322d0e21dbd73c9", "IPY_MODEL_64937c08e2b048ebb21f9038a0ca02f2"], "layout": "IPY_MODEL_91373e7e871a42c3baf550c07405cfeb", "tabbable": null, "tooltip": null}}, "bcfb04ae862947d186c6fe924db792ed": {"model_module": "@jupyter-widgets/controls", "model_module_version": "2.0.0", "model_name": "VBoxModel", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets/controls", "_model_module_version": "2.0.0", "_model_name": "VBoxModel", "_view_count": null, "_view_module": "@jupyter-widgets/controls", "_view_module_version": "2.0.0", "_view_name": "VBoxView", "box_style": "", "children": ["IPY_MODEL_d2f2f1dc72684b03b9b3a81b3c404cb3", "IPY_MODEL_a2ace5d5015949039a5c8a050575ed12", "IPY_MODEL_a1ce1680467340a69648f40fdab7b87e"], "layout": "IPY_MODEL_a4b8778b22c244978d87f7236fb54f15", "tabbable": null, "tooltip": null}}, "bf902ab470384995b551eccc01d80843": {"model_module": "@jupyter-widgets/controls", "model_module_version": "2.0.0", "model_name": "HTMLStyleModel", "state": {"_model_module": "@jupyter-widgets/controls", "_model_module_version": "2.0.0", "_model_name": "HTMLStyleModel", "_view_count": null, "_view_module": "@jupyter-widgets/base", "_view_module_version": "2.0.0", "_view_name": "StyleView", "background": null, "description_width": "", "font_size": null, "text_color": null}}, "c5bd5722493b48f5a30b7b97d69e9223": {"model_module": "@jupyter-widgets/controls", "model_module_version": "2.0.0", "model_name": "ProgressStyleModel", "state": {"_model_module": "@jupyter-widgets/controls", "_model_module_version": "2.0.0", "_model_name": "ProgressStyleModel", "_view_count": null, "_view_module": "@jupyter-widgets/base", "_view_module_version": "2.0.0", "_view_name": "StyleView", "bar_color": null, "description_width": ""}}, "d2f2f1dc72684b03b9b3a81b3c404cb3": {"model_module": "@jupyter-widgets/controls", "model_module_version": "2.0.0", "model_name": "HTMLModel", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets/controls", "_model_module_version": "2.0.0", "_model_name": "HTMLModel", "_view_count": null, "_view_module": "@jupyter-widgets/controls", "_view_module_version": "2.0.0", "_view_name": "HTMLView", "description": "", "description_allow_html": false, "layout": "IPY_MODEL_3f76a36d37ba40e4abc5a3152385dbcf", "placeholder": "\u200b", "style": "IPY_MODEL_7c761011fb14487c8538d164f65834d7", "tabbable": null, "tooltip": null, "value": "Calculating response calc 2 out of 3.This shows the progress of rank 0. All other should be about the same. : "}}, "d51d2b1851284613beb258da4b5bdd69": {"model_module": "@jupyter-widgets/controls", "model_module_version": "2.0.0", "model_name": "HTMLModel", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets/controls", "_model_module_version": "2.0.0", "_model_name": "HTMLModel", "_view_count": null, "_view_module": "@jupyter-widgets/controls", "_view_module_version": "2.0.0", "_view_name": "HTMLView", "description": "", "description_allow_html": false, "layout": "IPY_MODEL_e1d1d9ee11b4491f9db4c7ce7bb8228e", "placeholder": "\u200b", "style": "IPY_MODEL_b9a90143326f4153b2f1841809b2fbea", "tabbable": null, "tooltip": null, "value": "Calculating response calc 3 out of 3.This shows the progress of rank 0. All other should be about the same. : "}}, "d8727639ce6b495f8856f799c94a014e": {"model_module": "jupyter-vue", "model_module_version": "^1.9.0", "model_name": "ForceLoadModel", "state": {"_dom_classes": [], "_model_module": "jupyter-vue", "_model_module_version": "^1.9.0", "_model_name": "ForceLoadModel", "_view_count": null, "_view_module": null, "_view_module_version": "", "_view_name": null, "layout": "IPY_MODEL_630d4d231adc4028ae5ddb7765897ae5", "tabbable": null, "tooltip": null}}, "d9b5baa9aca542f98c78ac0f5caa9950": {"model_module": "@jupyter-widgets/controls", "model_module_version": "2.0.0", "model_name": "HTMLStyleModel", "state": {"_model_module": "@jupyter-widgets/controls", "_model_module_version": "2.0.0", "_model_name": "HTMLStyleModel", "_view_count": null, "_view_module": "@jupyter-widgets/base", "_view_module_version": "2.0.0", "_view_name": "StyleView", "background": null, "description_width": "", "font_size": null, "text_color": null}}, "e1d1d9ee11b4491f9db4c7ce7bb8228e": {"model_module": "@jupyter-widgets/base", "model_module_version": "2.0.0", "model_name": "LayoutModel", "state": {"_model_module": "@jupyter-widgets/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "fee142f104714ddc97745bf619aeaa90": {"model_module": "@jupyter-widgets/base", "model_module_version": "2.0.0", "model_name": "LayoutModel", "state": {"_model_module": "@jupyter-widgets/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}}, "version_major": 2, "version_minor": 0}
+</script></section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          <a class="next-page" href="gbm.html">
+              <div class="page-info">
+                <div class="context">
+                  <span>Next</span>
+                </div>
+                <div class="title">Setup for GBM</div>
+              </div>
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+            </a>
+          <a class="prev-page" href="../index.html">
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title">Home</div>
+                
+              </div>
+            </a>
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2022, Bjoern Biltzinger, Felix Kunzweiler, J. Michael Burgess
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer no-toc">
+      
+      
+      
+    </aside>
+  </div>
+</div><script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/sphinx_highlight.js"></script>
+    <script src="../_static/scripts/furo.js"></script>
+    <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+    <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+    <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    </body>
+</html>
