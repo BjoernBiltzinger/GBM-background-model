@@ -21,7 +21,6 @@ jobs:
       - name: Install dependencies
         run: |
           mkdir /home/runner/GBMDATA
-          pip install Tempita
           python -m pip install --upgrade pip wheel
           pip install black
           pip install --upgrade numpy ipython jupyter ipyvolume scipy h5py matplotlib numba
