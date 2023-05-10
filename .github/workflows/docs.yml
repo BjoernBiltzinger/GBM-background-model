@@ -58,6 +58,7 @@ jobs:
       - name: Execute the notebooks
         shell: bash -l {0}
         run: |
+          export LD_LIBRARY_PATH=/home/runner/multinest_install/lib/:${LD_LIBRARY_PATH}
           jupytext --to ipynb --execute docs/md/*.md
           mv docs/md/*.ipynb docs/notebooks/
           ls docs/notebooks
