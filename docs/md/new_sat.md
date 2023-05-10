@@ -246,10 +246,3 @@ ax = plot_lightcurve(model, eff_echan=0, show_data=False, show_total_model=False
 ax.legend();
 ```
 
-Generate new data from our model
-
-```python
-plt.scatter(data.mean_time, model.generate_counts()[:,0])
-plt.xlabel("Time [s]")
-plt.ylabel("Counts")
-```

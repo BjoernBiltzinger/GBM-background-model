@@ -6,9 +6,10 @@
 Welcome to gbmbkgpy's documentation!
 ====================================
 
-`gbmbkgpy` is a simulation and fitting software for the time-dependent background seen by Fermi/GBM. Due to an extensive rewrite it's current state is **broken**. Only the simulation part works but not the fitting. This will be fixed early 2023. The rewrite made the code way more general and allows its core to be also used with other experiments.
+`gbmbkgpy` is a simulation and fitting software for the time-dependent background seen by Fermi/GBM. Due to an extensive rewrite it's current state is **unstable**.
+All the core functionality should be restored, but in case you encounter bugs or weird results please report them on `GitHub <https://github.com/BjoernBiltzinger/GBM-background-model/issues/>`__.
 
-If you find any bugs please report them on `GitHub <https://github.com/BjoernBiltzinger/GBM-background-model/issues/>`__.
+The rewrite made the code way more general and allows its core to be also used with other experiments.
 
 .. toctree::
    :maxdepth: 2
