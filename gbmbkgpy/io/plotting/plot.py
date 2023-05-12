@@ -6,6 +6,7 @@ from gbmgeometry import GBMTime
 from astropy.time import Time
 
 from gbmbkgpy.utils.statistics.stats_tools import Significance
+from gbmbkgpy.data.gbm_data import GBMData
 
 def plot_lightcurve(model, ax=None, rates=True, eff_echan=None, bin_width=None,
                     show_data=True, data_color="black", data_alpha=0.9,
@@ -41,15 +42,16 @@ def plot_lightcurve(model, ax=None, rates=True, eff_echan=None, bin_width=None,
     time_bins = model.data.time_bins
     times = model.data.mean_time
 
-    # start time of this day
-    date = model.data.date
-    gbm_time = GBMTime(Time(f"20{date[:2]}-{date[2:4]}-{date[4:6]}T00:00:00", format="isot", scale='utc'))
-    start_time_day = gbm_time.met
-    if norm_time:
-        if t0 is None:
-            times -= start_time_day #times[0]
-        else:
-            times -= start_time_day + t0
+    if isinstance(model.data, GBMData):
+        # start time of this day
+        date = model.data.date
+        gbm_time = GBMTime(Time(f"20{date[:2]}-{date[2:4]}-{date[4:6]}T00:00:00", format="isot", scale='utc'))
+        start_time_day = gbm_time.met
+        if norm_time:
+            if t0 is None:
+                times -= start_time_day #times[0]
+            else:
+                times -= start_time_day + t0
 
     if time_format == 'h':
         times /= (3600)
