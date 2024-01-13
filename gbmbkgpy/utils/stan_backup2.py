@@ -9,33 +9,10 @@ class StanModelConstructor(object):
     Object to construct the .stan model
     """
 
-    def __init__(self, model_generator, profile=False, cgb_beuermann3=False, cr_per_det=False, use_cr_eff_area_corr=True, free_n1=True, uncert_on_cr=False, use_cr_gp=False, use_only_cr_gp=False,gp_ordered=False,move_all_to_parallel=True, not_sample_freq=False, share_omega=True):
+    def __init__(self, model_generator, profile=False):
 
         self._profile = profile
-        self._cgb_beuermann3 = cgb_beuermann3
-        self._cr_per_det = cr_per_det
-        self._diff_cgb_earth = False
-        self._use_cr_eff_area_corr = use_cr_eff_area_corr
-        self._free_n1 = True #free_n1
-        self._free_n1_earth = False
-        self._uncert_on_cr = uncert_on_cr
-        self._use_cr_gp = use_cr_gp
-        self._use_only_cr_gp = use_only_cr_gp
-        self._gp_ordered=gp_ordered
-        self._move_all_to_parallel=move_all_to_parallel
-        self._not_sample_freq=not_sample_freq
-        self._share_omega=share_omega
-        self._share_beta = True
-        self._sum_exp = True
-        self._use_se_kernel = False
-        self._free_earth_spec = True # True #False
-        self._free_norm_earth = True #True #False
-
-        self._cr_const_free = False
         
-        assert not (self._uncert_on_cr and self._use_cr_gp), "No"
-        assert not (self._uncert_on_cr and self._use_only_cr_gp), "No"
-        assert not (self._use_only_cr_gp and self._use_cr_gp), "No"
         data = model_generator.data
         model = model_generator.model
 
@@ -163,8 +140,7 @@ class StanModelConstructor(object):
             main += "\t, vector[] base_counts_array, real[] norm_fixed\n"
 
         if self._use_free_earth:
-            if not self._diff_cgb_earth:
-                main += "\t, matrix base_response_array_earth, vector earth_spec\n"
+            main += "\t, matrix base_response_array_earth, vector earth_spec\n"
 
         if self._use_free_cgb:
             main += "\t, matrix base_response_array_cgb, vector cgb_spec\n"
@@ -176,143 +152,20 @@ class StanModelConstructor(object):
             main += "\t, matrix[] base_response_array_free_ps, vector[] ps_spec\n"
 
         if self._use_cont_sources:
-            if self._use_cr_eff_area_corr:
-                main += "\t, vector cr_eff_area_array\n"
-            if self._use_only_cr_gp:
-                if self._move_all_to_parallel:
-                    if self._use_se_kernel:
-                        if self._share_beta:
-                            main += "\t, vector beta1\n"
-                            main += "\t, vector beta2\n"
-                        else:
-                            main += "\t, vector[] beta1\n"
-                            main += "\t, vector[] beta2\n"
-                        main += "\t, vector scale1\n" 
-                        if not self._not_sample_freq:
-                            if self._share_omega:
-                                main += "\t, row_vector omega_var_row\n"
-                            else:
-                                main += "\t, row_vector[] omega_var_row\n"
-                            main += "\t, vector bw\n"
-                            
-                        else:
-                            main += "\t, row_vector omega1\n"
-
-                    if self._share_beta:
-                        main += "\t, vector beta1_p\n"
-                        main += "\t, vector beta2_p\n" 
-                    else:
-                        main += "\t, vector[] beta1_p\n"
-                        main += "\t, vector[] beta2_p\n"
-                    main += "\t, vector scale1_p\n" 
-                    if not self._not_sample_freq:
-                        if self._share_omega:
-                            main += "\t, row_vector omega_var_row_p\n"
-                        else:
-                            main += "\t, row_vector[] omega_var_row_p\n"
-                        main += "\t, vector bw_p\n"
-                        #main += "\t, row_vector t0_var_p\n"
-                    else:
-                        main += "\t, row_vector omega1_p\n"
-                        
-                    main += "\t, vector norm_mean_time\n"
-                    main += "\t, vector time_bin_width\n"
-                    main += "\t, int[] time_ids\n"
-                    main += "\t, int[] echans\n"
-                    if self._use_se_kernel:
-                        main += "\t, int kn\n"
-                    main += "\t, int kn_p\n"
-                    main += "\t, real[] Rmin\n"
-                    if self._cr_const_free:
-                        main += "\t, vector cr_log_const\n"
-                    else:
-                        main += "\t, real cr_log_const\n"
-                else:
-                    main += "\t, vector norm_cont_vec\n"
-            else:
-                main += "\t, vector[] norm_cont_vec, vector[] base_counts_array_cont\n"
+            main += "\t, vector[] norm_cont_vec, vector[] base_counts_array_cont\n"
 
         if self._use_saa:
             main += "\t, matrix[] t_t0, vector[] saa_decay_vec, vector[] saa_norm_vec\n"
 
         if self._use_eff_area_correction:
             main += "\t, vector eff_area_array\n"
-
-        #main += "\t, real[] phi_vec\n"
-        #main += "\t, real phi\n" 
+            
         main += "\t){\n"
         #if self._profile:                                                                                
         #    main += "\t\tprofile(\"loglike\"){\n"
 
-        if self._move_all_to_parallel:
-            main += "\t\tint j;\n"
-            main += "\t\tint t;\n"
-            if not self._not_sample_freq:
-                if self._use_se_kernel:
-                    main += "\t\trow_vector[kn] omega1;\n"
-                main += "\t\trow_vector[kn_p] omega1_p;\n"
-
-            if self._use_se_kernel:
-                main += "\t\trow_vector[kn] tw1;\n"
-            main += "\t\trow_vector[kn_p] tw1_p;\n"
-            main += "\t\tvector[stop-start+1] cr_comp;\n"
-            main += "\t\tfor (i in start:stop){\n"
-            main += "\t\t\tj = echans[i];\n"
-            main += "\t\t\tt = time_ids[i];\n"
-            if not self._not_sample_freq:
-                if self._share_omega:
-                    if self._use_se_kernel:
-                        main += "\t\t\tomega1 = omega_var_row * bw[j];\n"
-                    main += "\t\t\tomega1_p = omega_var_row_p * bw_p[j];\n"
-                else:
-                    if self._use_se_kernel:
-                        main += "\t\t\tomega1 = omega_var_row[j] * bw[j];\n"
-                    main += "\t\t\tomega1_p = omega_var_row_p[j] * bw_p[j];\n"
-                if self._use_se_kernel:
-                    main += "\t\t\ttw1 = norm_mean_time[t] * omega1;\n"
-                main += "\t\t\ttw1_p = norm_mean_time[t] * omega1_p;\n" # - t0_var_p*2*pi();\n"
-            else:
-                if self._use_se_kernel:
-                    main += "\t\t\ttw1 = norm_mean_time[t] * omega1;\n"
-                main += "\t\t\ttw1_p = norm_mean_time[t] * omega1_p;\n"
-
-            if self._share_beta:
-                if self._use_se_kernel:
-                    main += "\t\t\tcr_comp[i-start+1] = (exp((scale1[j] * cos(tw1)* beta1) + (scale1[j] * sin(tw1) * beta2)+(scale1_p[j] * cos(tw1_p)* beta1_p) + (scale1_p[j] *sin(tw1_p) * beta2_p))+pow(10,cr_log_const[j]))*time_bin_width[t];\n"
-
-                else:
-                    #main += "\t\t\tcr_comp[i-start+1] = (exp((scale1_p[j] * cos(tw1_p)* beta1_p) + (scale1_p[j] *sin(tw1_p) * beta2_p))+pow(10,cr_log_const[j]))*time_bin_width[t];\n"
-                    if self._sum_exp:
-                        if self._cr_const_free:
-                            main += "\t\t\tcr_comp[i-start+1] = pow(10,cr_log_const[j])*time_bin_width[t];\n"
-                            main += (
-                            "\t\t\t for (z in 1:kn_p){\n"
-                            "\t\t\t\t cr_comp[i-start+1] += time_bin_width[t]*exp(scale1_p[j]*(cos(tw1_p[z])* beta1_p[z] + sin(tw1_p[z]) * beta2_p[z]));\n"
-                            "\t\t\t}\n"
-                            )
-
-                        else:
-                            main += "\t\t\tcr_comp[i-start+1] = scale1_p[j]*pow(10,cr_log_const)*time_bin_width[t];\n"
-                            main += (
-                                "\t\t\t for (z in 1:kn_p){\n"
-                                "\t\t\t\t cr_comp[i-start+1] += time_bin_width[t]*scale1_p[j]*exp(cos(tw1_p[z])* beta1_p[z] + sin(tw1_p[z]) * beta2_p[z]);\n"
-                                "\t\t\t}\n"
-                            )
-                        
-                    else:
-                        main += "\t\t\tcr_comp[i-start+1] = (pow(1.1,(scale1_p[j] * cos(tw1_p)* beta1_p) + (scale1_p[j] *sin(tw1_p) * beta2_p))+pow(10,cr_log_const[j]))*time_bin_width[t];\n"
-            else:
-                if self._use_se_kernel:
-                    main += "\t\t\tcr_comp[i-start+1] = (exp((scale1[j] * cos(tw1)* beta1[j]) + (scale1[j] * sin(tw1) * beta2[j])+(scale1_p[j] * cos(tw1_p)* beta1_p[j]) + (scale1_p[j] *sin(tw1_p) * beta2_p[j]))+pow(10,cr_log_const[j]))*time_bin_width[t];\n"
-                else:
-                    main += "\t\t\tcr_comp[i-start+1] = (exp((scale1_p[j] * cos(tw1_p)* beta1_p[j]) + (scale1_p[j] *sin(tw1_p) * beta2_p[j]))+pow(10,cr_log_const[j]))*time_bin_width[t];\n"
-                    
-            main += "\t\t}\n"
-
-            
         #poisson_lpmf
-        main += "\t\treturn poisson_lupmf(counts | 0\n" # "\t\treturn poisson_propto_lpmf(counts | 0\n"
-        #main += "\t\treturn neg_binomial_2_lpmf(counts | 0.00000001\n"
+        main += "\t\treturn poisson_lupmf(counts | 0.00000001\n" # "\t\treturn poisson_propto_lpmf(counts | 0\n"
         
         if self._use_saa:
             for i in range(self._num_saa_exits):
@@ -334,22 +187,14 @@ class StanModelConstructor(object):
                     )
 
         if self._use_cont_sources:
-            if self._use_cr_eff_area_corr:
-                main += f"\t\t\t+cr_eff_area_array[start:stop].*"
-            else:
-                main += f"\t\t\t+"
-            if self._move_all_to_parallel:
-                main += f"cr_comp\n"
-            else:
-                main += f"norm_cont_vec[start:stop]\n"
-                        
+            for i in range(self._num_cont_sources):
+                main += f"\t\t\t+norm_cont_vec[{i+1}, start:stop].*base_counts_array_cont[{i+1}, start:stop]\n"
+
         if self._use_free_earth:
-            if not self._diff_cgb_earth:
-                
-                if self._use_eff_area_correction:
-                    main += "\t\t\t+eff_area_array[start:stop].*(base_response_array_earth[start:stop]*earth_spec)\n"
-                else:
-                    main += "\t\t\t+base_response_array_earth[start:stop]*earth_spec\n"
+            if self._use_eff_area_correction:
+                main += "\t\t\t+eff_area_array[start:stop].*(base_response_array_earth[start:stop]*earth_spec)\n"
+            else:
+                main += "\t\t\t+base_response_array_earth[start:stop]*earth_spec\n"
 
         if self._use_free_cgb:
             if self._use_eff_area_correction:
@@ -369,8 +214,7 @@ class StanModelConstructor(object):
                     main += f"\t\t\t+eff_area_array[start:stop].*(base_response_array_free_ps[{i+1}, start:stop]*ps_spec[{i+1}])\n"
                 else:
                     main += f"\t\t\t+base_response_array_free_ps[{i+1}, start:stop]*ps_spec[{i+1}]\n"
-        #main += "\t\t\t, phi_vec[start:stop]\n"
-        #main += "\t\t\t, phi\n"
+
         main += "\t\t\t);\n"
         #if self._profile:
         #    main += "\t\t}\n"
@@ -379,14 +223,12 @@ class StanModelConstructor(object):
 
         text = text + main
 
-        text += "\treal beuermann3(real E, real Enorm, real norm_ref, real norm, real index1, real index2, real index3, real Eb1, real Eb2, real n1, real n2){\n"
-        text += "\t\treal C=norm*norm_ref*pow(pow(pow(Eb1, -index1)*pow(pow(Enorm/Eb1, n1*index1)+pow(Enorm/Eb1, n1*index2), -1/n1), -n2)+pow(pow(Eb1, -index1)*pow(pow(Eb2/Eb1, n1*index1)+pow(Eb2/Eb1, n1*index2), -1/n1)*pow(Enorm/Eb2, -index3), -n2),1/n2);\n"
-        text += "\t\treturn C*pow(pow(pow(Eb1, -index1)*pow(pow(E/Eb1, n1*index1)+pow(E/Eb1, n1*index2), -1/n1), -n2)+pow(pow(Eb1, -index1)*pow(pow(Eb2/Eb1, n1*index1)+pow(Eb2/Eb1, n1*index2), -1/n1)*pow(E/Eb2, -index3), -n2),-1/n2);\n"
+        text += "\treal beuermann3(real E, real C, real index1, real index2, real index3, real Eb1, real Eb2, real n1, real n2){\n"
+        text += "\t\treturn pow(pow(C*pow(Eb1, -index1)*pow(pow(E/Eb1, n1*index1)+pow(E/Eb1, n1*index2), -1/n1), -n2)+pow(C*pow(Eb1, -index1)*pow(pow(Eb2/Eb1, n1*index1)+pow(Eb2/Eb1, n1*index2), -1/n1)*pow(E/Eb2, -index3), -n2),-1/n2);\n"
         text += "\t}\n"
         
         
-        text += "\treal beuermann2(real E, real Enorm, real norm_ref, real norm, real index1, real index2, real Eb1, real n1){\n"
-        text += "\t\treal C = norm*norm_ref*pow(pow(Enorm/Eb1, n1*index1)+pow(Enorm/Eb1, n1*index2),1/n1);\n"
+        text += "\treal beuermann2(real E, real C, real index1, real index2, real Eb1, real n1){\n"
         text += "\t\treturn C*pow(pow(E/Eb1, n1*index1)+pow(E/Eb1, n1*index2),-1/n1);\n"
         text += "\t}\n"
         text += "}\n\n"
@@ -408,7 +250,7 @@ class StanModelConstructor(object):
         text += "\tmatrix[num_time_bins, 2] time_bins;\n"
 
         text += "\tint counts[num_time_bins*num_dets*num_echans];\n"
-        text += "\treal Rmin[num_echans];\n"
+
         # Optional input
         if self._use_fixed_global_sources:
             text += "\tint<lower=0> num_fixed_comp;\n"
@@ -470,50 +312,12 @@ class StanModelConstructor(object):
                 "\t\t\t}\n\t\t}\n\t}\n"
             )
 
-        if self._use_only_cr_gp:
-            if self._use_se_kernel:
-                text += "\tint kn=2;\n"
-            text += "\tvector[num_time_bins] norm_mean_time = ((time_bins[:,2]+time_bins[:,1])/2.0-time_bins[1,1])/(time_bins[num_time_bins,2]-time_bins[1,1]);\n"
-            #text += "\tvector[num_time_bins] helper_vector=rep_vector(1, num_time_bins);\n"
-            text += "\tvector[num_time_bins] time_bin_width = (time_bins[:,2]-time_bins[:,1]);\n"
-            text += "\treal max_range=1;\n"
-
-            # add periodic stuff
-            text += "\tint kn_p=15;\n"
-
-            if self._not_sample_freq:
-                if self._use_se_kernel:
-                    text += "row_vector[kn] omega1;\n"
-                    text += "real bw=1;\n"
-                    text += "for (i in 1:kn) {\n"
-                    text += "\tomega1[i] = normal_rng(0, 1);\n"
-                    text += "}\n"
-
-                text += "row_vector[kn_p] omega1_p;\n"
-                text += "real bw_p=1;\n"
-                text += "for (i in 1:kn_p) {\n"
-                text += "\tomega1_p[i] = uniform_rng(0, 1);\n"
-                text += "}\n"
-
-
-        text += (
-            "\tint echans[num_data_points];\n"
-            "\tint time_ids[num_data_points];\n"
-            "\tfor (i in 1:num_dets){\n"
-            "\t\tfor (j in 1:num_echans){\n"
-            "\t\t\tfor (k in 1:num_time_bins){\n"
-            "\t\t\t\techans[(k-1)*(num_dets*num_echans)+(i-1)*num_echans+j] = j;\n"
-            "\t\t\t\ttime_ids[(k-1)*(num_dets*num_echans)+(i-1)*num_echans+j] = k;\n"
-            "\t\t\t}\n\t\t}\n\t}\n"
-        )
-            
         text = text + "}\n\n"
         return text
 
     def parameter_block(self):
         text = "parameters { \n"
-        #text += "\treal<lower=0> phi[num_dets, num_echans];\n"
-        #text += "\treal<lower=0> phi;\n"
+
         if self._use_fixed_global_sources:
             text += "\treal<lower=-10> log_norm_fixed[num_fixed_comp];\n"
 
@@ -523,48 +327,14 @@ class StanModelConstructor(object):
 
 
         if self._use_cont_sources:
-            if self._use_cr_eff_area_corr:
-                text += "\treal<lower=0.5, upper=2> cr_eff_area_corr[num_dets-1];\n"
-            if self._cr_per_det:
-                text += "\treal<lower=-3, upper=3> log_norm_cont[num_cont_comp, num_dets, num_echans];\n"
-            else:
-                if not self._share_beta:
-                    if self._use_se_kernel:
-                        text += "\tvector[kn] beta1[num_echans]; // the amplitude along the cos basis\n"
-                        text += "\tvector[kn] beta2[num_echans]; // the amplitude along the sin basis\n"
+            text += "\treal<lower=-6, upper=6> log_norm_cont[num_cont_comp, num_dets, num_echans];\n"
 
-                    # add periodic stuff
-                    text += "\tvector[kn_p] beta1_p[num_echans]; // the amplitude along the cos basis\n"
-                    text += "\tvector[kn_p] beta2_p[num_echans]; // the amplitude along the cos basis\n"
-                else:
-                    if self._use_se_kernel:
-                        text += "\tvector[kn] beta1;\n"
-                        text += "\tvector[kn] beta2;\n"
-
-                    text += "\tvector[kn_p] beta1_p;\n"
-                    text += "\tvector[kn_p] beta2_p;\n"
-                    
-                if not self._not_sample_freq:
-                    raise
-                else:
-                    text += "\treal<lower=0> bw;\n"
-                    
-
-                if self._use_se_kernel:
-                    text += "\tvector<lower=0>[num_echans] raw_scale;\n"
-
-                text += "\tvector<lower=0>[num_echans] raw_scale_p;\n"
-                
         if self._use_free_earth:
-
-            if self._free_norm_earth:
-                #text += "\treal<lower=-1, upper=1> log_norm_earth;\n"
-                text += "\treal<lower=0.5, upper=2> norm_earth;\n"
-            if self._free_earth_spec:
-                text += "\treal<lower=1.2, upper=2.3> beta_earth;\n"
-                if self._free_n1_earth:
-                    text += "\treal<lower=0.5, upper=4> n1_earth;\n"
-                text += "\treal<lower=20, upper=50> Eb_earth;\n"
+            
+            text += "\treal<lower=-10, upper=5> log_norm_earth;\n"
+            text += "\treal<lower=0, upper=6> beta_earth;\n"
+            text += "\treal<lower=0, upper=8> n1_earth;\n"
+            text += "\treal<lower=10, upper=100> Eb_earth;\n"
             #text += "\treal log_norm_earth;\n"
             #text += "\treal beta_earth;\n"
             #text += "\treal n1_earth;\n"
@@ -591,8 +361,7 @@ class StanModelConstructor(object):
             #text += "\treal b_earth;\n"
 
         if self._use_free_cgb:
-            #text += "\treal<lower=-1, upper=1> log_norm_cgb;\n"
-            text += "\treal<lower=0.5, upper=2> norm_cgb;\n"
+            text += "\treal<lower=-3, upper=3> log_norm_cgb;\n"
             if False:
                 text += "\treal index_cgb1;\n"
                 text += "\treal index_cgb2;\n"
@@ -613,21 +382,40 @@ class StanModelConstructor(object):
                     text += "\treal<lower=0> n2;\n"
                     text += "\treal log_norm_cgb2;\n"
                 else:
-                    text += "\treal<lower=1, upper=2> index1_cgb;\n"
-                    text += "\treal<lower=2.3, upper=3.3> index2_cgb;\n" 
-                    #text += "\treal<lower=0, upper=2> index_change12;\n"
-
-                    text += "\treal<lower=20, upper=50> Eb1_cgb;\n"
-
-                    if self._free_n1:
-                        text += "\treal<lower=0.01, upper=4> n1;\n"
-                    
-                    if self._cgb_beuermann3:
-                        text += "\treal<lower=0, upper=2> index_change23;\n"
-                        text += "\treal<lower=0, upper=20> Eb_change12;\n"
-
-                        text += "\treal<lower=0.5, upper=4> n2;\n"
+                    if False:
+                        text += "\tordered[2] indices1_cgb;\n"
+                        text += "\treal Eb_cgb;\n"
+                        text += "\treal<lower=0> n1;\n"
+                    else:
                         
+                        text += "\treal<lower=0, upper=10> index1_cgb;\n"
+                        text += "\treal<lower=0, upper=30> index_change12;\n"
+                        #text += "\treal<lower=0, upper=3> index_change23;\n"
+
+
+                        #text += "\treal<lower=0, upper=10> Eb_change12;\n"
+                        text += "\treal<lower=5, upper=1000> Eb1_cgb;\n"
+
+
+                        
+
+                        # fix this
+                        text += "\treal<lower=0, upper=10> n1;\n"
+                        #text += "\treal<lower=0, upper=10> n2;\n"
+
+                        #text += "\treal index1_cgb;\n"
+                        #text += "\treal index_change12;\n"
+                        #text += "\treal index_change23;\n"
+
+
+                        #text += "\treal Eb_change12;\n"
+                        #text += "\treal Eb1_cgb;\n"
+
+
+                        #text += "\tvector[2] Ebs_cgb;\n"
+                        
+                        #text += "\treal n1;\n"
+                        #text += "\treal n2;\n"
 
                     #text += "\tordered[2] indices_cgb;\n"
                     #text += "\treal beta_cgb;\n"
@@ -644,14 +432,8 @@ class StanModelConstructor(object):
             
         if self._use_free_ps:
             #text += "\treal log_norm_free_ps[num_free_ps_comp];\n"
-
-
-            text += "\treal<lower=1, upper=5> index_free_ps[num_free_ps_comp];\n"
-
-
-
-            text += "\treal<lower=-3, upper=3> log_K_free_ps[num_free_ps_comp];\n"
-            
+            text += "\treal<lower=0, upper=10> index_free_ps[num_free_ps_comp];\n"
+            text += "\treal<lower=-5> log_K_free_ps[num_free_ps_comp];\n"
         if self._use_eff_area_correction:
             #text += "\treal eff_area_corr[num_dets-1];\n"
             text += "\treal<lower=0, upper=2> eff_area_corr[num_dets-1];\n"
@@ -661,12 +443,10 @@ class StanModelConstructor(object):
 
     def trans_parameter_block(self):
         text = "transformed parameters { \n"
-        #text += "\treal phi[num_dets, num_echans] = pow(10,log_phi);\n"
-        #text += "\treal phi_vec[num_data_points];\n"
         if self._profile:
             text+="\tprofile(\"transform_parameter\"){\n"
         if self._use_fixed_global_sources:
-            text += "\treal norm_fixed[num_fixed_comp] = pow(10,log_norm_fixed);\n"
+            text += "\treal norm_fixed[num_fixed_comp] = exp(log_norm_fixed);\n"
 
         if self._use_saa:
             text += "\treal norm_saa[num_saa_exits,num_dets_saa, num_echans]=exp(log_norm_saa);\n"
@@ -675,31 +455,22 @@ class StanModelConstructor(object):
             text += "\tvector[num_data_points] saa_norm_vec[num_saa_exits];\n"
 
         if self._use_cont_sources:
-            if self._use_cr_eff_area_corr:
-                text += "\tvector[num_data_points] cr_eff_area_array;\n"
-
-            #text += "\tvector[num_data_points] norm_cont_vec[num_cont_comp];\n"
+            text += "\treal norm_cont[num_cont_comp, num_dets, num_echans] = exp(log_norm_cont);\n"
+            text += "\tvector[num_data_points] norm_cont_vec[num_cont_comp];\n"
 
         if self._use_free_earth:
-            if self._free_norm_earth:
-                pass
-                #text += "\treal norm_earth = pow(10,log_norm_earth);\n"
+            text += "\treal norm_earth = exp(log_norm_earth);\n"
             text += "\tvector[rsp_num_Ein] earth_spec;\n"
-            text += "\treal C1_earth;\n"
-            if not self._free_n1_earth:
-                text += "\treal n1_earth=1.0;\n"
+
         if self._use_free_cgb:
-            #text += "\treal norm_cgb = pow(10,log_norm_cgb);\n"
+            text += "\treal norm_cgb = exp(log_norm_cgb);\n"
             text += "\tvector[rsp_num_Ein] cgb_spec;\n"
 
             text += "\treal C1_cgb;\n"
-            #text += "\treal index2_cgb=index1_cgb*(1+index_change12);\n"
-            if self._cgb_beuermann3:
-                text += "\treal index3_cgb=index2_cgb*(1+index_change23);\n"
-                text += "\treal Eb2_cgb=Eb1_cgb*(1+Eb_change12);\n"
+            text += "\treal index2_cgb=index1_cgb*(1+index_change12);\n"
+            #text += "\treal index3_cgb=index2_cgb*(1+index_change23);\n"
+            #text += "\treal Eb2_cgb=Eb1_cgb*(1+Eb_change12);\n"
 
-            if not self._free_n1:
-                text += "\treal n1=1.0;\n"
             if False:
                 text += "\treal norm_cgb2 = exp(log_norm_cgb2);\n"
                 #text += "\treal n1=1.5;\n"
@@ -729,79 +500,25 @@ class StanModelConstructor(object):
 
         if self._use_free_ps:
             #text += "\treal norm_free_ps[num_free_ps_comp] = exp(log_norm_free_ps);\n"
-
-
             text += "\treal K_free_ps[num_free_ps_comp] = pow(10, log_K_free_ps);\n"
             text += "\tvector[rsp_num_Ein] ps_spec[num_free_ps_comp];\n"
-
-                        
+            
         if self._use_sun:
             text += "\treal norm_sun = exp(log_norm_sun);\n"
             text += "\tvector[rsp_num_Ein] sun_spec;\n"
 
         if self._use_eff_area_correction:
             text += "\tvector[num_data_points] eff_area_array;\n"
-
-        if self._use_only_cr_gp:
-            #text += "\tvector[num_echans] scale1_p = raw_scale_p*inv_sqrt(kn_p);\n"
-
-            if not self._not_sample_freq:
-                 text+= (
-                    "\tvector[num_echans] range_p = range1_raw_p*max_range;\n"
-                    "\tvector[num_echans] bw_p = inv(range_p);\n"
-                 )
-                 if self._share_omega:
-                     text += "\trow_vector[kn_p] omega_var_row_p;\n"
-                 else:
-                     text += "\trow_vector[kn_p] omega_var_row_p[num_echans];\n"
-
-
-        #text += (
-        #    "\tfor (i in 1:num_dets){\n"
-        #    "\t\tfor (j in 1:num_echans){\n"
-        #    "\t\t\tfor (k in 1:num_time_bins){\n"
-        #    #"\t\t\t\tphi_vec[(k-1)*(num_dets*num_echans)+(i-1)*num_echans+j] = phi[i,j];\n"
-        #    #"\t\t\t\tphi_vec[(k-1)*(num_dets*num_echans)+(i-1)*num_echans+j] = phi[j];\n"
-        #    "\t\t\t}\n\t\t}\n\t}\n"
-        #)
-        
-        if self._use_cont_sources:
-            if self._use_cr_eff_area_corr:
-
-                text += (
-                    "\tfor (i in 1:num_dets){\n"
-                    "\t\tfor (k in 1:num_time_bins){\n"
-                    "\t\t\tif (i==1){\n"
-                    "\t\t\t\tcr_eff_area_array[(k-1)*(num_dets*num_echans)+(i-1)*num_echans+1:(k-1)*(num_dets*num_echans)+i*num_echans] = rep_vector(1, num_echans);\n"
-                    "\t\t\t}\n"
-                    "\t\t\telse {\n"
-                    "\t\t\t\tcr_eff_area_array[(k-1)*(num_dets*num_echans)+(i-1)*num_echans+1:(k-1)*(num_dets*num_echans)+i*num_echans] = rep_vector(cr_eff_area_corr[i-1], num_echans);\n"
-                    "\t\t\t}\n"
-                    "\t\t}\n"
-                    "\t}\n"
-                )
-
-            if self._use_only_cr_gp:
             
-                if not self._not_sample_freq:
-                    if self._share_omega:
-                        if self._use_se_kernel:
-                            text += "\t\tomega_var_row=to_row_vector(omega_var);\n"
-
-                        text += "\t\tomega_var_row_p=to_row_vector(omega_var_p);\n"
-                    else:
-                        if self._use_se_kernel:
-                            text += (
-                                "\tfor (j in 1:num_echans){\n"
-                            )
-                            text += "\t\tomega_var_row[j]=to_row_vector(omega_var[j]);\n"
-                            text += "\t}\n"
-                        
-                        text += (
-                            "\tfor (j in 1:num_echans){\n"
-                        )
-                        text += "\t\tomega_var_row_p[j]=to_row_vector(omega_var_p[j]);\n"
-                        text += "\t}\n"
+        if self._use_cont_sources:
+            text += (
+                "\tfor (l in 1:num_cont_comp){\n"
+                "\t\tfor (i in 1:num_dets){\n"
+                "\t\t\tfor (j in 1:num_echans){\n"
+                "\t\t\t\tfor (k in 1:num_time_bins){\n"
+                "\t\t\t\t\tnorm_cont_vec[l][(k-1)*(num_dets*num_echans)+(i-1)*num_echans+j] = norm_cont[l,i,j];\n"
+                "\t\t\t\t}\n\t\t\t}\n\t\t}\n\t}\n"
+            )
 
         if self._use_saa:
                 
@@ -857,41 +574,11 @@ class StanModelConstructor(object):
 
         if self._use_free_earth:
             if True:
-                if self._free_earth_spec:
-                    text += (
+                text += (
                     "\tfor (i in 1:rsp_num_Ein){\n"
-                    "\t\tearth_spec[i] = (Ebins_in[2,i]-Ebins_in[1,i])/6.0*(beuermann2(Ebins_in[1,i], 30.0, 0.005676, norm_earth, -5, beta_earth, Eb_earth, n1_earth)+beuermann2(Ebins_in[2,i], 30.0, 0.005676, norm_earth, -5, beta_earth, Eb_earth, n1_earth)+4*beuermann2((Ebins_in[2,i]+Ebins_in[1,i])/2.0, 30.0, 0.005676, norm_earth, -5, beta_earth, Eb_earth, n1_earth));\n"
+                    "\t\tearth_spec[i] = (Ebins_in[2,i]-Ebins_in[1,i])*0.5*norm_earth*(1/(pow(Eb_earth,5)*pow(2.0,(-1.0/n1_earth)))*pow((pow(Ebins_in[1,i],(n1_earth*(-5)))+pow(Ebins_in[1,i],(n1_earth*beta_earth))*pow(Eb_earth,n1_earth*(-5-beta_earth))),-1.0/n1_earth)+1/(pow(Eb_earth,5)*pow(2.0,(-1.0/n1_earth)))*pow((pow(Ebins_in[2,i],(n1_earth*(-5)))+pow(Ebins_in[2,i],(n1_earth*beta_earth))*pow(Eb_earth,n1_earth*(-5-beta_earth))),-1.0/n1_earth));\n"
                     "\t}\n"
-                    )
-                    
-                else:
-                    if self._free_norm_earth:
-                        text += (
-                            "\tfor (i in 1:rsp_num_Ein){\n"
-                            "\t\tearth_spec[i] = (Ebins_in[2,i]-Ebins_in[1,i])/6.0*(beuermann2(Ebins_in[1,i], 30.0, 0.005676, norm_earth, -5, 1.72, 33.7, 1)+beuermann2(Ebins_in[2,i], 30.0, 0.005676, norm_earth, -5, 1.72, 33.7, 1)+4*beuermann2((Ebins_in[2,i]+Ebins_in[1,i])/2.0, 30.0, 0.005676, norm_earth, -5, 1.72, 33.7, 1));\n"
-                            "\t}\n"
-                        )
-                        
-                    else:
-                        text += (
-                        "\tfor (i in 1:rsp_num_Ein){\n"
-                        "\t\tearth_spec[i] = (Ebins_in[2,i]-Ebins_in[1,i])/6.0*(beuermann2(Ebins_in[1,i], 30.0, 0.005676, 1, -5, 1.72, 33.7, 1)+beuermann2(Ebins_in[2,i], 30.0, 0.005676, 1, -5, 1.72, 33.7, 1)+4*beuermann2((Ebins_in[2,i]+Ebins_in[1,i])/2.0, 30.0, 0.005676, 1, -5, 1.72, 33.7, 1));\n"
-                        "\t}\n"
-                        )
-
-                    #    text += (
-                    #    "\tfor (i in 1:rsp_num_Ein){\n"
-                    #    "\t\tearth_spec[i] = (Ebins_in[2,i]-Ebins_in[1,i])/6.0*(beuermann2(Ebins_in[1,i], 30.0, 0.005676, 1, -1, 1.4, 46.0, 1)+beuermann2(Ebins_in[2,i], 30.0, 0.005676, 1, -1, 1.4, 46.0, 1)+4*beuermann2((Ebins_in[2,i]+Ebins_in[1,i])/2.0, 30.0, 0.005676, 1, -1, 1.4, 46.0, 1));\n"
-                    #    "\t}\n"
-                    #    )
-
-                    
-
-                #text += (
-                #    "\tfor (i in 1:rsp_num_Ein){\n"
-                #    "\t\tearth_spec[i] = (Ebins_in[2,i]-Ebins_in[1,i])*0.5*norm_earth*(1/(pow(Eb_earth,5)*pow(2.0,(-1.0/n1_earth)))*pow((pow(Ebins_in[1,i],(n1_earth*(-5)))+pow(Ebins_in[1,i],(n1_earth*beta_earth))*pow(Eb_earth,n1_earth*(-5-beta_earth))),-1.0/n1_earth)+1/(pow(Eb_earth,5)*pow(2.0,(-1.0/n1_earth)))*pow((pow(Ebins_in[2,i],(n1_earth*(-5)))+pow(Ebins_in[2,i],(n1_earth*beta_earth))*pow(Eb_earth,n1_earth*(-5-beta_earth))),-1.0/n1_earth));\n"
-                #    "\t}\n"
-                #)
+                )
 
                 #text += (
                 #    "\tfor (i in 1:rsp_num_Ein){\n"
@@ -1039,22 +726,20 @@ class StanModelConstructor(object):
                             "\t}\n")
                     else:
                         if True:
-                            if self._cgb_beuermann3:
-                                # broken powerlaw with a parametrisation such that norm_cgb gives the flux at the peak and n1 gives curvature of break
-                                text += (
-                                    "\tfor (i in 1:rsp_num_Ein){\n"
-                                    "\t\tcgb_spec[i] = (Ebins_in[2,i]-Ebins_in[1,i])/6.0*(beuermann3(Ebins_in[1,i], 20.0, 0.1132, norm_cgb, index1_cgb, index2_cgb, index3_cgb, Eb1_cgb, Eb2_cgb, n1, n2)+4*beuermann3((Ebins_in[2,i]+Ebins_in[1,i])/2.0, 20.0, 0.1132, norm_cgb, index1_cgb, index2_cgb, index3_cgb, Eb1_cgb, Eb2_cgb, n1, n2)+beuermann3(Ebins_in[2,i], 20.0, 0.1132, norm_cgb, index1_cgb, index2_cgb, index3_cgb, Eb1_cgb, Eb2_cgb, n1, n2));\n"
-                                    "\t}\n"
-                                )
+                            # broken powerlaw with a parametrisation such that norm_cgb gives the flux at the peak and n1 gives curvature of break
+                            text += (
+                                "\tC1_cgb=norm_cgb*pow(pow(20.0/Eb1_cgb, n1*index1_cgb)+pow(20.0/Eb1_cgb, n1*index2_cgb),1/n1);\n"#norm_cgb*pow(2,1/n1);\n"
+                                "\tfor (i in 1:rsp_num_Ein){\n"
+                                "\t\tcgb_spec[i] = (Ebins_in[2,i]-Ebins_in[1,i])*0.5*(beuermann2(Ebins_in[1,i], C1_cgb, index1_cgb, index2_cgb, Eb1_cgb, n1)+beuermann2(Ebins_in[2,i], C1_cgb, index1_cgb, index2_cgb, Eb1_cgb, n1));\n"
+                                "\t}\n"
 
-                            else:
-                                # broken powerlaw with a parametrisation such that norm_cgb gives the flux at the peak and n1 gives curvature of break
-                                text += (
-                                    "\tfor (i in 1:rsp_num_Ein){\n"
-                                    "\t\tcgb_spec[i] = (Ebins_in[2,i]-Ebins_in[1,i])/6.0*(beuermann2(Ebins_in[1,i], 20.0, 0.1132, norm_cgb, index1_cgb, index2_cgb, Eb1_cgb, n1)+4*beuermann2((Ebins_in[2,i]+Ebins_in[1,i])/2.0, 20.0, 0.1132, norm_cgb, index1_cgb, index2_cgb, Eb1_cgb, n1)+beuermann2(Ebins_in[2,i], 20.0, 0.1132, norm_cgb, index1_cgb, index2_cgb, Eb1_cgb, n1));\n"
-                                    "\t}\n"
-                                )
-                            
+                                #"\tC1_cgb=norm_cgb;\n"
+                                #"\tfor (i in 1:rsp_num_Ein){\n"
+                                #"\t\tcgb_spec[i] = (Ebins_in[2,i]-Ebins_in[1,i])*0.5*(beuermann2(Ebins_in[1,i], C1_cgb, index1_cgb, index2_cgb, Eb1_cgb, 1)+beuermann2(Ebins_in[2,i], C1_cgb, index1_cgb, index2_cgb, Eb1_cgb, 1));\n"
+                                #"\t}\n"
+
+                                
+                            )
                         else:
                             text += (
                                 "\tC1_cgb=norm_cgb*0.05*pow(Eb1_cgb, index1_cgb)*pow(pow(2,n2/n1)+pow(pow(Eb2_cgb/Eb1_cgb, n1*index1_cgb)+pow(Eb2_cgb/Eb1_cgb, n1*index2_cgb),n2/n1)*pow(Eb1_cgb/Eb2_cgb,n2*index3_cgb),1/n2);\n"
@@ -1177,22 +862,163 @@ class StanModelConstructor(object):
 
     def model_block(self):
         text = "model { \n"
-        #text+="\tphi ~ lognormal(0, 3);\n"
-        #text += (
-        #    "\tfor (d in 1:num_dets){\n"
-        #    "\t\tfor (g in 1:num_echans){\n"
-        #    "\t\t\tphi[d,g] ~ lognormal(0, 3);\n"
-        #    "\t\t}\n\t}\n"
-        #)
 
+        """
+        if self._profile:
+            text+="\tprofile(\"transform_parameter\"){\n"
+        if self._use_fixed_global_sources:
+            text += "\treal norm_fixed[num_fixed_comp] = exp(log_norm_fixed);\n"
+
+        if self._use_saa:
+            text += "\treal norm_saa[num_saa_exits,num_dets_saa, num_echans]=exp(log_norm_saa);\n"
+
+            text += "\tvector[num_data_points] saa_decay_vec[num_saa_exits];\n"
+            text += "\tvector[num_data_points] saa_norm_vec[num_saa_exits];\n"
+
+        if self._use_cont_sources:
+            text += "\treal norm_cont[num_cont_comp, num_dets, num_echans] = exp(log_norm_cont);\n"
+            text += "\tvector[num_data_points] norm_cont_vec[num_cont_comp];\n"
+
+        if self._use_free_earth:
+            text += "\treal norm_earth = exp(log_norm_earth);\n"
+            text += "\tvector[rsp_num_Ein] earth_spec;\n"
+
+        if self._use_free_cgb:
+            text += "\treal norm_cgb = exp(log_norm_cgb);\n"
+            text += "\tvector[rsp_num_Ein] cgb_spec;\n"
+
+            text += "\treal C1_cgb;\n"
+            text += "\treal index2_cgb=index1_cgb*(1+index_change12);\n"
+            #text += "\treal index3_cgb=index2_cgb*(1+index_change23);\n"
+            #text += "\treal Eb2_cgb=Eb1_cgb*(1+Eb_change12);\n"
+
+        if self._use_free_ps:
+            #text += "\treal norm_free_ps[num_free_ps_comp] = exp(log_norm_free_ps);\n"
+            text += "\treal K_free_ps[num_free_ps_comp] = pow(10, log_K_free_ps);\n"
+            text += "\tvector[rsp_num_Ein] ps_spec[num_free_ps_comp];\n"
+            
+        if self._use_sun:
+            text += "\treal norm_sun = exp(log_norm_sun);\n"
+            text += "\tvector[rsp_num_Ein] sun_spec;\n"
+
+        if self._use_eff_area_correction:
+            text += "\tvector[num_data_points] eff_area_array;\n"
+            
+        if self._use_cont_sources:
+            text += (
+                "\tfor (l in 1:num_cont_comp){\n"
+                "\t\tfor (i in 1:num_dets){\n"
+                "\t\t\tfor (j in 1:num_echans){\n"
+                "\t\t\t\tfor (k in 1:num_time_bins){\n"
+                "\t\t\t\t\tnorm_cont_vec[l][(k-1)*(num_dets*num_echans)+(i-1)*num_echans+j] = norm_cont[l,i,j];\n"
+                "\t\t\t\t}\n\t\t\t}\n\t\t}\n\t}\n"
+            )
+
+        if self._use_saa:
+                
+            text += (
+                "\tfor (l in 1:num_saa_exits){\n"
+                "\t\tfor (i in 1:num_dets){\n"
+                "\t\t\tif (dets_saa[i]){\n"
+                "\t\t\t\tfor (j in 1:num_echans){\n"
+                "\t\t\t\t\tfor (k in 1:num_time_bins){\n"
+                "\t\t\t\t\t\tsaa_decay_vec[l][(k-1)*(num_dets*num_echans)+(i-1)*num_echans+j] = 0.0001*decay_saa[l,dets_saa_all_dets[i],j];\n"#dets_saa_all_dets[i],j];\n"
+                "\t\t\t\t\t\tsaa_norm_vec[l][(k-1)*(num_dets*num_echans)+(i-1)*num_echans+j] = norm_saa[l,dets_saa_all_dets[i],j];\n"#dets_saa_all_dets[i],j];\n"
+                "\t\t\t\t\t}\n"
+                "\t\t\t\t}\n"
+                "\t\t\t}\n"
+                
+                "\t\t\telse {\n"
+                "\t\t\t\tfor (j in 1:num_echans){\n"
+                "\t\t\t\t\tfor (k in 1:num_time_bins){\n"
+                "\t\t\t\t\t\tsaa_decay_vec[l][(k-1)*(num_dets*num_echans)+(i-1)*num_echans+j] = 1.0;\n"#dets_saa_all_dets[i],j];\n"
+                "\t\t\t\t\t\tsaa_norm_vec[l][(k-1)*(num_dets*num_echans)+(i-1)*num_echans+j] = 0.0;\n"#dets_saa_all_dets[i],j];\n"
+                "\t\t\t\t\t}\n"
+                "\t\t\t\t}\n"
+                "\t\t\t}\n"
+                "\t\t}\n"
+                "\t}\n"
+                #"\tprint(saa_norm_vec);\n"
+                #"\tprint(saa_decay_vec);\n"
+            )
+
+            #text += (
+
+        if self._use_sun:
+            text += (
+                "\tfor (i in 1:rsp_num_Ein){\n"
+                "\t\tsun_spec[i] = (Ebins_in[2,i]-Ebins_in[1,i])*norm_sun*(pow((Ebins_in[1,i]/5.0), -index_sun)+pow((Ebins_in[2,i]/5.0), -index_sun))/2;\n"
+                "\t}\n"
+            )
+
+            
+        if self._use_free_ps:
+            text += (
+                "\tfor (j in 1:num_free_ps_comp){\n"
+                "\t\tps_spec[j]=integrate_powerlaw_flux(Ebins_in, K_free_ps[j], index_free_ps[j]);\n"
+                "\t}\n"
+                )
+
+        if self._use_free_earth:
+            if True:
+                text += (
+                    "\tfor (i in 1:rsp_num_Ein){\n"
+                    "\t\tearth_spec[i] = (Ebins_in[2,i]-Ebins_in[1,i])*0.5*norm_earth*(1/(pow(Eb_earth,5)*pow(2.0,(-1.0/n1_earth)))*pow((pow(Ebins_in[1,i],(n1_earth*(-5)))+pow(Ebins_in[1,i],(n1_earth*beta_earth))*pow(Eb_earth,n1_earth*(-5-beta_earth))),-1.0/n1_earth)+1/(pow(Eb_earth,5)*pow(2.0,(-1.0/n1_earth)))*pow((pow(Ebins_in[2,i],(n1_earth*(-5)))+pow(Ebins_in[2,i],(n1_earth*beta_earth))*pow(Eb_earth,n1_earth*(-5-beta_earth))),-1.0/n1_earth));\n"
+                    "\t}\n"
+                )
+
+        if self._use_free_cgb:
+            if True:
+                text += (
+                    "\tC1_cgb=norm_cgb*pow(2,1/n1);\n"
+                    "\tfor (i in 1:rsp_num_Ein){\n"
+                    "\t\tcgb_spec[i] = (Ebins_in[2,i]-Ebins_in[1,i])*0.5*(beuermann2(Ebins_in[1,i], C1_cgb, index1_cgb, index2_cgb, Eb1_cgb, n1)+beuermann2(Ebins_in[2,i], C1_cgb, index1_cgb, index2_cgb, Eb1_cgb, n1));\n"
+                    "\t}\n"
+                
+                    #"\tC1_cgb=norm_cgb;\n"
+                    #"\tfor (i in 1:rsp_num_Ein){\n"
+                    #"\t\tcgb_spec[i] = (Ebins_in[2,i]-Ebins_in[1,i])*0.5*(beuermann2(Ebins_in[1,i], C1_cgb, index1_cgb, index2_cgb, Eb1_cgb, 1)+beuermann2(Ebins_in[2,i], C1_cgb, index1_cgb, index2_cgb, Eb1_cgb, 1));\n"
+                    #"\t}\n"
+                                
+                )
+            else:
+                text += (
+                    "\tC1_cgb=norm_cgb*0.05*pow(Eb1_cgb, index1_cgb)*pow(pow(2,n2/n1)+pow(pow(Eb2_cgb/Eb1_cgb, n1*index1_cgb)+pow(Eb2_cgb/Eb1_cgb, n1*index2_cgb),n2/n1)*pow(Eb1_cgb/Eb2_cgb,n2*index3_cgb),1/n2);\n"
+                    
+                    # use a function here
+                    "\tfor (i in 1:rsp_num_Ein){\n"
+                    "\t\tcgb_spec[i] = (Ebins_in[2,i]-Ebins_in[1,i])*0.5*(beuermann3(Ebins_in[1,i], C1_cgb, index1_cgb, index2_cgb, index3_cgb, Eb1_cgb, Eb2_cgb, n1, n2)+beuermann3(Ebins_in[2,i], C1_cgb, index1_cgb, index2_cgb, index3_cgb, Eb1_cgb, Eb2_cgb, n1, n2));\n"
+                                
+                    "\t}\n"
+                )
+
+
+        if self._use_eff_area_correction:
+            text += (
+                "\tfor (i in 1:num_dets){\n"
+                "\t\tfor (k in 1:num_time_bins){\n"
+                "\t\t\tif (i==1){\n"
+                "\t\t\t\teff_area_array[(k-1)*(num_dets*num_echans)+(i-1)*num_echans+1:(k-1)*(num_dets*num_echans)+i*num_echans] = rep_vector(1, num_echans);\n"
+                "\t\t\t}\n"
+                "\t\t\telse {\n"
+                "\t\t\t\teff_area_array[(k-1)*(num_dets*num_echans)+(i-1)*num_echans+1:(k-1)*(num_dets*num_echans)+i*num_echans] = rep_vector(eff_area_corr[i-1], num_echans);\n"
+                "\t\t\t}\n"
+                "\t\t}\n"
+                "\t}\n"
+            )
+
+            
+        if self._profile:
+            text += "\t}\n"
+        """
         if self._profile:
             text += "\tprofile(\"priors\"){\n"
         
         # Priors - Fixed at the moment!:
         # TODO Use config file to get the priors!
         if self._use_fixed_global_sources:
-            #text += "\tlog_norm_fixed ~ normal(mu_norm_fixed, sigma_norm_fixed);\n"
-            text += "\tlog_norm_fixed ~ normal(0, 2);\n"
+            text += "\tlog_norm_fixed ~ normal(mu_norm_fixed, sigma_norm_fixed);\n"
+
         if self._use_free_earth:
             
             #if True:
@@ -1207,15 +1033,12 @@ class StanModelConstructor(object):
             #    text += "\talpha_earth ~ normal(1.72, 0.01);\n"
             #    text += "\tEc_earth ~ normal(30,2);\n"
             #    #text += "\tgamma_earth ~ lognormal(0,1);\n"
-            if self._free_norm_earth:
-                #text += "\tlog_norm_earth ~ normal(0,0.2);\n"
-                text += "\tnorm_earth ~ normal(1,0.01);\n"
-            if self._free_earth_spec:
-                text += "\tbeta_earth ~ normal(1.72, 0.1);\n"
+            
+            text += "\tlog_norm_earth ~ normal(-5,3);\n"
+            text += "\tbeta_earth ~ normal(1.72, 0.1);\n"
 
-                if self._free_n1_earth:
-                    text += "\tn1_earth ~ normal(1.5, 0.3);\n"
-                text += "\tEb_earth ~ normal(30,5);\n"
+            text += "\tn1_earth ~ normal(1.5, 0.3);\n"
+            text += "\tEb_earth ~ normal(30,5);\n"
             
             #text += "\tEb_earth ~ normal(30,2);\n"
             #text += "\tindices_earth[1] ~ normal(-5, 0.05);\n"
@@ -1254,23 +1077,20 @@ class StanModelConstructor(object):
                         
                         text += "\tn1 ~ normal(1.5, 0.3);\n"
                     else:                        
-                        text += "\tindex1_cgb ~ normal(1.32, 0.01);\n"
-                        #text += "\tindex_change12 ~ normal(2, 0.3);\n"
-                        text += "\tindex2_cgb ~ normal(2.8, 0.1);\n"
-                        
+                        text += "\tindex1_cgb ~ normal(1.32, 0.2);\n"
+                        text += "\tindex_change12 ~ lognormal(0, 1);\n"
+                        #text += "\tindex_change23 ~ lognormal(0, 1);\n"
+
                         text += "\tEb1_cgb ~ normal(30,5);\n"
+                        #text += "\tEb_change12 ~ lognormal(0,1);\n"
+                        
+                        #text += "\tEbs_cgb[1] ~ normal(30,5);\n"
+                        #text += "\tEbs_cgb[2] ~ normal(100,20);\n"
 
-
-                        text += "\tnorm_cgb ~ normal(1,0.01);\n"
-                        #text += "\tlog_norm_cgb ~ normal(0,0.2);\n"
+                        text += "\tlog_norm_cgb ~ normal(0,0.5);\n"
                         # fix this
-                        if self._free_n1:
-                            text += "\tn1 ~ normal(1, 0.3);\n"
-
-                        if self._cgb_beuermann3:
-                            text += "\tindex_change23 ~ lognormal(0, 1);\n"
-                            text += "\tEb_change12 ~ lognormal(0,1);\n"
-                            text += "\tn2 ~ normal(1, 0.3);\n"
+                        text += "\tn1 ~ normal(1.5, 0.3);\n"
+                        #text += "\tn2 ~ normal(1.5, 0.3);\n"
                     #text += "\tindices_cgb[1] ~ normal(1.32, 0.05);\n"
                     #text += "\tindices_cgb[2] ~ normal(2.88, 0.0001);\n"
                     #text += "\tbeta_cgb ~ normal(2.88, 0.05);\n"
@@ -1289,99 +1109,18 @@ class StanModelConstructor(object):
             text += "\tlog_norm_sun ~ normal(0,1);\n"
 
         if self._use_free_ps:
-            text += "\tindex_free_ps ~ normal(2, 1.5);\n"
+            text += "\tindex_free_ps ~ normal(3,1);\n"
             #text += "\tlog_norm_free_ps ~ normal(0,1);\n"
-            text += "\tlog_K_free_ps ~ normal(0, 2);\n"
-            
+            text += "\tlog_K_free_ps ~ std_normal();\n"
         if self._use_cont_sources:
-            if self._use_cr_eff_area_corr:
-                text += "\tcr_eff_area_corr ~ uniform(0.5,2);\n"
-
-            if self._share_beta:
-                if self._use_se_kernel:
-                    text += "\tbeta1 ~ std_normal();\n"
-                    text += "\tbeta2 ~ std_normal();\n"
-                text += "\tbeta1_p ~ std_normal();\n"
-                text += "\tbeta2_p ~ std_normal();\n"
-
-            else:
-                if self._use_se_kernel:
-                    text += (
-                        "\tfor (g in 1:num_echans){\n"
-                        "\t\tbeta1[g] ~ std_normal();\n"
-                        "\t\tbeta2[g] ~ std_normal();\n"
-                        "\t\tbeta1_p[g] ~ std_normal();\n"
-                        "\t\tbeta2_p[g] ~ std_normal();\n"
-                    )
-                    
-                else:
-                    text += (
-                        "\tfor (g in 1:num_echans){\n"
-                        "\t\tbeta1_p[g] ~ std_normal();\n"
-                        "\t\tbeta2_p[g] ~ std_normal();\n"
-                    )
-                    
-                
-            if self._share_omega:
-                if self._use_se_kernel:
-                    text += (
-                        "\tfor (g in 1:num_echans){\n"
-                        "\t\traw_scale[g] ~ normal(1,1);\n"
-                        "\t\trange1_raw[g] ~ normal(0.2,0.2);\n"
-                        "\t}\n"
-                        "\tomega_var ~ std_normal();\n"
-
-                    "\tfor (g in 1:num_echans){\n"
-                        "\t\traw_scale_p[g] ~ normal(1,1);\n"
-                        "\t\trange1_raw_p[g] ~ normal(0.2,0.2);\n"
-                        "\t}\n"
-                        #"\tomega_var_p ~ uniform(0,1);\n"
-
-                    
-                    "\tcr_log_const ~ std_normal();\n"
-                    )
-                else:
-                    text += (
-                        "\tfor (g in 1:num_echans){\n"
-                        "\t\traw_scale_p[g] ~ normal(1,1);\n"
-                        "\t\trange1_raw_p[g] ~ normal(0.2,0.2);\n"
-                        "\t}\n"
-                        #"\tomega_var_p ~ uniform(0,1);\n"
-
-                    
-                    "\tcr_log_const ~ std_normal();\n"
-                    )
-
-            else:
-                if self._use_se_kernel:
-                    text += (
-                    "\tfor (g in 1:num_echans){\n"
-                    "\t\tomega_var[g] ~ std_normal();\n"
-                    "\t\traw_scale[g] ~ normal(1,1);\n"
-                    "\t\trange1_raw[g] ~ normal(0.2,0.2);\n"
-                    "\t}\n"
-
-                    "\tfor (g in 1:num_echans){\n"
-                    #"\t\tomega_var_p[g] ~ uniform(0,1);\n"
-                    "\t\traw_scale_p[g] ~ normal(1,1);\n"
-                    "\t\trange1_raw_p[g] ~ normal(0.2,0.2);\n"
-                    "\t}\n"
-                    
-                    "\tcr_log_const ~ std_normal();\n"
-                    )
-                else:
-                    text += (
-                    
-                    "\tfor (g in 1:num_echans){\n"
-                    #"\t\tomega_var_p[g] ~ uniform(0,1);\n"
-                    "\t\traw_scale_p[g] ~ normal(1,1);\n"
-                    "\t\trange1_raw_p[g] ~ normal(0.2,0.2);\n"
-                    "\t}\n"
-                    
-                    "\tcr_log_const ~ std_normal();\n"
-                )
-
-                    
+            text += (
+                "\tfor (d in 1:num_dets){\n"
+                "\t\tfor (g in 1:num_echans){\n"
+                #"\t\t\tlog_norm_cont[:,d,g] ~ normal(mu_norm_cont[:,d,g], sigma_norm_cont[:,d,g]);\n"
+                "\t\t\tlog_norm_cont[1,d,g] ~ normal(0, 0.1);\n"
+                "\t\t\tlog_norm_cont[2,d,g] ~ std_normal();\n"
+                "\t\t}\n\t}\n"
+            )
 
         if self._use_eff_area_correction:
             text += "\teff_area_corr ~ uniform(0.8,1.2);\n"
@@ -1417,7 +1156,6 @@ class StanModelConstructor(object):
             text += "\t}\n"
             text += "\tprofile(\"reduce_sum\"){\n"
         
-        
         # Reduce sum call
         main = "\ttarget += reduce_sum(partial_sum_lpmf, counts, grainsize\n"
         #main = "\ttarget += partial_sum(counts, 1,size(counts)\n"
@@ -1437,52 +1175,14 @@ class StanModelConstructor(object):
             main += "\t\t, base_response_array_free_ps, ps_spec\n"
 
         if self._use_cont_sources:
-            if self._use_cr_eff_area_corr:
-                main += "\t\t, cr_eff_area_array\n"
-            if self._use_only_cr_gp:
-                if self._move_all_to_parallel:
-                    if self._use_se_kernel:
-                        main += "\t\t, beta1\n"
-                        main += "\t\t, beta2\n"
-                        main += "\t\t, scale1\n"
-                        if not self._not_sample_freq:
-                            main += "\t\t, omega_var_row\n"
-                            main += "\t\t, bw\n"
-                        else:
-                            main += "\t\t, omega1\n"
-
-                    main += "\t\t, beta1_p\n"
-                    main += "\t\t, beta2_p\n"
-                    main += "\t\t, scale1_p\n"
-                    if not self._not_sample_freq:
-                        main += "\t\t, omega_var_row_p\n"
-                        main += "\t\t, bw_p\n"
-                        #main += "\t\t, t0_var_p\n"
-                    else:
-                        main += "\t\t, omega1_p\n"
-                        
-                    main += "\t\t, norm_mean_time\n"
-                    main += "\t\t, time_bin_width\n"
-                    main += "\t\t, time_ids\n"
-                    main += "\t\t, echans\n"
-                    if self._use_se_kernel: 
-                        main += "\t\t, kn\n"
-                    main += "\t\t, kn_p\n"
-                    main += "\t\t, Rmin\n"
-                    main += "\t\t, cr_log_const\n"
-                else:
-                    main += "\t\t, norm_cont_vec\n"
-            else:
-                main += "\t\t, norm_cont_vec,  base_counts_array_cont\n"
+            main += "\t\t, norm_cont_vec,  base_counts_array_cont\n"
 
         if self._use_saa:
             main += "\t\t, t_t0, saa_decay_vec, saa_norm_vec\n"
 
         if self._use_eff_area_correction:
             main += "\t\t, eff_area_array\n"
-        #main += "\t\t, phi_vec\n"
-        #main += "\t\t, phi\n"
-        #main += "\t\t, 4000\n"
+
         main += "\t);\n"
         if self._profile:
             main += "\t}\n" 
@@ -1493,39 +1193,13 @@ class StanModelConstructor(object):
         text = "generated quantities { \n"
 
         text += "\tint ppc[num_data_points];\n"
-        text += "\tint ppc2[num_data_points];\n"
         text += "\tvector[num_data_points] tot=rep_vector(0.0, num_data_points);\n"
 
         if self._use_saa:
             text += "\tvector[num_data_points] f_saa;\n"
 
         if self._use_cont_sources:
-            if self._use_only_cr_gp:
-
-                text += "\tvector[num_data_points] norm_cont_vec;\n"
-                text += "\tvector[num_time_bins] expected_counts_log[num_echans];\n"
-                if self._use_se_kernel:
-                    text += "\tmatrix[num_time_bins,kn] tw1[num_echans];\n"
-                text += "\tmatrix[num_time_bins,kn_p] tw1_p[num_echans];\n"
-                #if not self._not_sample_freq:
-                if self._share_omega:
-                    if self._use_se_kernel:
-                        text += "\trow_vector[kn] omega1;\n"
-                    text += "\trow_vector[kn_p] omega1_p;\n"
-                else:
-                    if self._use_se_kernel:
-                        text += "\trow_vector[kn] omega1[num_echans];\n"
-                    text += "\trow_vector[kn_p] omega1_p[num_echans];\n"
-                #else:
-                    
-                #    #if self._share_omega:
-                #    #
-                #    #else:
-                #    #    text += "\trow_vector[kn_p] omega1_p = omega1_p;\n"
-
-                text += "\tvector[num_data_points] f_cont;\n"
-            else:
-                text += "\tvector[num_data_points] f_cont[num_cont_comp];\n"
+            text += "\tvector[num_data_points] f_cont[num_cont_comp];\n"
 
         if self._use_fixed_global_sources:
             text += "\tvector[num_data_points] f_fixed_global[num_fixed_comp];\n"
@@ -1549,181 +1223,13 @@ class StanModelConstructor(object):
             text += "\ttot += f_saa;\n"
 
         if self._use_cont_sources:
-
             text += (
-                "\tfor (j in 1:num_echans){\n"
+                "\tfor (i in 1:num_cont_comp){\n"
+                "\t\tf_cont[i] = norm_cont_vec[i].*base_counts_array_cont[i];\n"
+                "\t\ttot += f_cont[i];\n"
+                "\t}\n"
             )
-            
-            text += "\t\tomega1_p=omega_var_p * bw_p[j];\n"
-            text += "\t\tomega1_p[j]=omega_var_p[j] * bw_p[j];\n"
-            text += "\t\ttw1_p[j]=norm_mean_time * omega1_p;\n"
-        
-            text += (
-                "\t\texpected_counts_log[j] = exp(cos(tw1_p[j,:,1])* beta1_p[1] + sin(tw1_p[j,:,1]) * beta2_p[1]);\n"
-                "\t\tfor (z in 2:kn_p){;\n"
-                "\t\texpected_counts_log[j] += exp(cos(tw1_p[j,:,z])* beta1_p[z] + sin(tw1_p[j,:,z]) * beta2_p[z]);\n"
-                "\t\t}\n"
-                "\t\tfor (k in 1:num_time_bins){\n"
-                "\t\t\tfor (i in 1:num_dets){\n"
-                #"\t\t\t\t\tnorm_cont_vec[(k-1)*(num_dets*num_echans)+(i-1)*num_echans+j] = (exp(expected_counts_log[j,k])+pow(10,cr_log_const[j]))*time_bin_width[k];\n"
-                "\t\t\t\t\tnorm_cont_vec[(k-1)*(num_dets*num_echans)+(i-1)*num_echans+j] = (expected_counts_log[j,k]+pow(10,cr_log_const))*scale1_p[j]*time_bin_width[k];\n"
-                "\t\t\t}\n\t\t}\n\t}\n"
-            )
-            text += (
-                "\tf_cont = norm_cont_vec;\n"
-                "\ttot += f_cont;\n"
-            )                
-            
 
-
-        """
-            if self._use_cr_eff_area_corr:
-                if self._use_only_cr_gp:
-                    if self._move_all_to_parallel:
-
-                        text += (
-                            "\tfor (j in 1:num_echans){\n"
-                        )
-                        
-                        if not self._not_sample_freq:
-                            if self._gp_ordered:
-                                if self._share_omega:
-                                    if self._use_se_kernel:
-                                        text += "\t\tomega1=to_row_vector(omega_var) * bw[j];\n"
-                                    text += "\t\tomega1_p=to_row_vector(omega_var_p) * bw_p[j];\n"
-                                else:
-                                    if self._use_se_kernel:
-                                        text += "\t\tomega1[j]=to_row_vector(omega_var[j]) * bw[j];\n"
-                                    text += "\t\tomega1_p[j]=to_row_vector(omega_var_p[j]) * bw_p[j];\n"
-                            else:
-                                if self._share_omega:
-                                    if self._use_se_kernel:
-                                        text += "\t\tomega1=omega_var * bw[j];\n"
-                                    text += "\t\tomega1_p=omega_var_p * bw_p[j];\n"
-                                else:
-                                    if self._use_se_kernel:
-                                        text += "\t\tomega1[j]=omega_var[j] * bw[j];\n"
-                                    text += "\t\tomega1_p[j]=omega_var_p[j] * bw_p[j];\n"
-
-                                    
-                            if self._share_omega:
-                                if self._use_se_kernel:
-                                    text += "\t\ttw1[j]=norm_mean_time * omega1;\n"
-                                text += "\t\ttw1_p[j]=norm_mean_time * omega1_p;\n" # - helper_vector*t0_var_p*2*pi();\n"
-                            else:
-                                if self._use_se_kernel:
-                                    text += "\t\ttw1[j]=norm_mean_time * omega1[j];\n"
-                                text += "\t\ttw1_p[j]=norm_mean_time * omega1_p[j];\n"
-                        else:
-                            if self._use_se_kernel:
-                                text += "\t\ttw1[j]=norm_mean_time * omega1;\n"
-                            text += "\t\ttw1_p[j]=norm_mean_time * omega1_p;\n"
-
-                        if self._use_se_kernel:
-                            if self._share_beta:
-
-                                text += (
-                                    "\t\texpected_counts_log[j] = (scale1[j] * cos(tw1[j])* beta1) + (scale1[j] * sin(tw1[j]) * beta2)+(scale1_p[j] * cos(tw1_p[j])* beta1_p) + (scale1_p[j] * sin(tw1_p[j]) * beta2_p);\n"
-                                    "\t\tfor (k in 1:num_time_bins){\n"
-                                    "\t\t\tfor (i in 1:num_dets){\n"
-                                    "\t\t\t\t\tnorm_cont_vec[(k-1)*(num_dets*num_echans)+(i-1)*num_echans+j] = (exp(expected_counts_log[j,k])+pow(10,cr_log_const[j]))*time_bin_width[k];\n"
-                                    "\t\t\t}\n\t\t}\n\t}\n"
-                                )
-                                    
-                            else:
-                                text += (
-
-                            "\t\texpected_counts_log[j] = (scale1[j] * cos(tw1[j])* beta1[j]) + (scale1[j] * sin(tw1[j]) * beta2[j])+(scale1_p[j] * cos(tw1_p[j])* beta1_p[j]) + (scale1_p[j] * sin(tw1_p[j]) * beta2_p[j]);\n"
-                            "\t\tfor (k in 1:num_time_bins){\n"
-                            "\t\t\tfor (i in 1:num_dets){\n"
-                            "\t\t\t\t\tnorm_cont_vec[(k-1)*(num_dets*num_echans)+(i-1)*num_echans+j] = (exp(expected_counts_log[j,k])+pow(10,cr_log_const[j]))*time_bin_width[k];\n"
-                            "\t\t\t}\n\t\t}\n\t}\n"
-                                )
-                        else:
-                            if self._share_beta:
-                                if self._sum_exp:
-                                    if self._cr_const_free:
-                                        text += (
-                                            "\t\texpected_counts_log[j] = exp(scale1_p[j]*(cos(tw1_p[j,:,1])* beta1_p[1] + sin(tw1_p[j,:,1]) * beta2_p[1]));\n"
-                                            "\t\tfor (z in 2:kn_p){;\n"
-                                            "\t\texpected_counts_log[j] += exp(scale1_p[j]*(cos(tw1_p[j,:,z])* beta1_p[z] + sin(tw1_p[j,:,z]) * beta2_p[z]));\n"
-                                            "\t\t}\n"
-                                            "\t\tfor (k in 1:num_time_bins){\n"
-                                            "\t\t\tfor (i in 1:num_dets){\n"
-                                            #"\t\t\t\t\tnorm_cont_vec[(k-1)*(num_dets*num_echans)+(i-1)*num_echans+j] = (exp(expected_counts_log[j,k])+pow(10,cr_log_const[j]))*time_bin_width[k];\n"
-                                            "\t\t\t\t\tnorm_cont_vec[(k-1)*(num_dets*num_echans)+(i-1)*num_echans+j] = (expected_counts_log[j,k]+pow(10,cr_log_const[j]))*time_bin_width[k];\n"
-                                            "\t\t\t}\n\t\t}\n\t}\n"
-                                        )
-                                        
-                                    else:
-                                        
-                                        text += (
-
-                                        "\t\texpected_counts_log[j] = exp(cos(tw1_p[j,:,1])* beta1_p[1] + sin(tw1_p[j,:,1]) * beta2_p[1]);\n"
-                                        "\t\tfor (z in 2:kn_p){;\n"
-                                        "\t\texpected_counts_log[j] += exp(cos(tw1_p[j,:,z])* beta1_p[z] + sin(tw1_p[j,:,z]) * beta2_p[z]);\n"
-                                        "\t\t}\n"
-                                        "\t\tfor (k in 1:num_time_bins){\n"
-                                        "\t\t\tfor (i in 1:num_dets){\n"
-                                        #"\t\t\t\t\tnorm_cont_vec[(k-1)*(num_dets*num_echans)+(i-1)*num_echans+j] = (exp(expected_counts_log[j,k])+pow(10,cr_log_const[j]))*time_bin_width[k];\n"
-                                        "\t\t\t\t\tnorm_cont_vec[(k-1)*(num_dets*num_echans)+(i-1)*num_echans+j] = (expected_counts_log[j,k]+pow(10,cr_log_const))*scale1_p[j]*time_bin_width[k];\n"
-                                        "\t\t\t}\n\t\t}\n\t}\n"
-                                        )
-
-                                        
-
-                                else:
-                                    text += (
-                            "\t\texpected_counts_log[j] = ((scale1_p[j] * cos(tw1_p[j])* beta1_p) + (scale1_p[j] * sin(tw1_p[j]) * beta2_p));\n"
-                            "\t\tfor (k in 1:num_time_bins){\n"
-                            "\t\t\tfor (i in 1:num_dets){\n"
-                            #"\t\t\t\t\tnorm_cont_vec[(k-1)*(num_dets*num_echans)+(i-1)*num_echans+j] = (exp(expected_counts_log[j,k])+pow(10,cr_log_const[j]))*time_bin_width[k];\n"
-                            "\t\t\t\t\tnorm_cont_vec[(k-1)*(num_dets*num_echans)+(i-1)*num_echans+j] = (pow(1.1,expected_counts_log[j,k])+pow(10,cr_log_const[j]))*time_bin_width[k];\n"
-                            "\t\t\t}\n\t\t}\n\t}\n"
-                                    )
-
-                            else:
-                                text += (
-
-                            "\t\texpected_counts_log[j] = ((scale1_p[j] * cos(tw1_p[j])* beta1_p[j]) + (scale1_p[j] * sin(tw1_p[j]) * beta2_p[j]));\n"
-                            "\t\tfor (k in 1:num_time_bins){\n"
-                            "\t\t\tfor (i in 1:num_dets){\n"
-                            "\t\t\t\t\tnorm_cont_vec[(k-1)*(num_dets*num_echans)+(i-1)*num_echans+j] = (exp(expected_counts_log[j,k])+pow(10,cr_log_const[j]))*time_bin_width[k];\n"
-                            "\t\t\t}\n\t\t}\n\t}\n"
-                                )
-
-
-                        
-                    
-                    text += (
-                        "\tf_cont = cr_eff_area_array.*norm_cont_vec;\n"
-                        "\ttot += f_cont;\n"
-                    )                
-
-                else:
-                    text += (
-                        "\tfor (i in 1:num_cont_comp){\n"
-                        "\t\tf_cont[i] = cr_eff_area_array.*(norm_cont_vec[i].*base_counts_array_cont[i]);\n"
-                        "\t\ttot += f_cont[i];\n"
-                        "\t}\n"
-                    )                
-                
-            else:
-                if self._use_only_cr_gp:
-                    text += (
-                        "\tf_cont = norm_cont_vec;\n"
-                        "\ttot += f_cont;\n"
-                    )                
-
-                else:
-                    
-                    text += (
-                        "\tfor (i in 1:num_cont_comp){\n"
-                        "\t\tf_cont[i] = norm_cont_vec[i].*base_counts_array_cont[i];\n"
-                        "\t\ttot += f_cont[i];\n"
-                        "\t}\n"
-                    )
-        """
         if self._use_fixed_global_sources:
             if self._use_eff_area_correction:
                 text += (
@@ -1746,12 +1252,11 @@ class StanModelConstructor(object):
                 
 
         if self._use_free_earth:
-            if not self._diff_cgb_earth:
-                if self._use_eff_area_correction:
-                    text += "\tf_earth = eff_area_array.*(base_response_array_earth*earth_spec);\n"
-                else:
-                    text += "\tf_earth = base_response_array_earth*earth_spec;\n"
-                text += "\ttot += f_earth;\n"
+            if self._use_eff_area_correction:
+                text += "\tf_earth = eff_area_array.*(base_response_array_earth*earth_spec);\n"
+            else:
+                text += "\tf_earth = base_response_array_earth*earth_spec;\n"
+            text += "\ttot += f_earth;\n"
 
         if self._use_free_cgb:
             if self._use_eff_area_correction:
@@ -1783,10 +1288,8 @@ class StanModelConstructor(object):
                     "\t}\n"
                 )
                 
-        text += "\tppc = poisson_rng(tot);\n"
-        #text += "\tppc = neg_binomial_2_rng(tot+0.000001, 4000);\n"
-        #text += "\tppc = neg_binomial_2_rng(tot+0.000001, phi);\n"
-        #text += "\tppc = neg_binomial_2_rng(tot+0.000001, phi_vec);\n"
+        text += "\tppc = poisson_rng(tot+0.000001);\n"
+
         text = text + "}\n\n"
         return text
 
@@ -1802,8 +1305,7 @@ class StanModelConstructor(object):
             keys.append("f_fixed_global")
 
         if self._use_free_earth:
-            if not self._diff_cgb_earth:
-                keys.append("f_earth")
+            keys.append("f_earth")
 
         if self._use_free_cgb:
             keys.append("f_cgb")
@@ -1817,8 +1319,6 @@ class StanModelConstructor(object):
         if self._use_saa:
             keys.append("f_saa")
 
-        if self._not_sample_freq:
-            keys.append("omegas")
         return keys
 
     def generated_block_total_only(self):
@@ -1831,19 +1331,11 @@ class StanModelConstructor(object):
             text += "\ttot += saa_total(saa_norm_vec, saa_decay_vec, t_t0, num_data_points, num_saa_exits);\n"
 
         if self._use_cont_sources:
-            if self._use_cr_eff_area_corr:
-                text += (
-                    "\tfor (i in 1:num_cont_comp){\n"
-                    "\t\ttot += cr_eff_area_array.*(norm_cont_vec[i].*base_counts_array_cont[i]);\n"
-                    "\t}\n"
-                )
-            else:
-                text += (
-                    "\tfor (i in 1:num_cont_comp){\n"
-                    "\t\ttot += norm_cont_vec[i].*base_counts_array_cont[i];\n"
-                    "\t}\n"
-                )
-
+            text += (
+                "\tfor (i in 1:num_cont_comp){\n"
+                "\t\ttot += norm_cont_vec[i].*base_counts_array_cont[i];\n"
+                "\t}\n"
+            )
 
         if self._use_fixed_global_sources:
             text += (
@@ -1992,7 +1484,7 @@ class StanDataConstructor(object):
                     raise Exception("Unknown parameter name")
 
         # Flatten along time, detectors and echans
-        global_counts = global_counts[:, 2:-2]#.reshape(len(s), -1)
+        global_counts = global_counts[:, 2:-2].reshape(len(s), -1)
 
         self._global_param_names = global_param_names
         self._global_counts = global_counts
@@ -2062,7 +1554,7 @@ class StanDataConstructor(object):
                     raise Exception("Unknown parameter name")
 
         self._cont_param_names = cont_param_names
-        self._cont_counts = continuum_counts[:, 2:-2]#.reshape(2, -1)
+        self._cont_counts = continuum_counts[:, 2:-2].reshape(2, -1)
         self._mu_norm_cont = mu_norm_cont
         self._sigma_norm_cont = sigma_norm_cont
 
@@ -2146,10 +1638,9 @@ class StanDataConstructor(object):
                 * (rsp_all_earth[:-1] + rsp_all_earth[1:])
             )
 
-            self._base_response_array_earth = base_response_array_earth[2:-2]
-            #.reshape(
-            #    -1, self._num_Ebins_in
-            #)
+            self._base_response_array_earth = base_response_array_earth[2:-2].reshape(
+                -1, self._num_Ebins_in
+            )
 
         if base_response_array_cgb is not None:
 
@@ -2176,10 +1667,9 @@ class StanDataConstructor(object):
                 * (rsp_all_cgb[:-1] + rsp_all_cgb[1:])
             )
 
-            self._base_response_array_cgb = base_response_array_cgb[2:-2]
-            #.reshape(
-            #    -1, self._num_Ebins_in
-            #)
+            self._base_response_array_cgb = base_response_array_cgb[2:-2].reshape(
+                -1, self._num_Ebins_in
+            )
             
         if base_response_array_sun is not None:
 
@@ -2206,10 +1696,9 @@ class StanDataConstructor(object):
                 * (rsp_all_sun[:-1] + rsp_all_sun[1:])
             )
 
-            self._base_response_array_sun = base_response_array_sun[2:-2]
-            #.reshape(
-            #    -1, self._num_Ebins_in
-            #)
+            self._base_response_array_sun = base_response_array_sun[2:-2].reshape(
+                -1, self._num_Ebins_in
+            )
 
         if base_rsp_ps_free is not None:
             eff_rsp_new_free_ps = interp1d(
@@ -2235,10 +1724,9 @@ class StanDataConstructor(object):
                 * (rsp_all_ps[:, :-1] + rsp_all_ps[:, 1:])
             )
 
-            self._base_response_array_ps = base_rsp_ps_free[:, 2:-2]
-            #.reshape(
-            #    base_rsp_ps_free.shape[0], -1, self._num_Ebins_in
-            #)
+            self._base_response_array_ps = base_rsp_ps_free[:, 2:-2].reshape(
+                base_rsp_ps_free.shape[0], -1, self._num_Ebins_in
+            )
 
     def saa_sources(self):
         """
@@ -2347,20 +1835,18 @@ class StanDataConstructor(object):
 
         counts = np.array(
             self._data.counts[self._source_mask][2:-2], dtype=int
-        )#.flatten()
+        ).flatten()
+        mask_zeros = (
+            np.array(self._data.counts[self._source_mask][2:-2], dtype=int).flatten()
+            != 0
+        )
 
-
-        mask_zeros = (np.sum(counts, axis=(1,2)) != 0)
-
-        counts = counts[mask_zeros]
-
-        time_bins = self._time_bins[2:-2][mask_zeros]
-        # flatten
-        data_dict["counts"] = counts.flatten()
-        data_dict["Rmin"] = np.min(counts[:,0,:].T/(time_bins[:,1]-time_bins[:,0]), axis=1)
-        print(data_dict["Rmin"])
-        data_dict["time_bins"] = time_bins
-
+        data_dict["counts"] = np.array(
+            self._data.counts[self._source_mask][2:-2], dtype=int
+        ).flatten()[mask_zeros]
+        data_dict["time_bins"] = self._time_bins[2:-2][
+            mask_zeros[:: self._ndets * self._nechans]
+        ]
         data_dict["num_time_bins"] = len(data_dict["time_bins"])
 
         data_dict["rsp_num_Ein"] = self._num_Ebins_in
@@ -2369,13 +1855,7 @@ class StanDataConstructor(object):
         # Global sources
         if self._global_counts is not None:
             data_dict["num_fixed_comp"] = len(self._global_counts)
-
-            # mask global counts
-            global_counts_masked = self._global_counts[:, mask_zeros]
-            data_dict["base_counts_array"] = global_counts_masked.reshape(
-                len(global_counts_masked),
-                -1
-            )
+            data_dict["base_counts_array"] = self._global_counts[:, mask_zeros]
             data_dict["mu_norm_fixed"] = self._mu_norm_fixed
             data_dict["sigma_norm_fixed"] = self._sigma_norm_fixed
         #else:
@@ -2383,34 +1863,21 @@ class StanDataConstructor(object):
 
         if self._base_response_array_ps is not None:
             data_dict["num_free_ps_comp"] = len(self._base_response_array_ps)
-
-
-            base_response_array_ps_masked = self._base_response_array_ps[:, mask_zeros]
-            data_dict["base_response_array_free_ps"] = base_response_array_ps_masked.reshape(
-                len(base_response_array_ps_masked), -1, self._num_Ebins_in
-            )
-
-            #self._base_response_array_ps[
-            #    :, mask_zeros
-            #]
+            data_dict["base_response_array_free_ps"] = self._base_response_array_ps[
+                :, mask_zeros
+            ]
         if self._base_response_array_earth is not None:
             data_dict["base_response_array_earth"] = self._base_response_array_earth[
                 mask_zeros
-            ].reshape(
-                -1, self._num_Ebins_in
-            )
+            ]
         if self._base_response_array_cgb is not None:
             data_dict["base_response_array_cgb"] = self._base_response_array_cgb[
                 mask_zeros
-            ].reshape(
-                -1, self._num_Ebins_in
-            )
+            ]
         if self._base_response_array_sun is not None:
             data_dict["base_response_array_sun"] = self._base_response_array_sun[
                 mask_zeros
-            ].reshape(
-                -1, self._num_Ebins_in
-            )
+            ]
 
         if self._base_response_array_cgb is not None:
             data_dict["earth_cgb_free"] = 1
@@ -2433,10 +1900,7 @@ class StanDataConstructor(object):
                 dets_saa_mask = np.zeros(self._ndets, dtype=int)
                 dets_saa_all_dets = np.zeros(self._ndets, dtype=int)
                 n = 0
-                print(self._dets_saa)
                 for i, d in enumerate(self._dets_saa):
-                    print(d)
-                    print(self._dets)
                     idx = np.argwhere(d==np.array(self._dets))[0,0]
                     dets_saa_mask[idx] = 1
 
@@ -2448,18 +1912,18 @@ class StanDataConstructor(object):
             
         if self._cont_counts is not None:
             data_dict["num_cont_comp"] = 2
-            data_dict["base_counts_array_cont"] = self._cont_counts[:, mask_zeros].reshape(2, -1)
+            data_dict["base_counts_array_cont"] = self._cont_counts[:, mask_zeros]
             data_dict["mu_norm_cont"] = self._mu_norm_cont
             data_dict["sigma_norm_cont"] = self._sigma_norm_cont
             
         # Stan grainsize for reduced_sum
         if self._threads == 1:
-            data_dict["grainsize"] = int((self._ntimebins - 4) * self._ndets * self._nechans)
+            data_dict["grainsize"] = 1
         else:
-            data_dict["grainsize"] =  int(
-                 (self._ntimebins - 4) * self._ndets * self._nechans / self._threads
-             )
-             
+            data_dict["grainsize"] = 1
+            #int(
+            #    (self._ntimebins - 4) * self._ndets * self._nechans / self._threads
+            #)
         return data_dict
 
     @property

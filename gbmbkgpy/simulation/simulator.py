@@ -29,6 +29,7 @@ from gbmgeometry import GBMTime, PositionInterpolator, gbm_detector_list
 
 from gbmbkgpy.utils.binner import Rebinner
 
+from gbmbkgpy.utils.spectrum import _spec_integral_bpl, _spec_integral_pl
 
 class BackgroundSimulator(object):
     """
@@ -50,9 +51,9 @@ class BackgroundSimulator(object):
 
         self._config = config
 
-        self._data_type = config["data_type"]
+        self._data_type = config["general"]["data_type"]
 
-        self._day = config["day"]
+        self._day = config["general"]["dates"][0]
 
         self._valid_det_names = [
             "n0",
@@ -68,6 +69,13 @@ class BackgroundSimulator(object):
             "na",
             "nb",
         ]
+        
+        self._ep = ExternalProps(
+            detectors=config["general"]["detectors"],
+            dates=config["general"]["dates"],
+            cr_approximation=config["setup"]["cr_approximation"],
+        )
+
 
     @classmethod
     def from_config_file(cls, config_yaml):
@@ -116,7 +124,7 @@ class BackgroundSimulator(object):
         position_interp = PositionInterpolator.from_poshist(self._poshist_file)
 
         step_size = np.floor(
-            (position_interp.time).size / self._config["interp_steps"]
+            (position_interp.time).size / self._config["geometry"]["n_bins_to_calculate"]
         ).astype(int)
 
         times_interp = np.append(
@@ -248,7 +256,7 @@ class BackgroundSimulator(object):
                 counts_sum = np.zeros((len(self._time_bins), len(self._echans)))
 
                 # Simulate CGB and Albedo
-                if self._config.get("use_earth", False) or self._config.get(
+                if self._config["setup"].get("use_earth", False) or self._config["setup"].get(
                     "use_cgb", False
                 ):
 
@@ -256,45 +264,65 @@ class BackgroundSimulator(object):
                         det_idx=det_idx,
                         spectrum_earth=self._config["sources"]["earth"]["spectrum"],
                         spectrum_cgb=self._config["sources"]["cgb"]["spectrum"],
-                        n_grid=self._config["response"]["n_grid"],
+                        n_grid=self._config["response"]["Ngrid"],
                     )
 
-                    if self._config.get("use_earth", False):
+                    if self._config["setup"].get("use_earth", False):
 
+                        print(f"Added Earth Albedo with a total of {np.sum(counts_earth)} counts for detector {det_idx}")
+                        
                         counts_sum += counts_earth
 
-                    if self._config.get("use_cgb", False):
+                    if self._config["setup"].get("use_cgb", False):
+
+                        print(f"Added CGB with a total of {np.sum(counts_cgb)} counts for detector {det_idx}")
 
                         counts_sum += counts_cgb
 
                 # Simulate Point Sources
-                if self._config.get("use_ps", False):
+                if self._config["setup"].get("use_ps", False):
 
-                    for point_source in self._config["sources"]["point_sources"]:
-
-                        counts_sum += self._simulate_pointsource(
+                    for key, point_source in self._config["sources"]["point_sources"].items():
+                        
+                        counts = self._simulate_pointsource(
                             det_idx=det_idx,
                             ra=point_source["ra"],
                             dec=point_source["dec"],
                             spectrum=point_source["spectrum"],
                         )
+                        #import matplotlib.pyplot as plt
+                        #plt.plot(self._time_bins[:,0], counts[:,20])
+                        #plt.savefig(f"sim_ps_plot_{key}.pdf")
+                        #print(f"Added Point Source {key} with a total of {np.sum(counts)} counts for detector {det_idx}")
+                        
+                        counts_sum += counts
 
                 # Simulate Constant Source
-                if self._config.get("use_const", False):
+                if self._config["setup"].get("use_constant", False):
 
-                    counts_sum += self._simulate_constant(
+                    
+                    
+                    counts = self._simulate_constant(
                         norm=self._config["sources"]["constant"]["norm"]
                     )
+                    print(f"Added Constant Source with a total of {np.sum(counts)} counts for detector {det_idx}")
+                    
+                    counts_sum += counts
 
                 # Simulate Cosmic Rays
-                if self._config.get("use_cr", False):
+                if self._config["setup"].get("use_cr", False):
 
-                    counts_sum += self._simulate_cosmic_rays(
-                        norm=self._config["sources"]["cosmic_rays"]["norm"]
+                    counts = self._simulate_cosmic_rays(
+                        norm=self._config["sources"]["cosmic_rays"]["norm"], cr_approximation=config["setup"]["cr_approximation"], det_idx=det_idx
                     )
+                    
+                    
+                    print(f"Added CR component with a total of {np.sum(counts)} counts for detector {det_idx}")
+
+                    counts_sum += counts
 
                 # Simulate SAA
-                if self._config.get("use_saa", False):
+                if self._config["setup"].get("use_saa", False):
 
                     for saa_exit in self._fermi_active_intervals[:, 0]:
 
@@ -316,20 +344,20 @@ class BackgroundSimulator(object):
 
         if spectrum_earth["model"] == "powerlaw":
 
-            true_flux_earth = self._spectrum_int_pl(
+            true_flux_earth = _spec_integral_pl(
                 e1=self._ebin_in_edge[:-1],
                 e2=self._ebin_in_edge[1:],
+                c=spectrum_earth["norm"],
                 e_norm=spectrum_earth["e_norm"],
-                norm=spectrum_earth["norm"],
                 index=spectrum_earth["index"],
             )
 
         elif spectrum_earth["model"] == "broken_powerlaw":
 
-            true_flux_earth = self._spec_integral_bpl(
+            true_flux_earth = _spec_integral_bpl(
                 e1=self._ebin_in_edge[:-1],
                 e2=self._ebin_in_edge[1:],
-                norm=spectrum_earth["norm"],
+                c=spectrum_earth["norm"],
                 break_energy=spectrum_earth["break_energy"],
                 index1=spectrum_earth["index1"],
                 index2=spectrum_earth["index2"],
@@ -342,20 +370,20 @@ class BackgroundSimulator(object):
 
         if spectrum_cgb["model"] == "powerlaw":
 
-            true_flux_cgb = self._spectrum_int_pl(
+            true_flux_cgb = _spec_integral_pl(
                 e1=self._ebin_in_edge[:-1],
                 e2=self._ebin_in_edge[1:],
                 e_norm=spectrum_cgb["e_norm"],
-                norm=spectrum_cgb["norm"],
+                c=spectrum_cgb["norm"],
                 index=spectrum_cgb["index"],
             )
 
         elif spectrum_cgb["model"] == "broken_powerlaw":
 
-            true_flux_cgb = self._spec_integral_bpl(
+            true_flux_cgb = _spec_integral_bpl(
                 e1=self._ebin_in_edge[:-1],
                 e2=self._ebin_in_edge[1:],
-                norm=spectrum_cgb["norm"],
+                c=spectrum_cgb["norm"],
                 break_energy=spectrum_cgb["break_energy"],
                 index1=spectrum_cgb["index1"],
                 index2=spectrum_cgb["index2"],
@@ -401,20 +429,20 @@ class BackgroundSimulator(object):
 
         if spectrum["model"] == "powerlaw":
 
-            flux = self._spectrum_int_pl(
+            flux = _spec_integral_pl(
                 e1=self._ebin_in_edge[:-1],
                 e2=self._ebin_in_edge[1:],
+                c=spectrum["norm"],
                 e_norm=spectrum["e_norm"],
-                norm=spectrum["norm"],
                 index=spectrum["index"],
             )
 
         elif spectrum["model"] == "broken_powerlaw":
 
-            flux = self._spec_integral_bpl(
+            flux = _spec_integral_bpl(
                 e1=self._ebin_in_edge[:-1],
                 e2=self._ebin_in_edge[1:],
-                norm=spectrum["norm"],
+                c=spectrum["norm"],
                 break_energy=spectrum["break_energy"],
                 index1=spectrum["index1"],
                 index2=spectrum["index2"],
@@ -422,19 +450,19 @@ class BackgroundSimulator(object):
         
         elif spectrum["model"] == "sum_broken_powerlaw":
 
-            flux = self._spec_integral_bpl(
+            flux = _spec_integral_bpl(
                 e1=self._ebin_in_edge[:-1],
                 e2=self._ebin_in_edge[1:],
-                norm=spectrum["norm_1"],
+                c=spectrum["norm_1"],
                 break_energy=spectrum["break_energy_1"],
                 index1=spectrum["index1_1"],
                 index2=spectrum["index2_1"],
             )
 
-            flux += self._spec_integral_bpl(
+            flux += _spec_integral_bpl(
                 e1=self._ebin_in_edge[:-1],
                 e2=self._ebin_in_edge[1:],
-                norm=spectrum["norm_2"],
+                c=spectrum["norm_2"],
                 break_energy=spectrum["break_energy_2"],
                 index1=spectrum["index1_2"],
                 index2=spectrum["index2_2"],
@@ -447,17 +475,28 @@ class BackgroundSimulator(object):
 
         response_matrix = []
 
+        pos_inter = PositionInterpolator(quats=np.array([self._quaternions[0],
+                                                         self._quaternions[0]]), 
+                                               sc_pos=np.array([self._sc_positions[0],
+                                                                self._sc_positions[0]]) ,
+                                               time=np.array([-1,1]), trigtime=0)
+
+        d = DRMGen(
+            pos_inter,
+            det_idx,
+            self._ebin_in_edge,
+            mat_type=0,
+            ebin_edge_out=self._ebin_out_edge,
+            occult=True
+            )
+
+        
         for j in range(len(self._quaternions)):
+            d._quaternions = self._quaternions[j]
+            d._sc_pos = self._sc_positions[j]
+            d._compute_spacecraft_coordinates()
             response_step = (
-                DRMGen(
-                    self._quaternions[j],
-                    self._sc_positions[j],
-                    det_idx,
-                    self._ebin_in_edge,
-                    mat_type=0,
-                    ebin_edge_out=self._ebin_out_edge,
-                    occult=True,
-                )
+                d
                 .to_3ML_response(ra, dec)
                 .matrix.T
             )
@@ -466,8 +505,12 @@ class BackgroundSimulator(object):
 
         response_matrix = np.array(response_matrix)
 
-        count_rates = np.dot(flux, response_matrix)
+        # Interpolate to time bins of real data file
 
+        #response_matrix_interpolator = interp1d(self._times_interp, response_matrix, axis=0)
+        #count_rates_interp = np.dot(flux, response_matrix_interpolator(self._time_bins))
+
+        count_rates = np.dot(flux,response_matrix)
         # Interpolate to time bins of real data file
         count_rates_interpolator = interp1d(self._times_interp, count_rates, axis=0)
 
@@ -479,7 +522,7 @@ class BackgroundSimulator(object):
 
         # Integrate over time bins
         counts = trapz(count_rates_interp, self._time_bins).T
-
+        print(counts.shape)
         return counts
 
     def _simulate_constant(self, norm):
@@ -516,23 +559,30 @@ class BackgroundSimulator(object):
 
         return counts_all_echans
 
-    def _simulate_cosmic_rays(self, norm):
+    def _simulate_cosmic_rays(self, norm, cr_approximation="BGO", det_idx=0):
 
-        lat_time, mc_l = self._get_mcl_from_lat_file()
+        if cr_approximation=="MCL":
+            lat_time, mc_l = self._get_mcl_from_lat_file()
 
-        mc_l_interp = interpolate.interp1d(lat_time, mc_l)
+            mc_l_interp = interpolate.interp1d(lat_time, mc_l)
 
-        cr_count_rate = mc_l_interp(self._time_bins)
+            cr_count_rate = mc_l_interp(self._time_bins)
 
-        # Remove vertical movement
-        cr_count_rate[cr_count_rate > 0] = cr_count_rate[cr_count_rate > 0] - np.min(
-            cr_count_rate[cr_count_rate > 0]
-        )
+        else:
+            cr_count_rate = self._ep.bgo_cr_approximation(self._time_bins)[:,det_idx]
 
         cr_counts = trapz(cr_count_rate, self._time_bins).T
+        print(cr_counts.shape)    
+        # Remove vertical movement
+        cr_counts[cr_counts > 0] = cr_counts[cr_counts > 0] - np.min(
+            cr_counts[cr_counts > 0]
+        )
+
+        # Norm
+        cr_counts /= np.max(cr_counts)
 
         counts_all_echans = np.tile(cr_counts, (len(self._echans), 1)).T
-
+        
         norm_array = np.array(norm)
 
         assert norm_array.shape in [(), (len(self._echans),)]
@@ -547,7 +597,7 @@ class BackgroundSimulator(object):
             for det_idx, det in enumerate(self._valid_det_names):
 
                 # Add Poisson noise
-                np.random.seed(self._config["random_seed"])
+                np.random.seed(self._config["general"]["random_seed"])
 
                 counts_poisson = np.random.poisson(self._counts_detectors[det])
 
@@ -713,11 +763,12 @@ class BackgroundSimulator(object):
 
             if not using_multiprocessing:
 
-                # Create the DRM object (quaternions and sc_pos are dummy values, not important
-                # as we calculate everything in the sat frame
+                dummy_pos_inter = PositionInterpolator(quats=np.array([[0.0745, -0.105, 0.0939, 0.987],
+                                                                       [0.0745, -0.105, 0.0939, 0.987]]), 
+                                                       sc_pos=np.array([[-5.88 * 10 ** 6, -2.08 * 10 ** 6, 2.97 * 10 ** 6],[-5.88 * 10 ** 6, -2.08 * 10 ** 6, 2.97 * 10 ** 6]]) , time=np.array([-1,1]),
+                                                       trigtime=0)
                 DRM = DRMGen(
-                    np.array([0.0745, -0.105, 0.0939, 0.987]),
-                    np.array([-5.88 * 10 ** 6, -2.08 * 10 ** 6, 2.97 * 10 ** 6]),
+                    dummy_pos_inter,
                     det_idx,
                     self._ebin_in_edge,
                     mat_type=0,
@@ -749,9 +800,12 @@ class BackgroundSimulator(object):
                     zen = np.arcsin(z) * 180 / np.pi
                     az = np.arctan2(y, x) * 180 / np.pi
 
+                    dummy_pos_inter = PositionInterpolator(quats=np.array([[0.0745, -0.105, 0.0939, 0.987],
+                                                                       [0.0745, -0.105, 0.0939, 0.987]]), 
+                                                       sc_pos=np.array([[-5.88 * 10 ** 6, -2.08 * 10 ** 6, 2.97 * 10 ** 6],[-5.88 * 10 ** 6, -2.08 * 10 ** 6, 2.97 * 10 ** 6]]) , time=np.array([-1,1]),
+                                                       trigtime=0)
                     drm = DRMGen(
-                        np.array([0.0745, -0.105, 0.0939, 0.987]),
-                        np.array([-5.88 * 10 ** 6, -2.08 * 10 ** 6, 2.97 * 10 ** 6]),
+                        dummy_pos_inter,
                         det_idx,
                         self._ebin_in_edge,
                         mat_type=0,
@@ -878,52 +932,52 @@ class BackgroundSimulator(object):
 
         return lat_time, mc_l
 
-    def _spectrum_pl(self, energy, e_norm, norm, index):
-        return norm / (energy / e_norm) ** index
+    #def _spectrum_pl(self, energy, e_norm, norm, index):
+    #    return norm / (energy / e_norm) ** index
 
-    def _spectrum_int_pl(self, e1, e2, e_norm, norm, index):
+    #def _spectrum_int_pl(self, e1, e2, e_norm, norm, index):
 
-        """
-        Calculates the flux of photons between two energies
-        :param e1: lower e bound
-        :param e2: upper e bound
-        :return:
-        """
-        return (
-            (e2 - e1)
-            / 6.0
-            * (
-                self._spectrum_pl(e1, e_norm, norm, index)
-                + 4 * self._spectrum_pl((e1 + e2) / 2.0, e_norm, norm, index)
-                + self._spectrum_pl(e2, e_norm, norm, index)
-            )
-        )
+    #    """
+    #    Calculates the flux of photons between two energies
+    #    :param e1: lower e bound
+    #    :param e2: upper e bound
+    #    :return:
+    #    """
+    #    return (
+    #        (e2 - e1)
+    #        / 6.0
+    #        * (
+    #            self._spectrum_pl(e1, e_norm, norm, index)
+    #            + 4 * self._spectrum_pl((e1 + e2) / 2.0, e_norm, norm, index)
+    #            + self._spectrum_pl(e2, e_norm, norm, index)
+    #        )
+    #    )
 
-    def _spectrum_bpl(self, energy, norm, break_energy, index1, index2):
+    #def _spectrum_bpl(self, energy, norm, break_energy, index1, index2):
 
-        return norm / (
-            (energy / break_energy) ** index1 + (energy / break_energy) ** index2
-        )
+    #    return norm / (
+    #        (energy / break_energy) ** index1 + (energy / break_energy) ** index2
+    #    )
 
-    def _spec_integral_bpl(self, e1, e2, norm, break_energy, index1, index2):
-        """
-        Calculates the flux of photons between two energies
-        :param e1: lower e bound
-        :param e2: upper e bound
-        :return:
-        """
-        return (
-            (e2 - e1)
-            / 6.0
-            * (
-                self._spectrum_bpl(e1, norm, break_energy, index1, index2)
-                + 4
-                * self._spectrum_bpl(
-                    (e1 + e2) / 2.0, norm, break_energy, index1, index2
-                )
-                + self._spectrum_bpl(e2, norm, break_energy, index1, index2)
-            )
-        )
+    #def _spec_integral_bpl(self, e1, e2, norm, break_energy, index1, index2):
+    #    """
+    #    Calculates the flux of photons between two energies
+    #    :param e1: lower e bound
+    #    :param e2: upper e bound
+    #    :return:
+    #    """
+    #    return (
+    #        (e2 - e1)
+    #        / 6.0
+    #        * (
+    #            self._spectrum_bpl(e1, norm, break_energy, index1, index2)
+    #            + 4
+    #            * self._spectrum_bpl(
+    #                (e1 + e2) / 2.0, norm, break_energy, index1, index2
+    #            )
+    #            + self._spectrum_bpl(e2, norm, break_energy, index1, index2)
+    #        )
+    #    )
 
     def _fibonacci_sphere(self, samples=1):
         """

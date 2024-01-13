@@ -9,15 +9,14 @@ class StanModelConstructor(object):
     Object to construct the .stan model
     """
 
-    def __init__(self, model_generator, profile=False, cgb_beuermann3=False, cr_per_det=False, use_cr_eff_area_corr=True, free_n1=True, uncert_on_cr=False, use_cr_gp=False, use_only_cr_gp=False,gp_ordered=False,move_all_to_parallel=True, not_sample_freq=False, share_omega=True):
+    def __init__(self, model_generator, profile=False, cgb_beuermann3=False, cr_per_det=False, use_cr_eff_area_corr=True, free_n1=True, uncert_on_cr=False, use_cr_gp=False, use_only_cr_gp=False,gp_ordered=False,move_all_to_parallel=True, not_sample_freq=True, share_omega=True):
 
         self._profile = profile
         self._cgb_beuermann3 = cgb_beuermann3
         self._cr_per_det = cr_per_det
         self._diff_cgb_earth = False
         self._use_cr_eff_area_corr = use_cr_eff_area_corr
-        self._free_n1 = True #free_n1
-        self._free_n1_earth = False
+        self._free_n1 = free_n1
         self._uncert_on_cr = uncert_on_cr
         self._use_cr_gp = use_cr_gp
         self._use_only_cr_gp = use_only_cr_gp
@@ -25,14 +24,6 @@ class StanModelConstructor(object):
         self._move_all_to_parallel=move_all_to_parallel
         self._not_sample_freq=not_sample_freq
         self._share_omega=share_omega
-        self._share_beta = True
-        self._sum_exp = True
-        self._use_se_kernel = False
-        self._free_earth_spec = True # True #False
-        self._free_norm_earth = True #True #False
-
-        self._cr_const_free = False
-        
         assert not (self._uncert_on_cr and self._use_cr_gp), "No"
         assert not (self._uncert_on_cr and self._use_only_cr_gp), "No"
         assert not (self._use_only_cr_gp and self._use_cr_gp), "No"
@@ -180,53 +171,24 @@ class StanModelConstructor(object):
                 main += "\t, vector cr_eff_area_array\n"
             if self._use_only_cr_gp:
                 if self._move_all_to_parallel:
-                    if self._use_se_kernel:
-                        if self._share_beta:
-                            main += "\t, vector beta1\n"
-                            main += "\t, vector beta2\n"
-                        else:
-                            main += "\t, vector[] beta1\n"
-                            main += "\t, vector[] beta2\n"
-                        main += "\t, vector scale1\n" 
-                        if not self._not_sample_freq:
-                            if self._share_omega:
-                                main += "\t, row_vector omega_var_row\n"
-                            else:
-                                main += "\t, row_vector[] omega_var_row\n"
-                            main += "\t, vector bw\n"
-                            
-                        else:
-                            main += "\t, row_vector omega1\n"
-
-                    if self._share_beta:
-                        main += "\t, vector beta1_p\n"
-                        main += "\t, vector beta2_p\n" 
-                    else:
-                        main += "\t, vector[] beta1_p\n"
-                        main += "\t, vector[] beta2_p\n"
-                    main += "\t, vector scale1_p\n" 
+                    main += "\t, vector[] beta1\n"
+                    main += "\t, vector[] beta2\n"
+                    main += "\t, vector scale1\n" 
                     if not self._not_sample_freq:
                         if self._share_omega:
-                            main += "\t, row_vector omega_var_row_p\n"
+                            main += "\t, row_vector omega_var_row\n"
                         else:
-                            main += "\t, row_vector[] omega_var_row_p\n"
-                        main += "\t, vector bw_p\n"
-                        #main += "\t, row_vector t0_var_p\n"
+                            main += "\t, row_vector[] omega_var_row\n"
+                        main += "\t, vector bw\n"
                     else:
-                        main += "\t, row_vector omega1_p\n"
-                        
+                        main += "\t, row_vector omega1\n"
                     main += "\t, vector norm_mean_time\n"
                     main += "\t, vector time_bin_width\n"
                     main += "\t, int[] time_ids\n"
                     main += "\t, int[] echans\n"
-                    if self._use_se_kernel:
-                        main += "\t, int kn\n"
-                    main += "\t, int kn_p\n"
+                    main += "\t, int kn\n"
                     main += "\t, real[] Rmin\n"
-                    if self._cr_const_free:
-                        main += "\t, vector cr_log_const\n"
-                    else:
-                        main += "\t, real cr_log_const\n"
+                    main += "\t, vector cr_log_const\n"
                 else:
                     main += "\t, vector norm_cont_vec\n"
             else:
@@ -248,68 +210,23 @@ class StanModelConstructor(object):
             main += "\t\tint j;\n"
             main += "\t\tint t;\n"
             if not self._not_sample_freq:
-                if self._use_se_kernel:
-                    main += "\t\trow_vector[kn] omega1;\n"
-                main += "\t\trow_vector[kn_p] omega1_p;\n"
-
-            if self._use_se_kernel:
-                main += "\t\trow_vector[kn] tw1;\n"
-            main += "\t\trow_vector[kn_p] tw1_p;\n"
+                main += "\t\trow_vector[kn] omega1;\n"
+            main += "\t\trow_vector[kn] tw1;\n"
             main += "\t\tvector[stop-start+1] cr_comp;\n"
             main += "\t\tfor (i in start:stop){\n"
             main += "\t\t\tj = echans[i];\n"
             main += "\t\t\tt = time_ids[i];\n"
             if not self._not_sample_freq:
                 if self._share_omega:
-                    if self._use_se_kernel:
-                        main += "\t\t\tomega1 = omega_var_row * bw[j];\n"
-                    main += "\t\t\tomega1_p = omega_var_row_p * bw_p[j];\n"
+                    main += "\t\t\tomega1 = omega_var_row * bw[j];\n"
                 else:
-                    if self._use_se_kernel:
-                        main += "\t\t\tomega1 = omega_var_row[j] * bw[j];\n"
-                    main += "\t\t\tomega1_p = omega_var_row_p[j] * bw_p[j];\n"
-                if self._use_se_kernel:
-                    main += "\t\t\ttw1 = norm_mean_time[t] * omega1;\n"
-                main += "\t\t\ttw1_p = norm_mean_time[t] * omega1_p;\n" # - t0_var_p*2*pi();\n"
+                    main += "\t\t\tomega1 = omega_var_row[j] * bw[j];\n"
+                main += "\t\t\ttw1 = norm_mean_time[t] * omega1;\n"
             else:
-                if self._use_se_kernel:
-                    main += "\t\t\ttw1 = norm_mean_time[t] * omega1;\n"
-                main += "\t\t\ttw1_p = norm_mean_time[t] * omega1_p;\n"
-
-            if self._share_beta:
-                if self._use_se_kernel:
-                    main += "\t\t\tcr_comp[i-start+1] = (exp((scale1[j] * cos(tw1)* beta1) + (scale1[j] * sin(tw1) * beta2)+(scale1_p[j] * cos(tw1_p)* beta1_p) + (scale1_p[j] *sin(tw1_p) * beta2_p))+pow(10,cr_log_const[j]))*time_bin_width[t];\n"
-
-                else:
-                    #main += "\t\t\tcr_comp[i-start+1] = (exp((scale1_p[j] * cos(tw1_p)* beta1_p) + (scale1_p[j] *sin(tw1_p) * beta2_p))+pow(10,cr_log_const[j]))*time_bin_width[t];\n"
-                    if self._sum_exp:
-                        if self._cr_const_free:
-                            main += "\t\t\tcr_comp[i-start+1] = pow(10,cr_log_const[j])*time_bin_width[t];\n"
-                            main += (
-                            "\t\t\t for (z in 1:kn_p){\n"
-                            "\t\t\t\t cr_comp[i-start+1] += time_bin_width[t]*exp(scale1_p[j]*(cos(tw1_p[z])* beta1_p[z] + sin(tw1_p[z]) * beta2_p[z]));\n"
-                            "\t\t\t}\n"
-                            )
-
-                        else:
-                            main += "\t\t\tcr_comp[i-start+1] = scale1_p[j]*pow(10,cr_log_const)*time_bin_width[t];\n"
-                            main += (
-                                "\t\t\t for (z in 1:kn_p){\n"
-                                "\t\t\t\t cr_comp[i-start+1] += time_bin_width[t]*scale1_p[j]*exp(cos(tw1_p[z])* beta1_p[z] + sin(tw1_p[z]) * beta2_p[z]);\n"
-                                "\t\t\t}\n"
-                            )
-                        
-                    else:
-                        main += "\t\t\tcr_comp[i-start+1] = (pow(1.1,(scale1_p[j] * cos(tw1_p)* beta1_p) + (scale1_p[j] *sin(tw1_p) * beta2_p))+pow(10,cr_log_const[j]))*time_bin_width[t];\n"
-            else:
-                if self._use_se_kernel:
-                    main += "\t\t\tcr_comp[i-start+1] = (exp((scale1[j] * cos(tw1)* beta1[j]) + (scale1[j] * sin(tw1) * beta2[j])+(scale1_p[j] * cos(tw1_p)* beta1_p[j]) + (scale1_p[j] *sin(tw1_p) * beta2_p[j]))+pow(10,cr_log_const[j]))*time_bin_width[t];\n"
-                else:
-                    main += "\t\t\tcr_comp[i-start+1] = (exp((scale1_p[j] * cos(tw1_p)* beta1_p[j]) + (scale1_p[j] *sin(tw1_p) * beta2_p[j]))+pow(10,cr_log_const[j]))*time_bin_width[t];\n"
-                    
+                main += "\t\t\ttw1 = norm_mean_time[t] * omega1;\n"
+            main += "\t\t\tcr_comp[i-start+1] = (exp((scale1[j] * cos(tw1)* beta1[j]) + (scale1[j] * sin(tw1) * beta2[j]))+pow(10,cr_log_const[j]))*time_bin_width[t];\n"
             main += "\t\t}\n"
-
-            
+        
         #poisson_lpmf
         main += "\t\treturn poisson_lupmf(counts | 0\n" # "\t\treturn poisson_propto_lpmf(counts | 0\n"
         #main += "\t\treturn neg_binomial_2_lpmf(counts | 0.00000001\n"
@@ -338,11 +255,19 @@ class StanModelConstructor(object):
                 main += f"\t\t\t+cr_eff_area_array[start:stop].*"
             else:
                 main += f"\t\t\t+"
-            if self._move_all_to_parallel:
-                main += f"cr_comp\n"
-            else:
-                main += f"norm_cont_vec[start:stop]\n"
+            if self._use_only_cr_gp:
+                if self._move_all_to_parallel:
+                    main += f"cr_comp\n"
+                else:
+                    main += f"norm_cont_vec[start:stop]\n"
                         
+            else:
+                for i in range(self._num_cont_sources):
+                    if self._use_cr_eff_area_corr:
+                        main += f"\t\t\t+cr_eff_area_array[start:stop].*(norm_cont_vec[{i+1}, start:stop].*base_counts_array_cont[{i+1},start:stop])\n"
+                    else:
+                        main += f"\t\t\t+norm_cont_vec[{i+1}, start:stop].*base_counts_array_cont[{i+1}, start:stop]\n"
+
         if self._use_free_earth:
             if not self._diff_cgb_earth:
                 
@@ -470,42 +395,31 @@ class StanModelConstructor(object):
                 "\t\t\t}\n\t\t}\n\t}\n"
             )
 
-        if self._use_only_cr_gp:
-            if self._use_se_kernel:
-                text += "\tint kn=2;\n"
+        if self._use_cr_gp or self._use_only_cr_gp:
+            text += "\tint kn=10;\n"
             text += "\tvector[num_time_bins] norm_mean_time = ((time_bins[:,2]+time_bins[:,1])/2.0-time_bins[1,1])/(time_bins[num_time_bins,2]-time_bins[1,1]);\n"
-            #text += "\tvector[num_time_bins] helper_vector=rep_vector(1, num_time_bins);\n"
             text += "\tvector[num_time_bins] time_bin_width = (time_bins[:,2]-time_bins[:,1]);\n"
             text += "\treal max_range=1;\n"
 
-            # add periodic stuff
-            text += "\tint kn_p=15;\n"
-
             if self._not_sample_freq:
-                if self._use_se_kernel:
-                    text += "row_vector[kn] omega1;\n"
-                    text += "real bw=1;\n"
-                    text += "for (i in 1:kn) {\n"
-                    text += "\tomega1[i] = normal_rng(0, 1);\n"
-                    text += "}\n"
-
-                text += "row_vector[kn_p] omega1_p;\n"
-                text += "real bw_p=1;\n"
-                text += "for (i in 1:kn_p) {\n"
-                text += "\tomega1_p[i] = uniform_rng(0, 1);\n"
+                text += "row_vector[kn] omega1;\n"
+                text += "real bw=1;\n"
+                text += "omega1[1] = 0.0;\n"
+                text += "for (i in 2:kn) {\n"
+                text += "\tomega1[i] = normal_rng(0, 1);\n"
                 text += "}\n"
 
-
-        text += (
-            "\tint echans[num_data_points];\n"
-            "\tint time_ids[num_data_points];\n"
-            "\tfor (i in 1:num_dets){\n"
-            "\t\tfor (j in 1:num_echans){\n"
-            "\t\t\tfor (k in 1:num_time_bins){\n"
-            "\t\t\t\techans[(k-1)*(num_dets*num_echans)+(i-1)*num_echans+j] = j;\n"
-            "\t\t\t\ttime_ids[(k-1)*(num_dets*num_echans)+(i-1)*num_echans+j] = k;\n"
-            "\t\t\t}\n\t\t}\n\t}\n"
-        )
+        if self._move_all_to_parallel:
+            text += (
+                "\tint echans[num_data_points];\n"
+                "\tint time_ids[num_data_points];\n"
+                "\tfor (i in 1:num_dets){\n"
+                "\t\tfor (j in 1:num_echans){\n"
+                "\t\t\tfor (k in 1:num_time_bins){\n"
+                "\t\t\t\techans[(k-1)*(num_dets*num_echans)+(i-1)*num_echans+j] = j;\n"
+                "\t\t\t\ttime_ids[(k-1)*(num_dets*num_echans)+(i-1)*num_echans+j] = k;\n"
+                "\t\t\t}\n\t\t}\n\t}\n"
+            )
             
         text = text + "}\n\n"
         return text
@@ -528,43 +442,46 @@ class StanModelConstructor(object):
             if self._cr_per_det:
                 text += "\treal<lower=-3, upper=3> log_norm_cont[num_cont_comp, num_dets, num_echans];\n"
             else:
-                if not self._share_beta:
-                    if self._use_se_kernel:
-                        text += "\tvector[kn] beta1[num_echans]; // the amplitude along the cos basis\n"
-                        text += "\tvector[kn] beta2[num_echans]; // the amplitude along the sin basis\n"
 
-                    # add periodic stuff
-                    text += "\tvector[kn_p] beta1_p[num_echans]; // the amplitude along the cos basis\n"
-                    text += "\tvector[kn_p] beta2_p[num_echans]; // the amplitude along the cos basis\n"
-                else:
-                    if self._use_se_kernel:
-                        text += "\tvector[kn] beta1;\n"
-                        text += "\tvector[kn] beta2;\n"
-
-                    text += "\tvector[kn_p] beta1_p;\n"
-                    text += "\tvector[kn_p] beta2_p;\n"
-                    
-                if not self._not_sample_freq:
-                    raise
-                else:
-                    text += "\treal<lower=0> bw;\n"
-                    
-
-                if self._use_se_kernel:
+                if self._uncert_on_cr:
+                    text += "\treal<lower=-3, upper=3> log_norm_cont[num_cont_comp, num_echans];\n"
+                    text += "\treal<lower=0.7, upper=1.5> cr_corr[num_echans, num_time_bins];\n"
+                elif self._use_cr_gp:
+                    text += "\treal<lower=-3, upper=3> log_norm_cont[num_echans];\n"
+                    text += "\tvector[kn] beta1[num_echans]; // the amplitude along the cos basis\n"
+                    text += "\tvector[kn] beta2[num_echans]; // the amplitude along the sin basis\n"
+                    text += "\trow_vector[kn] omega_var[num_echans]; // this weird MC integration thing.\n"
                     text += "\tvector<lower=0>[num_echans] raw_scale;\n"
+                    text += "\tvector<lower=0, upper=1>[num_echans] range1_raw;\n"
 
-                text += "\tvector<lower=0>[num_echans] raw_scale_p;\n"
+                elif self._use_only_cr_gp:
+                    text += "\tvector[kn] beta1[num_echans]; // the amplitude along the cos basis\n"
+                    text += "\tvector[kn] beta2[num_echans]; // the amplitude along the sin basis\n"
+
+                    if not self._not_sample_freq:
+                        if self._gp_ordered:
+                            if self._share_omega:
+                                text += "\tordered[kn] omega_var;\n"
+                            else:
+                                text += "\tordered[kn] omega_var[num_echans];\n"
+                        else:
+                            if self._share_omega:
+                                text += "\trow_vector[kn] omega_var;\n"
+                            else:
+                                text += "\trow_vector[kn] omega_var[num_echans]; // this weird MC integration thing.\n"
+                        text += "\tvector[num_echans] cr_log_const;\n"
+                        text += "\tvector<lower=0, upper=1>[num_echans] range1_raw;\n"
+                    
+                    text += "\tvector<lower=0>[num_echans] raw_scale;\n"
+                    
                 
         if self._use_free_earth:
-
-            if self._free_norm_earth:
-                #text += "\treal<lower=-1, upper=1> log_norm_earth;\n"
-                text += "\treal<lower=0.5, upper=2> norm_earth;\n"
-            if self._free_earth_spec:
-                text += "\treal<lower=1.2, upper=2.3> beta_earth;\n"
-                if self._free_n1_earth:
-                    text += "\treal<lower=0.5, upper=4> n1_earth;\n"
-                text += "\treal<lower=20, upper=50> Eb_earth;\n"
+            
+            text += "\treal<lower=-1, upper=1> log_norm_earth;\n"
+            text += "\treal<lower=1.2, upper=2.3> beta_earth;\n"
+            if self._free_n1:
+                text += "\treal<lower=0.5, upper=4> n1_earth;\n"
+            text += "\treal<lower=20, upper=50> Eb_earth;\n"
             #text += "\treal log_norm_earth;\n"
             #text += "\treal beta_earth;\n"
             #text += "\treal n1_earth;\n"
@@ -591,8 +508,7 @@ class StanModelConstructor(object):
             #text += "\treal b_earth;\n"
 
         if self._use_free_cgb:
-            #text += "\treal<lower=-1, upper=1> log_norm_cgb;\n"
-            text += "\treal<lower=0.5, upper=2> norm_cgb;\n"
+            text += "\treal<lower=-1, upper=1> log_norm_cgb;\n"
             if False:
                 text += "\treal index_cgb1;\n"
                 text += "\treal index_cgb2;\n"
@@ -613,14 +529,13 @@ class StanModelConstructor(object):
                     text += "\treal<lower=0> n2;\n"
                     text += "\treal log_norm_cgb2;\n"
                 else:
-                    text += "\treal<lower=1, upper=2> index1_cgb;\n"
-                    text += "\treal<lower=2.3, upper=3.3> index2_cgb;\n" 
-                    #text += "\treal<lower=0, upper=2> index_change12;\n"
+                    text += "\treal<lower=0.8, upper=1.8> index1_cgb;\n"
+                    text += "\treal<lower=0, upper=2> index_change12;\n"
 
                     text += "\treal<lower=20, upper=50> Eb1_cgb;\n"
 
                     if self._free_n1:
-                        text += "\treal<lower=0.01, upper=4> n1;\n"
+                        text += "\treal<lower=0.5, upper=4> n1;\n"
                     
                     if self._cgb_beuermann3:
                         text += "\treal<lower=0, upper=2> index_change23;\n"
@@ -677,23 +592,32 @@ class StanModelConstructor(object):
         if self._use_cont_sources:
             if self._use_cr_eff_area_corr:
                 text += "\tvector[num_data_points] cr_eff_area_array;\n"
+            if self._cr_per_det:
+                text += "\treal norm_cont[num_cont_comp, num_dets, num_echans] = pow(10,log_norm_cont);\n"
+            else:
+                if self._uncert_on_cr:
+                    text += "\treal norm_cont[num_cont_comp, num_echans] = pow(10,log_norm_cont);\n"
+                elif self._use_cr_gp:
+                    text += "\treal norm_cont[num_echans] = pow(10,log_norm_cont);\n"
 
-            #text += "\tvector[num_data_points] norm_cont_vec[num_cont_comp];\n"
+            if self._use_only_cr_gp:
+                if not self._move_all_to_parallel:
+                    text += "\tvector[num_data_points] norm_cont_vec;\n"
+            else:
+                text += "\tvector[num_data_points] norm_cont_vec[num_cont_comp];\n"
 
         if self._use_free_earth:
-            if self._free_norm_earth:
-                pass
-                #text += "\treal norm_earth = pow(10,log_norm_earth);\n"
+            text += "\treal norm_earth = pow(10,log_norm_earth);\n"
             text += "\tvector[rsp_num_Ein] earth_spec;\n"
             text += "\treal C1_earth;\n"
-            if not self._free_n1_earth:
+            if not self._free_n1:
                 text += "\treal n1_earth=1.0;\n"
         if self._use_free_cgb:
-            #text += "\treal norm_cgb = pow(10,log_norm_cgb);\n"
+            text += "\treal norm_cgb = pow(10,log_norm_cgb);\n"
             text += "\tvector[rsp_num_Ein] cgb_spec;\n"
 
             text += "\treal C1_cgb;\n"
-            #text += "\treal index2_cgb=index1_cgb*(1+index_change12);\n"
+            text += "\treal index2_cgb=index1_cgb*(1+index_change12);\n"
             if self._cgb_beuermann3:
                 text += "\treal index3_cgb=index2_cgb*(1+index_change23);\n"
                 text += "\treal Eb2_cgb=Eb1_cgb*(1+Eb_change12);\n"
@@ -742,20 +666,27 @@ class StanModelConstructor(object):
         if self._use_eff_area_correction:
             text += "\tvector[num_data_points] eff_area_array;\n"
 
-        if self._use_only_cr_gp:
-            #text += "\tvector[num_echans] scale1_p = raw_scale_p*inv_sqrt(kn_p);\n"
+        if self._use_cr_gp or self._use_only_cr_gp:
+            text += "\tvector[num_echans] scale1 = raw_scale*inv_sqrt(kn);\n"
 
             if not self._not_sample_freq:
-                 text+= (
-                    "\tvector[num_echans] range_p = range1_raw_p*max_range;\n"
-                    "\tvector[num_echans] bw_p = inv(range_p);\n"
-                 )
-                 if self._share_omega:
-                     text += "\trow_vector[kn_p] omega_var_row_p;\n"
-                 else:
-                     text += "\trow_vector[kn_p] omega_var_row_p[num_echans];\n"
-
-
+                text+= (
+                    "\tvector[num_echans] range = range1_raw*max_range;\n"
+                    "\tvector[num_echans] bw = inv(range);\n"
+                )
+            if not self._move_all_to_parallel:
+                text += "\trow_vector[kn] omega1[num_echans];\n" # = omega_var * bw;\n"
+                text += (
+                    "\tmatrix[num_time_bins,kn] tw1[num_echans];\n" # = norm_mean_times * omega1;\n"
+                    "\tvector[num_time_bins] expected_counts_log[num_echans];\n" 
+                )
+            else:
+                if not self._not_sample_freq:
+                    if self._share_omega:
+                        text += "\trow_vector[kn] omega_var_row;\n"
+                    else:
+                        text += "\trow_vector[kn] omega_var_row[num_echans];\n"
+            
         #text += (
         #    "\tfor (i in 1:num_dets){\n"
         #    "\t\tfor (j in 1:num_echans){\n"
@@ -766,42 +697,100 @@ class StanModelConstructor(object):
         #)
         
         if self._use_cont_sources:
-            if self._use_cr_eff_area_corr:
-
+            if self._cr_per_det:
                 text += (
-                    "\tfor (i in 1:num_dets){\n"
-                    "\t\tfor (k in 1:num_time_bins){\n"
-                    "\t\t\tif (i==1){\n"
-                    "\t\t\t\tcr_eff_area_array[(k-1)*(num_dets*num_echans)+(i-1)*num_echans+1:(k-1)*(num_dets*num_echans)+i*num_echans] = rep_vector(1, num_echans);\n"
-                    "\t\t\t}\n"
-                    "\t\t\telse {\n"
-                    "\t\t\t\tcr_eff_area_array[(k-1)*(num_dets*num_echans)+(i-1)*num_echans+1:(k-1)*(num_dets*num_echans)+i*num_echans] = rep_vector(cr_eff_area_corr[i-1], num_echans);\n"
-                    "\t\t\t}\n"
-                    "\t\t}\n"
-                    "\t}\n"
+                    "\tfor (l in 1:num_cont_comp){\n"
+                    "\t\tfor (i in 1:num_dets){\n"
+                    "\t\t\tfor (j in 1:num_echans){\n"
+                    "\t\t\t\tfor (k in 1:num_time_bins){\n"
+                    "\t\t\t\t\tnorm_cont_vec[l][(k-1)*(num_dets*num_echans)+(i-1)*num_echans+j] = norm_cont[l,i,j];\n"
+                    "\t\t\t\t}\n\t\t\t}\n\t\t}\n\t}\n"
                 )
+                
+            else:
+                if self._use_cr_eff_area_corr:
 
-            if self._use_only_cr_gp:
-            
-                if not self._not_sample_freq:
-                    if self._share_omega:
-                        if self._use_se_kernel:
-                            text += "\t\tomega_var_row=to_row_vector(omega_var);\n"
+                    text += (
+                        "\tfor (i in 1:num_dets){\n"
+                        "\t\tfor (k in 1:num_time_bins){\n"
+                        "\t\t\tif (i==1){\n"
+                        "\t\t\t\tcr_eff_area_array[(k-1)*(num_dets*num_echans)+(i-1)*num_echans+1:(k-1)*(num_dets*num_echans)+i*num_echans] = rep_vector(1, num_echans);\n"
+                        "\t\t\t}\n"
+                        "\t\t\telse {\n"
+                        "\t\t\t\tcr_eff_area_array[(k-1)*(num_dets*num_echans)+(i-1)*num_echans+1:(k-1)*(num_dets*num_echans)+i*num_echans] = rep_vector(cr_eff_area_corr[i-1], num_echans);\n"
+                        "\t\t\t}\n"
+                        "\t\t}\n"
+                        "\t}\n"
+            )
 
-                        text += "\t\tomega_var_row_p=to_row_vector(omega_var_p);\n"
+                if self._uncert_on_cr:
+                    text += (
+                        #"\tfor (l in 1:num_cont_comp){\n"
+                        "\tfor (i in 1:num_dets){\n"
+                        "\t\tfor (j in 1:num_echans){\n"
+                        "\t\t\tfor (k in 1:num_time_bins){\n"
+                        
+                        "\t\t\t\tnorm_cont_vec[1][(k-1)*(num_dets*num_echans)+(i-1)*num_echans+j] = norm_cont[1,j];\n"
+                        "\t\t\t\tnorm_cont_vec[2][(k-1)*(num_dets*num_echans)+(i-1)*num_echans+j] = norm_cont[2,j]*cr_corr[j,k];\n"
+                        
+                        "\t\t\t}\n\t\t}\n\t}\n"
+                    )
+
+                elif self._use_cr_gp:
+                    text += (
+                        "\tfor (i in 1:num_dets){\n"
+                        "\t\tfor (j in 1:num_echans){\n"
+                    )
+                    if self._gp_ordered:
+                        text += "\t\t\tomega1[j]=to_row_vector(omega_var[j]) * bw[j];\n"
                     else:
-                        if self._use_se_kernel:
+                        text += "\t\t\tomega1[j]=omega_var[j] * bw[j];\n"
+                        
+                    text += (
+                        "\t\t\ttw1[j]=norm_mean_time * omega1[j];\n"
+                        "\t\t\texpected_counts_log[j] = (scale1[j] * cos(tw1[j])* beta1[j]) + (scale1[j] * sin(tw1[j]) * beta2[j]);\n"
+                        "\t\t\tfor (k in 1:num_time_bins){\n"
+                        "\t\t\t\tnorm_cont_vec[1][(k-1)*(num_dets*num_echans)+(i-1)*num_echans+j] = norm_cont[j];\n"
+                        "\t\t\t\t\tnorm_cont_vec[2][(k-1)*(num_dets*num_echans)+(i-1)*num_echans+j] = exp(expected_counts_log[j,k]);\n"
+                        "\t\t\t}\n\t\t}\n\t}\n"
+                        )
+                    
+                elif self._use_only_cr_gp:
+                    if not self._move_all_to_parallel:
+                        text += (
+                            "\tfor (j in 1:num_echans){\n"
+                        )
+                        if self._gp_ordered:
+                            text += "\t\tomega1[j]=to_row_vector(omega_var[j]) * bw[j];\n"
+                        else:
+                            text += "\t\tomega1[j]=omega_var[j] * bw[j];\n"
+                        text += (
+                            "\t\ttw1[j]=norm_mean_time * omega1[j];\n"
+                            "\t\texpected_counts_log[j] = (scale1[j] * cos(tw1[j])* beta1[j]) + (scale1[j] * sin(tw1[j]) * beta2[j]);\n"
+                            "\t\tfor (k in 1:num_time_bins){\n"
+                            "\t\t\tfor (i in 1:num_dets){\n"
+                            "\t\t\t\t\tnorm_cont_vec[(k-1)*(num_dets*num_echans)+(i-1)*num_echans+j] = exp(expected_counts_log[j,k]);\n"
+                            "\t\t\t}\n\t\t}\n\t}\n"
+                        )
+                    elif not self._not_sample_freq:
+                        if self._share_omega:
+                            text += "\t\tomega_var_row=to_row_vector(omega_var);\n"
+                        else:
                             text += (
                                 "\tfor (j in 1:num_echans){\n"
                             )
                             text += "\t\tomega_var_row[j]=to_row_vector(omega_var[j]);\n"
                             text += "\t}\n"
-                        
-                        text += (
-                            "\tfor (j in 1:num_echans){\n"
-                        )
-                        text += "\t\tomega_var_row_p[j]=to_row_vector(omega_var_p[j]);\n"
-                        text += "\t}\n"
+                else:
+                    text += (
+                        "\tfor (l in 1:num_cont_comp){\n"
+                        "\t\tfor (i in 1:num_dets){\n"
+                        "\t\t\tfor (j in 1:num_echans){\n"
+                        "\t\t\t\tfor (k in 1:num_time_bins){\n"
+                        "\t\t\t\t\tnorm_cont_vec[l][(k-1)*(num_dets*num_echans)+(i-1)*num_echans+j] = norm_cont[l,j];\n"
+                        "\t\t\t\t}\n\t\t\t}\n\t\t}\n\t}\n"
+                    )
+                
 
         if self._use_saa:
                 
@@ -857,35 +846,11 @@ class StanModelConstructor(object):
 
         if self._use_free_earth:
             if True:
-                if self._free_earth_spec:
-                    text += (
+                text += (
                     "\tfor (i in 1:rsp_num_Ein){\n"
                     "\t\tearth_spec[i] = (Ebins_in[2,i]-Ebins_in[1,i])/6.0*(beuermann2(Ebins_in[1,i], 30.0, 0.005676, norm_earth, -5, beta_earth, Eb_earth, n1_earth)+beuermann2(Ebins_in[2,i], 30.0, 0.005676, norm_earth, -5, beta_earth, Eb_earth, n1_earth)+4*beuermann2((Ebins_in[2,i]+Ebins_in[1,i])/2.0, 30.0, 0.005676, norm_earth, -5, beta_earth, Eb_earth, n1_earth));\n"
                     "\t}\n"
-                    )
-                    
-                else:
-                    if self._free_norm_earth:
-                        text += (
-                            "\tfor (i in 1:rsp_num_Ein){\n"
-                            "\t\tearth_spec[i] = (Ebins_in[2,i]-Ebins_in[1,i])/6.0*(beuermann2(Ebins_in[1,i], 30.0, 0.005676, norm_earth, -5, 1.72, 33.7, 1)+beuermann2(Ebins_in[2,i], 30.0, 0.005676, norm_earth, -5, 1.72, 33.7, 1)+4*beuermann2((Ebins_in[2,i]+Ebins_in[1,i])/2.0, 30.0, 0.005676, norm_earth, -5, 1.72, 33.7, 1));\n"
-                            "\t}\n"
-                        )
-                        
-                    else:
-                        text += (
-                        "\tfor (i in 1:rsp_num_Ein){\n"
-                        "\t\tearth_spec[i] = (Ebins_in[2,i]-Ebins_in[1,i])/6.0*(beuermann2(Ebins_in[1,i], 30.0, 0.005676, 1, -5, 1.72, 33.7, 1)+beuermann2(Ebins_in[2,i], 30.0, 0.005676, 1, -5, 1.72, 33.7, 1)+4*beuermann2((Ebins_in[2,i]+Ebins_in[1,i])/2.0, 30.0, 0.005676, 1, -5, 1.72, 33.7, 1));\n"
-                        "\t}\n"
-                        )
-
-                    #    text += (
-                    #    "\tfor (i in 1:rsp_num_Ein){\n"
-                    #    "\t\tearth_spec[i] = (Ebins_in[2,i]-Ebins_in[1,i])/6.0*(beuermann2(Ebins_in[1,i], 30.0, 0.005676, 1, -1, 1.4, 46.0, 1)+beuermann2(Ebins_in[2,i], 30.0, 0.005676, 1, -1, 1.4, 46.0, 1)+4*beuermann2((Ebins_in[2,i]+Ebins_in[1,i])/2.0, 30.0, 0.005676, 1, -1, 1.4, 46.0, 1));\n"
-                    #    "\t}\n"
-                    #    )
-
-                    
+                )
 
                 #text += (
                 #    "\tfor (i in 1:rsp_num_Ein){\n"
@@ -1207,15 +1172,13 @@ class StanModelConstructor(object):
             #    text += "\talpha_earth ~ normal(1.72, 0.01);\n"
             #    text += "\tEc_earth ~ normal(30,2);\n"
             #    #text += "\tgamma_earth ~ lognormal(0,1);\n"
-            if self._free_norm_earth:
-                #text += "\tlog_norm_earth ~ normal(0,0.2);\n"
-                text += "\tnorm_earth ~ normal(1,0.01);\n"
-            if self._free_earth_spec:
-                text += "\tbeta_earth ~ normal(1.72, 0.1);\n"
+            
+            text += "\tlog_norm_earth ~ normal(0,0.2);\n"
+            text += "\tbeta_earth ~ normal(1.72, 0.1);\n"
 
-                if self._free_n1_earth:
-                    text += "\tn1_earth ~ normal(1.5, 0.3);\n"
-                text += "\tEb_earth ~ normal(30,5);\n"
+            if self._free_n1:
+                text += "\tn1_earth ~ normal(1.5, 0.3);\n"
+            text += "\tEb_earth ~ normal(30,5);\n"
             
             #text += "\tEb_earth ~ normal(30,2);\n"
             #text += "\tindices_earth[1] ~ normal(-5, 0.05);\n"
@@ -1254,15 +1217,13 @@ class StanModelConstructor(object):
                         
                         text += "\tn1 ~ normal(1.5, 0.3);\n"
                     else:                        
-                        text += "\tindex1_cgb ~ normal(1.32, 0.01);\n"
-                        #text += "\tindex_change12 ~ normal(2, 0.3);\n"
-                        text += "\tindex2_cgb ~ normal(2.8, 0.1);\n"
-                        
+                        text += "\tindex1_cgb ~ normal(1.32, 0.2);\n"
+                        text += "\tindex_change12 ~ lognormal(0, 1);\n"
+
                         text += "\tEb1_cgb ~ normal(30,5);\n"
 
 
-                        text += "\tnorm_cgb ~ normal(1,0.01);\n"
-                        #text += "\tlog_norm_cgb ~ normal(0,0.2);\n"
+                        text += "\tlog_norm_cgb ~ normal(0,0.2);\n"
                         # fix this
                         if self._free_n1:
                             text += "\tn1 ~ normal(1, 0.3);\n"
@@ -1296,91 +1257,82 @@ class StanModelConstructor(object):
         if self._use_cont_sources:
             if self._use_cr_eff_area_corr:
                 text += "\tcr_eff_area_corr ~ uniform(0.5,2);\n"
-
-            if self._share_beta:
-                if self._use_se_kernel:
-                    text += "\tbeta1 ~ std_normal();\n"
-                    text += "\tbeta2 ~ std_normal();\n"
-                text += "\tbeta1_p ~ std_normal();\n"
-                text += "\tbeta2_p ~ std_normal();\n"
-
+            if self._cr_per_det:
+                text += (
+                    "\tfor (d in 1:num_dets){\n"
+                    "\t\tfor (g in 1:num_echans){\n"
+                    #"\t\t\tlog_norm_cont[:,d,g] ~ normal(mu_norm_cont[:,d,g], sigma_norm_cont[:,d,g]);\n"
+                    "\t\t\tlog_norm_cont[1,d,g] ~ std_normal();\n"
+                    "\t\t\tlog_norm_cont[2,d,g] ~ std_normal();\n"
+                    "\t\t}\n\t}\n"
+                )
+                
             else:
-                if self._use_se_kernel:
+                
+                if self._uncert_on_cr:
+                    text += (
+                        "\tfor (g in 1:num_echans){\n"
+                        "\t\tlog_norm_cont[1,g] ~ normal(1,1);\n"
+                        "\t\tlog_norm_cont[2,g] ~ normal(1,1);\n"
+                        "\t}\n"
+                    )
+
+                    text += (
+                        "\tfor (g in 1:num_echans){\n"
+                        "\t\tcr_corr[g] ~ normal(1,0.1);\n"
+                        "\t}\n"
+                        )
+                elif self._use_cr_gp:
+                    text += (
+                        "\tfor (g in 1:num_echans){\n"
+                        "\t\tlog_norm_cont[g] ~ normal(1,1);\n"
+                        #"\t\tlog_norm_cont[2,g] ~ normal(1,1);\n"
+                        "\t}\n"
+                    )
+                    
                     text += (
                         "\tfor (g in 1:num_echans){\n"
                         "\t\tbeta1[g] ~ std_normal();\n"
                         "\t\tbeta2[g] ~ std_normal();\n"
-                        "\t\tbeta1_p[g] ~ std_normal();\n"
-                        "\t\tbeta2_p[g] ~ std_normal();\n"
-                    )
-                    
-                else:
-                    text += (
-                        "\tfor (g in 1:num_echans){\n"
-                        "\t\tbeta1_p[g] ~ std_normal();\n"
-                        "\t\tbeta2_p[g] ~ std_normal();\n"
-                    )
-                    
-                
-            if self._share_omega:
-                if self._use_se_kernel:
-                    text += (
-                        "\tfor (g in 1:num_echans){\n"
+                        "\t\tomega_var[g] ~ std_normal();\n"
                         "\t\traw_scale[g] ~ normal(1,1);\n"
-                        "\t\trange1_raw[g] ~ normal(0.2,0.2);\n"
+                        "\t\trange1_raw[g] ~ normal(0,0.2);\n"
                         "\t}\n"
-                        "\tomega_var ~ std_normal();\n"
+                        )
 
-                    "\tfor (g in 1:num_echans){\n"
-                        "\t\traw_scale_p[g] ~ normal(1,1);\n"
-                        "\t\trange1_raw_p[g] ~ normal(0.2,0.2);\n"
-                        "\t}\n"
-                        #"\tomega_var_p ~ uniform(0,1);\n"
+                elif self._use_only_cr_gp:
+                    if self._not_sample_freq:
+                        text += (
+                            "\tfor (g in 1:num_echans){\n"
+                            "\t\tbeta1[g] ~ std_normal();\n"
+                            "\t\tbeta2[g] ~ std_normal();\n"
+                            "\t\traw_scale[g] ~ normal(1,1);\n"
+                            "\t}\n"
+                        )
+                    else:
+                        if self._share_omega:
+                            text += (
+                                "\tfor (g in 1:num_echans){\n"
+                                "\t\tbeta1[g] ~ std_normal();\n"
+                                "\t\tbeta2[g] ~ std_normal();\n"
+                                "\t\traw_scale[g] ~ normal(1,1);\n"
+                                "\t\trange1_raw[g] ~ normal(0,0.2);\n"
+                                "\t}\n"
+                                "\tomega_var ~ std_normal();\n"
+                                "\tcr_log_const ~ std_normal();\n"
+                            )
 
-                    
-                    "\tcr_log_const ~ std_normal();\n"
-                    )
-                else:
-                    text += (
-                        "\tfor (g in 1:num_echans){\n"
-                        "\t\traw_scale_p[g] ~ normal(1,1);\n"
-                        "\t\trange1_raw_p[g] ~ normal(0.2,0.2);\n"
-                        "\t}\n"
-                        #"\tomega_var_p ~ uniform(0,1);\n"
-
-                    
-                    "\tcr_log_const ~ std_normal();\n"
-                    )
-
-            else:
-                if self._use_se_kernel:
-                    text += (
-                    "\tfor (g in 1:num_echans){\n"
-                    "\t\tomega_var[g] ~ std_normal();\n"
-                    "\t\traw_scale[g] ~ normal(1,1);\n"
-                    "\t\trange1_raw[g] ~ normal(0.2,0.2);\n"
-                    "\t}\n"
-
-                    "\tfor (g in 1:num_echans){\n"
-                    #"\t\tomega_var_p[g] ~ uniform(0,1);\n"
-                    "\t\traw_scale_p[g] ~ normal(1,1);\n"
-                    "\t\trange1_raw_p[g] ~ normal(0.2,0.2);\n"
-                    "\t}\n"
-                    
-                    "\tcr_log_const ~ std_normal();\n"
-                    )
-                else:
-                    text += (
-                    
-                    "\tfor (g in 1:num_echans){\n"
-                    #"\t\tomega_var_p[g] ~ uniform(0,1);\n"
-                    "\t\traw_scale_p[g] ~ normal(1,1);\n"
-                    "\t\trange1_raw_p[g] ~ normal(0.2,0.2);\n"
-                    "\t}\n"
-                    
-                    "\tcr_log_const ~ std_normal();\n"
-                )
-
+                        else:
+                            text += (
+                                "\tfor (g in 1:num_echans){\n"
+                                "\t\tbeta1[g] ~ std_normal();\n"
+                                "\t\tbeta2[g] ~ std_normal();\n"
+                                "\t\tomega_var[g] ~ std_normal();\n"
+                                "\t\traw_scale[g] ~ normal(1,1);\n"
+                                "\t\trange1_raw[g] ~ normal(0,0.2);\n"
+                                "\t}\n"
+                                "\tcr_log_const ~ std_normal();\n"
+                            )
                     
 
         if self._use_eff_area_correction:
@@ -1417,7 +1369,6 @@ class StanModelConstructor(object):
             text += "\t}\n"
             text += "\tprofile(\"reduce_sum\"){\n"
         
-        
         # Reduce sum call
         main = "\ttarget += reduce_sum(partial_sum_lpmf, counts, grainsize\n"
         #main = "\ttarget += partial_sum(counts, 1,size(counts)\n"
@@ -1441,33 +1392,19 @@ class StanModelConstructor(object):
                 main += "\t\t, cr_eff_area_array\n"
             if self._use_only_cr_gp:
                 if self._move_all_to_parallel:
-                    if self._use_se_kernel:
-                        main += "\t\t, beta1\n"
-                        main += "\t\t, beta2\n"
-                        main += "\t\t, scale1\n"
-                        if not self._not_sample_freq:
-                            main += "\t\t, omega_var_row\n"
-                            main += "\t\t, bw\n"
-                        else:
-                            main += "\t\t, omega1\n"
-
-                    main += "\t\t, beta1_p\n"
-                    main += "\t\t, beta2_p\n"
-                    main += "\t\t, scale1_p\n"
+                    main += "\t\t, beta1\n"
+                    main += "\t\t, beta2\n"
+                    main += "\t\t, scale1\n"
                     if not self._not_sample_freq:
-                        main += "\t\t, omega_var_row_p\n"
-                        main += "\t\t, bw_p\n"
-                        #main += "\t\t, t0_var_p\n"
+                        main += "\t\t, omega_var_row\n"
+                        main += "\t\t, bw\n"
                     else:
-                        main += "\t\t, omega1_p\n"
-                        
+                        main += "\t\t, omega1\n"
                     main += "\t\t, norm_mean_time\n"
                     main += "\t\t, time_bin_width\n"
                     main += "\t\t, time_ids\n"
                     main += "\t\t, echans\n"
-                    if self._use_se_kernel: 
-                        main += "\t\t, kn\n"
-                    main += "\t\t, kn_p\n"
+                    main += "\t\t, kn\n"
                     main += "\t\t, Rmin\n"
                     main += "\t\t, cr_log_const\n"
                 else:
@@ -1501,27 +1438,17 @@ class StanModelConstructor(object):
 
         if self._use_cont_sources:
             if self._use_only_cr_gp:
-
-                text += "\tvector[num_data_points] norm_cont_vec;\n"
-                text += "\tvector[num_time_bins] expected_counts_log[num_echans];\n"
-                if self._use_se_kernel:
+                if self._move_all_to_parallel:
+                    text += "\tvector[num_data_points] norm_cont_vec;\n"
+                    text += "\tvector[num_time_bins] expected_counts_log[num_echans];\n"
                     text += "\tmatrix[num_time_bins,kn] tw1[num_echans];\n"
-                text += "\tmatrix[num_time_bins,kn_p] tw1_p[num_echans];\n"
-                #if not self._not_sample_freq:
-                if self._share_omega:
-                    if self._use_se_kernel:
-                        text += "\trow_vector[kn] omega1;\n"
-                    text += "\trow_vector[kn_p] omega1_p;\n"
-                else:
-                    if self._use_se_kernel:
-                        text += "\trow_vector[kn] omega1[num_echans];\n"
-                    text += "\trow_vector[kn_p] omega1_p[num_echans];\n"
-                #else:
-                    
-                #    #if self._share_omega:
-                #    #
-                #    #else:
-                #    #    text += "\trow_vector[kn_p] omega1_p = omega1_p;\n"
+                    if not self._not_sample_freq:
+                        if self._share_omega:
+                            text += "\trow_vector[kn] omega1;\n"
+                        else:
+                            text += "\trow_vector[kn] omega1[num_echans];\n"
+                    else:
+                        text += "\trow_vector[kn] omegas = omega1;\n"
 
                 text += "\tvector[num_data_points] f_cont;\n"
             else:
@@ -1549,34 +1476,6 @@ class StanModelConstructor(object):
             text += "\ttot += f_saa;\n"
 
         if self._use_cont_sources:
-
-            text += (
-                "\tfor (j in 1:num_echans){\n"
-            )
-            
-            text += "\t\tomega1_p=omega_var_p * bw_p[j];\n"
-            text += "\t\tomega1_p[j]=omega_var_p[j] * bw_p[j];\n"
-            text += "\t\ttw1_p[j]=norm_mean_time * omega1_p;\n"
-        
-            text += (
-                "\t\texpected_counts_log[j] = exp(cos(tw1_p[j,:,1])* beta1_p[1] + sin(tw1_p[j,:,1]) * beta2_p[1]);\n"
-                "\t\tfor (z in 2:kn_p){;\n"
-                "\t\texpected_counts_log[j] += exp(cos(tw1_p[j,:,z])* beta1_p[z] + sin(tw1_p[j,:,z]) * beta2_p[z]);\n"
-                "\t\t}\n"
-                "\t\tfor (k in 1:num_time_bins){\n"
-                "\t\t\tfor (i in 1:num_dets){\n"
-                #"\t\t\t\t\tnorm_cont_vec[(k-1)*(num_dets*num_echans)+(i-1)*num_echans+j] = (exp(expected_counts_log[j,k])+pow(10,cr_log_const[j]))*time_bin_width[k];\n"
-                "\t\t\t\t\tnorm_cont_vec[(k-1)*(num_dets*num_echans)+(i-1)*num_echans+j] = (expected_counts_log[j,k]+pow(10,cr_log_const))*scale1_p[j]*time_bin_width[k];\n"
-                "\t\t\t}\n\t\t}\n\t}\n"
-            )
-            text += (
-                "\tf_cont = norm_cont_vec;\n"
-                "\ttot += f_cont;\n"
-            )                
-            
-
-
-        """
             if self._use_cr_eff_area_corr:
                 if self._use_only_cr_gp:
                     if self._move_all_to_parallel:
@@ -1584,114 +1483,31 @@ class StanModelConstructor(object):
                         text += (
                             "\tfor (j in 1:num_echans){\n"
                         )
-                        
                         if not self._not_sample_freq:
                             if self._gp_ordered:
                                 if self._share_omega:
-                                    if self._use_se_kernel:
-                                        text += "\t\tomega1=to_row_vector(omega_var) * bw[j];\n"
-                                    text += "\t\tomega1_p=to_row_vector(omega_var_p) * bw_p[j];\n"
+                                    text += "\t\tomega1=to_row_vector(omega_var) * bw[j];\n"
                                 else:
-                                    if self._use_se_kernel:
-                                        text += "\t\tomega1[j]=to_row_vector(omega_var[j]) * bw[j];\n"
-                                    text += "\t\tomega1_p[j]=to_row_vector(omega_var_p[j]) * bw_p[j];\n"
+                                    text += "\t\tomega1[j]=to_row_vector(omega_var[j]) * bw[j];\n"
                             else:
                                 if self._share_omega:
-                                    if self._use_se_kernel:
-                                        text += "\t\tomega1=omega_var * bw[j];\n"
-                                    text += "\t\tomega1_p=omega_var_p * bw_p[j];\n"
+                                    text += "\t\tomega1=omega_var * bw[j];\n"
                                 else:
-                                    if self._use_se_kernel:
-                                        text += "\t\tomega1[j]=omega_var[j] * bw[j];\n"
-                                    text += "\t\tomega1_p[j]=omega_var_p[j] * bw_p[j];\n"
-
-                                    
+                                    text += "\t\tomega1[j]=omega_var[j] * bw[j];\n"
                             if self._share_omega:
-                                if self._use_se_kernel:
-                                    text += "\t\ttw1[j]=norm_mean_time * omega1;\n"
-                                text += "\t\ttw1_p[j]=norm_mean_time * omega1_p;\n" # - helper_vector*t0_var_p*2*pi();\n"
-                            else:
-                                if self._use_se_kernel:
-                                    text += "\t\ttw1[j]=norm_mean_time * omega1[j];\n"
-                                text += "\t\ttw1_p[j]=norm_mean_time * omega1_p[j];\n"
-                        else:
-                            if self._use_se_kernel:
                                 text += "\t\ttw1[j]=norm_mean_time * omega1;\n"
-                            text += "\t\ttw1_p[j]=norm_mean_time * omega1_p;\n"
-
-                        if self._use_se_kernel:
-                            if self._share_beta:
-
-                                text += (
-                                    "\t\texpected_counts_log[j] = (scale1[j] * cos(tw1[j])* beta1) + (scale1[j] * sin(tw1[j]) * beta2)+(scale1_p[j] * cos(tw1_p[j])* beta1_p) + (scale1_p[j] * sin(tw1_p[j]) * beta2_p);\n"
-                                    "\t\tfor (k in 1:num_time_bins){\n"
-                                    "\t\t\tfor (i in 1:num_dets){\n"
-                                    "\t\t\t\t\tnorm_cont_vec[(k-1)*(num_dets*num_echans)+(i-1)*num_echans+j] = (exp(expected_counts_log[j,k])+pow(10,cr_log_const[j]))*time_bin_width[k];\n"
-                                    "\t\t\t}\n\t\t}\n\t}\n"
-                                )
-                                    
                             else:
-                                text += (
-
-                            "\t\texpected_counts_log[j] = (scale1[j] * cos(tw1[j])* beta1[j]) + (scale1[j] * sin(tw1[j]) * beta2[j])+(scale1_p[j] * cos(tw1_p[j])* beta1_p[j]) + (scale1_p[j] * sin(tw1_p[j]) * beta2_p[j]);\n"
-                            "\t\tfor (k in 1:num_time_bins){\n"
-                            "\t\t\tfor (i in 1:num_dets){\n"
-                            "\t\t\t\t\tnorm_cont_vec[(k-1)*(num_dets*num_echans)+(i-1)*num_echans+j] = (exp(expected_counts_log[j,k])+pow(10,cr_log_const[j]))*time_bin_width[k];\n"
-                            "\t\t\t}\n\t\t}\n\t}\n"
-                                )
+                                text += "\t\ttw1[j]=norm_mean_time * omega1[j];\n"
                         else:
-                            if self._share_beta:
-                                if self._sum_exp:
-                                    if self._cr_const_free:
-                                        text += (
-                                            "\t\texpected_counts_log[j] = exp(scale1_p[j]*(cos(tw1_p[j,:,1])* beta1_p[1] + sin(tw1_p[j,:,1]) * beta2_p[1]));\n"
-                                            "\t\tfor (z in 2:kn_p){;\n"
-                                            "\t\texpected_counts_log[j] += exp(scale1_p[j]*(cos(tw1_p[j,:,z])* beta1_p[z] + sin(tw1_p[j,:,z]) * beta2_p[z]));\n"
-                                            "\t\t}\n"
-                                            "\t\tfor (k in 1:num_time_bins){\n"
-                                            "\t\t\tfor (i in 1:num_dets){\n"
-                                            #"\t\t\t\t\tnorm_cont_vec[(k-1)*(num_dets*num_echans)+(i-1)*num_echans+j] = (exp(expected_counts_log[j,k])+pow(10,cr_log_const[j]))*time_bin_width[k];\n"
-                                            "\t\t\t\t\tnorm_cont_vec[(k-1)*(num_dets*num_echans)+(i-1)*num_echans+j] = (expected_counts_log[j,k]+pow(10,cr_log_const[j]))*time_bin_width[k];\n"
-                                            "\t\t\t}\n\t\t}\n\t}\n"
-                                        )
-                                        
-                                    else:
-                                        
-                                        text += (
+                            text += "\t\ttw1[j]=norm_mean_time * omega1;\n"
+                        text += (
 
-                                        "\t\texpected_counts_log[j] = exp(cos(tw1_p[j,:,1])* beta1_p[1] + sin(tw1_p[j,:,1]) * beta2_p[1]);\n"
-                                        "\t\tfor (z in 2:kn_p){;\n"
-                                        "\t\texpected_counts_log[j] += exp(cos(tw1_p[j,:,z])* beta1_p[z] + sin(tw1_p[j,:,z]) * beta2_p[z]);\n"
-                                        "\t\t}\n"
-                                        "\t\tfor (k in 1:num_time_bins){\n"
-                                        "\t\t\tfor (i in 1:num_dets){\n"
-                                        #"\t\t\t\t\tnorm_cont_vec[(k-1)*(num_dets*num_echans)+(i-1)*num_echans+j] = (exp(expected_counts_log[j,k])+pow(10,cr_log_const[j]))*time_bin_width[k];\n"
-                                        "\t\t\t\t\tnorm_cont_vec[(k-1)*(num_dets*num_echans)+(i-1)*num_echans+j] = (expected_counts_log[j,k]+pow(10,cr_log_const))*scale1_p[j]*time_bin_width[k];\n"
-                                        "\t\t\t}\n\t\t}\n\t}\n"
-                                        )
-
-                                        
-
-                                else:
-                                    text += (
-                            "\t\texpected_counts_log[j] = ((scale1_p[j] * cos(tw1_p[j])* beta1_p) + (scale1_p[j] * sin(tw1_p[j]) * beta2_p));\n"
-                            "\t\tfor (k in 1:num_time_bins){\n"
-                            "\t\t\tfor (i in 1:num_dets){\n"
-                            #"\t\t\t\t\tnorm_cont_vec[(k-1)*(num_dets*num_echans)+(i-1)*num_echans+j] = (exp(expected_counts_log[j,k])+pow(10,cr_log_const[j]))*time_bin_width[k];\n"
-                            "\t\t\t\t\tnorm_cont_vec[(k-1)*(num_dets*num_echans)+(i-1)*num_echans+j] = (pow(1.1,expected_counts_log[j,k])+pow(10,cr_log_const[j]))*time_bin_width[k];\n"
-                            "\t\t\t}\n\t\t}\n\t}\n"
-                                    )
-
-                            else:
-                                text += (
-
-                            "\t\texpected_counts_log[j] = ((scale1_p[j] * cos(tw1_p[j])* beta1_p[j]) + (scale1_p[j] * sin(tw1_p[j]) * beta2_p[j]));\n"
+                            "\t\texpected_counts_log[j] = (scale1[j] * cos(tw1[j])* beta1[j]) + (scale1[j] * sin(tw1[j]) * beta2[j]);\n"
                             "\t\tfor (k in 1:num_time_bins){\n"
                             "\t\t\tfor (i in 1:num_dets){\n"
                             "\t\t\t\t\tnorm_cont_vec[(k-1)*(num_dets*num_echans)+(i-1)*num_echans+j] = (exp(expected_counts_log[j,k])+pow(10,cr_log_const[j]))*time_bin_width[k];\n"
                             "\t\t\t}\n\t\t}\n\t}\n"
-                                )
-
+                        )
 
                         
                     
@@ -1723,7 +1539,7 @@ class StanModelConstructor(object):
                         "\t\ttot += f_cont[i];\n"
                         "\t}\n"
                     )
-        """
+
         if self._use_fixed_global_sources:
             if self._use_eff_area_correction:
                 text += (
@@ -2454,12 +2270,12 @@ class StanDataConstructor(object):
             
         # Stan grainsize for reduced_sum
         if self._threads == 1:
-            data_dict["grainsize"] = int((self._ntimebins - 4) * self._ndets * self._nechans)
+            data_dict["grainsize"] = 1
         else:
-            data_dict["grainsize"] =  int(
-                 (self._ntimebins - 4) * self._ndets * self._nechans / self._threads
-             )
-             
+            data_dict["grainsize"] = 1
+            #int(
+            #    (self._ntimebins - 4) * self._ndets * self._nechans / self._threads
+            #)
         return data_dict
 
     @property

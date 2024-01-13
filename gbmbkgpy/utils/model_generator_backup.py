@@ -53,7 +53,7 @@ class BackgroundModelGenerator(object):
 
     def from_config_file(self, config_yml):
         with open(config_yml) as f:
-            config = yaml.safe_load(f)
+            config = yaml.load(f)
 
         self.from_config_dict(config)
 
@@ -201,22 +201,15 @@ class BackgroundModelGenerator(object):
 
     def _setup_sources(self, config):
         # Create all individual sources and add them to a list
-        #assert (config["setup"]["fix_earth"] and config["setup"]["fix_cgb"]) or (
-        #    not config["setup"]["fix_earth"] and not config["setup"]["fix_cgb"]
-        #), "At the moment albeod and cgb spectrum have to be either both fixed or both free"
+        assert (config["setup"]["fix_earth"] and config["setup"]["fix_cgb"]) or (
+            not config["setup"]["fix_earth"] and not config["setup"]["fix_cgb"]
+        ), "At the moment albeod and cgb spectrum have to be either both fixed or both free"
 
-        if config["setup"]["fix_earth"] or config["setup"]["fix_cgb"]:
-            self._albedo_cgb_obj_fixed = Albedo_CGB_fixed(self._resp,
-                                                    self._geom,
-                                                    earth_dict=config["setup"]["Earth"],
-                                                    cgb_dict=config["setup"]["CGB"])
+        if config["setup"]["fix_earth"]:
+            self._albedo_cgb_obj = Albedo_CGB_fixed(self._resp, self._geom)
         else:
-            self._albedo_cgb_obj_fixed = None
-            
-        if not config["setup"]["fix_earth"] or not config["setup"]["fix_cgb"]:
-            self._albedo_cgb_obj_free = Albedo_CGB_free(self._resp, self._geom)
-        else:
-            self._albedo_cgb_obj_free = None
+            self._albedo_cgb_obj = Albedo_CGB_free(self._resp, self._geom)
+
         #if config["setup"]["use_sun"]:
         #    self._sun_obj = Sun(self._resp, self._geom, config["general"]["echans"])
         #else:
@@ -236,14 +229,11 @@ class BackgroundModelGenerator(object):
             geometry=self._geom,
             echans=config["general"]["echans"],
             det_responses=self._resp,
-            albedo_cgb_object_free=self._albedo_cgb_obj_free,
-            albedo_cgb_object_fixed=self._albedo_cgb_obj_fixed,
+            albedo_cgb_object=self._albedo_cgb_obj,
             gc_object=self._gc_obj,
             use_saa=config["setup"]["use_saa"],
             use_constant=config["setup"]["use_constant"],
-            norm_constant=config["setup"]["Constant"]["norm"],
             use_cr=config["setup"]["use_cr"],
-            norm_cr=config["setup"]["CR"]["norm"],
             use_earth=config["setup"]["use_earth"],
             use_cgb=config["setup"]["use_cgb"],
             use_gc=config["setup"]["use_gc"],
@@ -260,7 +250,7 @@ class BackgroundModelGenerator(object):
         )
 
         import numpy as np
-        self._dets_saa = config["saa"]["dets_saa"] #np.array(["n0"])
+        self._dets_saa = np.array(["n0"])
         print_progress("Done")
 
     def _instantiate_model(self, config):

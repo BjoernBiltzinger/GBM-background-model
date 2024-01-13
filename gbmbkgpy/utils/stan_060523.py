@@ -545,7 +545,34 @@ class StanModelConstructor(object):
                     text += "\tvector[kn_p] beta2_p;\n"
                     
                 if not self._not_sample_freq:
-                    raise
+                    if self._gp_ordered:
+                        if self._share_omega:
+                            if self._use_se_kernel:
+                                text += "\tordered[kn] omega_var;\n"
+                            text += "\tordered<lower=0, upper=1>[kn_p] omega_var_p;\n"
+                        else:
+                            if self._use_se_kernel:
+                                text += "\tordered[kn] omega_var[num_echans];\n"
+                            text += "\tordered<lower=0, upper=1>[kn_p] omega_var_p[num_echans];\n"
+                    else:
+                        if self._share_omega:
+                            if self._use_se_kernel:
+                                text += "\trow_vector[kn] omega_var;\n"
+                            text += "\trow_vector<lower=0, upper=1>[kn_p] omega_var_p;\n"
+                            
+                            #text += "\trow_vector<lower=0, upper=1>[kn_p] t0_var_p;\n"
+                        else:
+                            if self._use_se_kernel:
+                                text += "\trow_vector[kn] omega_var[num_echans]; // this weird MC integration thing.\n"
+                            text += "\trow_vector<lower=0, upper=1>[kn_p] omega_var_p[num_echans];"
+                    if self._cr_const_free:
+                        text += "\tvector[num_echans] cr_log_const;\n"
+                    else:
+                        text += "\treal cr_log_const;\n"
+                        
+                    if self._use_se_kernel:
+                        text += "\tvector<lower=0, upper=1>[num_echans] range1_raw;\n"
+                    text += "\tvector<lower=0, upper=1>[num_echans] range1_raw_p;\n"
                 else:
                     text += "\treal<lower=0> bw;\n"
                     
@@ -743,19 +770,35 @@ class StanModelConstructor(object):
             text += "\tvector[num_data_points] eff_area_array;\n"
 
         if self._use_only_cr_gp:
-            #text += "\tvector[num_echans] scale1_p = raw_scale_p*inv_sqrt(kn_p);\n"
+            if self._use_se_kernel:
+                text += "\tvector[num_echans] scale1 = raw_scale*inv_sqrt(kn);\n"
+
+            text += "\tvector[num_echans] scale1_p = raw_scale_p*inv_sqrt(kn_p);\n"
 
             if not self._not_sample_freq:
-                 text+= (
+                if self._use_se_kernel:
+                    text+= (
+                        "\tvector[num_echans] range = range1_raw*max_range;\n"
+                        "\tvector[num_echans] bw = inv(range);\n"
+                    )
+
+                text+= (
                     "\tvector[num_echans] range_p = range1_raw_p*max_range;\n"
                     "\tvector[num_echans] bw_p = inv(range_p);\n"
-                 )
-                 if self._share_omega:
-                     text += "\trow_vector[kn_p] omega_var_row_p;\n"
-                 else:
-                     text += "\trow_vector[kn_p] omega_var_row_p[num_echans];\n"
+                )
 
-
+            
+                if self._share_omega:
+                    if self._use_se_kernel:
+                        text += "\trow_vector[kn] omega_var_row;\n"
+                    
+                    text += "\trow_vector[kn_p] omega_var_row_p;\n"
+                else:
+                    if self._use_se_kernel:
+                        text += "\trow_vector[kn] omega_var_row[num_echans];\n"
+                    
+                    text += "\trow_vector[kn_p] omega_var_row_p[num_echans];\n"
+            
         #text += (
         #    "\tfor (i in 1:num_dets){\n"
         #    "\t\tfor (j in 1:num_echans){\n"

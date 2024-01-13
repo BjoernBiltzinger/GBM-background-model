@@ -53,14 +53,11 @@ def Setup(
     geometry,
     echans=[],
     det_responses=None,
-    albedo_cgb_object_free=None,
-    albedo_cgb_object_fixed=None,
+    albedo_cgb_object=None,
     gc_object=None,
     use_saa=False,
     use_constant=True,
-        norm_constant=1,
     use_cr=True,
-        norm_cr=1,
     use_earth=True,
     use_cgb=True,
     use_sun=True,
@@ -102,7 +99,7 @@ def Setup(
     """
 
     assert len(echans) > 0, "Please give at least one echan"
-    #echans = sorted(echans)
+    ####echans = sorted(echans)
 
     assert (
         type(use_saa) == bool
@@ -134,11 +131,11 @@ def Setup(
             )
 
         if use_constant:
-            total_sources.append(setup_Constant(data, saa_object, echan, index, norm_constant))
+            total_sources.append(setup_Constant(data, saa_object, echan, index))
 
         if use_cr:
             total_sources.append(
-                setup_CosmicRays(data, ep, saa_object, echan, index, cr_approximation, norm_cr)
+                setup_CosmicRays(data, ep, saa_object, echan, index, cr_approximation)
             )
 
     if use_sun:
@@ -174,23 +171,23 @@ def Setup(
     if use_earth:
 
         if fix_earth:
-            total_sources.append(setup_earth_fix(data, albedo_cgb_object_fixed, saa_object))
+            total_sources.append(setup_earth_fix(data, albedo_cgb_object, saa_object))
 
         else:
             total_sources.append(
                 setup_earth_free(
-                    data, albedo_cgb_object_free, saa_object
+                    data, albedo_cgb_object, saa_object, use_numba=use_numba
                 )
             )
 
     if use_cgb:
 
         if fix_cgb:
-            total_sources.append(setup_cgb_fix(data, albedo_cgb_object_fixed, saa_object))
+            total_sources.append(setup_cgb_fix(data, albedo_cgb_object, saa_object))
 
         else:
             total_sources.append(
-                setup_cgb_free(data, albedo_cgb_object_free, saa_object)
+                setup_cgb_free(data, albedo_cgb_object, saa_object, use_numba=use_numba)
             )
 
     return total_sources
@@ -323,13 +320,13 @@ def setup_sun(data,
     return sun_continuum
 
 
-def setup_Constant(data, saa_object, echan, index, const_norm=1):
+def setup_Constant(data, saa_object, echan, index):
     """
     Constant source
     """
     Constant = ContinuumFunction(f"norm_constant_echan-{echan}")
 
-    Constant.set_function_array(const_norm*np.ones((len(data.time_bins), len(data._detectors), 2)))
+    Constant.set_function_array(np.ones((len(data.time_bins), len(data._detectors), 2)))
 
     Constant.set_saa_zero(saa_object.saa_mask)
 
@@ -340,8 +337,7 @@ def setup_Constant(data, saa_object, echan, index, const_norm=1):
     return Constant_Continuum
 
 
-def setup_CosmicRays(data, ep, saa_object, echan, index,
-                     cr_approximation, cr_norm=1):
+def setup_CosmicRays(data, ep, saa_object, echan, index, cr_approximation):
     """
     Setup for CosmicRay source
     :param index:
@@ -354,7 +350,7 @@ def setup_CosmicRays(data, ep, saa_object, echan, index,
     mag_con = ContinuumFunction(f"norm_magnetic_echan-{echan}")
     if cr_approximation == "BGO":
 
-        mag_con.set_function_array(cr_norm*ep.bgo_cr_approximation((data.time_bins)))
+        mag_con.set_function_array(ep.bgo_cr_approximation((data.time_bins)))
 
         mag_con.remove_vertical_movement()
 
@@ -368,7 +364,7 @@ def setup_CosmicRays(data, ep, saa_object, echan, index,
 
     elif cr_approximation == "MCL":
 
-        mag_con.set_function_array(cr_norm*ep.mc_l_rates((data.time_bins)))
+        mag_con.set_function_array(ep.mc_l_rates((data.time_bins)))
 
         mag_con.set_saa_zero(saa_object.saa_mask)
 
@@ -383,7 +379,7 @@ def setup_CosmicRays(data, ep, saa_object, echan, index,
 
     else:
 
-        mag_con.set_function_array(cr_norm*ep.acd_cr_approximation(data.time_bins))
+        mag_con.set_function_array(ep.acd_cr_approximation(data.time_bins))
 
         mag_con.set_saa_zero(saa_object.saa_mask)
 
@@ -486,7 +482,8 @@ def setup_ps(
         point_source_list=point_source_list,
         data=data,
     )
-
+    print(point_sources)
+    print("^^^^^^^^^^^^^")
     PS_Continuum_dic = {}
     if "auto_swift" in point_source_list.keys():
         limit = point_source_list["auto_swift"]["flux_limit"]
@@ -565,7 +562,7 @@ def setup_ps(
             )
 
             PS_Continuum_dic[name].set_responses(responses=ps.responses)
-            
+
             if ps._time_variation_interp is None:
                 PS_Continuum_dic[name].set_norm_time_variability(
                     np.ones_like(np.mean(data.time_bins, axis=1))
@@ -607,7 +604,7 @@ def setup_ps(
     return PS_Sources_list
 
 
-def setup_earth_free(data, albedo_cgb_object, saa_object, use_numba=True):
+def setup_earth_free(data, albedo_cgb_object, saa_object, use_numba=False):
     """
     Setup Earth Albedo source with free spectrum
     :param data:
@@ -685,7 +682,7 @@ def setup_gc(data, gc_object, saa_object):
     return Source_gc_Continuum
 
 
-def setup_cgb_free(data, albedo_cgb_object, saa_object, use_numba=True):
+def setup_cgb_free(data, albedo_cgb_object, saa_object, use_numba=False):
     """
     Setup CGB source with free spectrum
     :param data:
@@ -764,13 +761,13 @@ def build_point_sources(
 
     # instantiate dic of point source objects
     point_sources_dic = {}
-    print(file_path)
+
     ### Single core calc ###
     for i, ps in enumerate(point_source_list):
+        print(ps)
         for row in ps_df.itertuples():
-            
             if row[1].upper() == ps:
-                
+                print("yeah")
                 if not point_source_list[ps]["fixed"]:
                     point_sources_dic[row[1]] = PointSrc_free(
                         name=row[1],
@@ -782,6 +779,7 @@ def build_point_sources(
                     )
 
                 else:
+                    print("okay")
                     for entry in point_source_list[ps]["spectrum"]:
                         point_sources_dic[f"{row[1]}_{entry}"] = PointSrc_fixed(
                             name=row[1],
@@ -792,9 +790,7 @@ def build_point_sources(
                             echans=echans,
                             spec=point_source_list[ps]["spectrum"][entry],
                         )
-                
                 break
-
 
     # Add the point sources that are given as file with list of point sources
     for i, ps in enumerate(point_source_list):
@@ -885,7 +881,7 @@ def build_point_sources(
         # Read it as pandas
         ps_df_add = pd.read_table(filepath, names=["name", "ra", "dec"])
         # Add all of them as fixed pl sources
-        spec = {"spectrum_type": "pl", "powerlaw_index": "swift", "norm": 1.0}
+        spec = {"spectrum_type": "pl", "powerlaw_index": "swift"}
 
         for row in ps_df_add.itertuples():
             if not row[1].upper() in exclude:

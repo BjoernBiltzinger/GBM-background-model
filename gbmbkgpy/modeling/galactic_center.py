@@ -83,33 +83,39 @@ class GC_fixed:
         :param det_response: response matrix for detector of interest
         """
         
-        reconstr_counts = np.zeros((self._Ntime, len(self._echans))) 
-        
+        #reconstr_counts = np.zeros((self._Ntime, len(self._echans))) 
+        occ_mask = self._calc_earth_occultation_mask(det_response)
+        weights = self._calc_gc_weights(occ_mask, det_response)
+
+        # get flux vector (array of integrated spectrum in specified input bins):
+        # use trapezoidal rule to integrate spectrum
+        # (needs to be adapted if a small number of input bins is used)
+        #flux_vec = np.zeros(len(det_response.Ebin_in_edge)-1)
+        flux_vec = (det_response.Ebin_in_edge[1:]-det_response.Ebin_in_edge[:-1])/6.0*(
+            self._spectrum(det_response.Ebin_in_edge[1:])+self._spectrum(det_response.Ebin_in_edge[:-1])+4*self._spectrum((det_response.Ebin_in_edge[1:]+det_response.Ebin_in_edge[:-1])/2.0)) 
+        #for i in range(len(det_response.Ebin_in_edge)-1):
+        #    x1 = np.array([det_response.Ebin_in_edge[i]])
+        #    x2 = np.array([det_response.Ebin_in_edge[i+1]])
+        #    flux_vec[i] = (x2 - x1)/6.0 * (self._spectrum(x1) + 4*self._spectrum((x1+x2)/2.0)+self._spectrum(x2))
+        counts_response_grid = np.dot(
+            np.swapaxes(det_response.response_array, 1, 2),
+            flux_vec
+        )
+
+        reconstr_counts = np.dot(weights, counts_response_grid)
+
         # implement progress bar to monitor progress
-        with progress_bar(self._Ntime, 
-                          title=f"Calculating reconstructed count rates of galactic center for detector {self._current_det}"
-                         ) as p:
+        #with progress_bar(self._Ntime, 
+        #                  title=f"Calculating reconstructed count rates of galactic center for detector {self._current_det}"
+        #                 ) as p:
 
-            occ_mask = self._calc_earth_occultation_mask(det_response)
-            weights = self._calc_gc_weights(occ_mask, det_response)
-
-            # get flux vector (array of integrated spectrum in specified input bins):
-            # use trapezoidal rule to integrate spectrum
-            # (needs to be adapted if a small number of input bins is used)
-            flux_vec = np.zeros(len(det_response.Ebin_in_edge)-1)
-            for i in range(len(det_response.Ebin_in_edge)-1):
-                x1 = np.array([det_response.Ebin_in_edge[i]])
-                x2 = np.array([det_response.Ebin_in_edge[i+1]])
-                flux_vec[i] = 0.5 * (x2 - x1) * (self._spectrum(x1) + self._spectrum(x2))
-            
-            
-            for time in range(self._Ntime):
-                # transposing is needed due to numpy broadcasting rules
-                total_resp_matr = np.sum((det_response.response_array.T * weights[time, :]).T, axis=0)
-                reconstr_counts[time, :] = total_resp_matr.T @ flux_vec
-                # multiplication with sr_points has already been done in calc_gc_weights function
-                
-                p.increase()
+        #    for time in range(self._Ntime):
+        #        # transposing is needed due to numpy broadcasting rules
+        #        total_resp_matr = np.sum((det_response.response_array.T * weights[time, :]).T, axis=0)
+        #        reconstr_counts[time, :] = total_resp_matr.T @ flux_vec
+        #        # multiplication with sr_points has already been done in calc_gc_weights function
+        
+        #        p.increase()
 
         return reconstr_counts
     
@@ -177,12 +183,16 @@ class GC_fixed:
 
             # get l and b in the new coord system
             # set up in a way that b=l=0 points towards y-axis
+            mask = points_transformed[:,2]>1
+            mask2 = points_transformed[:,2]<-1
+            points_transformed[:,2][mask] = 1
+            points_transformed[:,2][mask2] = -1
             b = np.arcsin(points_transformed[:,2])
             l = np.arctan2(points_transformed[:,0],points_transformed[:,1])
 
             # get the weights
             weight = self._lorentzian(l, b)
-
+            
             # populate weights array with weight
             weights[time, ...] = weight
 

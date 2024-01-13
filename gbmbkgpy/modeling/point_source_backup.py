@@ -1,10 +1,11 @@
+import numpy as np
+import pandas as pd
+from gbm_drm_gen.drmgen import DRMGen
+from gbmgeometry import PositionInterpolator
+from gbmbkgpy.io.package_data import get_path_of_data_file
 from gbmbkgpy.utils.progress_bar import progress_bar
 from gbmbkgpy.utils.spectrum import _spec_integral_bb, _spec_integral_pl
 from scipy.interpolate import interpolate
-from gbmgeometry import PositionInterpolator
-import astropy.coordinates as coord
-from gbm_drm_gen.drmgen import DRMGen
-import numpy as np
 
 try:
 
@@ -18,30 +19,46 @@ try:
         comm = MPI.COMM_WORLD
         rank = comm.Get_rank()
         size = comm.Get_size()
-
+        if rank == 0:
+            pr = True
+        else:
+            pr = False
     else:
-
+        pr = True
         using_mpi = False
 except:
 
     using_mpi = False
+    pr = True
 
-# TODO: Change Sun object for new layout with multi detectors
-class Sun(object):
-    def __init__(self, det_responses, geometry_object, echans, spec):
+
+class PointSrc_free(object):
+    def __init__(self, name, ra, dec, det_responses, geometry, echans):
         """
-        Initalize the Sun as source with a free powerlaw and precalcule the response for all times
-        for which the geometry was calculated.
+        Initialize a PS and precalculates the response for all the times for which the geomerty was
+        calculated. Needed for a spectral fit of the point source.
+
+        :params name: Name of PS
+        :params ra: ra position of PS (J2000)
+        :params dec: dec position of PS (J2000)
         :params response_object: response_precalculation object
         :params geometry_object: geomerty precalculatation object
-        :params echan_list: which echan
+        :params index: Powerlaw index of PS spectrum
         """
-        self._geom = geometry_object
-        self._rsp = det_responses.responses
-        self._detectors = list(det_responses.responses.keys())
-        self._data_type = self._rsp[self._detectors[0]].data_type
-        self._echans = echans
+        self._name = name
 
+        self._ra = float(ra)
+        self._dec = float(dec)
+
+        self._detectors = list(det_responses.responses.keys())
+
+        self._rsp = det_responses.responses
+        self._geom = geometry
+
+        self._data_type = self._rsp[self._detectors[0]].data_type
+        
+        self._echans = echans
+        
         if self._data_type == "ctime" or self._data_type == "trigdat":
             echans_mask = []
 
@@ -81,59 +98,57 @@ class Sun(object):
                 echans_mask.append(mask)
 
         self._echans_mask = echans_mask
-        self._piv = 10
+
+
+        Eout_edges = list(self._rsp.values())[0].Ebin_out_edge
+        Ebins = np.zeros((len(Eout_edges)-1,2))
+        Ebins[:,0] = Eout_edges[:-1]
+        Ebins[:,1] = Eout_edges[1:]
+        mi = np.zeros(len(self._echans_mask))
+        ma = np.zeros(len(self._echans_mask))
+        for i, mask in enumerate(self._echans_mask):
+            mi[i] = np.min(np.argwhere(mask))
+            ma[i] = np.max(np.argwhere(mask))
+        minindex = int(np.min(mi))
+        maxindex = int(np.max(ma)) 
+        self._piv = np.sqrt(Ebins[minindex,0]*Ebins[maxindex,1]) 
+        print(f"piv energy for point source {name}: {self._piv})")
+        self._time_variation_interp = None
+
         self._calc_det_responses()
-        # Read the spec dict to figure out which spec and the spectral params
-        self._read_spec(spec)
-
-        # Calculate the rates for the ps with the normalization set to 1
-        self._calc_sun_rates()
-
-        # Interpolate between the times, for which the geometry was calculated
-        self._interpolate_sun_rates()
 
     @property
-    def sun_response_array(self):
+    def responses(self):
+        return self._rsp
+
+    @property
+    def ps_effective_response(self):
         """
         Returns an array with the poit source response for the times for which the geometry
         was calculated.
         """
-        return self._sun_response
+        return self._ps_response
 
-    @property
-    def geometry_times(self):
-
-        return self._geom.time
-
-    @property
-    def Ebin_in_edge(self):
+    def set_time_variation_interp(self, interp):
         """
-        Returns the Ebin_in edges as defined in the response object
+        Set an interpolator defining the time variation of the point source
         """
-        return self._rsp.Ebin_in_edge
+        self._time_variation_interp = interp
 
     def _calc_det_responses(self):
 
-        sun_response = {}
+        ps_response = {}
 
         for det_idx, det in enumerate(self._detectors):
 
-            sun_response[det] = self._response_one_det(det_response=self._rsp[det])
+            ps_response[det] = self._response_one_det(det_response=self._rsp[det])
 
-        self._sun_response = sun_response
+        self._ps_response = ps_response
 
-    
     def _response_one_det(self, det_response):
-        """
-        Funtion that imports and precalculate everything that is needed to get the point source array
-        for all echans
-        :return:
-        """
 
         response_matrix = []
 
-        sun_positions = self._geom.sun_positions
-        
         pos_inter = PositionInterpolator(quats=np.array([self._geom.quaternion[0], self._geom.quaternion[0]]), 
                                                sc_pos=np.array([self._geom.sc_pos[0],self._geom.sc_pos[0]]) ,
                                                time=np.array([-1,1]), trigtime=0)
@@ -151,7 +166,7 @@ class Sun(object):
             d._compute_spacecraft_coordinates()
             
             all_response_step = (d
-                .to_3ML_response_direct_sat_coord(sun_positions[j].lon.deg, sun_positions[j].lat.deg)
+                .to_3ML_response(self._ra, self._dec)
                 .matrix
             )
 
@@ -169,6 +184,47 @@ class Sun(object):
         response_matrix = np.array(response_matrix)
 
         return response_matrix
+
+    @property
+    def name(self):
+
+        return self._name
+
+
+class PointSrc_fixed(PointSrc_free):
+    def __init__(
+        self,
+        name,
+        ra,
+        dec,
+        det_responses,
+        geometry,
+        echans,
+        spec,  # spectral_index=2.114
+    ):
+        super(PointSrc_fixed, self).__init__(
+            name, ra, dec, det_responses, geometry, echans
+        )
+        """
+        Initialize a PS and precalculates the rates for all the times for which the geomerty was
+        calculated.
+
+        :params name: Name of PS
+        :params ra: ra position of PS (J2000)
+        :params dec: dec position of PS (J2000)
+        :params response_object: response_precalculation object
+        :params geometry_object: geomerty precalculatation object
+        :params spec: Which spectrum type? pl or bb? And spectral params.
+        #:params index: Powerlaw index of PS spectrum
+        """
+        # Read the spec dict to figure out which spec and the spectral params
+        self._read_spec(spec)
+
+        # Calculate the rates for the ps with the normalization set to 1
+        self._calc_ps_rates()
+
+        # Interpolate between the times, for which the geometry was calculated
+        self._interpolate_ps_rates()
 
     def _read_spec(self, spec):
         """
@@ -188,9 +244,12 @@ class Sun(object):
         if self._spec_type == "bb":
             self._bb_temp = spec["blackbody_temp"]
         if self._spec_type == "pl":
-            self._pl_index = spec["powerlaw_index"]
+            if spec["powerlaw_index"] == "swift":
+                self._pl_index = self._get_swift_pl_index()
+            else:
+                self._pl_index = spec["powerlaw_index"]
 
-    def get_sun_rates(self, met):
+    def get_ps_rates(self, met):
         """
         Returns an array with the predicted count rates for the times for which the geometry
         was calculated for all energy channels. Assumed an normalization=1 (will be fitted later)
@@ -199,25 +258,36 @@ class Sun(object):
         """
 
         # Get the rates for all times
-        sun_rates = self._interp_rate_sun(met)
+        ps_rates = self._interp_rate_ps(met)
 
         # The interpolated flux has the dimensions (len(time_bins), 2, len(detectors), len(echans))
         # We want (len(time_bins), len(detectors), len(echans), 2) so we net to swap axes
         # The 2 is the start stop in the time_bins
 
-        sun_rates = np.swapaxes(sun_rates, 1, 2)
-        sun_rates = np.swapaxes(sun_rates, 2, 3)
+        ps_rates = np.swapaxes(ps_rates, 1, 2)
+        ps_rates = np.swapaxes(ps_rates, 2, 3)
 
-        return sun_rates
+        if self._time_variation_interp is not None:
 
-    def _calc_sun_rates(self):
+            time_variation = np.tile(
+                self._time_variation_interp(met),
+                (len(self._echans), len(self._detectors), 1, 1),
+            )
+
+            time_variation = np.swapaxes(time_variation, 0, 2)
+
+            ps_rates = ps_rates * np.clip(time_variation, a_min=0, a_max=None)
+
+        return ps_rates
+
+    def _calc_ps_rates(self):
         """
         Calaculates the rate in all energy channels for all times for which the geometry was calculated.
         Uses the responses calculated in _response_array.
         :param pl_index: Index of powerlaw
         """
 
-        folded_flux_sun = np.zeros(
+        folded_flux_ps = np.zeros(
             (
                 len(self._geom.geometry_times),
                 len(self._detectors),
@@ -226,23 +296,23 @@ class Sun(object):
         )
 
         for det_idx, det in enumerate(self._detectors):
-            true_flux_sun = self._integral_sun(
+            true_flux_ps = self._integral_ps(
                 e1=self._rsp[det].Ebin_in_edge[:-1], e2=self._rsp[det].Ebin_in_edge[1:]
             )
 
-            sun_response_det = self._sun_response[det]
+            ps_response_det = self._ps_response[det]
 
-            folded_flux_sun[:, det_idx, :] = np.dot(true_flux_sun, sun_response_det)
+            folded_flux_ps[:, det_idx, :] = np.dot(true_flux_ps, ps_response_det)
 
-        self._folded_flux_sun = folded_flux_sun
+        self._folded_flux_ps = folded_flux_ps
 
-    def _interpolate_sun_rates(self):
+    def _interpolate_ps_rates(self):
 
-        self._interp_rate_sun = interpolate.interp1d(
-            self._geom.geometry_times, self._folded_flux_sun, axis=0
+        self._interp_rate_ps = interpolate.interp1d(
+            self._geom.geometry_times, self._folded_flux_ps, axis=0
         )
 
-    def _integral_sun(self, e1, e2):
+    def _integral_ps(self, e1, e2):
         """
         Method to integrate the diff. flux over the Ebins of the incoming photons
         :params e1: lower bound of Ebin_in
@@ -255,6 +325,35 @@ class Sun(object):
 
         if self._spec_type == "pl":
             return _spec_integral_pl(e1, e2, 1, self._piv, self._pl_index)
+
+    def _get_swift_pl_index(self):
+        """
+        Get the index of this point source from the pl fit to the 105 month survey of Swift
+        :return: pl index
+        """
+        bat = pd.read_table(
+            get_path_of_data_file("background_point_sources/", "BAT_catalog_clean.dat"),
+            names=["name1", "name2", "pl_index"],
+        )
+
+        res = bat.pl_index[bat[bat.name2.str.upper() == self.name.upper()].index].values
+        if len(res) == 0:
+            pl_index = 3
+            if pr:
+                print(
+                    f"No index found for {self.name} in the swift 105 month survey."
+                    f" We will set the index to -{pl_index}"
+                )
+
+        else:
+            pl_index = float(res[0])
+            if pr:
+                print(
+                    f"Index for {self.name} is set to {-1*pl_index}"
+                    " according to the Swift 105 month survey"
+                )
+
+        return pl_index
 
     @property
     def spec_type(self):

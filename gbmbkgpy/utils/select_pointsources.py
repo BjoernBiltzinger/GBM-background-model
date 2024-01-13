@@ -138,7 +138,7 @@ class SelectPointsources(object):
 
         min_date = (Time(min_mjd, format="mjd").isot).split("T")[0]
         max_date = (Time(max_mjd, format="mjd").isot).split("T")[0]
-
+        
         if not (self._time > min_mjd and self._time < max_mjd):
             force = False
 
@@ -176,7 +176,7 @@ class SelectPointsources(object):
             ra = []
             dec = []
             for i, key in enumerate(h.keys()):
-                names.append(key.replace("p", "+"))
+                names.append(key.replace("p", "+").upper())
                 ra.append(h[key].attrs["Ra"])
                 dec.append(h[key].attrs["Dec"])
                 rates = h[key]["Rates"][()]
