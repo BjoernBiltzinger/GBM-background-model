@@ -32,7 +32,7 @@ def plot_lightcurve(model, ax=None, rates=True, eff_echan=None, bin_width=None,
         model.data.rebin_data(bin_width)
 
     if rates:
-        width = model._data.time_bin_width
+        width = model.data.time_bin_width
         ax.set_ylabel("Count rates [cnts/s]")
     else:
         width = 1
@@ -98,10 +98,14 @@ def plot_lightcurve(model, ax=None, rates=True, eff_echan=None, bin_width=None,
                     label = total_model_label
             else:
                 label = None
-            ax.plot(times[start:stop],
-                    model.get_model_counts(time_bins=time_bins[start:stop])[:, eff_echan]/width[start:stop],
-                    color=total_model_color, label=label,
-                    alpha=model_alpha, zorder=10)
+            try:
+                ax.plot(times[start:stop],
+                        model.get_model_counts(time_bins=time_bins[start:stop])[:, eff_echan]/width[start:stop],
+                        color=total_model_color, label=label,
+                        alpha=model_alpha, zorder=10)
+            except TypeError:
+                ax.plot(times[start:stop], model.get_model_counts(time_bins=time_bins[start:stop])[:, eff_echan], color=total_model_color, label=label,alpha=model_alpha, zorder=10)
+
         num_labels += 1
 
     if plot_ppc:
@@ -135,9 +139,12 @@ def plot_lightcurve(model, ax=None, rates=True, eff_echan=None, bin_width=None,
                 label = "PPC"
             else:
                 label = None
-            ax.fill_between(times[start:stop],
-                            min_p[start:stop]/width[start:stop],
-                            max_p[start:stop]/width[start:stop],
+            try:
+                ax.fill_between(times[start:stop],min_p[start:stop]/width[start:stop], max_p[start:stop]/width[start:stop], color=ppc_color,alpha=ppc_alpha, label=label, linewidth=0, zorder=-5)
+            except TypeError:
+                ax.fill_between(times[start:stop],
+                            min_p[start:stop],
+                            max_p[start:stop],
                             color=ppc_color,
                             alpha=ppc_alpha, label=label, linewidth=0, zorder=-5)
 
@@ -150,9 +157,11 @@ def plot_lightcurve(model, ax=None, rates=True, eff_echan=None, bin_width=None,
                 label = comp
             else:
                 label = None
-            ax.plot(times[start:stop],
-                    model.get_model_counts_given_source([comp], time_bins=time_bins[start:stop])[:, eff_echan]/width[start:stop],
-                    color=color, label=label, alpha=model_alpha, zorder=9)
+            try:
+                ax.plot(times[start:stop], model.get_model_counts_given_source([comp], time_bins=time_bins[start:stop])[:, eff_echan]/width[start:stop],color=color, label=label, alpha=model_alpha, zorder=9)
+            except TypeError:
+                 ax.plot(times[start:stop], model.get_model_counts_given_source([comp], time_bins=time_bins[start:stop])[:, eff_echan],color=color, label=label, alpha=model_alpha, zorder=9)
+
         num_labels += 1
 
     if plot_saa:
@@ -167,11 +176,11 @@ def plot_lightcurve(model, ax=None, rates=True, eff_echan=None, bin_width=None,
                     label = "SAA"
                 else:
                     label = None
-                ax.plot(times[start:stop],
-                        model.get_model_counts_given_source(saa_sources,
-                                                            time_bins=time_bins[start:stop])[:, eff_echan]/width[start:stop],
-                        color=saa_color, label=label, alpha=model_alpha,
-                        zorder=9)
+                try:
+                    ax.plot(times[start:stop],model.get_model_counts_given_source(saa_sources, time_bins=time_bins[start:stop])[:, eff_echan]/width[start:stop], color=saa_color, label=label, alpha=model_alpha,zorder=9)
+                except TypeError:
+                    ax.plot(times[start:stop],model.get_model_counts_given_source(saa_sources, time_bins=time_bins[start:stop])[:, eff_echan], color=saa_color, label=label, alpha=model_alpha,zorder=9)
+
             num_labels += 1
 
     for name, mark in time_marks.items():

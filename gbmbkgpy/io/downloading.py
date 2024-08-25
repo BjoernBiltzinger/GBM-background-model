@@ -205,7 +205,7 @@ def download_trigdata_file(trigger):
 
         if not final_path.exists():
             path_to_file = None
-            for version in ["0", "1", "2", "3", "4"]:
+            for version in ["0", "1", "2", "3", "4","5","6"]:
                 try:
                     path_to_file = download_file(f"{base_url}{version}.fits")
                 except HTTPError:
